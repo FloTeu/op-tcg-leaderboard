@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "op-tcg"
+version = "0.1.0"
+description = ""
+authors = ["fteutsch <florianteutsch@yahoo.de>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "op_tcg"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+python-dotenv = "^1.0.0"
+
+
+[tool.poetry.group.crawler.dependencies]
+selenium-wire = "^5.1.0"
+selenium = "^4.16.0"
+requests = "^2.31.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
