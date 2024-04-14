@@ -24,8 +24,9 @@ class LimitlessSpider(scrapy.Spider):
 
     def get_leaders(self, data_dir: Path | None = None) -> list[str]:
         """Returns list of leader ids e.g. OP01-001 for crawling the limitless site"""
-        #TODO: Read from dynamically updates source e.g. big query
+        #TODO: Read from dynamically updated source e.g. big query
         leaders = ["OP01-001"]
+        #leaders = ['ST02-001', 'OP03-040', 'OP04-019', 'OP04-040', 'ST03-001', 'OP03-022', 'P-047', 'OP06-001', 'ST05-001', 'ST09-001', 'ST01-001', 'OP05-098', 'ST08-001', 'OP02-072', 'OP02-093', 'OP03-077', 'OP04-039', 'OP03-001', 'OP03-076', 'ST13-003', 'OP03-021', 'OP01-091', 'OP02-071', 'OP06-042', 'ST10-001', 'OP02-001', 'OP05-041', 'ST10-003', 'OP04-058', 'OP01-001', 'OP01-060', 'OP02-049', 'ST13-002', 'OP01-003', 'OP06-080', 'OP01-002', 'OP01-061', 'OP06-022', 'OP01-062', 'OP05-002', 'ST13-001', 'OP06-021', 'OP01-031', 'ST11-001', 'OP02-026', 'ST12-001', 'OP03-099', 'OP03-058', 'ST10-002', 'OP05-001', 'OP05-060', 'ST07-001', 'OP04-020', 'OP04-001', 'OP06-020', 'OP05-022', 'ST04-001', 'OP02-025', 'OP02-002']
         if data_dir:
             leaders = []
             matches = self.read_json_files(data_dir)
@@ -41,7 +42,7 @@ class LimitlessSpider(scrapy.Spider):
 
     def start_requests(self):
         data_dir = Path(op_tcg.__file__).parent.parent / "data" / "limitless"
-        leaders = self.get_leaders(data_dir)
+        leaders = self.get_leaders()
         meta_formats = self.get_meta_formats()
         urls = []
         for leader in leaders:
@@ -81,8 +82,9 @@ class LimitlessSpider(scrapy.Spider):
         leader = response.url.split("/")[-2]
         meta_format = response.url.split("/")[-1].split("set=")[-1]
         filename = f"limitless_{leader}_{meta_format}.html"
-        data_dir = Path(op_tcg.__file__).parent.parent / "data" / "html" / filename
-        data_dir.write_bytes(response.body)
+        data_dir = Path(op_tcg.__file__).parent.parent / "data" / "html"
+        data_dir.mkdir(parents=True, exist_ok=True)
+        (data_dir / filename).write_bytes(response.body)
 
         # Parse the HTML content
         soup = BeautifulSoup(response.text, 'html.parser')

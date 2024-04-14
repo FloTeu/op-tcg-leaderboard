@@ -1,2 +1,26 @@
 # op-tcg
-Project related to the one piece trading card game
+Unofficial one piece tcg leaderboard with extended analytic features. 
+
+
+## Local Setup
+
+### Environment System
+```sh
+pip install poetry
+or
+brew install poetry
+```
+```sh
+poetry install --with crawler
+```
+Access environment in your shell
+```sh
+poetry shell
+```
+
+
+## Crawling
+```
+cd op_tcg/crawling/matches
+scrapy crawl limitless
+```

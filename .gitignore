@@ -1,0 +1,12 @@
+.DS_Store
+.env
+.idea
+.ipynb_checkpoints
+.rtx.toml
+.streamlit/*.toml
+.tool-versions
+.venv
+.coverage*
+__pycache__
+data
+dist
