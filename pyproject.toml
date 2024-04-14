@@ -10,12 +10,13 @@ packages = [{include = "op_tcg"}]
 [tool.poetry.dependencies]
 python = "^3.10"
 python-dotenv = "^1.0.0"
+pydantic = "^2.7.0"
 
 
 [tool.poetry.group.crawler.dependencies]
-selenium-wire = "^5.1.0"
-selenium = "^4.16.0"
 requests = "^2.31.0"
+scrapy = "^2.11.1"
+beautifulsoup4 = "^4.12.3"
 
 [build-system]
 requires = ["poetry-core"]
