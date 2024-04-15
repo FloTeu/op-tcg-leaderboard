@@ -1,4 +1,14 @@
+from enum import Enum
+
 from pydantic import BaseModel, Field
+
+class MetaFormat(str, Enum):
+    OP01 = "OP01"
+    OP02 = "OP02"
+    OP03 = "OP03"
+    OP04 = "OP04"
+    OP05 = "OP05"
+    OP06 = "OP06"
 
 
 class LimitlessMatch(BaseModel):
@@ -13,5 +23,6 @@ class LimitlessMatch(BaseModel):
 
 class LimitlessLeaderMetaMatches(BaseModel):
     leader_id: str = Field(description="The op tcg leader id e.g. OP03-099")
-    meta_format: str = Field(description="Meta in which matches happened, e.g. OP06")
+    meta_format: MetaFormat = Field(description="Meta in which matches happened, e.g. OP06")
     matches: list[LimitlessMatch] = Field(description="List of matches between this leader with all others")
+

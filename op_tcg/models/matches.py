@@ -1,21 +1,14 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
-from enum import IntEnum, Enum
+from enum import IntEnum
+
+from op_tcg.models.input import MetaFormat
 
 
 class MatchResult(IntEnum):
     LOSE = 0
     WIN = 1
     DRAW = 2
-
-
-class MetaFormat(str, Enum):
-    OP01 = "OP01"
-    OP02 = "OP02"
-    OP03 = "OP03"
-    OP04 = "OP04"
-    OP05 = "OP05"
-    OP06 = "OP06"
 
 
 class BQMatch(BaseModel):
