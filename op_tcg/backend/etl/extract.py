@@ -2,7 +2,7 @@ import json
 import os
 from pathlib import Path
 
-from op_tcg.models.input import LimitlessLeaderMetaMatches
+from op_tcg.backend.models.input import LimitlessLeaderMetaMatches
 
 
 def read_json_files(data_dir: str) -> list[LimitlessLeaderMetaMatches]:

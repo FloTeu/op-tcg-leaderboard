@@ -1,11 +1,9 @@
 import scrapy
 import op_tcg
-import os
-import json
 from pathlib import Path
 from bs4 import BeautifulSoup
-from op_tcg.models.input import LimitlessMatch, LimitlessLeaderMetaMatches, MetaFormat
-from op_tcg.etl.extract import read_json_files
+from op_tcg.backend.models.input import LimitlessMatch, LimitlessLeaderMetaMatches, MetaFormat
+from op_tcg.backend.etl.extract import read_json_files
 
 
 class LimitlessSpider(scrapy.Spider):

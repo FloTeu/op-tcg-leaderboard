@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 from enum import IntEnum
 
-from op_tcg.models.input import MetaFormat
+from op_tcg.backend.models.input import MetaFormat
 
 
 class MatchResult(IntEnum):

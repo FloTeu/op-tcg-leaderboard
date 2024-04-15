@@ -1,13 +1,10 @@
 from pathlib import Path
 
 import click
-import os
-
-from scrapy.utils.project import get_project_settings
 from scrapy.crawler import CrawlerProcess
-from op_tcg.crawling.spiders.limitless import LimitlessSpider
-from op_tcg.etl.extract import get_leader_ids
-from op_tcg.models.input import MetaFormat
+from op_tcg.backend.crawling.spiders import LimitlessSpider
+from op_tcg.backend.etl import get_leader_ids
+from op_tcg.backend.models.input import MetaFormat
 
 
 @click.group("crawl", help="Crawling functionality")

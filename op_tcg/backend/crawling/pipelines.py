@@ -1,7 +1,7 @@
 import op_tcg
 import json
 from pathlib import Path
-from op_tcg.models.input import LimitlessLeaderMetaMatches
+from op_tcg.backend.models.input import LimitlessLeaderMetaMatches
 
 
 class MatchesPipeline:
