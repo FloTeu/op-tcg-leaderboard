@@ -2,8 +2,8 @@ from pathlib import Path
 
 import click
 from scrapy.crawler import CrawlerProcess
-from op_tcg.backend.crawling.spiders import LimitlessSpider
-from op_tcg.backend.etl import get_leader_ids
+from op_tcg.backend.crawling.spiders.limitless import LimitlessSpider
+from op_tcg.backend.etl.extract import get_leader_ids
 from op_tcg.backend.models.input import MetaFormat
 
 
@@ -17,10 +17,12 @@ def crawling_group() -> None:
 
 @crawling_group.command()
 @click.option("--meta-formats", "-m", multiple=True)
+@click.option("--leader_ids", "-l", multiple=True)
 @click.option("--use_all_leader_ids", is_flag=True, show_default=True, default=False)
 @click.option("--data-dir", type=click.Path(), default=None)
 def limitless(
     meta_formats: list[MetaFormat] | None = None,
+    leader_ids: list[str] | None = None,
     use_all_leader_ids: bool = False,
     data_dir: Path | None = None
 ) -> None:
@@ -30,9 +32,11 @@ def limitless(
     data_dir: directory with op_tcg.models.input.LimitlessLeaderMetaMatches files, if None OP01-001 is used
     """
     process = CrawlerProcess({
-        'ITEM_PIPELINES': {'op_tcg.crawling.pipelines.MatchesPipeline': 1},  # Hooking in our custom pipline above
+        'ITEM_PIPELINES': {'op_tcg.backend.crawling.pipelines.MatchesPipeline': 1},  # Hooking in our custom pipline above
     })
-    leader_ids = []
+    if meta_formats:
+        # ensure enum format
+        meta_formats = [MetaFormat(meta_format) for meta_format in meta_formats]
     if use_all_leader_ids:
         leader_ids = ['ST02-001', 'OP03-040', 'OP04-019', 'OP04-040', 'ST03-001', 'OP03-022', 'P-047', 'OP06-001', 'ST05-001',
                    'ST09-001', 'ST01-001', 'OP05-098', 'ST08-001', 'OP02-072', 'OP02-093', 'OP03-077', 'OP04-039',

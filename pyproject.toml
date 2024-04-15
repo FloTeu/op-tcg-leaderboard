@@ -8,7 +8,7 @@ readme = "README.md"
 packages = [{include = "op_tcg"}]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.11"
 python-dotenv = "^1.0.0"
 pydantic = "^2.7.0"
 click = "^8.1.7"
@@ -24,4 +24,4 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-optcg = 'op_tcg.app:app'
+optcg = 'op_tcg.cli_app:app'

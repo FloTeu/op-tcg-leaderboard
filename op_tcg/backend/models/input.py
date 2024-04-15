@@ -1,8 +1,8 @@
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-class MetaFormat(str, Enum):
+class MetaFormat(StrEnum):
     OP01 = "OP01"
     OP02 = "OP02"
     OP03 = "OP03"

@@ -35,7 +35,7 @@ class LimitlessSpider(scrapy.Spider):
         urls = []
         for leader in leader_ids:
             for meta_format in meta_formats:
-                urls.append(f"https://play.limitlesstcg.com/decks/{leader}/matchups?game=OP&set={meta_format}")
+                urls.append(f"https://play.limitlesstcg.com/decks/{leader}/matchups?game=OP&set={meta_format.value}")
 
         for url in urls:
             yield scrapy.Request(url=url, callback=self.parse)
@@ -68,7 +68,7 @@ class LimitlessSpider(scrapy.Spider):
 
     def parse(self, response):
         leader = response.url.split("/")[-2]
-        meta_format = response.url.split("/")[-1].split("set=")[-1]
+        meta_format = MetaFormat(response.css('.format::text').get().split(" ")[0])
         filename = f"limitless_{leader}_{meta_format}.html"
         data_dir = Path(op_tcg.__file__).parent.parent / "data" / "html"
         data_dir.mkdir(parents=True, exist_ok=True)
