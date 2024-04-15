@@ -11,6 +11,7 @@ packages = [{include = "op_tcg"}]
 python = "^3.10"
 python-dotenv = "^1.0.0"
 pydantic = "^2.7.0"
+click = "^8.1.7"
 
 
 [tool.poetry.group.crawler.dependencies]
@@ -21,3 +22,6 @@ beautifulsoup4 = "^4.12.3"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+optcg = 'op_tcg.app:app'

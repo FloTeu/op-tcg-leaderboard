@@ -20,7 +20,7 @@ poetry shell
 
 
 ## Crawling
+Get raw data from limitless
 ```
-cd op_tcg/crawling/matches
-scrapy crawl limitless
+optcg crawl limitless
 ```
