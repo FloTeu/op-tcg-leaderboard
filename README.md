@@ -24,3 +24,10 @@ Get raw data from limitless
 ```
 optcg crawl limitless
 ```
+
+
+## Update Big Query Date
+Get raw data from limitless
+```
+optcg etl upload-matches
+```

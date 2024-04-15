@@ -26,3 +26,5 @@ class LimitlessLeaderMetaMatches(BaseModel):
     meta_format: MetaFormat = Field(description="Meta in which matches happened, e.g. OP06")
     matches: list[LimitlessMatch] = Field(description="List of matches between this leader with all others")
 
+class AllMetaLeaderMatches(BaseModel):
+    documents: list[LimitlessLeaderMetaMatches]
