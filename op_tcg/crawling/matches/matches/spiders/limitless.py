@@ -4,7 +4,7 @@ import os
 import json
 from pathlib import Path
 from bs4 import BeautifulSoup
-from op_tcg.crawling.matches.matches.items import LimitlessMatch, LimitlessLeaderMetaMatches
+from op_tcg.models.input import LimitlessMatch, LimitlessLeaderMetaMatches
 
 
 class LimitlessSpider(scrapy.Spider):
@@ -66,14 +66,14 @@ class LimitlessSpider(scrapy.Spider):
         num_matches = int(row['data-matches'])
         win_rate = float(row['data-winrate'])
         score_str = row.select_one('td.nowrap').text
-        score_win, score_lost, score_draw = self.parse_score(score_str)
+        score_win, score_lose, score_draw = self.parse_score(score_str)
 
         return LimitlessMatch(
             leader_name=leader_name,
             leader_id=leader_id,
             num_matches=num_matches,
             score_win=score_win,
-            score_lost=score_lost,
+            score_lose=score_lose,
             score_draw=score_draw,
             win_rate=win_rate
         )
