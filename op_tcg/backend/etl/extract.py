@@ -19,10 +19,10 @@ def read_json_files(data_dir: str) -> AllMetaLeaderMatches:
 
 def get_leader_ids(data_dir: Path) -> list[str]:
     """Returns list of leader ids e.g. OP01-001 for crawling the limitless site"""
-    leaders = []
+    leader_ids = []
     matches = read_json_files(data_dir)
-    for leader_matches in matches:
+    for leader_matches in matches.documents:
         leaders_in_matches = [l.leader_id for l in leader_matches.matches]
-        leaders.extend(leaders_in_matches)
-    leaders = list(set(leaders))
-    return leaders
+        leader_ids.extend(leaders_in_matches)
+    leader_ids = list(set(leader_ids))
+    return leader_ids

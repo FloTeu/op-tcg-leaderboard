@@ -22,6 +22,10 @@ requests = "^2.31.0"
 scrapy = "^2.11.1"
 beautifulsoup4 = "^4.12.3"
 
+
+[tool.poetry.group.frontend.dependencies]
+streamlit = "^1.33.0"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
