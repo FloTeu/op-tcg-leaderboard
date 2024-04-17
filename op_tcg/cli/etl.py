@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import click
-from op_tcg.backend.etl.classes import LocalMatchesToBigQueryEtlJob
+from op_tcg.backend.etl.classes import LocalMatchesToBigQueryEtlJob, EloUpdateToBigQueryEtlJob
 from op_tcg.backend.models.input import MetaFormat
 
 
@@ -31,6 +31,15 @@ def upload_matches(
     etl_job = LocalMatchesToBigQueryEtlJob(data_dir=data_dir, meta_formats=list(meta_formats))
     etl_job.run()
 
+@etl_group.command()
+def calculate_leader_elo(
+) -> None:
+    """
+    Starts a job which calculates all elo rating for all leaders and all meta format and pushes result to BQ.
+    """
+
+    etl_job = EloUpdateToBigQueryEtlJob()
+    etl_job.run()
 
 if __name__ == "__main__":
     upload_matches()

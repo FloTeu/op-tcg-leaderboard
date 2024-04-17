@@ -15,3 +15,10 @@ class BQFieldType(StrEnum):
     TIMESTAMP="TIMESTAMP"
     DATE="DATE"
     TIME="TIME"
+
+class BQTable(StrEnum):
+    MATCHES="matches"
+    LEADER_ELO="leader_elo"
+
+class BQDataset(StrEnum):
+    MATCHES="matches"
