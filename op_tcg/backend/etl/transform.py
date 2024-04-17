@@ -2,14 +2,18 @@ import datetime
 import random
 from datetime import timedelta, datetime
 
+import pandas as pd
+
+from op_tcg.backend.elo import calculate_new_elo
 from op_tcg.backend.models.input import LimitlessLeaderMetaMatches, LimitlessMatch, MetaFormat
-from op_tcg.backend.models.matches import BQMatches, BQMatch, MatchResult
+from op_tcg.backend.models.matches import BQMatches, BQMatch, MatchResult, BQLeaderElo
+
 
 def randomize_datetime(start_datetime: datetime):
     # Generate a random number of days, hours, and minutes within the range of 10 days
     days = random.randint(-10, 10)
-    hours = random.randint(-240, 240)
-    minutes = random.randint(-14400, 14400)
+    hours = random.randint(-12, 12)
+    minutes = random.randint(-60, 60)
 
     # Create a timedelta object with the random values
     delta = timedelta(days=days, hours=hours, minutes=minutes)
@@ -24,7 +28,7 @@ def meta_format2release_datetime(meta_format: MetaFormat) -> datetime:
     if meta_format == MetaFormat.OP01:
         return datetime(2022, 12, 2)
     if meta_format == MetaFormat.OP02:
-        return datetime(2023, 10, 3)
+        return datetime(2023, 3, 10)
     if meta_format == MetaFormat.OP03:
         return datetime(2023, 6, 30)
     if meta_format == MetaFormat.OP04:

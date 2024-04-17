@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, date
 from enum import IntEnum
 
 from google.cloud import bigquery
@@ -51,6 +51,8 @@ def pydantic_model_to_bq_schema(model: type[BaseModel]) -> list[bigquery.SchemaF
             bq_type = BQFieldType.FLOAT64
         elif issubclass(field_type, datetime):
             bq_type = BQFieldType.TIMESTAMP
+        elif issubclass(field_type, date):
+            bq_type = BQFieldType.DATE
         elif issubclass(field_type, IntEnum):
             bq_type = BQFieldType.INT64
         # get mode

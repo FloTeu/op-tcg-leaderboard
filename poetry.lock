@@ -391,6 +391,23 @@ files = [
 ]
 
 [[package]]
+name = "db-dtypes"
+version = "1.2.0"
+description = "Pandas Data Types for SQL systems (BigQuery, Spanner)"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "db-dtypes-1.2.0.tar.gz", hash = "sha256:3531bb1fb8b5fbab33121fe243ccc2ade16ab2524f4c113b05cc702a1908e6ea"},
+    {file = "db_dtypes-1.2.0-py2.py3-none-any.whl", hash = "sha256:6320bddd31d096447ef749224d64aab00972ed20e4392d86f7d8b81ad79f7ff0"},
+]
+
+[package.dependencies]
+numpy = ">=1.16.6"
+packaging = ">=17.0"
+pandas = ">=0.24.2"
+pyarrow = ">=3.0.0"
+
+[[package]]
 name = "filelock"
 version = "3.13.4"
 description = "A platform independent file lock."
@@ -2354,4 +2371,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "20f4659abf36d6a9b827b977d1d39a88da7c71d6c1c8f7391c3c12479ccd5217"
+content-hash = "5aa20ed1607e63951b310b6e7e9d157b52fda41d43833f0ac2aaf70f921ed7f0"

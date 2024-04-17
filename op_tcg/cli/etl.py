@@ -32,13 +32,17 @@ def upload_matches(
     etl_job.run()
 
 @etl_group.command()
+@click.option("--file-path", type=click.Path(), default=None)
 def calculate_leader_elo(
+        file_path: Path=None
 ) -> None:
     """
     Starts a job which calculates all elo rating for all leaders and all meta format and pushes result to BQ.
+
+    file_path: Optional file path to matches.csv containing rows matching the BQ Schema BQMatch
     """
 
-    etl_job = EloUpdateToBigQueryEtlJob()
+    etl_job = EloUpdateToBigQueryEtlJob(matches_csv_file_path=file_path)
     etl_job.run()
 
 if __name__ == "__main__":

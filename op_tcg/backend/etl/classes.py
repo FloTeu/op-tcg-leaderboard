@@ -2,12 +2,13 @@ from typing import List
 
 import pandas as pd
 
+from op_tcg.backend.elo import EloCreator
 from op_tcg.backend.etl.base import AbstractETLJob, E, T
 from op_tcg.backend.etl.load import get_or_create_table
 from op_tcg.backend.etl.transform import limitless_matches2bq_matches
 from op_tcg.backend.models.bq import BQTable, BQDataset
 from op_tcg.backend.models.input import AllMetaLeaderMatches, MetaFormat, LimitlessLeaderMetaMatches
-from op_tcg.backend.models.matches import BQMatches, BQMatch, BQLeaderElos
+from op_tcg.backend.models.matches import BQMatches, BQMatch, BQLeaderElos, BQLeaderElo
 from op_tcg.backend.etl.extract import read_json_files
 from pathlib import Path
 from google.cloud import bigquery
@@ -62,38 +63,43 @@ class LocalMatchesToBigQueryEtlJob(AbstractETLJob[AllMetaLeaderMatches, BQMatche
 
 
 class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
-    def __init__(self):
+    def __init__(self, matches_csv_file_path: Path | str | None = None):
         self.bq_client = bigquery.Client()
+        self.matches_csv_file_path = matches_csv_file_path
 
     def validate(self, extracted_data: AllMetaLeaderMatches) -> bool:
         return True
 
     def extract(self) -> BQMatches:
-        query = f"SELECT * FROM {BQDataset.MATCHES}.{BQTable.MATCHES}"
-        df = self.bq_client.query_and_wait(query).to_dataframe()
+        if self.matches_csv_file_path:
+            df = pd.read_csv(self.matches_csv_file_path)
+        else:
+            query = f"SELECT * FROM {BQDataset.MATCHES}.{BQTable.MATCHES}"
+            df = self.bq_client.query_and_wait(query).to_dataframe()
         matches: list[BQMatch] = []
         for i, df_row in df.iterrows():
             matches.append(BQMatch(**df_row.to_dict()))
         return BQMatches(matches=matches)
 
 
-    def transform(self, all_local_matches: AllMetaLeaderMatches) -> BQMatches:
-        bq_matches: list[BQMatch] = []
-        for match_doc in all_local_matches.documents:
-            meta_leader_bq_matches: list[BQMatch] = limitless_matches2bq_matches(match_doc)
-            bq_matches.extend(meta_leader_bq_matches)
-        return BQMatches(matches=bq_matches)
+    def transform(self, all_matches: BQMatches) -> BQLeaderElos:
+        # TODO Add more elo values for different metas
+        df_all_matches = all_matches.to_dataframe()
+        elo_creator = EloCreator(df_all_matches)
+        elo_creator.calculate_elo_ratings()
+        return elo_creator.to_bq_leader_elos()
 
-    def load(self, transformed_data: BQMatches) -> None:
-        table = get_or_create_table(table_id="matches", dataset_id="matches", model=BQMatch, client=self.bq_client)
+    def load(self, transformed_data: BQLeaderElos) -> None:
+        table_tmp = get_or_create_table(table_id=f"{BQTable.LEADER_ELO}_tmp", dataset_id="matches", model=BQLeaderElo, client=self.bq_client)
+        table = get_or_create_table(table_id=BQTable.LEADER_ELO, dataset_id="matches", model=BQLeaderElo, client=self.bq_client)
         df = transformed_data.to_dataframe()
         if len(df) > 0:
-            # delete existing data in selected meta
+            # create tmp table with new data
+            self.bq_client.load_table_from_dataframe(df, table_tmp)
+            # Overwrite existing data with tmp table
             self.bq_client.query(f"""
             CREATE OR REPLACE TABLE {table.dataset_id}.{table.table_id} AS
             SELECT *
-            FROM {table.dataset_id}.{table.table_id}
-            WHERE meta_format not in ('{"','".join(self.meta_formats)}');
+            FROM {table_tmp.dataset_id}.{table_tmp.table_id}
             """)
-        # upload data of meta_formats to BQ
-        self.bq_client.load_table_from_dataframe(df, table)
+            self.bq_client.delete_table(table_tmp)
