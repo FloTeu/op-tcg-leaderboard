@@ -5,7 +5,7 @@ from pathlib import Path
 from op_tcg.backend.models.input import AllMetaLeaderMatches, LimitlessLeaderMetaMatches
 
 
-def read_json_files(data_dir: str) -> AllMetaLeaderMatches:
+def read_json_files(data_dir: str | Path) -> AllMetaLeaderMatches:
     documents = []
     for filename in os.listdir(data_dir):
         if filename.endswith('.json'):
