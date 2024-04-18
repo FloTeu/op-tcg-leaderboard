@@ -85,9 +85,14 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
     def transform(self, all_matches: BQMatches) -> BQLeaderElos:
         # TODO Add more elo values for different metas
         df_all_matches = all_matches.to_dataframe()
-        elo_creator = EloCreator(df_all_matches)
-        elo_creator.calculate_elo_ratings()
-        return elo_creator.to_bq_leader_elos()
+        elo_ratings: list[BQLeaderElo] = []
+        def calculate_all_elo_ratings(df_matches):
+            elo_creator = EloCreator(df_matches)
+            elo_creator.calculate_elo_ratings()
+            elo_ratings.extend(elo_creator.to_bq_leader_elos().elo_ratings)
+        df_all_matches.groupby("meta_format").apply(calculate_all_elo_ratings)
+
+        return BQLeaderElos(elo_ratings=elo_ratings)
 
     def load(self, transformed_data: BQLeaderElos) -> None:
         table_tmp = get_or_create_table(table_id=f"{BQTable.LEADER_ELO}_tmp", dataset_id="matches", model=BQLeaderElo, client=self.bq_client)

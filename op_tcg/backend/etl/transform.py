@@ -40,8 +40,8 @@ def meta_format2release_datetime(meta_format: MetaFormat) -> datetime:
 
 
 def meta_format2approximate_datetime(meta_format: MetaFormat) -> datetime:
-    # expect tournaments 1 month after release of new set
-    return meta_format2release_datetime(meta_format) + timedelta(days=30)
+    # expect tournaments starting half a month after release of new set
+    return meta_format2release_datetime(meta_format) + timedelta(days=15)
 
 def limitless_matches2bq_matches(limitless_matches: LimitlessLeaderMetaMatches) -> list[BQMatch]:
     meta_format = limitless_matches.meta_format

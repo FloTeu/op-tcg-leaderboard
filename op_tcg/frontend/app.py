@@ -27,6 +27,8 @@ def run_query(query):
     return rows
 
 def main():
+    meta_formats: list[MetaFormat] = st.sidebar.multiselect("Meta", [MetaFormat.OP01, MetaFormat.OP02, MetaFormat.OP03, MetaFormat.OP04, MetaFormat.OP05, MetaFormat.OP06], default=MetaFormat.OP06)
+
     rows = run_query(f"""
     SELECT
       *
@@ -44,7 +46,7 @@ def main():
         leader_elo = BQLeaderElo(**row)
         leader_elos.append(leader_elo)
     df = BQLeaderElos(elo_ratings=leader_elos).to_dataframe()
-    st.table(df)
+    st.table(df[df["meta_format"].isin(meta_formats)])
 
 if __name__ == "__main__":
     main()
