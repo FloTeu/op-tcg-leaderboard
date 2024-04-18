@@ -7,7 +7,7 @@ from google.cloud import bigquery
 
 import op_tcg
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.matches import MatchResult, BQMatch, BQLeaderElo
+from op_tcg.backend.models.matches import MatchResult, BQMatch, BQLeaderElo, BQLeaderElos
 from op_tcg.backend.etl.extract import get_leader_ids
 
 # Create API client.
@@ -15,9 +15,6 @@ credentials = service_account.Credentials.from_service_account_info(
     st.secrets["gcp_service_account"]
 )
 client = bigquery.Client(credentials=credentials)
-
-# Now elo_ratings contains the updated Elo scores for each leader
-
 
 # Perform query.
 # Uses st.cache_data to only rerun when the query changes or after 10 min.
@@ -42,6 +39,12 @@ def main():
     # Print results.
     st.write("Elo of all leaders")
     # Iterate over elo rating
+    leader_elos=[]
     for row in rows:
         leader_elo = BQLeaderElo(**row)
-        st.write(f"Leader {leader_elo.leader_id}: {leader_elo.elo}")
+        leader_elos.append(leader_elo)
+    df = BQLeaderElos(elo_ratings=leader_elos).to_dataframe()
+    st.table(df)
+
+if __name__ == "__main__":
+    main()
