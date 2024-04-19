@@ -3,10 +3,50 @@ import random
 from datetime import timedelta, datetime
 
 import pandas as pd
+from pydantic import BaseModel
 
 from op_tcg.backend.elo import calculate_new_elo
-from op_tcg.backend.models.input import LimitlessLeaderMetaMatches, LimitlessMatch, MetaFormat
+from op_tcg.backend.models.input import LimitlessLeaderMetaMatches, LimitlessMatch, MetaFormat, AllMetaLeaderMatches
 from op_tcg.backend.models.matches import BQMatches, BQMatch, MatchResult, BQLeaderElo
+
+
+class TransformMatch(BaseModel):
+    leader_id: str
+    opponent_id: str
+    result: MatchResult
+
+class BQMatchCreator:
+
+    def __init__(self, all_local_matches: AllMetaLeaderMatches):
+        self.meta_leader_matches: dict[MetaFormat, dict[str, list[LimitlessMatch]]] = {}
+        for doc in all_local_matches.documents:
+            if doc.meta_format not in self.meta_leader_matches:
+                self.meta_leader_matches[doc.meta_format] = {}
+            self.meta_leader_matches[doc.meta_format][doc.leader_id] = doc.matches
+        self.bq_matches: list[BQMatch] = []
+        # starts with earliest meta and ends with latest
+        self.all_metas = sorted(list(self.meta_leader_matches.keys()))
+
+    @staticmethod
+    def limitless_matches2transform_matches(leader_id: str, limitless_matches: list[LimitlessMatch]) -> list[TransformMatch]:
+        transform_matches: list[TransformMatch] = []
+        for limitless_match in limitless_matches:
+            for _ in range(limitless_match.score_win):
+                transform_matches.append(TransformMatch(leader_id=leader_id, opponent_id=limitless_match.leader_id, result=MatchResult.WIN))
+            for _ in range(limitless_match.score_lose):
+                transform_matches.append(TransformMatch(leader_id=leader_id, opponent_id=limitless_match.leader_id, result=MatchResult.LOSE))
+            for _ in range(limitless_match.score_draw):
+                transform_matches.append(TransformMatch(leader_id=leader_id, opponent_id=limitless_match.leader_id, result=MatchResult.DRAW))
+
+
+    def transform2BQMatches(self) -> BQMatches:
+        for meta_format in self.all_metas:
+            leader_matches: dict[str, list[LimitlessMatch]] = self.meta_leader_matches[meta_format]
+            for leader_id, limitless_matches in leader_matches.items():
+                transform_matches = self.limitless_matches2transform_matches(leader_id, limitless_matches)
+
+        pass
+
 
 
 def randomize_datetime(start_datetime: datetime):

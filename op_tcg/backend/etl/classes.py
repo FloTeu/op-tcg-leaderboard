@@ -5,7 +5,7 @@ import pandas as pd
 from op_tcg.backend.elo import EloCreator
 from op_tcg.backend.etl.base import AbstractETLJob, E, T
 from op_tcg.backend.etl.load import get_or_create_table
-from op_tcg.backend.etl.transform import limitless_matches2bq_matches
+from op_tcg.backend.etl.transform import limitless_matches2bq_matches, BQMatchCreator
 from op_tcg.backend.models.bq import BQTable, BQDataset
 from op_tcg.backend.models.input import AllMetaLeaderMatches, MetaFormat, LimitlessLeaderMetaMatches
 from op_tcg.backend.models.matches import BQMatches, BQMatch, BQLeaderElos, BQLeaderElo
@@ -40,11 +40,12 @@ class LocalMatchesToBigQueryEtlJob(AbstractETLJob[AllMetaLeaderMatches, BQMatche
         return all_matches
 
     def transform(self, all_local_matches: AllMetaLeaderMatches) -> BQMatches:
-        bq_matches: list[BQMatch] = []
-        for match_doc in all_local_matches.documents:
-            meta_leader_bq_matches: list[BQMatch] = limitless_matches2bq_matches(match_doc)
-            bq_matches.extend(meta_leader_bq_matches)
-        return BQMatches(matches=bq_matches)
+        bq_match_creator = BQMatchCreator(all_local_matches)
+        # bq_matches: list[BQMatch] = []
+        # for match_doc in all_local_matches.documents:
+        #     meta_leader_bq_matches: list[BQMatch] = limitless_matches2bq_matches(match_doc)
+        #     bq_matches.extend(meta_leader_bq_matches)
+        return bq_match_creator.transform2BQMatches()
 
     def load(self, transformed_data: BQMatches) -> None:
         table = get_or_create_table(table_id=BQTable.MATCHES, dataset_id=BQDataset.MATCHES, model=BQMatch, client=self.bq_client)
