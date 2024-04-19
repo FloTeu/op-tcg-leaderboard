@@ -10,10 +10,9 @@ What you need:
 * Populate `.env` file with help of `.env.template`
 
 ### Environment System
+[Install pipx](https://github.com/pypa/pipx) first
 ```sh
-pip install poetry
-or
-brew install poetry
+pipx install poetry
 ```
 ```sh
 poetry install --with crawler,frontend
