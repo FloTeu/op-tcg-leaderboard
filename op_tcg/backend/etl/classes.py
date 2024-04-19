@@ -1,4 +1,4 @@
-from typing import List
+import time
 
 import pandas as pd
 
@@ -98,6 +98,8 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
         if len(df) > 0:
             # create tmp table with new data
             self.bq_client.load_table_from_dataframe(df, table_tmp)
+            # wait some seconds to be sure data is ready in tmp table
+            time.sleep(5)
             # Overwrite existing data with tmp table
             self.bq_client.query(f"""
             CREATE OR REPLACE TABLE {table.dataset_id}.{table.table_id} AS
