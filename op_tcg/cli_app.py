@@ -9,6 +9,9 @@ def app() -> None:
     """
     Define a click app
     """
+    pass
+
+
 
 app.add_command(crawling_group)
 app.add_command(etl_group)

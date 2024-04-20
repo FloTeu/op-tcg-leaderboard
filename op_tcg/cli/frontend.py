@@ -1,3 +1,5 @@
+import os
+
 import click
 import streamlit as st
 import streamlit.web.bootstrap as st_bootstrap
@@ -15,21 +17,9 @@ def frontend_group() -> None:
 @frontend_group.command()
 def start(
 ) -> None:
-    if st.runtime.exists():
-        # The app has been executed with `streamlit run app.py`
-        main()
-    else:
-        # If the file has been executed with python (`python app.py`), the streamlit functionality
-        # won't work. This line reruns the app within the streamlit context, as if it has been
-        # executed with `streamlit run app.py`.
-        # This is necessary when installing this project from a .whl package, since the executable
-        # only gets execute by python and not by streamlit.
-        st_bootstrap.run(
-            __file__,
-            is_hello=False,
-            args=[],
-            flag_options={},
-        )
+    # expects working directory to be the root of the project
+    os.system("streamlit run op_tcg/frontend/app.py")
+
 
 if __name__ == "__main__":
     start()
