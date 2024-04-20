@@ -13,11 +13,13 @@ class MatchResult(IntEnum):
 
 
 class BQMatch(BaseModel):
+    id: str = Field(description="Unique id of single match. One match contains 2 rows, including one reverse match")
     leader_id: str = Field(description="The op tcg leader id e.g. OP03-099")
     opponent_id: str = Field(description="The op tcg opponent id e.g. OP03-099")
     result: MatchResult = Field(description="Result of the match. Can be win, lose or draw")
     meta_format: MetaFormat = Field(description="Meta in which matches happened, e.g. OP06")
     official: bool = Field(default=False, description="Whether the match is originated from an official tournament")
+    is_reverse: bool = Field(description="Whether its the reverse match")
     timestamp: datetime = Field(description="Approximate timestamp when the match happened")
 
 class BQMatches(BaseModel):

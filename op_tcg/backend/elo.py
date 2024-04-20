@@ -15,11 +15,19 @@ class EloCreator:
         self.meta_format = df_all_matches.sort_values("timestamp", ascending=False).iloc[0].meta_format
 
     def calculate_elo_ratings(self):
-        for i, df_row in self.df_all_matches.sort_values("timestamp", ascending=True).iterrows():
-            current_leader_elo = self.leader_id2elo[df_row.leader_id]
-            current_opponent_elo = self.leader_id2elo[df_row.opponent_id]
-            self.leader_id2elo[df_row.leader_id] = calculate_new_elo(current_leader_elo, current_opponent_elo,
-                                                                     df_row.result, k_factor=32)
+        match_ids = self.df_all_matches.sort_values("timestamp", ascending=True).id.unique().tolist()
+        for match_id in match_ids:
+            df_match_rows = self.df_all_matches.query(f"id == '{match_id}'")
+            assert len(df_match_rows) == 2, "A match should contain exactly two data rows"
+            leader_id2new_elo: dict[str, int] = {}
+            for i, match_data_row in df_match_rows.iterrows():
+                leader_id = match_data_row.leader_id
+                opponent_id = match_data_row.opponent_id
+                leader_id2new_elo[leader_id] = calculate_new_elo(self.leader_id2elo[leader_id],
+                                                                 self.leader_id2elo[opponent_id],
+                                                                    match_data_row.result, k_factor=32)
+            for leader_id, new_elo in leader_id2new_elo.items():
+                self.leader_id2elo[leader_id] = new_elo
 
     def to_bq_leader_elos(self) -> BQLeaderElos:
         leader_elos: list[BQLeaderElo] = []
@@ -35,7 +43,7 @@ class EloCreator:
         return BQLeaderElos(elo_ratings=leader_elos)
 
 
-def calculate_new_elo(current_elo: int, opponent_elo: int, result: MatchResult, k_factor=32):
+def calculate_new_elo(current_elo: int, opponent_elo: int, result: MatchResult, k_factor=32) -> int:
     """
     Calculate the new Elo rating for a player based on the current rating,
     opponent's rating, and the match result.
@@ -55,4 +63,4 @@ def calculate_new_elo(current_elo: int, opponent_elo: int, result: MatchResult, 
     # Calculate the new Elo rating
     new_elo = current_elo + k_factor * (actual_score - expected_score)
 
-    return round(new_elo)
+    return int(round(new_elo))

@@ -38,7 +38,7 @@ class BQMatchCreator:
 
             for result in results:
                 transform_matches.append(
-                    Transform2BQMatch(id=uuid4().hex, leader_id=leader_id, opponent_id=limitless_match.leader_id, result=result))
+                    Transform2BQMatch(id=uuid4().hex, is_reverse=False, leader_id=leader_id, opponent_id=limitless_match.leader_id, result=result))
         return transform_matches
 
     def transform_matches2bq_matches(self, transform_matches: list[Transform2BQMatch], meta_format: MetaFormat) -> list[BQMatch]:
@@ -48,15 +48,17 @@ class BQMatchCreator:
         for i, transform_match in enumerate(transform_matches):
             timestamp = start_date + timedelta(minutes=match_timestamp_inc)
             bq_matches.append(BQMatch(
+                id=transform_match.id,
                 leader_id=transform_match.leader_id,
                 opponent_id=transform_match.opponent_id,
                 result=transform_match.result,
                 meta_format=meta_format,
                 official=self.official,
+                is_reverse=transform_match.is_reverse,
                 timestamp=timestamp
             ))
             # after reverse match, we incremente timestamp
-            if "reverse_match" in transform_match.id:
+            if transform_match.is_reverse:
                 match_timestamp_inc += 1
         return bq_matches
 
@@ -195,7 +197,8 @@ def distribute_matches(match_pool: list[Transform2BQMatch]) -> list[Transform2BQ
                 # A reverse match should always exist
                 assert first_found_reverse_match != None, "Could not find a reverse match"
                 # modify id of reverse match
-                first_found_reverse_match.id = f"{first_found_reverse_match.id}_reverse_match"
+                first_found_reverse_match.id = chosen_match.id
+                first_found_reverse_match.is_reverse = True
                 match_pool = add_to_result_list(first_found_reverse_match, match_pool)
                 try:
                     leader_ids_iteration.remove(chosen_match.opponent_id)
