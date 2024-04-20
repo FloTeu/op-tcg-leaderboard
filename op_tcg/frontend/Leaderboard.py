@@ -2,11 +2,12 @@ import streamlit as st
 
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.matches import BQLeaderElo, BQLeaderElos
+from op_tcg.frontend.sidebar import display_meta_sidebar
 from op_tcg.frontend.utils import run_bq_query
 
 
 def main():
-    meta_formats: list[MetaFormat] = st.sidebar.multiselect("Meta", [MetaFormat.OP01, MetaFormat.OP02, MetaFormat.OP03, MetaFormat.OP04, MetaFormat.OP05, MetaFormat.OP06], default=MetaFormat.OP06)
+    meta_formats: list[MetaFormat] = display_meta_sidebar()
 
     rows = run_bq_query(f"""
     SELECT

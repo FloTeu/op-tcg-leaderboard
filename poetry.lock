@@ -2085,6 +2085,20 @@ watchdog = {version = ">=2.1.5", markers = "platform_system != \"Darwin\""}
 snowflake = ["snowflake-connector-python (>=2.8.0)", "snowflake-snowpark-python (>=0.9.0)"]
 
 [[package]]
+name = "streamlit-elements"
+version = "0.1.0"
+description = "React Components for Streamlit."
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "streamlit-elements-0.1.0.tar.gz", hash = "sha256:5f9f116f22df3ce4a8636b1dee7c2fd3dc3cb0c66267fd28c3e0314aa1d303a7"},
+    {file = "streamlit_elements-0.1.0-py3-none-any.whl", hash = "sha256:593c4b88c399c55879aa76f7f42970f30106f66acaa4baada6338ae5571790df"},
+]
+
+[package.dependencies]
+streamlit = ">=1.4.0"
+
+[[package]]
 name = "tenacity"
 version = "8.2.3"
 description = "Retry code until it succeeds"
@@ -2371,4 +2385,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "5aa20ed1607e63951b310b6e7e9d157b52fda41d43833f0ac2aaf70f921ed7f0"
+content-hash = "2e985a9622a6e4de4dd06e57245c02554a0c4fddfb3a8a87aec761377c87b49c"
