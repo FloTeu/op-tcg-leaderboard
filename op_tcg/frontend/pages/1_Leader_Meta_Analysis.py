@@ -62,7 +62,10 @@ def display_elements():
             print(updated_layout)
 
         with dashboard.Grid(layout, onLayoutChange=handle_layout_change):
-            mui.Paper("Second item (cannot drag)", key="second_item")
+            mui.AvatarGroup(children=[mui.Avatar(src="https://storage.googleapis.com/op-tcg-leaderboard-public/leader/images/standard/EN/OP06-080.webp")
+                                      ]
+                            , key="second_item")
+
 
             with mui.Table(sx={"height": 500}, key="third_item"):
                 st.table(df_win_rates)
