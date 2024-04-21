@@ -57,7 +57,7 @@ def display_elements():
             # Parameters: element_identifier, x_pos, y_pos, width, height, [item properties...]
             dashboard.Item("first_item", 0, 0, 2, 2),
             dashboard.Item("second_item", 2, 0, 2, 2, isDraggable=False, moved=False),
-            dashboard.Item("third_item", 0, 2, 1, 1, isResizable=True, movex=True),
+            dashboard.Item("third_item", 0, 2, 4, 4, isResizable=True, movex=True),
         ]
 
         def handle_layout_change(updated_layout):
@@ -69,8 +69,14 @@ def display_elements():
             children = [mui.Avatar(src=l.avatar_icon_url) for l in selected_bq_leaders]
             mui.AvatarGroup(children=children, key="second_item")
 
-            with mui.Table(sx={"height": 500}, key="third_item"):
-                st.table(df_win_rates)
+            with mui.Table(key="third_item"):
+                print("bq_leaders", bq_leaders)
+                table_head=mui.TableHead(children=[mui.TableRow(children=[mui.TableCell(children="Winner\\Opponent")] + [mui.TableCell(children=col) for col in df_win_rates.columns.values])])
+                table_rows=[mui.TableRow(children=[mui.TableCell(children=df_row.name)] + [mui.TableCell(children=df_cell) for i, df_cell in df_row.items()]) for i, df_row in df_win_rates.iterrows()]
+                table_body=mui.TableBody(children=table_rows)
+                mui.Table(
+                    children=[table_head, table_body],
+                )
 
             with mui.Box(sx={"height": 1000}, key="first_item"):
                 nivo.Radar(
