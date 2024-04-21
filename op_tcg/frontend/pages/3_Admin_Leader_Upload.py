@@ -13,7 +13,7 @@ from op_tcg.backend.models.leader import BQLeader, OPTcgLanguage, OPTcgColor, OP
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.utils import booleanize
 from op_tcg.frontend.models.session import LeaderUploadForm
-from op_tcg.frontend.utils import upload2gcp_storage, bq_client
+from op_tcg.frontend.utils import upload2gcp_storage, bq_client, run_bq_query
 
 load_dotenv()
 
@@ -85,13 +85,21 @@ def display_upload_form(
 
 def main():
     if booleanize(os.environ.get("DEBUG", "")):
+        if st.button("Uplaod all leader"):
+            all_leader_id_rows = run_bq_query("SELECT DISTINCT leader_id FROM `op-tcg-leaderboard-dev.matches.leader_elo`")
+            all_leader_ids = [row["leader_id"] for row in all_leader_id_rows]
+            language_default_text = OPTcgLanguage.EN
+            for leader_id in all_leader_ids:
+                bq_leader = limitless2bq_leader(leader_id, language=language_default_text)
+                print(f"Upload leader: {leader_id} {bq_leader.name}")
+                upload2bq_and_storage(bq_leader)
+
         session_upload_form_data = st.session_state.get("session_upload_form_data", LeaderUploadForm())
         expanded = False
         id_default_text = st.text_input("Leader Id", help="e.g. OP01-001")
         language_default_text = st.selectbox("Language", [OPTcgLanguage.EN, OPTcgLanguage.JP], help="Language of ability text")
 
         if st.button("Auto fill"):
-            expanded = True
             bq_leader = limitless2bq_leader(id_default_text, language=language_default_text)
             session_upload_form_data.bq_leader = bq_leader
             st.session_state["session_upload_form_data"] = session_upload_form_data
@@ -114,18 +122,25 @@ def main():
             display_images(bq_leader)
 
             if st.button("Upload Leader"):
-                with st.spinner('Upload Leader Data to GCP BigQuery...'):
-                    bq_leader_table = get_or_create_table(table_id=BQTable.LEADER_DATA, dataset_id=BQDataset.LEADERS, model=BQLeader, client=bq_client)
-                    update_bq_leader_row(bq_leader, table=bq_leader_table, client=bq_client)
-                with st.spinner('Upload Images to GCP Storage...'):
-                    for blob_dir, img_url in {"avatar" : bq_leader.avatar_icon_url, "standard" : bq_leader.image_url, "alt-art" : bq_leader.image_aa_url}.items():
-                        with tempfile.NamedTemporaryFile() as tmp:
-                            import requests
-                            img_data = requests.get(img_url).content
-                            tmp.write(img_data)
-                            file_type = img_url.split('.')[-1]
-                            upload2gcp_storage(path_to_file=tmp.name, blob_name=f"leader/images/{blob_dir}/{bq_leader.language.upper()}/{bq_leader.id}.{file_type}", content_type=f"image/{file_type}")
-                pass
+                upload2bq_and_storage(bq_leader)
+
+
+def upload2bq_and_storage(bq_leader):
+    with st.spinner('Upload Leader Data to GCP BigQuery...'):
+        bq_leader_table = get_or_create_table(table_id=BQTable.LEADER_DATA, dataset_id=BQDataset.LEADERS,
+                                              model=BQLeader, client=bq_client)
+        update_bq_leader_row(bq_leader, table=bq_leader_table, client=bq_client)
+    with st.spinner('Upload Images to GCP Storage...'):
+        for blob_dir, img_url in {"avatar": bq_leader.avatar_icon_url, "standard": bq_leader.image_url,
+                                  "alt-art": bq_leader.image_aa_url}.items():
+            with tempfile.NamedTemporaryFile() as tmp:
+                import requests
+                img_data = requests.get(img_url).content
+                tmp.write(img_data)
+                file_type = img_url.split('.')[-1]
+                upload2gcp_storage(path_to_file=tmp.name,
+                                   blob_name=f"leader/images/{blob_dir}/{bq_leader.language.upper()}/{bq_leader.id}.{file_type}",
+                                   content_type=f"image/{file_type}")
 
 
 def display_images(bq_leader):

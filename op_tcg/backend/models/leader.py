@@ -30,7 +30,7 @@ class BQLeader(BaseModel):
     name: str = Field(description="The op tcg leader name e.g. Charlotte Katakuri")
     life: int = Field(description="Life of leader")
     power: int = Field(description="Power of leader")
-    release_meta: MetaFormat | None = Field(description="The meta format in which the Leader was released")
+    release_meta: MetaFormat | None = Field(None, description="The meta format in which the Leader was released")
     avatar_icon_url: str = Field(description="Public accessible url to an avatar icon of the leader")
     image_url: str = Field(description="Public accessible url to standard image")
     image_aa_url: str = Field(description="Public accessible url to alternative artwork image")
