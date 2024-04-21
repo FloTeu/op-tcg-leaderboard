@@ -86,7 +86,10 @@ def display_upload_form(
 def main():
     if booleanize(os.environ.get("DEBUG", "")):
         if st.button("Uplaod all leader"):
-            all_leader_id_rows = run_bq_query("SELECT DISTINCT leader_id FROM `op-tcg-leaderboard-dev.matches.leader_elo`")
+            all_leader_id_rows = run_bq_query("""SELECT DISTINCT leader_id FROM `op-tcg-leaderboard-dev.matches.leader_elo` as t0
+LEFT JOIN `op-tcg-leaderboard-dev.leaders.leaders` as t1
+ON t0.leader_id = t1.id
+where t1.id is NULL""")
             all_leader_ids = [row["leader_id"] for row in all_leader_id_rows]
             language_default_text = OPTcgLanguage.EN
             for leader_id in all_leader_ids:
