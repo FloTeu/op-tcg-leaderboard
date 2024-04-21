@@ -5,6 +5,8 @@ import streamlit as st
 from streamlit_elements import elements, mui, html, nivo, dashboard
 
 from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.leader import BQLeader
+from op_tcg.frontend.extract import get_leader_data
 from op_tcg.frontend.sidebar import display_meta_sidebar, display_leader_sidebar
 
 st.header("Leader Meta Analysis")
@@ -14,6 +16,8 @@ st.write("This page is supposted to show detailed meta anlysis similar to this r
 meta_formats: list[MetaFormat] = display_meta_sidebar()
 # TODO: Provide a list of available leader_ids based on selected meta (e.g. top 10 leaders with highest win rate/elo)
 leader_ids: list[str] = display_leader_sidebar(available_leader_ids=[])
+bq_leaders: list[BQLeader] = get_leader_data()
+selected_bq_leaders: list[BQLeader] = [l for l in bq_leaders if l.id in leader_ids]
 
 # create random win rates
 win_rate_list: list[dict[str, int]] = []
@@ -62,10 +66,8 @@ def display_elements():
             print(updated_layout)
 
         with dashboard.Grid(layout, onLayoutChange=handle_layout_change):
-            mui.AvatarGroup(children=[mui.Avatar(src="https://storage.googleapis.com/op-tcg-leaderboard-public/leader/images/standard/EN/OP06-080.webp")
-                                      ]
-                            , key="second_item")
-
+            children = [mui.Avatar(src=l.avatar_icon_url) for l in selected_bq_leaders]
+            mui.AvatarGroup(children=children, key="second_item")
 
             with mui.Table(sx={"height": 500}, key="third_item"):
                 st.table(df_win_rates)

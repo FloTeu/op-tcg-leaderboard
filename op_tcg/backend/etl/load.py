@@ -132,13 +132,13 @@ def update_bq_leader_row(bq_leader: BQLeader, table: bigquery.Table, client: big
             image_url = @image_url,
             image_aa_url = @image_aa_url,
             colors = @colors,
-            attribute = @attribute,
+            attributes = @attributes,
             ability = @ability,
             fractions = @fractions,
             language = @language
     WHEN NOT MATCHED THEN
-        INSERT (id, name, life, power, release_meta, avatar_icon_url, image_url, image_aa_url, colors, attribute, ability, fractions, language)
-        VALUES (@id, @name, @life, @power, @release_meta, @avatar_icon_url, @image_url, @image_aa_url, @colors, @attribute, @ability, @fractions, @language)
+        INSERT (id, name, life, power, release_meta, avatar_icon_url, image_url, image_aa_url, colors, attributes, ability, fractions, language)
+        VALUES (@id, @name, @life, @power, @release_meta, @avatar_icon_url, @image_url, @image_aa_url, @colors, @attributes, @ability, @fractions, @language)
     """
 
     job_config = bigquery.QueryJobConfig(
@@ -152,7 +152,7 @@ def update_bq_leader_row(bq_leader: BQLeader, table: bigquery.Table, client: big
             bigquery.ScalarQueryParameter("image_url", "STRING", bq_leader.image_url),
             bigquery.ScalarQueryParameter("image_aa_url", "STRING", bq_leader.image_aa_url),
             bigquery.ArrayQueryParameter("colors", "STRING", bq_leader.colors),
-            bigquery.ScalarQueryParameter("attribute", "STRING", bq_leader.attribute.value),
+            bigquery.ArrayQueryParameter("attributes", "STRING", bq_leader.attributes),
             bigquery.ScalarQueryParameter("ability", "STRING", bq_leader.ability),
             bigquery.ArrayQueryParameter("fractions", "STRING", bq_leader.fractions),
             bigquery.ScalarQueryParameter("language", "STRING", bq_leader.language.value),

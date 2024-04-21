@@ -35,7 +35,7 @@ class BQLeader(BaseModel):
     image_url: str = Field(description="Public accessible url to standard image")
     image_aa_url: str = Field(description="Public accessible url to alternative artwork image")
     colors: list[str] = Field(description="Colors of the leader")
-    attribute: OPTcgAttribute = Field(description="Attribute of the leader, e.g. Slash")
+    attributes: list[OPTcgAttribute] = Field(description="Attributes of the leader, e.g. Slash")
     ability: str = Field(description="Ability of the leader")
     fractions: list[str] = Field(description="List of fractions of the leader, e.g. Straw Hat Crew")
     language: OPTcgLanguage = Field(default=OPTcgLanguage.EN, description="Language of the data in this obect")

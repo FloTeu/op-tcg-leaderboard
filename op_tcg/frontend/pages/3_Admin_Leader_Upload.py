@@ -47,7 +47,7 @@ def display_upload_form(
         image_aa_url = st.text_input("Leader AA Card Image", help="Public accessible url to alternative artwork image",
                                      value=bq_leader_default_text.image_aa_url if bq_leader_default_text else None)
         colors = st.multiselect("Leader Colors", OPTcgColor.to_list(), help="Colors of the leader", default=bq_leader_default_text.colors if bq_leader_default_text else None)
-        attribute = st.multiselect("Leader Attribute", OPTcgAttribute.to_list(), help="Attribute of the leader, e.g. Slash", default=bq_leader_default_text.attribute if bq_leader_default_text else None)
+        attributes = st.multiselect("Leader Attribute", OPTcgAttribute.to_list(), help="Attribute of the leader, e.g. Slash", default=bq_leader_default_text.attributes if bq_leader_default_text else None)
         ability = st.text_area("Leader Ability", help="Ability of the leader", value=bq_leader_default_text.ability if bq_leader_default_text else None)
 
         submit_button = st.form_submit_button(label="Submit")
@@ -67,7 +67,7 @@ def display_upload_form(
                                 image_aa_url=image_aa_url if image_aa_url else None,
                                 colors=[OPTcgColor(c) for c in colors] if colors else None,
                                 ability=ability if ability else None,
-                                attribute=attribute if attribute else None,
+                                attributes=attributes if attributes else None,
                                 language=OPTcgLanguage(language) if language else None
                                 )
             except ValidationError as ex:

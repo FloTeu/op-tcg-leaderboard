@@ -46,7 +46,8 @@ def limitless2bq_leader(leader_id, language: OPTcgLanguage = OPTcgLanguage.EN) -
     leader_colors = [OPTcgColor(c) for c in colors]
     leader_life = int(re.search(r'(\d+)(?=\s*Life)', soup.find('p', {'class': 'card-text-type'}).text).group(0))
     leader_power = int(re.search(r'(\d+)(?=\s*Power)', soup.find('p', {'class': 'card-text-section'}).text).group(0))
-    leader_attribute = OPTcgAttribute(soup.findAll('p', {'class': 'card-text-section'})[0].find("span", {'data-tooltip': 'Attribute'}).text)
+    attributes = soup.findAll('p', {'class': 'card-text-section'})[0].find("span", {'data-tooltip': 'Attribute'}).text.strip().split("/")
+    leader_attributes = [OPTcgAttribute(a) for a in attributes]
     leader_ability = soup.findAll('div', {'class': 'card-text-section'})[1].text.strip()
     leader_fractions = soup.findAll('div', {'class': 'card-text-section'})[2].text.strip().split("/")
 
@@ -72,7 +73,7 @@ def limitless2bq_leader(leader_id, language: OPTcgLanguage = OPTcgLanguage.EN) -
         image_url=leader_image_url,
         image_aa_url=leader_aa_image_url,
         colors=leader_colors,
-        attribute=leader_attribute,
+        attributes=leader_attributes,
         ability=leader_ability,
         fractions=leader_fractions,
         language=language
