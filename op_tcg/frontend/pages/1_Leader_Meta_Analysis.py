@@ -5,55 +5,65 @@ import streamlit as st
 from streamlit_elements import elements, mui, html, nivo, dashboard
 
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.leader import BQLeader
+from op_tcg.backend.models.leader import BQLeader, OPTcgColor
 from op_tcg.backend.models.matches import BQMatch, BQLeaderElo
 from op_tcg.frontend.extract import get_leader_data, get_match_data, get_leader_elo_data
 from op_tcg.frontend.sidebar import display_meta_sidebar, display_leader_sidebar
 
-st.header("Leader Meta Analysis")
 
-st.write(
-    "This page is supposted to show detailed meta anlysis similar to this reddit post: https://www.reddit.com/r/OnePieceTCG/comments/19dre7i/op05_meta_analysis_matchup_win_rates_for_128122/#lightbox")
 
-selected_meta_formats: list[MetaFormat] = display_meta_sidebar()
-selected_leader_elo_data: list[BQLeaderElo] = get_leader_elo_data(meta_formats=selected_meta_formats)
-# first element is leader with best elo
-sorted_leader_elo_data: list[BQLeaderElo] = sorted(selected_leader_elo_data, key=lambda x: x.elo, reverse=True)
-bq_leaders: list[BQLeader] = get_leader_data()
-leader_id2leader_data: dict[str, BQLeader] = {bq_leader_data.id: bq_leader_data for bq_leader_data in bq_leaders}
 
 # TODO: Provide a list of available leader_ids based on selected meta (e.g. top 10 leaders with highest win rate/elo)
-available_leader_ids = list(dict.fromkeys([f"{leader_id2leader_data[l.leader_id].name if l.leader_id in leader_id2leader_data else ''} ({l.leader_id})" for l
-    in sorted_leader_elo_data]))
-selected_leader_names: list[str] = display_leader_sidebar(available_leader_ids=available_leader_ids)
-selected_leader_ids: list[str] = [ln.split("(")[1].strip(")") for ln in selected_leader_names]
-selected_bq_leaders: list[BQLeader] = [l for l in bq_leaders if l.id in selected_leader_ids]
-selected_match_data: list[BQMatch] = get_match_data(meta_formats=selected_meta_formats, leader_ids=selected_leader_ids)
-df_selected_match_data = pd.DataFrame([match.dict() for match in selected_match_data])
 
-# Calculate win rates
-def calculate_win_rate(df_matches: pd.DataFrame):
-    return "%.1f" % (((df_matches['result'] == 2).sum() / len(df_matches)) * 100) + "%"
 
-win_rates_series = df_selected_match_data.groupby(["leader_id", "opponent_id"]).apply(calculate_win_rate, include_groups=False)
-df_win_rates = win_rates_series.unstack(level=-1)
 
-radar_chart_data = [
-    {"taste": "red"},
-    {"taste": "gree"},
-    {"taste": "blue"},
-    {"taste": "purple"},
-    {"taste": "black"},
-    {"taste": "yellow"},
-]
+def data_setup():
+    selected_leader_ids: list[str] = [ln.split("(")[1].strip(")") for ln in selected_leader_names]
+    selected_bq_leaders: list[BQLeader] = [l for l in bq_leaders if l.id in selected_leader_ids]
+    selected_match_data: list[BQMatch] = get_match_data(meta_formats=selected_meta_formats, leader_ids=selected_leader_ids)
+    df_selected_match_data = pd.DataFrame([match.dict() for match in selected_match_data])
 
-# create random data
-for data_row in radar_chart_data:
+    # Create a new DataFrame with color information
+    color_info = []
     for leader_id in selected_leader_ids:
-        data_row[leader_id] = random.randint(50, 100)
+        leader_data = leader_id2leader_data.get(leader_id)
+        if leader_data:
+            for color in leader_data.colors:
+                color_info.append({'opponent_id': leader_id, 'color': color})
+
+    # Convert the color_info list to a DataFrame
+    df_color_info = pd.DataFrame(color_info)
+    df_selected_color_match_data = df_selected_match_data.merge(df_color_info, on='opponent_id', how='left')
+
+    # Calculate win rates
+    def calculate_win_rate(df_matches: pd.DataFrame) -> float:
+        return float("%.1f" % (((df_matches['result'] == 2).sum() / len(df_matches)) * 100))
+
+    win_rates_series = df_selected_match_data.groupby(["leader_id", "opponent_id"]).apply(calculate_win_rate, include_groups=False)
+    df_Leader_vs_leader_win_rates = win_rates_series.unstack(level=-1)
 
 
-def display_elements():
+    win_rates_series = df_selected_color_match_data.groupby(["leader_id", "color"]).apply(calculate_win_rate, include_groups=False)
+    df_color_win_rates = win_rates_series.unstack(level=-1)
+
+    return selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, df_color_win_rates
+
+def get_radar_chart_data(df_color_win_rates) -> list[dict[str, str | float]]:
+    # create color chart data
+    radar_chart_data: list[dict[str, str | float]] = []
+    for color in OPTcgColor.to_list():
+        if color in df_color_win_rates.columns.values:
+            win_against_color = df_color_win_rates[color].to_dict()
+        else:
+            win_against_color = {lid: 50.0 for lid in df_color_win_rates.index.values}
+        radar_chart_data.append({
+            "taste": color,
+            **win_against_color
+        })
+    return radar_chart_data
+
+
+def display_elements(selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, radar_chart_data):
     with elements("dashboard"):
         # You can create a draggable and resizable dashboard using
         # any element available in Streamlit Elements.
@@ -79,11 +89,11 @@ def display_elements():
             with mui.Table(key="third_item"):
                 table_head = mui.TableHead(children=[mui.TableRow(
                     children=[mui.TableCell(children="Winner\\Opponent")] + [mui.TableCell(children=col) for col in
-                                                                             df_win_rates.columns.values])])
+                                                                             df_Leader_vs_leader_win_rates.columns.values])])
                 table_rows = [mui.TableRow(
                     children=[mui.TableCell(children=df_row.name)] + [mui.TableCell(children=df_cell) for i, df_cell in
                                                                       df_row.items()]) for i, df_row in
-                              df_win_rates.iterrows()]
+                              df_Leader_vs_leader_win_rates.iterrows()]
                 table_body = mui.TableBody(children=table_rows)
                 mui.Table(
                     children=[table_head, table_body],
@@ -136,4 +146,25 @@ def display_elements():
                 )
 
 
-display_elements()
+st.header("Leader Meta Analysis")
+
+# TODO clean code up
+
+selected_meta_formats: list[MetaFormat] = display_meta_sidebar()
+if len(selected_meta_formats) == 0:
+    st.warning("Please select at least one meta format")
+else:
+    selected_leader_elo_data: list[BQLeaderElo] = get_leader_elo_data(meta_formats=selected_meta_formats)
+    # first element is leader with best elo
+    sorted_leader_elo_data: list[BQLeaderElo] = sorted(selected_leader_elo_data, key=lambda x: x.elo, reverse=True)
+    bq_leaders: list[BQLeader] = get_leader_data()
+    leader_id2leader_data: dict[str, BQLeader] = {bq_leader_data.id: bq_leader_data for bq_leader_data in bq_leaders}
+    available_leader_ids = list(dict.fromkeys([f"{leader_id2leader_data[l.leader_id].name if l.leader_id in leader_id2leader_data else ''} ({l.leader_id})" for l
+        in sorted_leader_elo_data]))
+    selected_leader_names: list[str] = display_leader_sidebar(available_leader_ids=available_leader_ids)
+    if len(selected_leader_names) < 2:
+        st.warning("Please select at least two leaders")
+    else:
+        selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, df_color_win_rates = data_setup()
+        radar_chart_data = get_radar_chart_data(df_color_win_rates)
+        display_elements(selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, radar_chart_data)
