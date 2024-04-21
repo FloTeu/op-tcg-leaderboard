@@ -2,7 +2,10 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-class MetaFormat(StrEnum):
+from op_tcg.backend.models.base import EnumBase
+
+
+class MetaFormat(EnumBase, StrEnum):
     OP01 = "OP01"
     OP02 = "OP02"
     OP03 = "OP03"

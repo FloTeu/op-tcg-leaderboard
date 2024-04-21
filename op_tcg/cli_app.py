@@ -1,7 +1,7 @@
 import click
 from op_tcg.cli.crawling import crawling_group
 from op_tcg.cli.etl import etl_group
-from op_tcg.cli.frontend import frontend_group
+from op_tcg.frontend.cli import frontend_group
 
 
 @click.group()
