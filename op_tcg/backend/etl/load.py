@@ -6,6 +6,7 @@ from types import UnionType, GenericAlias
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 from pydantic import BaseModel
+from sqlmodel import SQLModel
 from op_tcg.backend.models.bq import BQFieldMode, BQFieldType
 from op_tcg.backend.models.leader import BQLeader
 
@@ -78,13 +79,13 @@ def pydantic_model_to_bq_schema(model: type[BaseModel]) -> list[bigquery.SchemaF
     return schemata
 
 # Function to get or create a BigQuery table
-def get_or_create_table(table_id: str, dataset_id: str, model: type[BaseModel], client: bigquery.Client | None = None, location: str = 'europe-west3', project_id: str | None = None) -> bigquery.Table:
+def get_or_create_table(model: type[SQLModel], dataset_id: str, table_id: str | None = None, client: bigquery.Client | None = None, location: str = 'europe-west3', project_id: str | None = None) -> bigquery.Table:
     """
     Get a BigQuery table, creating it if it does not exist. Create dataset as well if it does not exist.
 
-    :param table_id: str - The BigQuery table ID.
     :param dataset_id: str - The BigQuery dataset ID.
-    :param model: type[BaseModel] - A pydantic class defining the bigquery schema.
+    :param model: type[BaseModel] - A pydantic class defining the bigquery schema
+    :param table_id: str - The BigQuery table ID. If not provided its extracted from model
     :param client: str - The bigquery client containing project as well.
     :param location: str - The location for the dataset (default is 'europe-west3').
     :param project_id: str - The GCP project ID (default is taken from environment).
@@ -94,6 +95,7 @@ def get_or_create_table(table_id: str, dataset_id: str, model: type[BaseModel], 
     client = client if client else bigquery.Client(project=project_id)
     dataset = get_or_create_bq_dataset(dataset_id, client=client, location=location)
     # TODO: check if we can extract the table ref from this object
+    table_id = table_id if table_id else model.__tablename__
     table_ref = dataset.table(table_id)
     schema = pydantic_model_to_bq_schema(model)
 

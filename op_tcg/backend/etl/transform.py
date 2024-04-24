@@ -4,20 +4,20 @@ import random
 from datetime import timedelta, datetime
 from uuid import uuid4
 
-from op_tcg.backend.models.input import LimitlessLeaderMetaMatches, LimitlessMatch, MetaFormat, AllMetaLeaderMatches
-from op_tcg.backend.models.matches import BQMatches, BQMatch, MatchResult
+from op_tcg.backend.models.input import LimitlessLeaderMetaDoc, LimitlessMatch, MetaFormat, AllLeaderMetaDocs
+from op_tcg.backend.models.matches import BQMatches, Match, MatchResult
 from op_tcg.backend.models.transform import Transform2BQMatch
 
 
 class BQMatchCreator:
 
-    def __init__(self, all_local_matches: AllMetaLeaderMatches, official: bool):
+    def __init__(self, all_local_matches: AllLeaderMetaDocs, official: bool):
         self.meta_leader_matches: dict[MetaFormat, dict[str, list[LimitlessMatch]]] = {}
         for doc in all_local_matches.documents:
             if doc.meta_format not in self.meta_leader_matches:
                 self.meta_leader_matches[doc.meta_format] = {}
             self.meta_leader_matches[doc.meta_format][doc.leader_id] = doc.matches
-        self.bq_matches: list[BQMatch] = []
+        self.bq_matches: list[Match] = []
         # starts with earliest meta and ends with latest
         self.all_metas = sorted(list(self.meta_leader_matches.keys()))
         self.official = official
@@ -41,13 +41,13 @@ class BQMatchCreator:
                     Transform2BQMatch(id=uuid4().hex, is_reverse=False, leader_id=leader_id, opponent_id=limitless_match.leader_id, result=result))
         return transform_matches
 
-    def transform_matches2bq_matches(self, transform_matches: list[Transform2BQMatch], meta_format: MetaFormat) -> list[BQMatch]:
-        bq_matches: list[BQMatch] = []
+    def transform_matches2bq_matches(self, transform_matches: list[Transform2BQMatch], meta_format: MetaFormat) -> list[Match]:
+        bq_matches: list[Match] = []
         match_timestamp_inc = 0
         start_date = meta_format2release_datetime(meta_format)
         for i, transform_match in enumerate(transform_matches):
             timestamp = start_date + timedelta(minutes=match_timestamp_inc)
-            bq_matches.append(BQMatch(
+            bq_matches.append(Match(
                 id=transform_match.id,
                 leader_id=transform_match.leader_id,
                 opponent_id=transform_match.opponent_id,
@@ -64,7 +64,7 @@ class BQMatchCreator:
 
 
     def transform2BQMatches(self) -> BQMatches:
-        bq_matches: list[BQMatch] = []
+        bq_matches: list[Match] = []
         for meta_format in self.all_metas:
             print("Transform matches for meta:", meta_format)
             leader_matches: dict[str, list[LimitlessMatch]] = self.meta_leader_matches[meta_format]
@@ -111,9 +111,9 @@ def meta_format2approximate_datetime(meta_format: MetaFormat) -> datetime:
     # expect tournaments starting half a month after release of new set
     return meta_format2release_datetime(meta_format) + timedelta(days=15)
 
-def limitless_matches2bq_matches(limitless_matches: LimitlessLeaderMetaMatches) -> list[BQMatch]:
+def limitless_matches2bq_matches(limitless_matches: LimitlessLeaderMetaDoc) -> list[Match]:
     meta_format = limitless_matches.meta_format
-    matches: list[BQMatch] = []
+    matches: list[matches] = []
     for limitless_match in limitless_matches.matches:
         # extracts results
         results: list[MatchResult] = []
@@ -125,7 +125,7 @@ def limitless_matches2bq_matches(limitless_matches: LimitlessLeaderMetaMatches) 
             results.append(MatchResult.DRAW)
         # transform to bq matches
         for result in results:
-            bq_match = BQMatch(
+            bq_match = Match(
                 leader_id=limitless_matches.leader_id,
                 opponent_id=limitless_match.leader_id,
                 result=result,

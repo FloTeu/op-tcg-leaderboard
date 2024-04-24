@@ -6,20 +6,20 @@ from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
 
-from op_tcg.backend.models.input import AllMetaLeaderMatches, LimitlessLeaderMetaMatches, MetaFormat
+from op_tcg.backend.models.input import AllLeaderMetaDocs, LimitlessLeaderMetaDoc, MetaFormat
 from op_tcg.backend.models.leader import OPTcgLanguage, BQLeader, OPTcgColor, OPTcgAttribute
 
 
-def read_json_files(data_dir: str | Path) -> AllMetaLeaderMatches:
+def read_json_files(data_dir: str | Path) -> AllLeaderMetaDocs:
     documents = []
     for filename in os.listdir(data_dir):
         if filename.endswith('.json'):
             file_path = os.path.join(data_dir, filename)
             with open(file_path, 'r') as file:
                 data = json.load(file)
-                doc = LimitlessLeaderMetaMatches(**data)
+                doc = LimitlessLeaderMetaDoc(**data)
                 documents.append(doc)
-    return AllMetaLeaderMatches(documents=documents)
+    return AllLeaderMetaDocs(documents=documents)
 
 
 def get_leader_ids(data_dir: Path) -> list[str]:

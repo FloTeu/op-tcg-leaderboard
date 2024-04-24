@@ -1,6 +1,6 @@
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import BQLeader
-from op_tcg.backend.models.matches import BQMatch, BQLeaderElo
+from op_tcg.backend.models.matches import Match, BQLeaderElo
 from op_tcg.frontend.utils import run_bq_query
 
 
@@ -11,12 +11,12 @@ def get_leader_data() -> list[BQLeader]:
     return bq_leaders
 
 
-def get_match_data(meta_formats: list[MetaFormat], leader_ids: list[str] | None = None) -> list[BQMatch]:
-    bq_matches: list[BQMatch] = []
+def get_match_data(meta_formats: list[MetaFormat], leader_ids: list[str] | None = None) -> list[Match]:
+    bq_matches: list[Match] = []
     for meta_format in meta_formats:
         # cached for each session
         match_data_rows = run_bq_query(f"SELECT * FROM `op-tcg-leaderboard-dev.matches.matches` where meta_format = '{meta_format}'")
-        bq_matches.extend([BQMatch(**d) for d in match_data_rows])
+        bq_matches.extend([Match(**d) for d in match_data_rows])
 
     if leader_ids:
         return [bqm for bqm in bq_matches if (bqm.leader_id in leader_ids) and (bqm.opponent_id in leader_ids)]

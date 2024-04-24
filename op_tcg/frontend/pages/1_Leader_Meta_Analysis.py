@@ -6,7 +6,7 @@ from streamlit_elements import elements, mui, html, nivo, dashboard
 
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import BQLeader, OPTcgColor
-from op_tcg.backend.models.matches import BQMatch, BQLeaderElo
+from op_tcg.backend.models.matches import Match, BQLeaderElo
 from op_tcg.frontend.extract import get_leader_data, get_match_data, get_leader_elo_data
 from op_tcg.frontend.sidebar import display_meta_sidebar, display_leader_sidebar
 
@@ -20,7 +20,7 @@ from op_tcg.frontend.sidebar import display_meta_sidebar, display_leader_sidebar
 def data_setup():
     selected_leader_ids: list[str] = [ln.split("(")[1].strip(")") for ln in selected_leader_names]
     selected_bq_leaders: list[BQLeader] = [l for l in bq_leaders if l.id in selected_leader_ids]
-    selected_match_data: list[BQMatch] = get_match_data(meta_formats=selected_meta_formats, leader_ids=selected_leader_ids)
+    selected_match_data: list[Match] = get_match_data(meta_formats=selected_meta_formats, leader_ids=selected_leader_ids)
     df_selected_match_data = pd.DataFrame([match.dict() for match in selected_match_data])
 
     # Create a new DataFrame with color information

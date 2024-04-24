@@ -1,7 +1,6 @@
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
-
+from sqlmodel import SQLModel, Field
 from op_tcg.backend.models.base import EnumBase
 from op_tcg.backend.models.input import MetaFormat
 
@@ -25,8 +24,8 @@ class OPTcgLanguage(StrEnum):
     EN="en"
     JP="jp"
 
-class BQLeader(BaseModel):
-    id: str = Field(description="The op tcg leader id e.g. OP03-099")
+class BQLeader(SQLModel, table=True):
+    id: str = Field(description="The op tcg leader id e.g. OP03-099", primary_key=True)
     name: str = Field(description="The op tcg leader name e.g. Charlotte Katakuri")
     life: int = Field(description="Life of leader")
     power: int = Field(description="Power of leader")

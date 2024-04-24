@@ -2,7 +2,7 @@ import scrapy
 import op_tcg
 from pathlib import Path
 from bs4 import BeautifulSoup
-from op_tcg.backend.models.input import LimitlessMatch, LimitlessLeaderMetaMatches, MetaFormat
+from op_tcg.backend.models.input import LimitlessMatch, LimitlessLeaderMetaDoc, MetaFormat
 from op_tcg.backend.etl.extract import read_json_files
 
 
@@ -21,8 +21,8 @@ class LimitlessSpider(scrapy.Spider):
         if data_dir:
             leaders = []
             matches = read_json_files(data_dir)
-            for leaader_matches in matches:
-                leaders_in_matches = [l.leader_id for l in leaader_matches.matches]
+            for leader_matches in matches:
+                leaders_in_matches = [l.leader_id for l in leader_matches.matches]
                 leaders.extend(leaders_in_matches)
             leaders = list(set(leaders))
         return leaders
@@ -89,7 +89,7 @@ class LimitlessSpider(scrapy.Spider):
                 print(f"Error with row {row} {e}")
 
 
-        leader_matches = LimitlessLeaderMetaMatches(
+        leader_matches = LimitlessLeaderMetaDoc(
             leader_id=leader,
             meta_format=meta_format,
             matches=matches

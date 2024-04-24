@@ -32,7 +32,7 @@ def upload_matches(
     etl_job.run()
 
 @etl_group.command()
-@click.option("--file-path", type=click.Path(), default=None)
+@click.option("--file-path", "-f", type=click.Path(), default=None)
 def calculate_leader_elo(
         file_path: Path=None
 ) -> None:

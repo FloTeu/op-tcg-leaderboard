@@ -24,10 +24,10 @@ class LimitlessMatch(BaseModel):
     win_rate: float = Field(description="Ratio of games won. Number should be between 0 and 1.")
 
 
-class LimitlessLeaderMetaMatches(BaseModel):
+class LimitlessLeaderMetaDoc(BaseModel):
     leader_id: str = Field(description="The op tcg leader id e.g. OP03-099")
     meta_format: MetaFormat = Field(description="Meta in which matches happened, e.g. OP06")
     matches: list[LimitlessMatch] = Field(description="List of matches between this leader with all others")
 
-class AllMetaLeaderMatches(BaseModel):
-    documents: list[LimitlessLeaderMetaMatches]
+class AllLeaderMetaDocs(BaseModel):
+    documents: list[LimitlessLeaderMetaDoc]

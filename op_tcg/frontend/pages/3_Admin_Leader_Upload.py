@@ -8,7 +8,7 @@ from pydantic import ValidationError
 
 from op_tcg.backend.etl.extract import limitless2bq_leader
 from op_tcg.backend.etl.load import get_or_create_table, update_bq_leader_row
-from op_tcg.backend.models.bq import BQTable, BQDataset
+from op_tcg.backend.models.bq import BQDataset
 from op_tcg.backend.models.leader import BQLeader, OPTcgLanguage, OPTcgColor, OPTcgAttribute
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.utils import booleanize
@@ -130,7 +130,7 @@ where t1.id is NULL""")
 
 def upload2bq_and_storage(bq_leader):
     with st.spinner('Upload Leader Data to GCP BigQuery...'):
-        bq_leader_table = get_or_create_table(table_id=BQTable.LEADER_DATA, dataset_id=BQDataset.LEADERS,
+        bq_leader_table = get_or_create_table(table_id=BQLeader.__tablename__, dataset_id=BQDataset.LEADERS,
                                               model=BQLeader, client=bq_client)
         update_bq_leader_row(bq_leader, table=bq_leader_table, client=bq_client)
     with st.spinner('Upload Images to GCP Storage...'):
