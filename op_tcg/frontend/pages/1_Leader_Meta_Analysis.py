@@ -3,6 +3,7 @@ import random
 import pandas as pd
 import streamlit as st
 from streamlit_elements import elements, mui, html, nivo, dashboard
+from streamlit_theme import st_theme
 
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader, OPTcgColor
@@ -11,6 +12,7 @@ from op_tcg.frontend.extract import get_leader_data, get_match_data, get_leader_
 from op_tcg.frontend.sidebar import display_meta_sidebar, display_leader_sidebar
 
 
+ST_THEME = st_theme()
 
 
 # TODO: Provide a list of available leader_ids based on selected meta (e.g. top 10 leaders with highest win rate/elo)
@@ -119,7 +121,7 @@ def display_elements(selected_leader_ids, selected_bq_leaders, df_Leader_vs_lead
                             "translateY": -40,
                             "itemWidth": 80,
                             "itemHeight": 20,
-                            "itemTextColor": "#999",
+                            "itemTextColor": "#ffffff" if ST_THEME["base"] == "dark" else "#999",
                             "symbolSize": 12,
                             "symbolShape": "circle",
                             "effects": [
@@ -133,8 +135,8 @@ def display_elements(selected_leader_ids, selected_bq_leaders, df_Leader_vs_lead
                         }
                     ],
                     theme={
-                        "background": "#FFFFFF",
-                        "textColor": "#31333F",
+                        "background": "#2C3A47" if ST_THEME["base"] == "dark" else "#ffffff",
+                        "textColor": "#ffffff" if ST_THEME["base"] == "dark" else  "#31333F",
                         "tooltip": {
                             "container": {
                                 "background": "#FFFFFF",

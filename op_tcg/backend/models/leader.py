@@ -23,7 +23,7 @@ class OPTcgColor(EnumBase, StrEnum):
         elif self == self.PURPLE:
             return "#8e44ad"
         elif self == self.BLACK:
-            return "#2c3e50"
+            return "#0b1214"
         elif self == self.YELLOW:
             return "#f1c40f"
 
