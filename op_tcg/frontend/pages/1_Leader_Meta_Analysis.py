@@ -17,7 +17,7 @@ from op_tcg.frontend.sidebar import display_meta_sidebar, display_leader_sidebar
 
 
 
-def data_setup():
+def data_setup(selected_leader_names, selected_meta_formats, leader_id2leader_data):
     selected_leader_ids: list[str] = [ln.split("(")[1].strip(")") for ln in selected_leader_names]
     selected_bq_leaders: list[Leader] = [l for l in bq_leaders if l.id in selected_leader_ids]
     selected_match_data: list[Match] = get_match_data(meta_formats=selected_meta_formats, leader_ids=selected_leader_ids)
@@ -25,8 +25,7 @@ def data_setup():
 
     # Create a new DataFrame with color information
     color_info = []
-    for leader_id in selected_leader_ids:
-        leader_data = leader_id2leader_data.get(leader_id)
+    for leader_id, leader_data in leader_id2leader_data.items():
         if leader_data:
             for color in leader_data.colors:
                 color_info.append({'opponent_id': leader_id, 'color': color})
@@ -39,23 +38,23 @@ def data_setup():
     def calculate_win_rate(df_matches: pd.DataFrame) -> float:
         return float("%.1f" % (((df_matches['result'] == 2).sum() / len(df_matches)) * 100))
 
-    win_rates_series = df_selected_match_data.groupby(["leader_id", "opponent_id"]).apply(calculate_win_rate, include_groups=False)
+    win_rates_series = df_selected_match_data[df_selected_match_data["opponent_id"].isin(selected_leader_ids)].groupby(["leader_id", "opponent_id"]).apply(calculate_win_rate, include_groups=False)
     df_Leader_vs_leader_win_rates = win_rates_series.unstack(level=-1)
-
 
     win_rates_series = df_selected_color_match_data.groupby(["leader_id", "color"]).apply(calculate_win_rate, include_groups=False)
     df_color_win_rates = win_rates_series.unstack(level=-1)
 
     return selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, df_color_win_rates
 
-def get_radar_chart_data(df_color_win_rates) -> list[dict[str, str | float]]:
+def get_radar_chart_data(df_color_win_rates, leader_id2leader_data) -> list[dict[str, str | float]]:
     # create color chart data
     radar_chart_data: list[dict[str, str | float]] = []
     for color in OPTcgColor.to_list():
         if color in df_color_win_rates.columns.values:
-            win_against_color = df_color_win_rates[color].to_dict()
+            win_against_color = {leader_id2leader_data.get(lid).name: win_rate
+                                  for lid, win_rate in df_color_win_rates[color].to_dict().items()}
         else:
-            win_against_color = {lid: 50.0 for lid in df_color_win_rates.index.values}
+            win_against_color = {leader_id2leader_data.get(lid).name: 50.0 for lid in df_color_win_rates.index.values}
         radar_chart_data.append({
             "taste": color,
             **win_against_color
@@ -63,7 +62,7 @@ def get_radar_chart_data(df_color_win_rates) -> list[dict[str, str | float]]:
     return radar_chart_data
 
 
-def display_elements(selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, radar_chart_data):
+def display_elements(selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, radar_chart_data, leader_id2leader_data):
     with elements("dashboard"):
         # You can create a draggable and resizable dashboard using
         # any element available in Streamlit Elements.
@@ -102,7 +101,7 @@ def display_elements(selected_leader_ids, selected_bq_leaders, df_Leader_vs_lead
             with mui.Box(sx={"height": 1000}, key="first_item"):
                 nivo.Radar(
                     data=radar_chart_data,
-                    keys=selected_leader_ids,
+                    keys=[leader_id2leader_data.get(lid).name for lid in selected_leader_ids],
                     indexBy="taste",
                     valueFormat=">-.2f",
                     margin={"top": 70, "right": 80, "bottom": 40, "left": 80},
@@ -142,7 +141,8 @@ def display_elements(selected_leader_ids, selected_bq_leaders, df_Leader_vs_lead
                                 "color": "#31333F",
                             }
                         }
-                    }
+                    },
+                    colors=[leader_id2leader_data[lid].colors[0].to_hex_color() for lid in selected_leader_ids]
                 )
 
 
@@ -165,6 +165,6 @@ else:
     if len(selected_leader_names) < 2:
         st.warning("Please select at least two leaders")
     else:
-        selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, df_color_win_rates = data_setup()
-        radar_chart_data = get_radar_chart_data(df_color_win_rates)
-        display_elements(selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, radar_chart_data)
+        selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, df_color_win_rates = data_setup(selected_leader_names, selected_meta_formats, leader_id2leader_data)
+        radar_chart_data = get_radar_chart_data(df_color_win_rates, leader_id2leader_data)
+        display_elements(selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, radar_chart_data, leader_id2leader_data)

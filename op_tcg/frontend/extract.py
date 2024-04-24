@@ -19,7 +19,7 @@ def get_match_data(meta_formats: list[MetaFormat], leader_ids: list[str] | None 
         bq_matches.extend([Match(**d) for d in match_data_rows])
 
     if leader_ids:
-        return [bqm for bqm in bq_matches if (bqm.leader_id in leader_ids) and (bqm.opponent_id in leader_ids)]
+        return [bqm for bqm in bq_matches if (bqm.leader_id in leader_ids)]
     else:
         return bq_matches
 
