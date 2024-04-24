@@ -1,6 +1,5 @@
 import pandas as pd
-from pydantic import BaseModel
-from sqlmodel import Field
+from pydantic import BaseModel, Field
 from datetime import datetime, date
 from enum import IntEnum
 

@@ -1,6 +1,6 @@
 from enum import StrEnum
 
-from sqlmodel import Field
+from pydantic import Field
 from op_tcg.backend.models.base import EnumBase, BQTableBaseModel
 from op_tcg.backend.models.input import MetaFormat
 

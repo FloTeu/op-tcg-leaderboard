@@ -6,9 +6,9 @@ from types import UnionType, GenericAlias
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 from pydantic import BaseModel
-from sqlmodel import SQLModel
 from op_tcg.backend.models.bq import BQFieldMode, BQFieldType
 from op_tcg.backend.models.leader import Leader
+from op_tcg.backend.models.base import BQTableBaseModel
 
 
 def get_or_create_bq_dataset(dataset_id, client: bigquery.Client | None = None, location='europe-west3',
@@ -79,7 +79,7 @@ def pydantic_model_to_bq_schema(model: type[BaseModel]) -> list[bigquery.SchemaF
     return schemata
 
 # Function to get or create a BigQuery table
-def get_or_create_table(model: type[SQLModel], dataset_id: str, table_id: str | None = None, client: bigquery.Client | None = None, location: str = 'europe-west3', project_id: str | None = None) -> bigquery.Table:
+def get_or_create_table(model: type[BQTableBaseModel], dataset_id: str, table_id: str | None = None, client: bigquery.Client | None = None, location: str = 'europe-west3', project_id: str | None = None) -> bigquery.Table:
     """
     Get a BigQuery table, creating it if it does not exist. Create dataset as well if it does not exist.
 

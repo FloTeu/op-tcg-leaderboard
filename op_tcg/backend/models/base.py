@@ -3,10 +3,6 @@ from enum import Enum
 from typing import ClassVar
 
 from pydantic import BaseModel
-from sqlmodel import SQLModel
-from sqlalchemy.orm import (
-    declared_attr
-)
 
 class EnumBase(Enum):
     @classmethod
