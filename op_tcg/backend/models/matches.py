@@ -1,10 +1,11 @@
 import pandas as pd
 from pydantic import BaseModel
-from sqlmodel import SQLModel, Field
+from sqlmodel import Field
 from datetime import datetime, date
 from enum import IntEnum
 
 from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.base import BQTableBaseModel
 
 
 class MatchResult(IntEnum):
@@ -13,7 +14,7 @@ class MatchResult(IntEnum):
     WIN = 2
 
 
-class Match(SQLModel, table=True):
+class Match(BQTableBaseModel):
     id: str = Field(description="Unique id of single match. One match contains 2 rows, including one reverse match", primary_key=True)
     leader_id: str = Field(description="The op tcg leader id e.g. OP03-099", primary_key=True)
     opponent_id: str = Field(description="The op tcg opponent id e.g. OP03-099")
@@ -29,7 +30,7 @@ class BQMatches(BaseModel):
     def to_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame([r.dict() for r in self.matches])
 
-class BQLeaderElo(SQLModel, table=True):
+class LeaderElo(BQTableBaseModel):
     meta_format: MetaFormat = Field(description="Meta until or in which the elo is calculated", primary_key=True)
     leader_id: str = Field(description="The op tcg leader id e.g. OP03-099", primary_key=True)
     only_official: bool = Field(default=False, description="Whether the matches are only originated from "
@@ -39,7 +40,7 @@ class BQLeaderElo(SQLModel, table=True):
     end_date: date = Field(description="Date in which the elo calculation ended")
 
 class BQLeaderElos(BaseModel):
-    elo_ratings: list[BQLeaderElo]
+    elo_ratings: list[LeaderElo]
 
     def to_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame([r.dict() for r in self.elo_ratings])

@@ -7,7 +7,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from op_tcg.backend.models.input import AllLeaderMetaDocs, LimitlessLeaderMetaDoc, MetaFormat
-from op_tcg.backend.models.leader import OPTcgLanguage, BQLeader, OPTcgColor, OPTcgAttribute
+from op_tcg.backend.models.leader import OPTcgLanguage, Leader, OPTcgColor, OPTcgAttribute
 
 
 def read_json_files(data_dir: str | Path) -> AllLeaderMetaDocs:
@@ -33,7 +33,7 @@ def get_leader_ids(data_dir: Path) -> list[str]:
     return leader_ids
 
 
-def limitless2bq_leader(leader_id, language: OPTcgLanguage = OPTcgLanguage.EN) -> BQLeader:
+def limitless2bq_leader(leader_id, language: OPTcgLanguage = OPTcgLanguage.EN) -> Leader:
     limitless_url = f"https://onepiece.limitlesstcg.com/cards/{language}/{leader_id}?v=0"
     response = requests.get(limitless_url)
     response.raise_for_status()
@@ -63,7 +63,7 @@ def limitless2bq_leader(leader_id, language: OPTcgLanguage = OPTcgLanguage.EN) -
         # Some release_meta can not be extracted from id directly e.g. from preconstructed decks
         release_meta = None
 
-    return BQLeader(
+    return Leader(
         id=leader_id,
         name=leader_name,
         life=leader_life,

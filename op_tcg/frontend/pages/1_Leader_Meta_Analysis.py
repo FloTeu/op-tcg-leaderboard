@@ -5,8 +5,8 @@ import streamlit as st
 from streamlit_elements import elements, mui, html, nivo, dashboard
 
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.leader import BQLeader, OPTcgColor
-from op_tcg.backend.models.matches import Match, BQLeaderElo
+from op_tcg.backend.models.leader import Leader, OPTcgColor
+from op_tcg.backend.models.matches import Match, LeaderElo
 from op_tcg.frontend.extract import get_leader_data, get_match_data, get_leader_elo_data
 from op_tcg.frontend.sidebar import display_meta_sidebar, display_leader_sidebar
 
@@ -19,7 +19,7 @@ from op_tcg.frontend.sidebar import display_meta_sidebar, display_leader_sidebar
 
 def data_setup():
     selected_leader_ids: list[str] = [ln.split("(")[1].strip(")") for ln in selected_leader_names]
-    selected_bq_leaders: list[BQLeader] = [l for l in bq_leaders if l.id in selected_leader_ids]
+    selected_bq_leaders: list[Leader] = [l for l in bq_leaders if l.id in selected_leader_ids]
     selected_match_data: list[Match] = get_match_data(meta_formats=selected_meta_formats, leader_ids=selected_leader_ids)
     df_selected_match_data = pd.DataFrame([match.dict() for match in selected_match_data])
 
@@ -154,11 +154,11 @@ selected_meta_formats: list[MetaFormat] = display_meta_sidebar()
 if len(selected_meta_formats) == 0:
     st.warning("Please select at least one meta format")
 else:
-    selected_leader_elo_data: list[BQLeaderElo] = get_leader_elo_data(meta_formats=selected_meta_formats)
+    selected_leader_elo_data: list[LeaderElo] = get_leader_elo_data(meta_formats=selected_meta_formats)
     # first element is leader with best elo
-    sorted_leader_elo_data: list[BQLeaderElo] = sorted(selected_leader_elo_data, key=lambda x: x.elo, reverse=True)
-    bq_leaders: list[BQLeader] = get_leader_data()
-    leader_id2leader_data: dict[str, BQLeader] = {bq_leader_data.id: bq_leader_data for bq_leader_data in bq_leaders}
+    sorted_leader_elo_data: list[LeaderElo] = sorted(selected_leader_elo_data, key=lambda x: x.elo, reverse=True)
+    bq_leaders: list[Leader] = get_leader_data()
+    leader_id2leader_data: dict[str, Leader] = {bq_leader_data.id: bq_leader_data for bq_leader_data in bq_leaders}
     available_leader_ids = list(dict.fromkeys([f"{leader_id2leader_data[l.leader_id].name if l.leader_id in leader_id2leader_data else ''} ({l.leader_id})" for l
         in sorted_leader_elo_data]))
     selected_leader_names: list[str] = display_leader_sidebar(available_leader_ids=available_leader_ids)

@@ -9,7 +9,7 @@ from pydantic import ValidationError
 from op_tcg.backend.etl.extract import limitless2bq_leader
 from op_tcg.backend.etl.load import get_or_create_table, update_bq_leader_row
 from op_tcg.backend.models.bq import BQDataset
-from op_tcg.backend.models.leader import BQLeader, OPTcgLanguage, OPTcgColor, OPTcgAttribute
+from op_tcg.backend.models.leader import Leader, OPTcgLanguage, OPTcgColor, OPTcgAttribute
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.utils import booleanize
 from op_tcg.frontend.models.session import LeaderUploadForm
@@ -21,8 +21,8 @@ load_dotenv()
 def display_upload_form(
                         id_default_text: str | None=None,
                         language_default_text: str | None=None,
-                        bq_leader_default_text: BQLeader | None=None,
-) -> tuple[BQLeader | None, str]:
+                        bq_leader_default_text: Leader | None=None,
+) -> tuple[Leader | None, str]:
     """
     return: BQLeader if form as correctly filled, None otherwise and an optional error message
     """
@@ -57,19 +57,19 @@ def display_upload_form(
             st.session_state["submit_button_leader_upload_clicked"] = True
             try:
                 # Note: None is used to trigger validation error
-                bq_leader = BQLeader(id=id if id else None,
-                                name=name if name else None,
-                                life=life,
-                                power=power,
-                                release_meta=MetaFormat(release_meta) if release_meta else None,
-                                avatar_icon=avatar_icon if avatar_icon else None,
-                                image_url=image_url if image_url else None,
-                                image_aa_url=image_aa_url if image_aa_url else None,
-                                colors=[OPTcgColor(c) for c in colors] if colors else None,
-                                ability=ability if ability else None,
-                                attributes=attributes if attributes else None,
-                                language=OPTcgLanguage(language) if language else None
-                                )
+                bq_leader = Leader(id=id if id else None,
+                                   name=name if name else None,
+                                   life=life,
+                                   power=power,
+                                   release_meta=MetaFormat(release_meta) if release_meta else None,
+                                   avatar_icon=avatar_icon if avatar_icon else None,
+                                   image_url=image_url if image_url else None,
+                                   image_aa_url=image_aa_url if image_aa_url else None,
+                                   colors=[OPTcgColor(c) for c in colors] if colors else None,
+                                   ability=ability if ability else None,
+                                   attributes=attributes if attributes else None,
+                                   language=OPTcgLanguage(language) if language else None
+                                   )
             except ValidationError as ex:
                 error_text = "**Whoops! There were some problems with your input:**"
                 for error in ex.errors():
@@ -112,7 +112,7 @@ where t1.id is NULL""")
                                                          language_default_text=language_default_text,
                                                          bq_leader_default_text=session_upload_form_data.bq_leader
                                                          )
-            if isinstance(bq_leader, BQLeader):
+            if isinstance(bq_leader, Leader):
                 session_upload_form_data.bq_leader = bq_leader
                 st.session_state["session_upload_form_data"] = session_upload_form_data
             else:
@@ -121,7 +121,7 @@ where t1.id is NULL""")
         if error_text:
             st.error(error_text)
 
-        if isinstance(bq_leader, BQLeader):
+        if isinstance(bq_leader, Leader):
             display_images(bq_leader)
 
             if st.button("Upload Leader"):
@@ -130,8 +130,8 @@ where t1.id is NULL""")
 
 def upload2bq_and_storage(bq_leader):
     with st.spinner('Upload Leader Data to GCP BigQuery...'):
-        bq_leader_table = get_or_create_table(table_id=BQLeader.__tablename__, dataset_id=BQDataset.LEADERS,
-                                              model=BQLeader, client=bq_client)
+        bq_leader_table = get_or_create_table(table_id=Leader.__tablename__, dataset_id=BQDataset.LEADERS,
+                                              model=Leader, client=bq_client)
         update_bq_leader_row(bq_leader, table=bq_leader_table, client=bq_client)
     with st.spinner('Upload Images to GCP Storage...'):
         for blob_dir, img_url in {"avatar": bq_leader.avatar_icon_url, "standard": bq_leader.image_url,

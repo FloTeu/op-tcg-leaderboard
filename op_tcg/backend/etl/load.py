@@ -8,7 +8,7 @@ from google.cloud.exceptions import NotFound
 from pydantic import BaseModel
 from sqlmodel import SQLModel
 from op_tcg.backend.models.bq import BQFieldMode, BQFieldType
-from op_tcg.backend.models.leader import BQLeader
+from op_tcg.backend.models.leader import Leader
 
 
 def get_or_create_bq_dataset(dataset_id, client: bigquery.Client | None = None, location='europe-west3',
@@ -114,7 +114,7 @@ def get_or_create_table(model: type[SQLModel], dataset_id: str, table_id: str | 
 
 
 
-def update_bq_leader_row(bq_leader: BQLeader, table: bigquery.Table, client: bigquery.Client | None = None):
+def update_bq_leader_row(bq_leader: Leader, table: bigquery.Table, client: bigquery.Client | None = None):
     client = client if client else bigquery.Client()
 
     table_id = f"{table.project}.{table.dataset_id}.{table.table_id}"  # Replace with your actual project, dataset, and table name

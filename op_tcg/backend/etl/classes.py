@@ -9,7 +9,7 @@ from op_tcg.backend.etl.load import get_or_create_table
 from op_tcg.backend.etl.transform import limitless_matches2bq_matches, BQMatchCreator
 from op_tcg.backend.models.bq import BQDataset
 from op_tcg.backend.models.input import AllLeaderMetaDocs, MetaFormat, LimitlessLeaderMetaDoc
-from op_tcg.backend.models.matches import BQMatches, Match, BQLeaderElos, BQLeaderElo
+from op_tcg.backend.models.matches import BQMatches, Match, BQLeaderElos, LeaderElo
 from op_tcg.backend.etl.extract import read_json_files
 from pathlib import Path
 from google.cloud import bigquery
@@ -76,14 +76,14 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
             df = self.bq_client.query_and_wait(query).to_dataframe()
         matches: list[Match] = []
         for i, df_row in df.iterrows():
-            matches.append(matches(**df_row.to_dict()))
+            matches.append(Match(**df_row.to_dict()))
         return BQMatches(matches=matches)
 
 
     def transform(self, all_matches: BQMatches) -> BQLeaderElos:
         # TODO Add more elo values for different metas
         df_all_matches = all_matches.to_dataframe()
-        elo_ratings: list[BQLeaderElo] = []
+        elo_ratings: list[LeaderElo] = []
         def calculate_all_elo_ratings(df_matches):
             elo_creator = EloCreator(df_matches)
             elo_creator.calculate_elo_ratings()
@@ -93,8 +93,8 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
         return BQLeaderElos(elo_ratings=elo_ratings)
 
     def load(self, transformed_data: BQLeaderElos) -> None:
-        table_tmp = get_or_create_table(model=BQLeaderElo, table_id=f"{BQLeaderElo.__tablename__}_tmp", dataset_id="matches", client=self.bq_client)
-        table = get_or_create_table(model=BQLeaderElo, table_id=BQLeaderElo.__tablename__, dataset_id="matches", client=self.bq_client)
+        table_tmp = get_or_create_table(model=LeaderElo, table_id=f"{LeaderElo.__tablename__}_tmp", dataset_id="matches", client=self.bq_client)
+        table = get_or_create_table(model=LeaderElo, table_id=LeaderElo.__tablename__, dataset_id="matches", client=self.bq_client)
         df = transformed_data.to_dataframe()
         if len(df) > 0:
             # create tmp table with new data

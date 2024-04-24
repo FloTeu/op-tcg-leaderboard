@@ -1,7 +1,7 @@
 import streamlit as st
 
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.matches import BQLeaderElo, BQLeaderElos
+from op_tcg.backend.models.matches import LeaderElo, BQLeaderElos
 from op_tcg.frontend.sidebar import display_meta_sidebar
 from op_tcg.frontend.utils import run_bq_query
 
@@ -23,7 +23,7 @@ def main():
     # Iterate over elo rating
     leader_elos=[]
     for row in rows:
-        leader_elo = BQLeaderElo(**row)
+        leader_elo = LeaderElo(**row)
         leader_elos.append(leader_elo)
     df = BQLeaderElos(elo_ratings=leader_elos).to_dataframe()
     st.table(df[df["meta_format"].isin(meta_formats)])

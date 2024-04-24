@@ -1,7 +1,7 @@
 from enum import StrEnum
 
-from sqlmodel import SQLModel, Field
-from op_tcg.backend.models.base import EnumBase
+from sqlmodel import Field
+from op_tcg.backend.models.base import EnumBase, BQTableBaseModel
 from op_tcg.backend.models.input import MetaFormat
 
 
@@ -24,7 +24,7 @@ class OPTcgLanguage(StrEnum):
     EN="en"
     JP="jp"
 
-class BQLeader(SQLModel, table=True):
+class Leader(BQTableBaseModel):
     id: str = Field(description="The op tcg leader id e.g. OP03-099", primary_key=True)
     name: str = Field(description="The op tcg leader name e.g. Charlotte Katakuri")
     life: int = Field(description="Life of leader")

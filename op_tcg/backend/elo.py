@@ -1,6 +1,6 @@
 import pandas as pd
 
-from op_tcg.backend.models.matches import MatchResult, BQLeaderElos, BQLeaderElo
+from op_tcg.backend.models.matches import MatchResult, BQLeaderElos, LeaderElo
 
 
 class EloCreator:
@@ -30,9 +30,9 @@ class EloCreator:
                 self.leader_id2elo[leader_id] = new_elo
 
     def to_bq_leader_elos(self) -> BQLeaderElos:
-        leader_elos: list[BQLeaderElo] = []
+        leader_elos: list[LeaderElo] = []
         for leader_id, elo in self.leader_id2elo.items():
-            leader_elos.append(BQLeaderElo(
+            leader_elos.append(LeaderElo(
                 leader_id=leader_id,
                 elo=elo,
                 only_official=self.only_official,
