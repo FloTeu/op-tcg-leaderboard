@@ -1,5 +1,3 @@
-import random
-
 import pandas as pd
 import streamlit as st
 from streamlit_elements import elements, mui, html, nivo, dashboard
@@ -11,8 +9,9 @@ from op_tcg.backend.models.matches import Match, LeaderElo
 from op_tcg.frontend.extract import get_leader_data, get_match_data, get_leader_elo_data
 from op_tcg.frontend.sidebar import display_meta_sidebar, display_leader_sidebar
 
-ST_THEME = st_theme()
+st.set_page_config(layout="wide")
 
+ST_THEME = st_theme()
 
 # TODO: Provide a list of available leader_ids based on selected meta (e.g. top 10 leaders with highest win rate/elo)
 
@@ -57,6 +56,7 @@ def get_radar_chart_data(df_color_win_rates, leader_id2leader_data) -> list[dict
         if color in df_color_win_rates.columns.values:
             win_against_color = {leader_id2leader_data.get(lid).name: win_rate
                                  for lid, win_rate in df_color_win_rates[color].to_dict().items()}
+            win_against_color = {k: v if not pd.isna(v) else 50 for k,v in win_against_color.items()}
         else:
             win_against_color = {leader_id2leader_data.get(lid).name: 50.0 for lid in df_color_win_rates.index.values}
         radar_chart_data.append({
@@ -93,9 +93,9 @@ def display_elements(selected_leader_ids, selected_bq_leaders, df_Leader_vs_lead
 
         layout = [
             # Parameters: element_identifier, x_pos, y_pos, width, height, [item properties...]
-            dashboard.Item("radar_plot_item", 0, 1, 4, 2, isDraggable=True, isResizable=True),
-            dashboard.Item("avatar_group_item", 3, 0, 2, 0.5, isDraggable=True),
-            dashboard.Item("table_item", 0, 1, 4, 4, isResizable=True),
+            dashboard.Item("radar_plot_item", 0, 1, 6, 2, isDraggable=True, isResizable=True),
+            dashboard.Item("avatar_group_item", 4, 0, 2, 0.5, isDraggable=True),
+            dashboard.Item("table_item", 0, 1, 4, 4, isResizable=False, isDraggable=False),
         ]
 
         def handle_layout_change(updated_layout):
@@ -109,19 +109,22 @@ def display_elements(selected_leader_ids, selected_bq_leaders, df_Leader_vs_lead
 
             with mui.Table(key="table_item"):
                 table_head = mui.TableHead(children=[mui.TableRow(
-                    children=[mui.TableCell(children="Winner\\Opponent")] + [
+                    children=[mui.TableCell(children="Winner\\Opponent", sx={"white-space": "nowrap"})] + [
                         create_image_cell(leader_id2leader_data[col].avatar_icon_url, lid2name(col))
                         for col in df_Leader_vs_leader_win_rates.columns.values])])
                 table_rows = [mui.TableRow(
                     children=[
                                  create_image_cell(leader_id2leader_data[df_row.name].avatar_icon_url,
                                                    lid2name(df_row.name))
-                             ] + [mui.TableCell(children=df_cell) for i, df_cell in
+                             ] + [mui.TableCell(children=df_cell, sx={"white-space": "nowrap"}) for i, df_cell in
                                   df_row.items()]) for i, df_row in
                     df_Leader_vs_leader_win_rates.iterrows()]
                 table_body = mui.TableBody(children=table_rows)
                 mui.Table(
                     children=[table_head, table_body],
+                    sx={
+                        "table-layout": 'fixed'
+                    }
                 )
 
             with mui.Box(sx={"height": 1000}, key="radar_plot_item"):
