@@ -107,23 +107,28 @@ def display_elements(selected_leader_ids, selected_bq_leaders, df_Leader_vs_lead
             children = [mui.Avatar(src=l.avatar_icon_url) for l in selected_bq_leaders]
             mui.AvatarGroup(children=children, key="avatar_group_item")
 
-            with mui.Table(key="table_item"):
+            with mui.TableContainer(key="table_item"):
                 table_head = mui.TableHead(children=[mui.TableRow(
-                    children=[mui.TableCell(children="Winner\\Opponent", sx={"white-space": "nowrap"})] + [
+                    children=[mui.TableCell(children="Winner\\Opponent",
+                                            #sx={"white-space": "nowrap"}
+                                            )] + [
                         create_image_cell(leader_id2leader_data[col].avatar_icon_url, lid2name(col))
                         for col in df_Leader_vs_leader_win_rates.columns.values])])
                 table_rows = [mui.TableRow(
                     children=[
                                  create_image_cell(leader_id2leader_data[df_row.name].avatar_icon_url,
                                                    lid2name(df_row.name))
-                             ] + [mui.TableCell(children=df_cell, sx={"white-space": "nowrap"}) for i, df_cell in
+                             ] + [mui.TableCell(children=df_cell,
+                                                #sx={"white-space": "nowrap"}
+                                                ) for i, df_cell in
                                   df_row.items()]) for i, df_row in
                     df_Leader_vs_leader_win_rates.iterrows()]
                 table_body = mui.TableBody(children=table_rows)
                 mui.Table(
                     children=[table_head, table_body],
                     sx={
-                        "table-layout": 'fixed'
+                        #"table-layout": 'fixed',
+                        #"overflowX": 'auto'
                     }
                 )
 
