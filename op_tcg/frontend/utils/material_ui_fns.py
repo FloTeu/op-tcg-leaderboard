@@ -20,6 +20,7 @@ def display_table(df_data,
     else:
         header_cells = [mui.TableCell(children="")] + [mui.TableCell(children=col) for col in df_data.columns.values]
     with mui.TableContainer(key=key):
+        mui.Box()(html.H1("Matchup Win Rates"))
         with mui.Table():
             # header row
             mui.TableHead()(mui.TableRow()(header_cells))
@@ -45,15 +46,57 @@ def display_table(df_data,
                     mui.TableRow()(row_cells)
 
 
-def create_image_cell(image_url, text):
-    # Function to create an image cell in a table
+# def create_image_cell(image_url, text):
+#     # Function to create an image cell in a table
+#
+#     return mui.TableCell(children=[
+#         mui.Box(
+#             sx={'display': 'flex', 'alignItems': 'center'},
+#             children=[
+#                 mui.Avatar(src=image_url, alt=text, sx={'width': 24, 'height': 24, 'marginRight': 1}),
+#                 text
+#             ]
+#         )
+#     ])
 
-    return mui.TableCell(children=[
-        mui.Box(
-            sx={'display': 'flex', 'alignItems': 'center'},
-            children=[
-                mui.Avatar(src=image_url, alt=text, sx={'width': 24, 'height': 24, 'marginRight': 1}),
-                text
-            ]
-        )
-    ])
+
+
+def create_image_cell(image_url, text, overlay_color='#000000'):
+    # Function to create an image cell in a table with a background image and formatted text
+
+    return mui.TableCell(
+        sx={
+            'backgroundImage': f'linear-gradient(to top, {overlay_color}, transparent), url("{image_url}")',
+            #'backgroundImage': f'url("{image_url}")',
+            'backgroundSize': 'cover, 125%',  # Apply cover for gradient and zoom for image
+            #'backgroundSize': '110%',  # Zoom in by 25%
+            'backgroundPosition': 'bottom, center -50px', # Gradient from bottom, image from 50px from top
+            #'backgroundPosition': 'center -40px',  # Start from 50px from the top
+            'backgroundRepeat': 'no-repeat',
+            'position': 'relative',  # Needed to position children absolutely
+            'height': '80px',  # Adjust height as needed
+        },
+        children=[
+            mui.Box(
+                sx={
+                    'position': 'absolute',
+                    'bottom': 0,
+                    'right': 0,
+                    'padding': '8px',
+                },
+                children=[
+                    mui.Typography(
+                        text_line,
+                        sx={
+                            'fontSize': '1.15rem',  # Adjust font size as needed
+                            'color': 'white',  # Text color set to white
+                            'fontWeight': 'bold',  # Optional: make the text bold
+                            '-webkit-text-stroke': '1px black',  # Black border line around the text
+                            'textShadow': '2px 2px 4px black',  # Optional: text shadow for better readability
+                        }
+                    ) for text_line in text.split("\n")
+                ]
+            )
+        ]
+    )
+

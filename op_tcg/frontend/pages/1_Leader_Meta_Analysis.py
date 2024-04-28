@@ -82,9 +82,12 @@ def display_elements(selected_leader_ids,
                      df_Leader_vs_leader_win_rates,
                      df_Leader_vs_leader_match_count,
                      radar_chart_data,
-                     leader_id2leader_data):
+                     leader_id2leader_data: dict[str, Leader]):
     def lid2name(leader_id: str) -> str:
         return leader_id2leader_data.get(leader_id).name
+
+    def lid2meta(leader_id: str) -> MetaFormat | str:
+        return leader_id2leader_data.get(leader_id).release_meta if leader_id2leader_data.get(leader_id).release_meta else ""
 
 
     # The rest of your code remains the same...
@@ -111,18 +114,25 @@ def display_elements(selected_leader_ids,
             children = [mui.Avatar(src=l.avatar_icon_url) for l in selected_bq_leaders]
             mui.AvatarGroup(children=children, key="avatar_group_item")
 
+            # header_cells = [mui.TableCell(children="Winner\\Opponent")] + [create_image_cell(leader_id2leader_data[col].image_url, lid2name(col), overlay_color=leader_id2leader_data[col].to_hex_color()) for col in
+            #               df_Leader_vs_leader_win_rates.columns.values]
             header_cells = [mui.TableCell(children="Winner\\Opponent")] + [mui.TableCell()(lid2name(col)) for col in
                           df_Leader_vs_leader_win_rates.columns.values]
-            index_cells = [create_image_cell(leader_id2leader_data[leader_id].avatar_icon_url,
-                            lid2name(leader_id)) for leader_id, df_row in df_Leader_vs_leader_win_rates.iterrows()]
+            index_cells = [create_image_cell(leader_id2leader_data[leader_id].image_aa_url,
+                            lid2meta(leader_id) + "\n" + lid2name(leader_id), overlay_color=leader_id2leader_data[leader_id].to_hex_color()) for leader_id, df_row in df_Leader_vs_leader_win_rates.iterrows()]
             for col in df_Leader_vs_leader_match_count.columns.values:
                 df_Leader_vs_leader_match_count[col] = df_Leader_vs_leader_match_count[col].fillna(0)
                 df_Leader_vs_leader_match_count[col] = 'Match Count: ' + df_Leader_vs_leader_match_count[col].astype(int).astype(str)
 
-            display_table(df_Leader_vs_leader_win_rates, df_tooltip=df_Leader_vs_leader_match_count, index_cells=index_cells, header_cells=header_cells, key="table_item")
+            display_table(df_Leader_vs_leader_win_rates,
+                          df_tooltip=df_Leader_vs_leader_match_count,
+                          index_cells=index_cells,
+                          header_cells=header_cells,
+                          key="table_item")
 
-            with mui.Box(sx={"height": 1000}, key="radar_plot_item"):
-                nivo.Radar(
+            box_elements: list = []
+            #box_elements.append(html.H1("Color Win Rates"))
+            box_elements.append(nivo.Radar(
                     data=radar_chart_data,
                     keys=[lid2name(lid) for lid in selected_leader_ids],
                     indexBy="taste",
@@ -166,7 +176,9 @@ def display_elements(selected_leader_ids,
                         }
                     },
                     colors=[leader_id2leader_data[lid].to_hex_color() for lid in selected_leader_ids]
-                )
+                ))
+
+            mui.Box(key="radar_plot_item", children=box_elements)
 
 st.header("Leader Meta Analysis")
 
