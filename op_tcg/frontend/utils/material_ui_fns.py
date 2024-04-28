@@ -1,9 +1,11 @@
+import pandas as pd
 from streamlit_elements import mui, html, core
 
 def display_table(df_data,
                   df_tooltip=None,
                   index_cells: list[core.element.Element]=None,
                   header_cells: list[core.element.Element]=None,
+                  title=None,
                   key="mui-table"):
     """
     df_data: DataFrame containing all data which should be display. Index and headers are also displayed by default
@@ -20,7 +22,8 @@ def display_table(df_data,
     else:
         header_cells = [mui.TableCell(children="")] + [mui.TableCell(children=col) for col in df_data.columns.values]
     with mui.TableContainer(key=key):
-        mui.Box()(html.H1("Matchup Win Rates"))
+        if title:
+            mui.Box()(html.H1(title))
         with mui.Table():
             # header row
             mui.TableHead()(mui.TableRow()(header_cells))
@@ -33,13 +36,26 @@ def display_table(df_data,
 
                     # Append new cells to the row_cells list
                     for j, df_cell in df_row.items():
+                        cell_text = f"{df_cell}%" if not pd.isna(df_cell) else df_cell
+                        cell_text_styles = {
+                             'fontSize': '1.35rem',  # Adjust font size as needed
+                             'color': 'black',  # Text color set to white
+                             'fontWeight': 'bold',  # Optional: make the text bold
+                        }
                         if df_tooltip is not None:
                             cell_input = mui.Tooltip(title=str(df_tooltip.iloc[i][j]))(
-                                html.Span()(mui.Typography(df_cell))
+                                html.Span()(mui.Typography(sx=cell_text_styles)(cell_text))
                             )
                         else:
-                            cell_input = mui.Typography(df_cell)
-                        cell = mui.TableCell()(cell_input)
+                            cell_input = mui.Typography(cell_text)
+                        background_color = "rgb(164, 176, 190)"
+                        if df_cell < 50:
+                            background_color = f"rgba(255, 107, 129, {1-(df_cell/50/2)})"
+                        if df_cell > 50:
+                            background_color = f"rgba(123, 237, 159, {0.5+(df_cell/50-1)/2})"
+                        cell = mui.TableCell(sx={"background": background_color,
+                                                 "text-align": "center"
+                                                 })(cell_input)
                         row_cells.append(cell)
 
                     # Create the table row with all the cells
@@ -61,7 +77,7 @@ def display_table(df_data,
 
 
 
-def create_image_cell(image_url, text, overlay_color='#000000'):
+def create_image_cell(image_url, text, overlay_color='#000000', horizontal=True):
     # Function to create an image cell in a table with a background image and formatted text
 
     return mui.TableCell(
@@ -70,7 +86,7 @@ def create_image_cell(image_url, text, overlay_color='#000000'):
             #'backgroundImage': f'url("{image_url}")',
             'backgroundSize': 'cover, 125%',  # Apply cover for gradient and zoom for image
             #'backgroundSize': '110%',  # Zoom in by 25%
-            'backgroundPosition': 'bottom, center -50px', # Gradient from bottom, image from 50px from top
+            'backgroundPosition': 'bottom, center -50px' if horizontal else 'bottom, center 0px', # Gradient from bottom, image from 50px from top
             #'backgroundPosition': 'center -40px',  # Start from 50px from the top
             'backgroundRepeat': 'no-repeat',
             'position': 'relative',  # Needed to position children absolutely

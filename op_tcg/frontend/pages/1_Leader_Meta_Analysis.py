@@ -87,7 +87,7 @@ def display_elements(selected_leader_ids,
         return leader_id2leader_data.get(leader_id).name
 
     def lid2meta(leader_id: str) -> MetaFormat | str:
-        return leader_id2leader_data.get(leader_id).release_meta if leader_id2leader_data.get(leader_id).release_meta else ""
+        return leader_id2leader_data.get(leader_id).id.split("-")[0]
 
 
     # The rest of your code remains the same...
@@ -114,10 +114,10 @@ def display_elements(selected_leader_ids,
             children = [mui.Avatar(src=l.avatar_icon_url) for l in selected_bq_leaders]
             mui.AvatarGroup(children=children, key="avatar_group_item")
 
-            # header_cells = [mui.TableCell(children="Winner\\Opponent")] + [create_image_cell(leader_id2leader_data[col].image_url, lid2name(col), overlay_color=leader_id2leader_data[col].to_hex_color()) for col in
-            #               df_Leader_vs_leader_win_rates.columns.values]
-            header_cells = [mui.TableCell(children="Winner\\Opponent")] + [mui.TableCell()(lid2name(col)) for col in
+            header_cells = [mui.TableCell(children="Winner\\Opponent")] + [create_image_cell(leader_id2leader_data[col].image_url, lid2name(col), overlay_color=leader_id2leader_data[col].to_hex_color(), horizontal=False) for col in
                           df_Leader_vs_leader_win_rates.columns.values]
+            # header_cells = [mui.TableCell(children="Winner\\Opponent")] + [mui.TableCell()(lid2name(col)) for col in
+            #               df_Leader_vs_leader_win_rates.columns.values]
             index_cells = [create_image_cell(leader_id2leader_data[leader_id].image_aa_url,
                             lid2meta(leader_id) + "\n" + lid2name(leader_id), overlay_color=leader_id2leader_data[leader_id].to_hex_color()) for leader_id, df_row in df_Leader_vs_leader_win_rates.iterrows()]
             for col in df_Leader_vs_leader_match_count.columns.values:
@@ -128,6 +128,7 @@ def display_elements(selected_leader_ids,
                           df_tooltip=df_Leader_vs_leader_match_count,
                           index_cells=index_cells,
                           header_cells=header_cells,
+                          title="Matchup Win Rates",
                           key="table_item")
 
             box_elements: list = []
@@ -206,10 +207,10 @@ if len(selected_leader_names) < 2:
 else:
     selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, df_Leader_vs_leader_match_count, df_color_win_rates = data_setup(
         selected_leader_names, selected_meta_formats, leader_id2leader_data)
-radar_chart_data = get_radar_chart_data(df_color_win_rates, leader_id2leader_data)
-display_elements(selected_leader_ids,
-                 selected_bq_leaders,
-                 df_Leader_vs_leader_win_rates,
-                 df_Leader_vs_leader_match_count,
-                 radar_chart_data,
-                 leader_id2leader_data)
+    radar_chart_data = get_radar_chart_data(df_color_win_rates, leader_id2leader_data)
+    display_elements(selected_leader_ids,
+                     selected_bq_leaders,
+                     df_Leader_vs_leader_win_rates,
+                     df_Leader_vs_leader_match_count,
+                     radar_chart_data,
+                     leader_id2leader_data)
