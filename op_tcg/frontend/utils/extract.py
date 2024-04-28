@@ -1,3 +1,4 @@
+from op_tcg.backend.models.bq import BQDataset
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader
 from op_tcg.backend.models.matches import Match, LeaderElo
@@ -6,7 +7,7 @@ from op_tcg.frontend.utils.utils import run_bq_query
 
 def get_leader_data() -> list[Leader]:
     # cached for each session
-    leader_data_rows = run_bq_query("SELECT * FROM `op-tcg-leaderboard-dev.leaders.leaders`")
+    leader_data_rows = run_bq_query(f"SELECT * FROM `op-tcg-leaderboard-dev.{BQDataset.LEADERS}.{Leader.__tablename__}`")
     bq_leaders = [Leader(**d) for d in leader_data_rows]
     return bq_leaders
 

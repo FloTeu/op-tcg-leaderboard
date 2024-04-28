@@ -111,7 +111,7 @@ def display_elements(selected_leader_ids,
             children = [mui.Avatar(src=l.avatar_icon_url) for l in selected_bq_leaders]
             mui.AvatarGroup(children=children, key="avatar_group_item")
 
-            header_cells = [mui.TableCell(children="Winner\\Opponent")] + [create_image_cell(leader_id2leader_data[col].avatar_icon_url, lid2name(col)) for col in
+            header_cells = [mui.TableCell(children="Winner\\Opponent")] + [mui.TableCell()(lid2name(col)) for col in
                           df_Leader_vs_leader_win_rates.columns.values]
             index_cells = [create_image_cell(leader_id2leader_data[leader_id].avatar_icon_url,
                             lid2name(leader_id)) for leader_id, df_row in df_Leader_vs_leader_win_rates.iterrows()]

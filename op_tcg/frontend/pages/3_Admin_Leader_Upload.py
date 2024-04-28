@@ -11,7 +11,7 @@ from op_tcg.backend.etl.load import get_or_create_table, update_bq_leader_row
 from op_tcg.backend.models.bq import BQDataset
 from op_tcg.backend.models.leader import Leader, OPTcgLanguage, OPTcgColor, OPTcgAttribute
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.utils import booleanize
+from op_tcg.backend.utils.utils import booleanize
 from op_tcg.frontend.models.session import LeaderUploadForm
 from op_tcg.frontend.utils.utils import upload2gcp_storage, bq_client, run_bq_query
 
@@ -132,6 +132,15 @@ def upload2bq_and_storage(bq_leader):
     with st.spinner('Upload Leader Data to GCP BigQuery...'):
         bq_leader_table = get_or_create_table(table_id=Leader.__tablename__, dataset_id=BQDataset.LEADERS,
                                               model=Leader, client=bq_client)
+
+        # change image urls to gcp storage urls
+        file_type = bq_leader.avatar_icon_url.split('.')[-1]
+        bq_leader.avatar_icon_url = f"https://storage.googleapis.com/op-tcg-leaderboard-public/leader/images/avatar/{bq_leader.language.upper()}/{bq_leader.id}.{file_type}"
+        file_type = bq_leader.image_url.split('.')[-1]
+        bq_leader.image_url = f"https://storage.googleapis.com/op-tcg-leaderboard-public/leader/images/standard/{bq_leader.language.upper()}/{bq_leader.id}.{file_type}"
+        file_type = bq_leader.image_aa_url.split('.')[-1]
+        bq_leader.image_aa_url = f"https://storage.googleapis.com/op-tcg-leaderboard-public/leader/images/alt-art/{bq_leader.language.upper()}/{bq_leader.id}.{file_type}"
+
         update_bq_leader_row(bq_leader, table=bq_leader_table, client=bq_client)
     with st.spinner('Upload Images to GCP Storage...'):
         for blob_dir, img_url in {"avatar": bq_leader.avatar_icon_url, "standard": bq_leader.image_url,
