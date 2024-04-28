@@ -165,7 +165,7 @@ def display_elements(selected_leader_ids,
                             }
                         }
                     },
-                    colors=[leader_id2leader_data[lid].colors[0].to_hex_color() for lid in selected_leader_ids]
+                    colors=[leader_id2leader_data[lid].to_hex_color() for lid in selected_leader_ids]
                 )
 
 st.header("Leader Meta Analysis")

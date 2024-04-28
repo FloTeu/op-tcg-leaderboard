@@ -3,6 +3,7 @@ from enum import StrEnum
 from pydantic import Field
 from op_tcg.backend.models.base import EnumBase, BQTableBaseModel
 from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.utils.color_fns import average_hex_colors
 
 
 class OPTcgColor(EnumBase, StrEnum):
@@ -13,7 +14,7 @@ class OPTcgColor(EnumBase, StrEnum):
     BLACK="Black"
     YELLOW="Yellow"
 
-    def to_hex_color(self):
+    def to_hex_color(self) -> str:
         if self == self.RED:
             return "#c0392b"
         elif self == self.GREEN:
@@ -52,3 +53,10 @@ class Leader(BQTableBaseModel):
     ability: str = Field(description="Ability of the leader")
     fractions: list[str] = Field(description="List of fractions of the leader, e.g. Straw Hat Crew")
     language: OPTcgLanguage = Field(default=OPTcgLanguage.EN, description="Language of the data in this obect")
+
+
+    def to_hex_color(self) -> str:
+        hex_colors: list[str] = []
+        for color in self.colors:
+            hex_colors.append(color.to_hex_color())
+        return average_hex_colors(hex_colors)
