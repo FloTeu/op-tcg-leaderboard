@@ -3,7 +3,7 @@ import streamlit as st
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.matches import LeaderElo, BQLeaderElos
 from op_tcg.frontend.sidebar import display_meta_sidebar
-from op_tcg.frontend.utils import run_bq_query
+from op_tcg.frontend.utils.utils import run_bq_query
 
 
 def main():

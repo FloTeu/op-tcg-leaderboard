@@ -1,7 +1,7 @@
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader
 from op_tcg.backend.models.matches import Match, LeaderElo
-from op_tcg.frontend.utils import run_bq_query
+from op_tcg.frontend.utils.utils import run_bq_query
 
 
 def get_leader_data() -> list[Leader]:

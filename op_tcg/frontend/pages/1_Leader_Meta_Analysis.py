@@ -6,12 +6,14 @@ from streamlit_theme import st_theme
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader, OPTcgColor
 from op_tcg.backend.models.matches import Match, LeaderElo
-from op_tcg.frontend.extract import get_leader_data, get_match_data, get_leader_elo_data
+from op_tcg.frontend.utils.extract import get_leader_data, get_match_data, get_leader_elo_data
 from op_tcg.frontend.sidebar import display_meta_sidebar, display_leader_sidebar
+from op_tcg.frontend.utils.material_ui_fns import create_image_cell, display_table
 
 st.set_page_config(layout="wide")
 
 ST_THEME = st_theme()
+
 
 # TODO: Provide a list of available leader_ids based on selected meta (e.g. top 10 leaders with highest win rate/elo)
 
@@ -56,7 +58,7 @@ def get_radar_chart_data(df_color_win_rates, leader_id2leader_data) -> list[dict
         if color in df_color_win_rates.columns.values:
             win_against_color = {leader_id2leader_data.get(lid).name: win_rate
                                  for lid, win_rate in df_color_win_rates[color].to_dict().items()}
-            win_against_color = {k: v if not pd.isna(v) else 50 for k,v in win_against_color.items()}
+            win_against_color = {k: v if not pd.isna(v) else 50 for k, v in win_against_color.items()}
         else:
             win_against_color = {leader_id2leader_data.get(lid).name: 50.0 for lid in df_color_win_rates.index.values}
         radar_chart_data.append({
@@ -71,17 +73,6 @@ def display_elements(selected_leader_ids, selected_bq_leaders, df_Leader_vs_lead
     def lid2name(leader_id: str) -> str:
         return leader_id2leader_data.get(leader_id).name
 
-    # Function to create an image cell in a table
-    def create_image_cell(image_url, text):
-        return mui.TableCell(children=[
-            mui.Box(
-                sx={'display': 'flex', 'alignItems': 'center'},
-                children=[
-                    mui.Avatar(src=image_url, alt=text, sx={'width': 24, 'height': 24, 'marginRight': 1}),
-                    text
-                ]
-            )
-        ])
 
     # The rest of your code remains the same...
 
@@ -95,7 +86,7 @@ def display_elements(selected_leader_ids, selected_bq_leaders, df_Leader_vs_lead
             # Parameters: element_identifier, x_pos, y_pos, width, height, [item properties...]
             dashboard.Item("radar_plot_item", 0, 1, 6, 2, isDraggable=True, isResizable=True),
             dashboard.Item("avatar_group_item", 4, 0, 2, 0.5, isDraggable=True),
-            dashboard.Item("table_item", 0, 1, 4, 4, isResizable=False, isDraggable=False),
+            dashboard.Item("table_item", 0, 1, 6, 4, isResizable=False, isDraggable=False),
         ]
 
         def handle_layout_change(updated_layout):
@@ -107,30 +98,11 @@ def display_elements(selected_leader_ids, selected_bq_leaders, df_Leader_vs_lead
             children = [mui.Avatar(src=l.avatar_icon_url) for l in selected_bq_leaders]
             mui.AvatarGroup(children=children, key="avatar_group_item")
 
-            with mui.TableContainer(key="table_item"):
-                table_head = mui.TableHead(children=[mui.TableRow(
-                    children=[mui.TableCell(children="Winner\\Opponent",
-                                            #sx={"white-space": "nowrap"}
-                                            )] + [
-                        create_image_cell(leader_id2leader_data[col].avatar_icon_url, lid2name(col))
-                        for col in df_Leader_vs_leader_win_rates.columns.values])])
-                table_rows = [mui.TableRow(
-                    children=[
-                                 create_image_cell(leader_id2leader_data[df_row.name].avatar_icon_url,
-                                                   lid2name(df_row.name))
-                             ] + [mui.TableCell(children=df_cell,
-                                                #sx={"white-space": "nowrap"}
-                                                ) for i, df_cell in
-                                  df_row.items()]) for i, df_row in
-                    df_Leader_vs_leader_win_rates.iterrows()]
-                table_body = mui.TableBody(children=table_rows)
-                mui.Table(
-                    children=[table_head, table_body],
-                    sx={
-                        #"table-layout": 'fixed',
-                        #"overflowX": 'auto'
-                    }
-                )
+            header_cells = [mui.TableCell(children="Winner\\Opponent")] + [create_image_cell(leader_id2leader_data[col].avatar_icon_url, lid2name(col)) for col in
+                          df_Leader_vs_leader_win_rates.columns.values]
+            index_cells = [create_image_cell(leader_id2leader_data[leader_id].avatar_icon_url,
+                            lid2name(leader_id)) for leader_id, df_row in df_Leader_vs_leader_win_rates.iterrows()]
+            display_table(df_Leader_vs_leader_win_rates, index_cells=index_cells, header_cells=header_cells, key="table_item")
 
             with mui.Box(sx={"height": 1000}, key="radar_plot_item"):
                 nivo.Radar(
@@ -179,7 +151,6 @@ def display_elements(selected_leader_ids, selected_bq_leaders, df_Leader_vs_lead
                     colors=[leader_id2leader_data[lid].colors[0].to_hex_color() for lid in selected_leader_ids]
                 )
 
-
 st.header("Leader Meta Analysis")
 
 # TODO clean code up
@@ -189,20 +160,24 @@ if len(selected_meta_formats) == 0:
     st.warning("Please select at least one meta format")
 else:
     selected_leader_elo_data: list[LeaderElo] = get_leader_elo_data(meta_formats=selected_meta_formats)
-    # first element is leader with best elo
-    sorted_leader_elo_data: list[LeaderElo] = sorted(selected_leader_elo_data, key=lambda x: x.elo, reverse=True)
-    bq_leaders: list[Leader] = get_leader_data()
-    leader_id2leader_data: dict[str, Leader] = {bq_leader_data.id: bq_leader_data for bq_leader_data in bq_leaders}
-    available_leader_ids = list(dict.fromkeys(
-        [f"{leader_id2leader_data[l.leader_id].name if l.leader_id in leader_id2leader_data else ''} ({l.leader_id})"
-         for l
-         in sorted_leader_elo_data]))
-    selected_leader_names: list[str] = display_leader_sidebar(available_leader_ids=available_leader_ids)
-    if len(selected_leader_names) < 2:
-        st.warning("Please select at least two leaders")
-    else:
-        selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, df_color_win_rates = data_setup(
-            selected_leader_names, selected_meta_formats, leader_id2leader_data)
-        radar_chart_data = get_radar_chart_data(df_color_win_rates, leader_id2leader_data)
-        display_elements(selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, radar_chart_data,
-                         leader_id2leader_data)
+# first element is leader with best elo
+sorted_leader_elo_data: list[LeaderElo] = sorted(selected_leader_elo_data, key=lambda x: x.elo,
+                                                 reverse=True)
+bq_leaders: list[Leader] = get_leader_data()
+leader_id2leader_data: dict[str, Leader] = {bq_leader_data.id: bq_leader_data for bq_leader_data in
+                                            bq_leaders}
+available_leader_ids = list(dict.fromkeys(
+    [
+        f"{leader_id2leader_data[l.leader_id].name if l.leader_id in leader_id2leader_data else ''} ({l.leader_id})"
+        for l
+        in sorted_leader_elo_data]))
+selected_leader_names: list[str] = display_leader_sidebar(available_leader_ids=available_leader_ids)
+if len(selected_leader_names) < 2:
+    st.warning("Please select at least two leaders")
+else:
+    selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, df_color_win_rates = data_setup(
+        selected_leader_names, selected_meta_formats, leader_id2leader_data)
+radar_chart_data = get_radar_chart_data(df_color_win_rates, leader_id2leader_data)
+display_elements(selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates,
+                 radar_chart_data,
+                 leader_id2leader_data)

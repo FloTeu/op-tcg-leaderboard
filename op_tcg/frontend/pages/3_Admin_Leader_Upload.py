@@ -13,7 +13,7 @@ from op_tcg.backend.models.leader import Leader, OPTcgLanguage, OPTcgColor, OPTc
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.utils import booleanize
 from op_tcg.frontend.models.session import LeaderUploadForm
-from op_tcg.frontend.utils import upload2gcp_storage, bq_client, run_bq_query
+from op_tcg.frontend.utils.utils import upload2gcp_storage, bq_client, run_bq_query
 
 load_dotenv()
 
