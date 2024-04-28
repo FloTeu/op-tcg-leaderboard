@@ -9,7 +9,7 @@ def display_table(df_data,
     df_data: DataFrame containing all data which should be display. Index and headers are also displayed by default
     df_tooltip: Dataframe containing optional tooltip information
     """
-    if df_tooltip:
+    if df_tooltip is not None:
         assert df_tooltip.shape == df_data.shape
     if index_cells:
         assert df_data.shape[0] == len(index_cells)
@@ -32,8 +32,8 @@ def display_table(df_data,
 
                     # Append new cells to the row_cells list
                     for j, df_cell in df_row.items():
-                        if df_tooltip:
-                            cell_input = mui.Tooltip(title=df_row.name)(
+                        if df_tooltip is not None:
+                            cell_input = mui.Tooltip(title=str(df_tooltip.iloc[i][j]))(
                                 html.Span()(mui.Typography(df_cell))
                             )
                         else:

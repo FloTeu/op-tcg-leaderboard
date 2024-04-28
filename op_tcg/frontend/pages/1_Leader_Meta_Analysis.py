@@ -44,11 +44,20 @@ def data_setup(selected_leader_names, selected_meta_formats, leader_id2leader_da
         ["leader_id", "opponent_id"]).apply(calculate_win_rate, include_groups=False)
     df_Leader_vs_leader_win_rates = win_rates_series.unstack(level=-1)
 
+    # calculate match counts between leaders
+    def calculate_match_count(df_matches: pd.DataFrame) -> float:
+        return len(df_matches)
+
+    match_counts_series = df_selected_match_data[df_selected_match_data["opponent_id"].isin(selected_leader_ids)].groupby(
+        ["leader_id", "opponent_id"]).apply(calculate_match_count, include_groups=False)
+    df_Leader_vs_leader_match_count = match_counts_series.unstack(level=-1)
+
+
     win_rates_series = df_selected_color_match_data.groupby(["leader_id", "color"]).apply(calculate_win_rate,
                                                                                           include_groups=False)
     df_color_win_rates = win_rates_series.unstack(level=-1)
 
-    return selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, df_color_win_rates
+    return selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, df_Leader_vs_leader_match_count, df_color_win_rates
 
 
 def get_radar_chart_data(df_color_win_rates, leader_id2leader_data) -> list[dict[str, str | float]]:
@@ -68,7 +77,11 @@ def get_radar_chart_data(df_color_win_rates, leader_id2leader_data) -> list[dict
     return radar_chart_data
 
 
-def display_elements(selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, radar_chart_data,
+def display_elements(selected_leader_ids,
+                     selected_bq_leaders,
+                     df_Leader_vs_leader_win_rates,
+                     df_Leader_vs_leader_match_count,
+                     radar_chart_data,
                      leader_id2leader_data):
     def lid2name(leader_id: str) -> str:
         return leader_id2leader_data.get(leader_id).name
@@ -102,7 +115,11 @@ def display_elements(selected_leader_ids, selected_bq_leaders, df_Leader_vs_lead
                           df_Leader_vs_leader_win_rates.columns.values]
             index_cells = [create_image_cell(leader_id2leader_data[leader_id].avatar_icon_url,
                             lid2name(leader_id)) for leader_id, df_row in df_Leader_vs_leader_win_rates.iterrows()]
-            display_table(df_Leader_vs_leader_win_rates, index_cells=index_cells, header_cells=header_cells, key="table_item")
+            for col in df_Leader_vs_leader_match_count.columns.values:
+                df_Leader_vs_leader_match_count[col] = df_Leader_vs_leader_match_count[col].fillna(0)
+                df_Leader_vs_leader_match_count[col] = 'Match Count: ' + df_Leader_vs_leader_match_count[col].astype(int).astype(str)
+
+            display_table(df_Leader_vs_leader_win_rates, df_tooltip=df_Leader_vs_leader_match_count, index_cells=index_cells, header_cells=header_cells, key="table_item")
 
             with mui.Box(sx={"height": 1000}, key="radar_plot_item"):
                 nivo.Radar(
@@ -175,9 +192,12 @@ selected_leader_names: list[str] = display_leader_sidebar(available_leader_ids=a
 if len(selected_leader_names) < 2:
     st.warning("Please select at least two leaders")
 else:
-    selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, df_color_win_rates = data_setup(
+    selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, df_Leader_vs_leader_match_count, df_color_win_rates = data_setup(
         selected_leader_names, selected_meta_formats, leader_id2leader_data)
 radar_chart_data = get_radar_chart_data(df_color_win_rates, leader_id2leader_data)
-display_elements(selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates,
+display_elements(selected_leader_ids,
+                 selected_bq_leaders,
+                 df_Leader_vs_leader_win_rates,
+                 df_Leader_vs_leader_match_count,
                  radar_chart_data,
                  leader_id2leader_data)
