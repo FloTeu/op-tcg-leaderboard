@@ -6,7 +6,7 @@ import pandas as pd
 from op_tcg.backend.elo import EloCreator
 from op_tcg.backend.etl.base import AbstractETLJob, E, T
 from op_tcg.backend.etl.load import get_or_create_table
-from op_tcg.backend.etl.transform import limitless_matches2bq_matches, BQMatchCreator
+from op_tcg.backend.etl.transform import BQMatchCreator
 from op_tcg.backend.models.bq import BQDataset
 from op_tcg.backend.models.input import AllLeaderMetaDocs, MetaFormat, LimitlessLeaderMetaDoc
 from op_tcg.backend.models.matches import BQMatches, Match, BQLeaderElos, LeaderElo

@@ -45,7 +45,7 @@ def limitless(
                    'OP01-003', 'OP06-080', 'OP01-002', 'OP01-061', 'OP06-022', 'OP01-062', 'OP05-002', 'ST13-001',
                    'OP06-021', 'OP01-031', 'ST11-001', 'OP02-026', 'ST12-001', 'OP03-099', 'OP03-058', 'ST10-002',
                    'OP05-001', 'OP05-060', 'ST07-001', 'OP04-020', 'OP04-001', 'OP06-020', 'OP05-022', 'ST04-001',
-                   'OP02-025', 'OP02-002']
+                   'OP02-025', 'OP02-002', 'EB01-040', 'EB01-021', 'EB01-001']
     elif data_dir:
         # extract leader ids from already crawled files
         leader_ids = get_leader_ids(data_dir=data_dir)
