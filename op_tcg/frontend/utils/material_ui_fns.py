@@ -24,7 +24,7 @@ def display_table(df_data,
         header_cells = [mui.TableCell(children="") for _ in range(len(index_cells))] + [mui.TableCell(children=col) for col in df_data.columns.values]
     with mui.TableContainer(key=key):
         if title:
-            mui.Box()(html.H1(title))
+            mui.Box(sx={"font-family": '"Source Sans Pro", sans-serif;'})(html.H2(title))
         with mui.Table():
             # header row
             mui.TableHead()(mui.TableRow()(header_cells))
@@ -63,7 +63,7 @@ def win_rate2color_table_cell(win_rate, tooltip=None):
             html.Span()(mui.Typography(sx=cell_text_styles)(cell_text))
         )
     else:
-        cell_input = mui.Typography(cell_text)
+        cell_input = mui.Typography(sx=cell_text_styles)(cell_text)
     background_color = "rgb(164, 176, 190)"
     if win_rate < 50:
         background_color = f"rgba(255, 107, 129, {1 - (win_rate / 50 / 2)})"

@@ -100,9 +100,10 @@ def display_elements(selected_leader_ids,
 
         layout = [
             # Parameters: element_identifier, x_pos, y_pos, width, height, [item properties...]
+            dashboard.Item("radar_plot_item_title", 0, 0, 3, 0.5, isDraggable=False, isResizable=False),
             dashboard.Item("radar_plot_item", 0, 1, 6, 2, isDraggable=True, isResizable=True),
             dashboard.Item("avatar_group_item", 4, 0, 2, 0.5, isDraggable=True),
-            dashboard.Item("table_item", 0, 1, 6, 6, isResizable=False, isDraggable=False),
+            dashboard.Item("table_item", 0, 3, 6, 6, isResizable=False, isDraggable=False),
         ]
 
         def handle_layout_change(updated_layout):
@@ -145,6 +146,7 @@ def display_elements(selected_leader_ids,
                           title="Matchup Win Rates",
                           key="table_item")
 
+            mui.Box(sx={"font-family": '"Source Sans Pro", sans-serif;'}, key="radar_plot_item_title")(html.H2("Leader Color Win Rates"))
             box_elements: list = []
             #box_elements.append(html.H1("Color Win Rates"))
             box_elements.append(nivo.Radar(
