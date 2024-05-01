@@ -114,12 +114,26 @@ def display_elements(selected_leader_ids,
             children = [mui.Avatar(src=l.avatar_icon_url) for l in selected_bq_leaders]
             mui.AvatarGroup(children=children, key="avatar_group_item")
 
-            header_cells = [mui.TableCell(children="Winner\\Opponent")] + [create_image_cell(leader_id2leader_data[col].image_url, lid2name(col), overlay_color=leader_id2leader_data[col].to_hex_color(), horizontal=False) for col in
+
+            # leader win rate
+            leader2win_rate = get_leader2avg_win_rate_dict(df_Leader_vs_leader_match_count,
+                                                           df_Leader_vs_leader_win_rates)
+            sorted_leader_ids: list[str] = sorted(leader2win_rate, key=leader2win_rate.get, reverse=True)
+
+            # sort data based on win rate
+            df_Leader_vs_leader_win_rates = df_Leader_vs_leader_win_rates.loc[sorted_leader_ids]
+            df_Leader_vs_leader_match_count = df_Leader_vs_leader_match_count.loc[sorted_leader_ids]
+            df_Leader_vs_leader_win_rates = df_Leader_vs_leader_win_rates.loc[:,sorted_leader_ids]
+            df_Leader_vs_leader_match_count = df_Leader_vs_leader_match_count.loc[:,sorted_leader_ids]
+
+
+            header_cells = [mui.TableCell(children="Winner\\Opponent"), mui.TableCell(children="Win Rate")] + [create_image_cell(leader_id2leader_data[col].image_url, lid2name(col), overlay_color=leader_id2leader_data[col].to_hex_color(), horizontal=False) for col in
                           df_Leader_vs_leader_win_rates.columns.values]
-            # header_cells = [mui.TableCell(children="Winner\\Opponent")] + [mui.TableCell()(lid2name(col)) for col in
-            #               df_Leader_vs_leader_win_rates.columns.values]
-            index_cells = [create_image_cell(leader_id2leader_data[leader_id].image_aa_url,
-                            lid2meta(leader_id) + "\n" + lid2name(leader_id), overlay_color=leader_id2leader_data[leader_id].to_hex_color()) for leader_id, df_row in df_Leader_vs_leader_win_rates.iterrows()]
+            index_cells = []
+            index_cells.append([create_image_cell(leader_id2leader_data[leader_id].image_aa_url,
+                            lid2meta(leader_id) + "\n" + lid2name(leader_id), overlay_color=leader_id2leader_data[leader_id].to_hex_color()) for leader_id, df_row in df_Leader_vs_leader_win_rates.iterrows()])
+            index_cells.append([leader2win_rate[leader_id] for leader_id in sorted_leader_ids])
+
             for col in df_Leader_vs_leader_match_count.columns.values:
                 df_Leader_vs_leader_match_count[col] = df_Leader_vs_leader_match_count[col].fillna(0)
                 df_Leader_vs_leader_match_count[col] = 'Match Count: ' + df_Leader_vs_leader_match_count[col].astype(int).astype(str)
@@ -180,6 +194,24 @@ def display_elements(selected_leader_ids,
                 ))
 
             mui.Box(key="radar_plot_item", children=box_elements)
+
+
+def get_leader2avg_win_rate_dict(df_Leader_vs_leader_match_count, df_Leader_vs_leader_win_rates) -> dict[str, float]:
+    leader2win_rate: dict[str, float] = {}
+    for leader_id, df_row in df_Leader_vs_leader_win_rates.iterrows():
+        avg_leader_win_rate = 0
+        total_leader_match_count = 0
+        for opponent_id, win_rate in df_row.items():
+            # exclude mirror matches
+            if opponent_id == leader_id:
+                continue
+            match_count = df_Leader_vs_leader_match_count.loc[leader_id, opponent_id]
+            avg_leader_win_rate += win_rate * match_count
+            total_leader_match_count += match_count
+        avg_leader_win_rate = avg_leader_win_rate / total_leader_match_count
+        leader2win_rate[leader_id] = float("%.1f" % avg_leader_win_rate)
+    return leader2win_rate
+
 
 st.header("Leader Meta Analysis")
 

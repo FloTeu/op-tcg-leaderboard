@@ -3,7 +3,7 @@ from streamlit_elements import mui, html, core
 
 def display_table(df_data,
                   df_tooltip=None,
-                  index_cells: list[core.element.Element]=None,
+                  index_cells: list[list[core.element.Element]]=None,
                   header_cells: list[core.element.Element]=None,
                   title=None,
                   key="mui-table"):
@@ -14,13 +14,14 @@ def display_table(df_data,
     if df_tooltip is not None:
         assert df_tooltip.shape == df_data.shape
     if index_cells:
-        assert df_data.shape[0] == len(index_cells)
+        for index_cell_col in index_cells:
+            assert df_data.shape[0] == len(index_cell_col)
     else:
-        index_cells = [mui.TableCell(children=i) for i in df_data.index]
+        index_cells = [[mui.TableCell(children=i) for i in df_data.index]]
     if header_cells:
-        assert df_data.shape[1] + 1 == len(header_cells)
+        assert df_data.shape[1] + len(index_cells) == len(header_cells)
     else:
-        header_cells = [mui.TableCell(children="")] + [mui.TableCell(children=col) for col in df_data.columns.values]
+        header_cells = [mui.TableCell(children="") for _ in range(len(index_cells))] + [mui.TableCell(children=col) for col in df_data.columns.values]
     with mui.TableContainer(key=key):
         if title:
             mui.Box()(html.H1(title))
@@ -32,34 +33,46 @@ def display_table(df_data,
             with mui.TableBody():
                 for i, (index_name, df_row) in enumerate(df_data.iterrows()):
                     # Create a list of cells starting with the existing index cell
-                    row_cells = [index_cells[i]]
+                    row_cells = []
+                    for j, index_cells_column in enumerate(index_cells):
+                        if j > 0:
+                            cell = win_rate2color_table_cell(index_cells_column[i])
+                        else:
+                            cell = index_cells_column[i]
+                        row_cells.append(cell)
 
                     # Append new cells to the row_cells list
                     for j, df_cell in df_row.items():
-                        cell_text = f"{df_cell}%" if not pd.isna(df_cell) else df_cell
-                        cell_text_styles = {
-                             'fontSize': '1.35rem',  # Adjust font size as needed
-                             'color': 'black',  # Text color set to white
-                             'fontWeight': 'bold',  # Optional: make the text bold
-                        }
-                        if df_tooltip is not None:
-                            cell_input = mui.Tooltip(title=str(df_tooltip.iloc[i][j]))(
-                                html.Span()(mui.Typography(sx=cell_text_styles)(cell_text))
-                            )
-                        else:
-                            cell_input = mui.Typography(cell_text)
-                        background_color = "rgb(164, 176, 190)"
-                        if df_cell < 50:
-                            background_color = f"rgba(255, 107, 129, {1-(df_cell/50/2)})"
-                        if df_cell > 50:
-                            background_color = f"rgba(123, 237, 159, {0.5+(df_cell/50-1)/2})"
-                        cell = mui.TableCell(sx={"background": background_color,
-                                                 "text-align": "center"
-                                                 })(cell_input)
+                        tooltip = df_tooltip.iloc[i][j] if df_tooltip is not None else None
+                        cell = win_rate2color_table_cell(df_cell, tooltip=tooltip)
                         row_cells.append(cell)
 
                     # Create the table row with all the cells
                     mui.TableRow()(row_cells)
+
+
+def win_rate2color_table_cell(win_rate, tooltip=None):
+    cell_text = f"{win_rate}%" if not pd.isna(win_rate) else win_rate
+    cell_text_styles = {
+        'fontSize': '1.35rem',  # Adjust font size as needed
+        'color': 'black',  # Text color set to white
+        'fontWeight': 'bold',  # Optional: make the text bold
+    }
+    if tooltip is not None:
+        cell_input = mui.Tooltip(title=str(tooltip))(
+            html.Span()(mui.Typography(sx=cell_text_styles)(cell_text))
+        )
+    else:
+        cell_input = mui.Typography(cell_text)
+    background_color = "rgb(164, 176, 190)"
+    if win_rate < 50:
+        background_color = f"rgba(255, 107, 129, {1 - (win_rate / 50 / 2)})"
+    if win_rate > 50:
+        background_color = f"rgba(123, 237, 159, {0.5 + (win_rate / 50 - 1) / 2})"
+    cell = mui.TableCell(sx={"background": background_color,
+                             "text-align": "center"
+                             })(cell_input)
+    return cell
 
 
 # def create_image_cell(image_url, text):
