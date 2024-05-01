@@ -202,8 +202,8 @@ def get_leader2avg_win_rate_dict(df_Leader_vs_leader_match_count, df_Leader_vs_l
         avg_leader_win_rate = 0
         total_leader_match_count = 0
         for opponent_id, win_rate in df_row.items():
-            # exclude mirror matches
-            if opponent_id == leader_id:
+            # exclude mirror matches and NaN data
+            if opponent_id == leader_id or pd.isna(win_rate):
                 continue
             match_count = df_Leader_vs_leader_match_count.loc[leader_id, opponent_id]
             avg_leader_win_rate += win_rate * match_count
