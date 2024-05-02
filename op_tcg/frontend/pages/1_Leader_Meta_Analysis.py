@@ -8,19 +8,17 @@ from op_tcg.backend.models.leader import Leader, OPTcgColor
 from op_tcg.backend.models.matches import Match, LeaderElo
 from op_tcg.frontend.utils.extract import get_leader_data, get_match_data, get_leader_elo_data
 from op_tcg.frontend.sidebar import display_meta_sidebar, display_leader_sidebar
-from op_tcg.frontend.utils.material_ui_fns import create_image_cell, display_table
+from op_tcg.frontend.utils.material_ui_fns import create_image_cell, display_table, win_rate2color_table_cell, \
+    add_tooltip
 
 st.set_page_config(layout="wide")
 
-ST_THEME = st_theme()
-
-
-# TODO: Provide a list of available leader_ids based on selected meta (e.g. top 10 leaders with highest win rate/elo)
+ST_THEME = st_theme() or {"base": "dark"}
 
 
 def data_setup(selected_leader_names, selected_meta_formats, leader_id2leader_data):
     selected_leader_ids: list[str] = [ln.split("(")[1].strip(")") for ln in selected_leader_names]
-    selected_bq_leaders: list[Leader] = [l for l in bq_leaders if l.id in selected_leader_ids]
+    selected_bq_leaders: list[Leader] = [l for l in leader_id2leader_data.values() if l.id in selected_leader_ids]
     selected_match_data: list[Match] = get_match_data(meta_formats=selected_meta_formats,
                                                       leader_ids=selected_leader_ids)
     df_selected_match_data = pd.DataFrame([match.dict() for match in selected_match_data])
@@ -93,10 +91,7 @@ def display_elements(selected_leader_ids,
     # The rest of your code remains the same...
 
     with elements("dashboard"):
-        # You can create a draggable and resizable dashboard using
-        # any element available in Streamlit Elements.
-
-        # First, build a default layout for every element you want to include in your dashboard
+        # Layout for every element in the dashboard
 
         layout = [
             # Parameters: element_identifier, x_pos, y_pos, width, height, [item properties...]
@@ -133,14 +128,23 @@ def display_elements(selected_leader_ids,
             index_cells = []
             index_cells.append([create_image_cell(leader_id2leader_data[leader_id].image_aa_url,
                             lid2meta(leader_id) + "\n" + lid2name(leader_id), overlay_color=leader_id2leader_data[leader_id].to_hex_color()) for leader_id, df_row in df_Leader_vs_leader_win_rates.iterrows()])
-            index_cells.append([leader2win_rate[leader_id] for leader_id in sorted_leader_ids])
+            index_cells.append([win_rate2color_table_cell(leader2win_rate[leader_id]) for leader_id in sorted_leader_ids])
 
             for col in df_Leader_vs_leader_match_count.columns.values:
                 df_Leader_vs_leader_match_count[col] = df_Leader_vs_leader_match_count[col].fillna(0)
                 df_Leader_vs_leader_match_count[col] = 'Match Count: ' + df_Leader_vs_leader_match_count[col].astype(int).astype(str)
 
-            display_table(df_Leader_vs_leader_win_rates,
-                          df_tooltip=df_Leader_vs_leader_match_count,
+            # create table cells with tooltip
+            def apply_transform(row, other_df):
+                result_row = []
+                for i in range(len(row)):
+                    other_df_cell = other_df.loc[row.name, row.index[i]]
+                    result_row.append(win_rate2color_table_cell(row.iloc[i], add_tooltip(row.iloc[i], tooltip=other_df_cell)))
+                return result_row
+
+            df_Leader_vs_leader_win_rates_table_cells = df_Leader_vs_leader_win_rates.apply(lambda row: apply_transform(row, df_Leader_vs_leader_match_count), axis=1, result_type='expand')
+
+            display_table(df_Leader_vs_leader_win_rates_table_cells,
                           index_cells=index_cells,
                           header_cells=header_cells,
                           title="Matchup Win Rates",
@@ -214,37 +218,41 @@ def get_leader2avg_win_rate_dict(df_Leader_vs_leader_match_count, df_Leader_vs_l
         leader2win_rate[leader_id] = float("%.1f" % avg_leader_win_rate)
     return leader2win_rate
 
+def main():
+    st.header("Leader Meta Analysis")
 
-st.header("Leader Meta Analysis")
+    # TODO clean code up
 
-# TODO clean code up
+    selected_meta_formats: list[MetaFormat] = display_meta_sidebar()
+    if len(selected_meta_formats) == 0:
+        st.warning("Please select at least one meta format")
+    else:
+        # first element is leader with best elo
+        selected_leader_elo_data: list[LeaderElo] = get_leader_elo_data(meta_formats=selected_meta_formats)
+        sorted_leader_elo_data: list[LeaderElo] = sorted(selected_leader_elo_data, key=lambda x: x.elo,
+                                                         reverse=True)
 
-selected_meta_formats: list[MetaFormat] = display_meta_sidebar()
-if len(selected_meta_formats) == 0:
-    st.warning("Please select at least one meta format")
-else:
-    selected_leader_elo_data: list[LeaderElo] = get_leader_elo_data(meta_formats=selected_meta_formats)
-# first element is leader with best elo
-sorted_leader_elo_data: list[LeaderElo] = sorted(selected_leader_elo_data, key=lambda x: x.elo,
-                                                 reverse=True)
-bq_leaders: list[Leader] = get_leader_data()
-leader_id2leader_data: dict[str, Leader] = {bq_leader_data.id: bq_leader_data for bq_leader_data in
-                                            bq_leaders}
-available_leader_ids = list(dict.fromkeys(
-    [
-        f"{leader_id2leader_data[l.leader_id].name if l.leader_id in leader_id2leader_data else ''} ({l.leader_id})"
-        for l
-        in sorted_leader_elo_data]))
-selected_leader_names: list[str] = display_leader_sidebar(available_leader_ids=available_leader_ids)
-if len(selected_leader_names) < 2:
-    st.warning("Please select at least two leaders")
-else:
-    selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, df_Leader_vs_leader_match_count, df_color_win_rates = data_setup(
-        selected_leader_names, selected_meta_formats, leader_id2leader_data)
-    radar_chart_data = get_radar_chart_data(df_color_win_rates, leader_id2leader_data)
-    display_elements(selected_leader_ids,
-                     selected_bq_leaders,
-                     df_Leader_vs_leader_win_rates,
-                     df_Leader_vs_leader_match_count,
-                     radar_chart_data,
-                     leader_id2leader_data)
+        bq_leaders: list[Leader] = get_leader_data()
+        leader_id2leader_data: dict[str, Leader] = {bq_leader_data.id: bq_leader_data for bq_leader_data in
+                                                    bq_leaders}
+        available_leader_ids = list(dict.fromkeys(
+            [
+                f"{leader_id2leader_data[l.leader_id].name if l.leader_id in leader_id2leader_data else ''} ({l.leader_id})"
+                for l
+                in sorted_leader_elo_data]))
+        selected_leader_names: list[str] = display_leader_sidebar(available_leader_ids=available_leader_ids)
+        if len(selected_leader_names) < 2:
+            st.warning("Please select at least two leaders")
+        else:
+            selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, df_Leader_vs_leader_match_count, df_color_win_rates = data_setup(
+                selected_leader_names, selected_meta_formats, leader_id2leader_data)
+            radar_chart_data = get_radar_chart_data(df_color_win_rates, leader_id2leader_data)
+            display_elements(selected_leader_ids,
+                             selected_bq_leaders,
+                             df_Leader_vs_leader_win_rates,
+                             df_Leader_vs_leader_match_count,
+                             radar_chart_data,
+                             leader_id2leader_data)
+
+if __name__ == "__main__":
+    main()
