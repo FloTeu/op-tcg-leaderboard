@@ -1,7 +1,8 @@
 import pandas as pd
 import streamlit as st
 st.set_page_config(layout="wide")
-from streamlit_elements import elements, dashboard, mui
+from streamlit_elements import elements, dashboard, mui, nivo
+from streamlit_theme import st_theme
 
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader
@@ -10,7 +11,55 @@ from op_tcg.frontend.sidebar import display_meta_sidebar, display_only_official_
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_leader_data, get_match_data
 from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_cell, value2color_table_cell
 
-def display_leaderboard_table(df_leader_elos: pd.DataFrame, df_meta_match_data, leader_id2leader_data: dict[str, Leader]):
+ST_THEME = st_theme() or {"base": "dark"}
+
+def leader_id2elo_chart(leader_id: str, df_leader_elos):
+    # Streamlit Elements includes 45 dataviz components powered by Nivo.
+    data_lines = df_leader_elos.query(f"leader_id == '{leader_id}'").sort_values("meta_format")[["meta_format", "elo"]].rename(columns={"meta_format": "x", "elo": "y"}).to_dict(orient="records")
+    colors = [
+        "rgb(255, 107, 129)" if data_lines[-1]["y"] < data_lines[0]["y"] else "rgb(123, 237, 159)"
+    ]
+    DATA = [
+      {
+        "id": "Elo",
+        "data": data_lines
+      }
+    ]
+
+    radar_plot = nivo.Line(
+        data=DATA,
+        margin={"top": 10, "right": 10, "bottom": 10, "left": 10},
+        enableGridX=False,
+        enableGridY=False,
+        yScale={
+            "type": "linear",
+            "min": "auto"
+        },
+        pointSize=10,
+        pointBorderWidth=0,
+        axisBottom=None,
+        axisLeft=None,
+        enableSlices="x",
+        motionConfig="slow",
+        colors=colors,
+        theme={
+            "background": "#2C3A47" if ST_THEME["base"] == "dark" else "#ffffff",
+            "textColor": "#ffffff" if ST_THEME["base"] == "dark" else "#31333F",
+            "tooltip": {
+                "container": {
+                    "background": "#FFFFFF",
+                    "color": "#31333F",
+                }
+            }
+        }
+    )
+
+
+    return mui.Box(radar_plot, sx={"height": 120, "width": 190})
+
+
+
+def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.DataFrame, df_meta_match_data, leader_id2leader_data: dict[str, Leader]):
     def lid2name(leader_id: str) -> str:
         return leader_id2leader_data.get(leader_id).name
 
@@ -21,7 +70,11 @@ def display_leaderboard_table(df_leader_elos: pd.DataFrame, df_meta_match_data, 
         return len(df_meta_match_data.query(f"leader_id == '{leader_id}'"))
 
     # data preprocessing
-    display_columns = ["Release Set", "Name", "Match Count", "Elo"]
+    all_meta_formats = MetaFormat.to_list()
+    relevant_meta_formats = all_meta_formats[:all_meta_formats.index(meta_format)+1]
+    df_all_leader_elos = df_all_leader_elos.query("meta_format in @relevant_meta_formats")
+    df_leader_elos = df_all_leader_elos.query(f"meta_format == '{meta_format}'")
+    display_columns = ["Release Set", "Name", "Match Count", "Elo", "Elo Chart"]
     #df_leader_elos["Meta"] = df_leader_elos["meta_format"].apply(lambda meta_format: meta_format)
     df_leader_elos["Release Set"] = df_leader_elos["leader_id"].apply(lambda lid: lid.split("-")[0])
     df_leader_elos["Name"] = df_leader_elos["leader_id"].apply(lambda lid: leader_id2leader_data[lid].name)
@@ -43,17 +96,19 @@ def display_leaderboard_table(df_leader_elos: pd.DataFrame, df_meta_match_data, 
                                               horizontal=True) for
                             i, leader_id in df_leader_elos["leader_id"].items()]]
             # keep only relevant columns
-            df_leader_elos = df_leader_elos.drop(
+            df_leader_elos_filtered = df_leader_elos.drop(
                 columns=[c for c in df_leader_elos.columns if c not in display_columns])
             header_cells = [mui.TableCell(children="Leader")] + [mui.TableCell(col) for col in
-                                                                 df_leader_elos.columns.values]
+                                                                 display_columns]
 
-            df_leader_elos_display = df_leader_elos.copy()
-            for col in df_leader_elos_display.columns.values:
+            df_leader_elos_display = df_leader_elos_filtered.copy()
+            for col in display_columns:
                 #df_leader_elos_display = df_leader_elos_display.map(lambda x: mui.TableCell(str(x)))
                 if col == "Elo":
                     max_elo = df_leader_elos_display[col].max()
                     df_leader_elos_display[col] = df_leader_elos_display[col].apply(lambda elo: value2color_table_cell(elo, max=max_elo, color_switch_threshold=1000))
+                elif col == "Elo Chart":
+                    df_leader_elos_display[col] = df_leader_elos["leader_id"].apply(lambda lid: leader_id2elo_chart(lid, df_all_leader_elos))
                 else:
                     df_leader_elos_display[col] = df_leader_elos_display[col].apply(lambda x: mui.TableCell(str(x)))
             #df_leader_elos_display["Elo"] = df_leader_elos["Elo"].apply(lambda elo: win_rate2color_table_cell(60, cell_input=mui.Typography(elo)))
@@ -73,7 +128,7 @@ def main():
     only_official: bool = display_only_official_sidebar()
 
     # get data
-    leader_elos: list[LeaderElo] = get_leader_elo_data(meta_formats=meta_formats)
+    leader_elos: list[LeaderElo] = get_leader_elo_data()
 
     bq_leaders: list[Leader] = get_leader_data()
     leader_id2leader_data: dict[str, Leader] = {bq_leader_data.id: bq_leader_data for bq_leader_data in
@@ -94,7 +149,7 @@ def main():
         df_leader_elos = BQLeaderElos(elo_ratings=sorted_leader_elo_data).to_dataframe()
         # only selected meta data
         df_leader_elos = df_leader_elos[df_leader_elos["only_official"] == only_official]
-        display_leaderboard_table(df_leader_elos, df_meta_match_data, leader_id2leader_data)
+        display_leaderboard_table(meta_formats[0], df_leader_elos, df_meta_match_data, leader_id2leader_data)
     else:
         st.warning("Seems like the selected meta does not contain any matches")
 

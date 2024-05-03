@@ -25,12 +25,17 @@ def get_match_data(meta_formats: list[MetaFormat], leader_ids: list[str] | None 
         return bq_matches
 
 
-def get_leader_elo_data(meta_formats: list[MetaFormat]) -> list[LeaderElo]:
+def get_leader_elo_data(meta_formats: list[MetaFormat] | None=None) -> list[LeaderElo]:
     """First element is leader with best elo.
     """
     bq_leader_elos: list[LeaderElo] = []
-    for meta_format in meta_formats:
-        # cached for each session
-        leader_elo_rows = run_bq_query(f"SELECT * FROM `op-tcg-leaderboard-dev.matches.leader_elo` where meta_format = '{meta_format}' order by elo desc")
+    if meta_formats:
+        for meta_format in meta_formats:
+            # cached for each session
+            leader_elo_rows = run_bq_query(f"SELECT * FROM `op-tcg-leaderboard-dev.matches.leader_elo` where meta_format = '{meta_format}' order by elo desc")
+            bq_leader_elos.extend([LeaderElo(**d) for d in leader_elo_rows])
+    else:
+        leader_elo_rows = run_bq_query(
+            f"SELECT * FROM `op-tcg-leaderboard-dev.matches.leader_elo` order by elo desc")
         bq_leader_elos.extend([LeaderElo(**d) for d in leader_elo_rows])
     return bq_leader_elos
