@@ -76,7 +76,7 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
     relevant_meta_formats = all_meta_formats[:all_meta_formats.index(meta_format)+1]
     df_all_leader_elos = df_all_leader_elos.query("meta_format in @relevant_meta_formats")
     df_leader_elos = df_all_leader_elos.query(f"meta_format == '{meta_format}'").sort_values("elo", ascending=False).reset_index()
-    display_columns = ["Release Set", "Name", "Match Count", "Elo", "Elo Chart"]
+    display_columns = ["Name", "Release Set", "Match Count", "Elo"]
     #df_leader_elos["Meta"] = df_leader_elos["meta_format"].apply(lambda meta_format: meta_format)
     df_leader_elos["Release Set"] = df_leader_elos["leader_id"].apply(lambda lid: lid.split("-")[0])
     df_leader_elos["Name"] = df_leader_elos["leader_id"].apply(lambda lid: leader_id2leader_data[lid].name.replace('"', " ").replace('.', " "))
@@ -100,9 +100,9 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
                             i, leader_id in df_leader_elos["leader_id"].items()]]
             # keep only relevant columns
             df_leader_elos_filtered = df_leader_elos.drop(
-                columns=[c for c in df_leader_elos.columns if c not in display_columns])
+                columns=[c for c in df_leader_elos.columns if c not in display_columns])[display_columns]
             header_cells = [mui.TableCell(children="Leader", sx={"width": "200px"})] + [mui.TableCell(col) for col in
-                                                                 display_columns]
+                                                                                        (display_columns + ["Elo Chart"])]
 
             df_leader_elos_display = df_leader_elos_filtered.copy()
             for col in display_columns:
@@ -110,11 +110,10 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
                 if col == "Elo":
                     max_elo = df_leader_elos_display[col].max()
                     df_leader_elos_display[col] = df_leader_elos_display[col].apply(lambda elo: value2color_table_cell(elo, max=max_elo, color_switch_threshold=1000))
-                elif col == "Elo Chart":
-                    df_leader_elos_display[col] = df_leader_elos["leader_id"].apply(lambda lid: leader_id2elo_chart(lid, df_all_leader_elos))
                 else:
                     df_leader_elos_display[col] = df_leader_elos_display[col].apply(lambda x: mui.TableCell(str(x)))
-            #df_leader_elos_display["Elo"] = df_leader_elos["Elo"].apply(lambda elo: win_rate2color_table_cell(60, cell_input=mui.Typography(elo)))
+            df_leader_elos_display["Elo Chart"] = df_leader_elos["leader_id"].apply(
+                lambda lid: leader_id2elo_chart(lid, df_all_leader_elos))
 
             display_table(df_leader_elos_display,
                           index_cells=index_cells,
