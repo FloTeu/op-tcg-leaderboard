@@ -114,7 +114,7 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
                 #df_leader_elos_display = df_leader_elos_display.map(lambda x: mui.TableCell(str(x)))
                 if col == "Elo":
                     max_elo = df_leader_elos_display[col].max()
-                    df_leader_elos_display[col] = df_leader_elos_display[col].apply(lambda elo: value2color_table_cell(elo, max=max_elo, color_switch_threshold=1000))
+                    df_leader_elos_display[col] = df_leader_elos_display[col].apply(lambda elo: value2color_table_cell(elo, max=max_elo, color_switch_threshold=1000 if 1000 < max_elo else (max_elo*(7/8))))
                 else:
                     df_leader_elos_display[col] = df_leader_elos_display[col].apply(lambda x: mui.TableCell(str(x)))
             df_leader_elos_display["Elo Chart"] = df_leader_elos["leader_id"].apply(

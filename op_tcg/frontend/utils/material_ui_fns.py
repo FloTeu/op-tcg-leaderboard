@@ -62,9 +62,13 @@ def value2color_table_cell(value: float | int, max: float | int, color_switch_th
     half_max = (max/2)
     color_switch_threshold = color_switch_threshold or half_max
     if value < color_switch_threshold:
-        background_color = f"rgba(255, 107, 129, {1 - (value / half_max / 2)})"
+        # expected to be between 0 (0.5 in best case) and 1
+        transparency = 1 - (value / half_max / 2)
+        background_color = f"rgba(255, 107, 129, {transparency})"
     if value > color_switch_threshold:
-        background_color = f"rgba(123, 237, 159, {0.5 + (value / half_max - 1) / 2})"
+        # expected to be between 0 (0.5 in best case) and 1
+        transparency = 0.5 + (value / half_max - 1) / 2
+        background_color = f"rgba(123, 237, 159, {transparency})"
     cell = mui.TableCell(cell_input, sx={"background": background_color,
                              "text-align": "center",
                             'fontSize': '1.35rem',  # Adjust font size as needed
