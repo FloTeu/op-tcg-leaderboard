@@ -8,7 +8,8 @@ from streamlit_theme import st_theme
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader
 from op_tcg.backend.models.matches import LeaderElo, BQLeaderElos, Match
-from op_tcg.frontend.sidebar import display_meta_sidebar, display_only_official_sidebar, display_release_meta_sidebar
+from op_tcg.frontend.sidebar import sidebar_display_meta, sidebar_display_only_official, sidebar_display_release_meta, \
+    sidebar_display_match_count_slider
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_leader_data, get_match_data
 from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_cell, value2color_table_cell
 from op_tcg.frontend.utils.utils import leader_id2aa_image_url
@@ -61,7 +62,7 @@ def leader_id2elo_chart(leader_id: str, df_leader_elos):
 
 
 
-def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.DataFrame, df_meta_match_data, leader_id2leader_data: dict[str, Leader]):
+def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.DataFrame, df_meta_match_data, leader_id2leader_data: dict[str, Leader], match_count_min: int=None, match_count_max: int=None):
     def lid2name(leader_id: str) -> str:
         return leader_id2leader_data.get(leader_id).name
 
@@ -82,6 +83,10 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
     df_leader_elos["Name"] = df_leader_elos["leader_id"].apply(lambda lid: leader_id2leader_data[lid].name.replace('"', " ").replace('.', " "))
     df_leader_elos["Match Count"] = df_leader_elos["leader_id"].apply(lambda lid: lid2match_count(lid))
     df_leader_elos["Elo"] = df_leader_elos["elo"].apply(lambda elo: elo)
+    if match_count_min:
+        df_leader_elos = df_leader_elos.loc[df_leader_elos["Match Count"] > match_count_min]
+    if match_count_max:
+        df_leader_elos = df_leader_elos.loc[df_leader_elos["Match Count"] < match_count_max]
 
     with elements("dashboard"):
         # Layout for every element in the dashboard
@@ -125,9 +130,11 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
 def main():
     # display data
     st.header("One Piece TCG Elo Leaderboard")
-    meta_formats: list[MetaFormat] = display_meta_sidebar(multiselect=False)
-    release_meta_formats: list[MetaFormat] | None = display_release_meta_sidebar(multiselect=True)
-    only_official: bool = display_only_official_sidebar()
+    meta_formats: list[MetaFormat] = sidebar_display_meta(multiselect=False)
+    release_meta_formats: list[MetaFormat] | None = sidebar_display_release_meta(multiselect=True)
+    display_max_match_count=10000
+    match_count_min, match_count_max = sidebar_display_match_count_slider(min=0, max=display_max_match_count)
+    only_official: bool = sidebar_display_only_official()
 
     # get data
     leader_elos: list[LeaderElo] = get_leader_elo_data()
@@ -139,6 +146,7 @@ def main():
     # filter release_meta_formats
     if release_meta_formats:
         leader_elos: list[LeaderElo] = [lelo for lelo in leader_elos if leader_id2leader_data[lelo.leader_id].release_meta in release_meta_formats]
+
     sorted_leader_elo_data: list[LeaderElo] = sorted(leader_elos, key=lambda x: x.elo,
                                                      reverse=True)
 
@@ -151,7 +159,7 @@ def main():
         df_leader_elos = BQLeaderElos(elo_ratings=sorted_leader_elo_data).to_dataframe()
         # only selected meta data
         df_leader_elos = df_leader_elos[df_leader_elos["only_official"] == only_official]
-        display_leaderboard_table(meta_formats[0], df_leader_elos, df_meta_match_data, leader_id2leader_data)
+        display_leaderboard_table(meta_formats[0], df_leader_elos, df_meta_match_data, leader_id2leader_data, match_count_min=match_count_min, match_count_max=match_count_max if match_count_max != display_max_match_count else None)
     else:
         st.warning("Seems like the selected meta does not contain any matches")
 

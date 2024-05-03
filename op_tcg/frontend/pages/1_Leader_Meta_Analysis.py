@@ -8,7 +8,7 @@ from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader, OPTcgColor
 from op_tcg.backend.models.matches import Match, LeaderElo
 from op_tcg.frontend.utils.extract import get_leader_data, get_match_data, get_leader_elo_data
-from op_tcg.frontend.sidebar import display_meta_sidebar, display_leader_sidebar
+from op_tcg.frontend.sidebar import sidebar_display_meta, sidebar_display_leader
 from op_tcg.frontend.utils.material_ui_fns import create_image_cell, display_table, value2color_table_cell, \
     add_tooltip
 from op_tcg.frontend.utils.utils import leader_id2aa_image_url
@@ -224,7 +224,7 @@ def main():
 
     # TODO clean code up
 
-    selected_meta_formats: list[MetaFormat] = display_meta_sidebar()
+    selected_meta_formats: list[MetaFormat] = sidebar_display_meta()
     if len(selected_meta_formats) == 0:
         st.warning("Please select at least one meta format")
     else:
@@ -241,7 +241,7 @@ def main():
                 f"{leader_id2leader_data[l.leader_id].name if l.leader_id in leader_id2leader_data else ''} ({l.leader_id})"
                 for l
                 in sorted_leader_elo_data]))
-        selected_leader_names: list[str] = display_leader_sidebar(available_leader_ids=available_leader_ids)
+        selected_leader_names: list[str] = sidebar_display_leader(available_leader_ids=available_leader_ids)
         if len(selected_leader_names) < 2:
             st.warning("Please select at least two leaders")
         else:
