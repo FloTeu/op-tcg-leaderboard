@@ -74,8 +74,9 @@ def value2color_table_cell(value: float | int, max: float | int, color_switch_th
     return cell
 
 
-def create_image_cell(image_url, text: str | None=None, overlay_color='#000000', horizontal=True):
+def create_image_cell(image_url, text: str | None=None, overlay_color='#000000', sx: dict=None, horizontal=True):
     # Function to create an image cell in a table with a background image and formatted text
+    sx = sx or {}
     text_blocks=[]
     if text:
         text_blocks = [mui.Typography(
@@ -100,6 +101,7 @@ def create_image_cell(image_url, text: str | None=None, overlay_color='#000000',
             'backgroundRepeat': 'no-repeat',
             'position': 'relative',  # Needed to position children absolutely
             'height': '80px',  # Adjust height as needed
+            **sx
         },
         children=[
             mui.Box(

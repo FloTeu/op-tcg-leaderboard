@@ -11,6 +11,7 @@ from op_tcg.frontend.utils.extract import get_leader_data, get_match_data, get_l
 from op_tcg.frontend.sidebar import display_meta_sidebar, display_leader_sidebar
 from op_tcg.frontend.utils.material_ui_fns import create_image_cell, display_table, value2color_table_cell, \
     add_tooltip
+from op_tcg.frontend.utils.utils import leader_id2aa_image_url
 
 
 ST_THEME = st_theme() or {"base": "dark"}
@@ -126,7 +127,7 @@ def display_elements(selected_leader_ids,
             header_cells = [mui.TableCell(children="Winner\\Opponent"), mui.TableCell(children="Win Rate")] + [create_image_cell(leader_id2leader_data[col].image_url, text=lid2name(col), overlay_color=leader_id2leader_data[col].to_hex_color(), horizontal=False) for col in
                           df_Leader_vs_leader_win_rates.columns.values]
             index_cells = []
-            index_cells.append([create_image_cell(leader_id2leader_data[leader_id].image_aa_url,
+            index_cells.append([create_image_cell(leader_id2aa_image_url(leader_id, leader_id2leader_data),
                             text=lid2meta(leader_id) + "\n" + lid2name(leader_id), overlay_color=leader_id2leader_data[leader_id].to_hex_color()) for leader_id, df_row in df_Leader_vs_leader_win_rates.iterrows()])
             index_cells.append([value2color_table_cell(leader2win_rate[leader_id], max=100) for leader_id in sorted_leader_ids])
 

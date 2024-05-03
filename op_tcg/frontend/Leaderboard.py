@@ -1,5 +1,6 @@
 import pandas as pd
 import streamlit as st
+
 st.set_page_config(layout="wide")
 from streamlit_elements import elements, dashboard, mui, nivo
 from streamlit_theme import st_theme
@@ -10,6 +11,7 @@ from op_tcg.backend.models.matches import LeaderElo, BQLeaderElos, Match
 from op_tcg.frontend.sidebar import display_meta_sidebar, display_only_official_sidebar, display_release_meta_sidebar
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_leader_data, get_match_data
 from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_cell, value2color_table_cell
+from op_tcg.frontend.utils.utils import leader_id2aa_image_url
 
 ST_THEME = st_theme() or {"base": "dark"}
 
@@ -73,11 +75,11 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
     all_meta_formats = MetaFormat.to_list()
     relevant_meta_formats = all_meta_formats[:all_meta_formats.index(meta_format)+1]
     df_all_leader_elos = df_all_leader_elos.query("meta_format in @relevant_meta_formats")
-    df_leader_elos = df_all_leader_elos.query(f"meta_format == '{meta_format}'")
+    df_leader_elos = df_all_leader_elos.query(f"meta_format == '{meta_format}'").sort_values("elo", ascending=False).reset_index()
     display_columns = ["Release Set", "Name", "Match Count", "Elo", "Elo Chart"]
     #df_leader_elos["Meta"] = df_leader_elos["meta_format"].apply(lambda meta_format: meta_format)
     df_leader_elos["Release Set"] = df_leader_elos["leader_id"].apply(lambda lid: lid.split("-")[0])
-    df_leader_elos["Name"] = df_leader_elos["leader_id"].apply(lambda lid: leader_id2leader_data[lid].name)
+    df_leader_elos["Name"] = df_leader_elos["leader_id"].apply(lambda lid: leader_id2leader_data[lid].name.replace('"', " ").replace('.', " "))
     df_leader_elos["Match Count"] = df_leader_elos["leader_id"].apply(lambda lid: lid2match_count(lid))
     df_leader_elos["Elo"] = df_leader_elos["elo"].apply(lambda elo: elo)
 
@@ -90,15 +92,16 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
         ]
 
         with dashboard.Grid(layout):
-            index_cells = [[create_image_cell(leader_id2leader_data[leader_id].image_aa_url,
+            index_cells = [[create_image_cell(leader_id2aa_image_url(leader_id,leader_id2leader_data),
                                               text=f"#{i+1}",
                                               overlay_color=leader_id2leader_data[leader_id].to_hex_color(),
-                                              horizontal=True) for
+                                              horizontal=True,
+                                              sx={"width": "200px"}) for
                             i, leader_id in df_leader_elos["leader_id"].items()]]
             # keep only relevant columns
             df_leader_elos_filtered = df_leader_elos.drop(
                 columns=[c for c in df_leader_elos.columns if c not in display_columns])
-            header_cells = [mui.TableCell(children="Leader")] + [mui.TableCell(col) for col in
+            header_cells = [mui.TableCell(children="Leader", sx={"width": "200px"})] + [mui.TableCell(col) for col in
                                                                  display_columns]
 
             df_leader_elos_display = df_leader_elos_filtered.copy()
