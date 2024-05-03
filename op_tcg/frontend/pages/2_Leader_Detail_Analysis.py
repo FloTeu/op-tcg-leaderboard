@@ -13,7 +13,7 @@ with elements("nivo_charts"):
     DATA = [
         { "taste": "red", "chardonay": 93, "carmenere": 61, "syrah": 114 },
         { "taste": "blue", "chardonay": 93, "carmenere": 61, "syrah": 114 },
-        { "taste": "gree", "chardonay": 91, "carmenere": 37, "syrah": 72 },
+        { "taste": "green", "chardonay": 91, "carmenere": 37, "syrah": 72 },
         { "taste": "purple", "chardonay": 56, "carmenere": 95, "syrah": 99 },
         { "taste": "black", "chardonay": 64, "carmenere": 90, "syrah": 30 },
         { "taste": "yellow", "chardonay": 119, "carmenere": 94, "syrah": 103 },

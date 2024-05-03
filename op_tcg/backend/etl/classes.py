@@ -31,11 +31,11 @@ class LocalMatchesToBigQueryEtlJob(AbstractETLJob[AllLeaderMetaDocs, BQMatches])
         all_matches: AllLeaderMetaDocs = read_json_files(self.data_dir)
         # include only the relevant meta formats
         if self.meta_formats:
-            filters_docs: list[LimitlessLeaderMetaDoc] = []
+            filtered_docs: list[LimitlessLeaderMetaDoc] = []
             for doc in all_matches.documents:
                 if doc.meta_format in self.meta_formats:
-                    filters_docs.append(doc)
-            all_matches.documents = filters_docs
+                    filtered_docs.append(doc)
+            all_matches.documents = filtered_docs
         meta_formats_in_data = list(set([doc.meta_format for doc in all_matches.documents]))
         assert all(require_meta_format in meta_formats_in_data for require_meta_format in self.meta_formats), "Not all required meta formats exist in the source data"
         return all_matches
