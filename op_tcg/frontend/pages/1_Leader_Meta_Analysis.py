@@ -8,7 +8,7 @@ from op_tcg.backend.models.leader import Leader, OPTcgColor
 from op_tcg.backend.models.matches import Match, LeaderElo
 from op_tcg.frontend.utils.extract import get_leader_data, get_match_data, get_leader_elo_data
 from op_tcg.frontend.sidebar import display_meta_sidebar, display_leader_sidebar
-from op_tcg.frontend.utils.material_ui_fns import create_image_cell, display_table, win_rate2color_table_cell, \
+from op_tcg.frontend.utils.material_ui_fns import create_image_cell, display_table, value2color_table_cell, \
     add_tooltip
 
 st.set_page_config(layout="wide")
@@ -128,7 +128,7 @@ def display_elements(selected_leader_ids,
             index_cells = []
             index_cells.append([create_image_cell(leader_id2leader_data[leader_id].image_aa_url,
                             lid2meta(leader_id) + "\n" + lid2name(leader_id), overlay_color=leader_id2leader_data[leader_id].to_hex_color()) for leader_id, df_row in df_Leader_vs_leader_win_rates.iterrows()])
-            index_cells.append([win_rate2color_table_cell(leader2win_rate[leader_id]) for leader_id in sorted_leader_ids])
+            index_cells.append([value2color_table_cell(leader2win_rate[leader_id], max=100) for leader_id in sorted_leader_ids])
 
             for col in df_Leader_vs_leader_match_count.columns.values:
                 df_Leader_vs_leader_match_count[col] = df_Leader_vs_leader_match_count[col].fillna(0)
@@ -139,7 +139,7 @@ def display_elements(selected_leader_ids,
                 result_row = []
                 for i in range(len(row)):
                     other_df_cell = other_df.loc[row.name, row.index[i]]
-                    result_row.append(win_rate2color_table_cell(row.iloc[i], add_tooltip(row.iloc[i], tooltip=other_df_cell)))
+                    result_row.append(value2color_table_cell(row.iloc[i], max=100, cell_input=add_tooltip(row.iloc[i], tooltip=other_df_cell)))
                 return result_row
 
             df_Leader_vs_leader_win_rates_table_cells = df_Leader_vs_leader_win_rates.apply(lambda row: apply_transform(row, df_Leader_vs_leader_match_count), axis=1, result_type='expand')

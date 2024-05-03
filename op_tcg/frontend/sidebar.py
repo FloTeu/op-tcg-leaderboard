@@ -3,8 +3,13 @@ import streamlit as st
 from op_tcg.backend.models.input import MetaFormat
 
 
-def display_meta_sidebar() -> list[MetaFormat]:
-    return st.sidebar.multiselect("Meta", [MetaFormat.OP01, MetaFormat.OP02, MetaFormat.OP03, MetaFormat.OP04, MetaFormat.OP05, MetaFormat.OP06], default=MetaFormat.OP06)
+def display_meta_sidebar(multiselect: bool=True) -> list[MetaFormat]:
+    all_metas = MetaFormat.to_list()
+    last_meta = all_metas[-1]
+    if multiselect:
+        return st.sidebar.multiselect("Meta", all_metas, default=last_meta)
+    else:
+        return [st.sidebar.selectbox("Meta", sorted(all_metas, reverse=True))]
 
 def display_only_official_sidebar() -> bool:
     return st.sidebar.toggle("Only Official", value=True)

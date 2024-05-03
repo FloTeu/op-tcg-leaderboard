@@ -6,6 +6,7 @@ from op_tcg.backend.models.base import EnumBase
 
 
 class MetaFormat(EnumBase, StrEnum):
+    # Note: must be in the right order for some frontend functionality
     OP01 = "OP01"
     OP02 = "OP02"
     OP03 = "OP03"

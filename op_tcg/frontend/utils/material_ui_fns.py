@@ -20,10 +20,10 @@ def display_table(table_cells,
         header_cells = [mui.TableCell(children="") for _ in range(count_index_sells)] + [mui.TableCell(children=col) for col in table_cells.columns.values]
     with mui.TableContainer(key=key):
         if title:
-            mui.Box(sx={"font-family": '"Source Sans Pro", sans-serif;'})(html.H2(title))
+            mui.Box(html.H2(title), sx={"font-family": '"Source Sans Pro", sans-serif;'})
         with mui.Table():
             # header row
-            mui.TableHead()(mui.TableRow()(header_cells))
+            mui.TableHead(mui.TableRow(header_cells))
 
             # body rows
             with mui.TableBody():
@@ -32,10 +32,6 @@ def display_table(table_cells,
                     row_cells = []
                     if index_cells:
                         for j, index_cells_column in enumerate(index_cells):
-                            # if j > 0:
-                            #     cell = win_rate2color_table_cell(index_cells_column[i], add_tooltip(index_cells_column[i], tooltip=None))
-                            # else:
-                            #     cell = index_cells_column[i]
                             row_cells.append(index_cells_column[i])
 
                     # Append new cells to the row_cells list
@@ -43,7 +39,7 @@ def display_table(table_cells,
                         row_cells.append(df_cell)
 
                     # Create the table row with all the cells
-                    mui.TableRow()(row_cells)
+                    mui.TableRow(row_cells)
 
 def add_tooltip(win_rate, tooltip=None):
     cell_text = f"{win_rate}%" if not pd.isna(win_rate) else win_rate
@@ -54,45 +50,44 @@ def add_tooltip(win_rate, tooltip=None):
     }
     if tooltip is not None:
         cell_input = mui.Tooltip(title=str(tooltip))(
-            html.Span()(mui.Typography(sx=cell_text_styles)(cell_text))
+            html.Span(mui.Typography(cell_text, sx=cell_text_styles))
         )
     else:
-        cell_input = mui.Typography(sx=cell_text_styles)(cell_text)
+        cell_input = mui.Typography(cell_text, sx=cell_text_styles)
     return cell_input
 
-def win_rate2color_table_cell(win_rate: float, cell_input=None):
-    cell_input = cell_input or win_rate
+def value2color_table_cell(value: float | int, max: float | int, color_switch_threshold: float | int = None, cell_input=None):
+    cell_input = cell_input or value
     background_color = "rgb(164, 176, 190)"
-    if win_rate < 50:
-        background_color = f"rgba(255, 107, 129, {1 - (win_rate / 50 / 2)})"
-    if win_rate > 50:
-        background_color = f"rgba(123, 237, 159, {0.5 + (win_rate / 50 - 1) / 2})"
-    cell = mui.TableCell(sx={"background": background_color,
+    half_max = (max/2)
+    color_switch_threshold = color_switch_threshold or half_max
+    if value < color_switch_threshold:
+        background_color = f"rgba(255, 107, 129, {1 - (value / half_max / 2)})"
+    if value > color_switch_threshold:
+        background_color = f"rgba(123, 237, 159, {0.5 + (value / half_max - 1) / 2})"
+    cell = mui.TableCell(cell_input, sx={"background": background_color,
                              "text-align": "center",
                             'fontSize': '1.35rem',  # Adjust font size as needed
                             'color': 'black',  # Text color set to white
                             'fontWeight': 'bold',  # Optional: make the text bold
-                             })(cell_input)
+                             })
     return cell
 
 
-# def create_image_cell(image_url, text):
-#     # Function to create an image cell in a table
-#
-#     return mui.TableCell(children=[
-#         mui.Box(
-#             sx={'display': 'flex', 'alignItems': 'center'},
-#             children=[
-#                 mui.Avatar(src=image_url, alt=text, sx={'width': 24, 'height': 24, 'marginRight': 1}),
-#                 text
-#             ]
-#         )
-#     ])
-
-
-
-def create_image_cell(image_url, text, overlay_color='#000000', horizontal=True):
+def create_image_cell(image_url, text, overlay_color='#000000', horizontal=True, show_text: bool=True):
     # Function to create an image cell in a table with a background image and formatted text
+    text_blocks=[]
+    if show_text:
+        text_blocks = [mui.Typography(
+                            text_line,
+                            sx={
+                                'fontSize': '1.15rem',  # Adjust font size as needed
+                                'color': 'white',  # Text color set to white
+                                'fontWeight': 'bold',  # Optional: make the text bold
+                                '-webkit-text-stroke': '1px black',  # Black border line around the text
+                                'textShadow': '2px 2px 4px black',  # Optional: text shadow for better readability
+                            }
+                        ) for text_line in text.split("\n")]
 
     return mui.TableCell(
         sx={
@@ -114,18 +109,7 @@ def create_image_cell(image_url, text, overlay_color='#000000', horizontal=True)
                     'right': 0,
                     'padding': '8px',
                 },
-                children=[
-                    mui.Typography(
-                        text_line,
-                        sx={
-                            'fontSize': '1.15rem',  # Adjust font size as needed
-                            'color': 'white',  # Text color set to white
-                            'fontWeight': 'bold',  # Optional: make the text bold
-                            '-webkit-text-stroke': '1px black',  # Black border line around the text
-                            'textShadow': '2px 2px 4px black',  # Optional: text shadow for better readability
-                        }
-                    ) for text_line in text.split("\n")
-                ]
+                children=text_blocks
             )
         ]
     )
