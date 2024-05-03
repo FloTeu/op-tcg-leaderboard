@@ -74,10 +74,10 @@ def value2color_table_cell(value: float | int, max: float | int, color_switch_th
     return cell
 
 
-def create_image_cell(image_url, text, overlay_color='#000000', horizontal=True, show_text: bool=True):
+def create_image_cell(image_url, text: str | None=None, overlay_color='#000000', horizontal=True):
     # Function to create an image cell in a table with a background image and formatted text
     text_blocks=[]
-    if show_text:
+    if text:
         text_blocks = [mui.Typography(
                             text_line,
                             sx={

@@ -1,5 +1,6 @@
 import pandas as pd
 import streamlit as st
+st.set_page_config(layout="wide")
 from streamlit_elements import elements, mui, html, nivo, dashboard
 from streamlit_theme import st_theme
 
@@ -11,7 +12,6 @@ from op_tcg.frontend.sidebar import display_meta_sidebar, display_leader_sidebar
 from op_tcg.frontend.utils.material_ui_fns import create_image_cell, display_table, value2color_table_cell, \
     add_tooltip
 
-st.set_page_config(layout="wide")
 
 ST_THEME = st_theme() or {"base": "dark"}
 
@@ -95,10 +95,10 @@ def display_elements(selected_leader_ids,
 
         layout = [
             # Parameters: element_identifier, x_pos, y_pos, width, height, [item properties...]
-            dashboard.Item("radar_plot_item_title", 0, 0, 3, 0.5, isDraggable=False, isResizable=False),
-            dashboard.Item("radar_plot_item", 0, 1, 6, 2, isDraggable=True, isResizable=True),
-            dashboard.Item("avatar_group_item", 4, 0, 2, 0.5, isDraggable=True),
-            dashboard.Item("table_item", 0, 3, 6, 6, isResizable=False, isDraggable=False),
+            dashboard.Item("lmeta_radar_plot_item_title", 0, 0, 3, 0.5, isDraggable=False, isResizable=False),
+            dashboard.Item("lmeta_radar_plot_item", 0, 1, 6, 2, isDraggable=True, isResizable=True),
+            dashboard.Item("lmeta_avatar_group_item", 4, 0, 2, 0.5, isDraggable=True),
+            dashboard.Item("lmeta_table_item", 0, 3, 6, 6, isResizable=False, isDraggable=False),
         ]
 
         def handle_layout_change(updated_layout):
@@ -108,7 +108,7 @@ def display_elements(selected_leader_ids,
 
         with dashboard.Grid(layout, onLayoutChange=handle_layout_change):
             children = [mui.Avatar(src=l.avatar_icon_url) for l in selected_bq_leaders]
-            mui.AvatarGroup(children=children, key="avatar_group_item")
+            mui.AvatarGroup(children=children, key="lmeta_avatar_group_item")
 
 
             # leader win rate
@@ -123,11 +123,11 @@ def display_elements(selected_leader_ids,
             df_Leader_vs_leader_match_count = df_Leader_vs_leader_match_count.loc[:,sorted_leader_ids]
 
 
-            header_cells = [mui.TableCell(children="Winner\\Opponent"), mui.TableCell(children="Win Rate")] + [create_image_cell(leader_id2leader_data[col].image_url, lid2name(col), overlay_color=leader_id2leader_data[col].to_hex_color(), horizontal=False) for col in
+            header_cells = [mui.TableCell(children="Winner\\Opponent"), mui.TableCell(children="Win Rate")] + [create_image_cell(leader_id2leader_data[col].image_url, text=lid2name(col), overlay_color=leader_id2leader_data[col].to_hex_color(), horizontal=False) for col in
                           df_Leader_vs_leader_win_rates.columns.values]
             index_cells = []
             index_cells.append([create_image_cell(leader_id2leader_data[leader_id].image_aa_url,
-                            lid2meta(leader_id) + "\n" + lid2name(leader_id), overlay_color=leader_id2leader_data[leader_id].to_hex_color()) for leader_id, df_row in df_Leader_vs_leader_win_rates.iterrows()])
+                            text=lid2meta(leader_id) + "\n" + lid2name(leader_id), overlay_color=leader_id2leader_data[leader_id].to_hex_color()) for leader_id, df_row in df_Leader_vs_leader_win_rates.iterrows()])
             index_cells.append([value2color_table_cell(leader2win_rate[leader_id], max=100) for leader_id in sorted_leader_ids])
 
             for col in df_Leader_vs_leader_match_count.columns.values:
@@ -148,9 +148,9 @@ def display_elements(selected_leader_ids,
                           index_cells=index_cells,
                           header_cells=header_cells,
                           title="Matchup Win Rates",
-                          key="table_item")
+                          key="lmeta_table_item")
 
-            mui.Box(sx={"font-family": '"Source Sans Pro", sans-serif;'}, key="radar_plot_item_title")(html.H2("Leader Color Win Rates"))
+            mui.Box(sx={"font-family": '"Source Sans Pro", sans-serif;'}, key="lmeta_radar_plot_item_title")(html.H2("Leader Color Win Rates"))
             box_elements: list = []
             #box_elements.append(html.H1("Color Win Rates"))
             box_elements.append(nivo.Radar(
@@ -199,7 +199,7 @@ def display_elements(selected_leader_ids,
                     colors=[leader_id2leader_data[lid].to_hex_color() for lid in selected_leader_ids]
                 ))
 
-            mui.Box(key="radar_plot_item", children=box_elements)
+            mui.Box(key="lmeta_radar_plot_item", children=box_elements)
 
 
 def get_leader2avg_win_rate_dict(df_Leader_vs_leader_match_count, df_Leader_vs_leader_win_rates) -> dict[str, float]:

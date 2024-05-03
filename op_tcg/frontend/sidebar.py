@@ -11,6 +11,13 @@ def display_meta_sidebar(multiselect: bool=True) -> list[MetaFormat]:
     else:
         return [st.sidebar.selectbox("Meta", sorted(all_metas, reverse=True))]
 
+def display_release_meta_sidebar(multiselect: bool=True) -> list[MetaFormat] | None:
+    all_metas = MetaFormat.to_list()
+    if multiselect:
+        return st.sidebar.multiselect("Leader Release Meta", all_metas)
+    else:
+        return [st.sidebar.selectbox("Leader Release Meta", sorted(all_metas, reverse=True))]
+
 def display_only_official_sidebar() -> bool:
     return st.sidebar.toggle("Only Official", value=True)
 
