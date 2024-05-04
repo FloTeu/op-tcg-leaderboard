@@ -4,13 +4,13 @@ from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import OPTcgColor
 
 
-def display_meta_select(multiselect: bool=True) -> list[MetaFormat]:
+def display_meta_select(multiselect: bool=True, key: str|None=None) -> list[MetaFormat]:
     all_metas = MetaFormat.to_list()
     last_meta = all_metas[-1]
     if multiselect:
-        return st.multiselect("Meta", all_metas, default=last_meta)
+        return st.multiselect("Meta", all_metas, default=last_meta, key=key)
     else:
-        return [st.selectbox("Meta", sorted(all_metas, reverse=True))]
+        return [st.selectbox("Meta", sorted(all_metas, reverse=True), key=key)]
 
 def display_release_meta_select(multiselect: bool=True) -> list[MetaFormat] | None:
     all_metas = MetaFormat.to_list()
@@ -30,7 +30,9 @@ def display_match_count_slider_slider(min=0, max=20000):
 def display_only_official_toggle() -> bool:
     return st.toggle("Only Official", value=True)
 
-def display_leader_multiselect(available_leader_ids: list[str] | None = None, default: list[str] = None) -> list[str]:
+def display_leader_select(available_leader_ids: list[str] | None = None, multiselect: bool=True, default: list[str] = None, key: str|None=None) -> list[str]:
     available_leader_ids = available_leader_ids if available_leader_ids else ["OP01-001", "OP05-041", "OP02-001", "ST01-001", "OP02-093", "OP02-026"]
-    leader_ids: list[str] = st.multiselect("Leaders", available_leader_ids, default=default)
-    return leader_ids
+    if multiselect:
+        return st.multiselect("Leaders", available_leader_ids, default=default, key=key)
+    else:
+        return [st.selectbox("Leader", available_leader_ids, key=key)]

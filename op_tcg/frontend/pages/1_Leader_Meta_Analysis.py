@@ -6,7 +6,7 @@ from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader, OPTcgColor
 from op_tcg.backend.models.matches import Match, LeaderElo
 from op_tcg.frontend.utils.extract import get_leader_data, get_match_data, get_leader_elo_data
-from op_tcg.frontend.sidebar import display_meta_select, display_leader_multiselect
+from op_tcg.frontend.sidebar import display_meta_select, display_leader_select
 from op_tcg.frontend.utils.material_ui_fns import create_image_cell, display_table, value2color_table_cell, \
     add_tooltip
 from op_tcg.frontend.utils.utils import leader_id2aa_image_url
@@ -241,7 +241,7 @@ def main():
                 for l
                 in sorted_leader_elo_data]))
         with st.sidebar:
-            selected_leader_names: list[str] = display_leader_multiselect(available_leader_ids=available_leader_ids, default=available_leader_ids[0:5])
+            selected_leader_names: list[str] = display_leader_select(available_leader_ids=available_leader_ids, default=available_leader_ids[0:5])
         if len(selected_leader_names) < 2:
             st.warning("Please select at least two leaders")
         else:
