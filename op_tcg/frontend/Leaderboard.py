@@ -8,8 +8,8 @@ from streamlit_theme import st_theme
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader, OPTcgColor
 from op_tcg.backend.models.matches import LeaderElo, BQLeaderElos, Match
-from op_tcg.frontend.sidebar import sidebar_display_meta, sidebar_display_only_official, sidebar_display_release_meta, \
-    sidebar_display_match_count_slider, sidebar_display_leader_color_multiselect
+from op_tcg.frontend.sidebar import display_meta_select, display_only_official_toggle, display_release_meta_select, \
+    display_match_count_slider_slider, display_leader_color_multiselect, display_leader_multiselect
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_leader_data, get_match_data
 from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_cell, value2color_table_cell
 from op_tcg.frontend.utils.utils import leader_id2aa_image_url
@@ -132,15 +132,44 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
                           key="lboard_table_item")
 
 
+@st.experimental_dialog("Upload Match")
+def upload_match_dialog(leader_id2leader_data):
+    st.write(f"Upload your match")
+    with st.form("upload_match_form"):
+       st.write("Inside the form")
+       meta_formats = display_meta_select(multiselect=False)
+       leader_elo_data: list[LeaderElo] = get_leader_elo_data(meta_formats)
+       available_leader_ids = list(set([lelo.leader_id for lelo in leader_elo_data]))
+       # add name to ids
+       available_leader_names: list[str] = list(dict.fromkeys(
+           [
+               f"{leader_id2leader_data[lid].name if lid in leader_id2leader_data else ''} ({lid})"
+               for lid
+               in available_leader_ids]))
+       # display user input
+       selected_leader_names: list[str] = display_leader_multiselect(available_leader_ids=available_leader_names)
+       selected_leader_ids: list[str] = [ln.split("(")[1].strip(")") for ln in selected_leader_names]
+
+
+       slider_val = st.slider("Form slider")
+       checkbox_val = st.checkbox("Form checkbox")
+
+       # Every form must have a submit button.
+       submitted = st.form_submit_button("Submit")
+       if submitted:
+           st.write("slider", slider_val, "checkbox", checkbox_val)
+
+
 def main():
     # display data
     st.header("One Piece TCG Elo Leaderboard")
-    meta_formats: list[MetaFormat] = sidebar_display_meta(multiselect=False)
-    release_meta_formats: list[MetaFormat] | None = sidebar_display_release_meta(multiselect=True)
-    selected_leader_colors: list[OPTcgColor] | None = sidebar_display_leader_color_multiselect()
-    display_max_match_count=10000
-    match_count_min, match_count_max = sidebar_display_match_count_slider(min=0, max=display_max_match_count)
-    only_official: bool = sidebar_display_only_official()
+    with st.sidebar:
+        meta_formats: list[MetaFormat] = display_meta_select(multiselect=False)
+        release_meta_formats: list[MetaFormat] | None = display_release_meta_select(multiselect=True)
+        selected_leader_colors: list[OPTcgColor] | None = display_leader_color_multiselect()
+        display_max_match_count=10000
+        match_count_min, match_count_max = display_match_count_slider_slider(min=0, max=display_max_match_count)
+        only_official: bool = display_only_official_toggle()
 
     # get data
     leader_elos: list[LeaderElo] = get_leader_elo_data()
@@ -162,6 +191,9 @@ def main():
     selected_meta_match_data: list[Match] = get_match_data(meta_formats=meta_formats,
                                                       leader_ids=selected_meta_leader_ids)
     df_meta_match_data = pd.DataFrame([match.dict() for match in selected_meta_match_data])
+    if st.button("Upload Match"):
+        upload_match_dialog(leader_id2leader_data)
+
     if sorted_leader_elo_data:
         # display table.
         df_leader_elos = BQLeaderElos(elo_ratings=sorted_leader_elo_data).to_dataframe()
