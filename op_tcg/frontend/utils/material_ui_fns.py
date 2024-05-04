@@ -89,8 +89,8 @@ def create_image_cell(image_url, text: str | None=None, overlay_color='#000000',
                                 'fontSize': '1.15rem',  # Adjust font size as needed
                                 'color': 'white',  # Text color set to white
                                 'fontWeight': 'bold',  # Optional: make the text bold
-                                '-webkit-text-stroke': '1px black',  # Black border line around the text
-                                'textShadow': '2px 2px 4px black',  # Optional: text shadow for better readability
+                                '-webkit-text-stroke': '0.1px beige',  # Black border line around the text
+                                'textShadow': '1px 2px 4px black',  # Optional: text shadow for better readability
                             }
                         ) for text_line in text.split("\n")]
 

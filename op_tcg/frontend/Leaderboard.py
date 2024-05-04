@@ -22,6 +22,11 @@ def leader_id2elo_chart(leader_id: str, df_leader_elos):
     colors = [
         "rgb(255, 107, 129)" if data_lines[-1]["y"] < data_lines[0]["y"] else "rgb(123, 237, 159)"
     ]
+    for meta_format in sorted(MetaFormat.to_list(), reverse=True):
+        # exclude OP01 since we have no official matches yet
+        if meta_format not in data_lines and meta_format != MetaFormat.OP01:
+            data_lines.insert(0, {"x": meta_format, "y": None})
+
     DATA = [
       {
         "id": "Elo",
@@ -31,7 +36,7 @@ def leader_id2elo_chart(leader_id: str, df_leader_elos):
 
     radar_plot = nivo.Line(
         data=DATA,
-        margin={"top": 10, "right": 10, "bottom": 10, "left": 10},
+        margin={"top": 10, "right": 20, "bottom": 10, "left": 10},
         enableGridX=False,
         enableGridY=False,
         yScale={
