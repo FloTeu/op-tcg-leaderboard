@@ -1,6 +1,7 @@
 import streamlit as st
 
 from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.leader import OPTcgColor
 
 
 def sidebar_display_meta(multiselect: bool=True) -> list[MetaFormat]:
@@ -17,6 +18,10 @@ def sidebar_display_release_meta(multiselect: bool=True) -> list[MetaFormat] | N
         return st.sidebar.multiselect("Leader Release Meta", all_metas)
     else:
         return [st.sidebar.selectbox("Leader Release Meta", sorted(all_metas, reverse=True))]
+
+def sidebar_display_leader_color_multiselect() -> list[OPTcgColor] | None:
+    all_colors = OPTcgColor.to_list()
+    return st.sidebar.multiselect("Leader Color", all_colors, default=None)
 
 def sidebar_display_match_count_slider(min=0, max=20000):
     return st.sidebar.slider('Leader Match Count', min, max, (min, max))

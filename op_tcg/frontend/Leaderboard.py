@@ -6,10 +6,10 @@ from streamlit_elements import elements, dashboard, mui, nivo
 from streamlit_theme import st_theme
 
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.leader import Leader
+from op_tcg.backend.models.leader import Leader, OPTcgColor
 from op_tcg.backend.models.matches import LeaderElo, BQLeaderElos, Match
 from op_tcg.frontend.sidebar import sidebar_display_meta, sidebar_display_only_official, sidebar_display_release_meta, \
-    sidebar_display_match_count_slider
+    sidebar_display_match_count_slider, sidebar_display_leader_color_multiselect
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_leader_data, get_match_data
 from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_cell, value2color_table_cell
 from op_tcg.frontend.utils.utils import leader_id2aa_image_url
@@ -137,6 +137,7 @@ def main():
     st.header("One Piece TCG Elo Leaderboard")
     meta_formats: list[MetaFormat] = sidebar_display_meta(multiselect=False)
     release_meta_formats: list[MetaFormat] | None = sidebar_display_release_meta(multiselect=True)
+    selected_leader_colors: list[OPTcgColor] | None = sidebar_display_leader_color_multiselect()
     display_max_match_count=10000
     match_count_min, match_count_max = sidebar_display_match_count_slider(min=0, max=display_max_match_count)
     only_official: bool = sidebar_display_only_official()
@@ -151,6 +152,8 @@ def main():
     # filter release_meta_formats
     if release_meta_formats:
         leader_elos: list[LeaderElo] = [lelo for lelo in leader_elos if leader_id2leader_data[lelo.leader_id].release_meta in release_meta_formats]
+    if selected_leader_colors:
+        leader_elos: list[LeaderElo] = [lelo for lelo in leader_elos if any(lcolor in selected_leader_colors for lcolor in leader_id2leader_data[lelo.leader_id].colors)]
 
     sorted_leader_elo_data: list[LeaderElo] = sorted(leader_elos, key=lambda x: x.elo,
                                                      reverse=True)
