@@ -11,9 +11,10 @@ from op_tcg.frontend.utils.material_ui_fns import create_image_cell, display_tab
     add_tooltip
 from op_tcg.frontend.utils.utils import leader_id2aa_image_url
 
-from streamlit_elements import elements, mui, html, nivo, dashboard
-from streamlit_theme import st_theme
-ST_THEME = st_theme() or {"base": "dark"}
+if st.runtime.exists():
+    from streamlit_elements import elements, mui, html, nivo, dashboard
+    from streamlit_theme import st_theme
+    ST_THEME = st_theme() or {"base": "dark"}
 
 
 def data_setup(selected_leader_names, selected_meta_formats, leader_id2leader_data):

@@ -4,8 +4,6 @@ import streamlit as st
 from op_tcg.backend.models.bq import BQDataset
 
 st.set_page_config(layout="wide")
-from streamlit_elements import elements, dashboard, mui, nivo
-from streamlit_theme import st_theme
 from datetime import datetime, date
 from uuid import uuid4
 
@@ -20,7 +18,11 @@ from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_ce
 from op_tcg.frontend.utils.utils import leader_id2aa_image_url
 from op_tcg.frontend.utils.utils import bq_client
 
-ST_THEME = st_theme() or {"base": "dark"}
+if st.runtime.exists():
+    from streamlit_elements import elements, dashboard, mui, nivo
+    from streamlit_theme import st_theme
+    ST_THEME = st_theme() or {"base": "dark"}
+
 
 def leader_id2elo_chart(leader_id: str, df_leader_elos):
     # Streamlit Elements includes 45 dataviz components powered by Nivo.

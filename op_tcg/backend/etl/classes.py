@@ -19,10 +19,11 @@ load_dotenv()
 
 
 class LocalMatchesToBigQueryEtlJob(AbstractETLJob[AllLeaderMetaDocs, BQMatches]):
-    def __init__(self, data_dir: Path, meta_formats: list[MetaFormat] | None = None):
+    def __init__(self, data_dir: Path, meta_formats: list[MetaFormat] | None = None, official: bool=True):
         self.data_dir = data_dir
         self.meta_formats = meta_formats
         self.bq_client = bigquery.Client()
+        self.official = official
 
     def validate(self, extracted_data: AllLeaderMetaDocs) -> bool:
         return True
@@ -41,19 +42,20 @@ class LocalMatchesToBigQueryEtlJob(AbstractETLJob[AllLeaderMetaDocs, BQMatches])
         return all_matches
 
     def transform(self, all_local_matches: AllLeaderMetaDocs) -> BQMatches:
-        bq_match_creator = BQMatchCreator(all_local_matches, official=True)
+        bq_match_creator = BQMatchCreator(all_local_matches, official=self.official)
         return bq_match_creator.transform2BQMatches()
 
     def load(self, transformed_data: BQMatches) -> None:
-        table = get_or_create_table(table_id=Match.__tablename__, dataset_id=BQDataset.MATCHES, model=Match, client=self.bq_client)
+        table = get_or_create_table(model=Match, dataset_id=BQDataset.MATCHES, client=self.bq_client)
         df = transformed_data.to_dataframe()
+        official_condition = "NOT official" if self.official else "official"
         if len(df) > 0:
-            # delete existing data in selected meta
+            # delete existing official data in selected meta by only keeping other meta formats
             self.bq_client.query(f"""
             CREATE OR REPLACE TABLE {table.dataset_id}.{table.table_id} AS
             SELECT *
             FROM {table.dataset_id}.{table.table_id}
-            WHERE meta_format not in ('{"','".join(self.meta_formats)}');
+            WHERE (meta_format not in ('{"','".join(self.meta_formats)}')) OR {official_condition};
             """)
         # upload data of meta_formats to BQ
         self.bq_client.load_table_from_dataframe(df, table)
