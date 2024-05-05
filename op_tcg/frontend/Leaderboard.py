@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from op_tcg.backend.etl.load import bq_add_rows, get_or_create_table
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.leader import Leader, OPTcgColor
+from op_tcg.backend.models.leader import Leader, OPTcgColor, OPTcgAttribute, OPTcgLanguage
 from op_tcg.backend.models.matches import LeaderElo, BQLeaderElos, Match, MatchResult
 from op_tcg.frontend.sidebar import display_meta_select, display_only_official_toggle, display_release_meta_select, \
     display_match_count_slider_slider, display_leader_color_multiselect, display_leader_select
@@ -93,7 +93,7 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
     display_columns = ["Name", "Release Set", "Match Count", "Elo"]
     #df_leader_elos["Meta"] = df_leader_elos["meta_format"].apply(lambda meta_format: meta_format)
     df_leader_elos["Release Set"] = df_leader_elos["leader_id"].apply(lambda lid: lid.split("-")[0])
-    df_leader_elos["Name"] = df_leader_elos["leader_id"].apply(lambda lid: leader_id2leader_data[lid].name.replace('"', " ").replace('.', " "))
+    df_leader_elos["Name"] = df_leader_elos["leader_id"].apply(lambda lid: leader_id2leader_data[lid].name.replace('"', " ").replace('.', " ") if lid in leader_id2leader_data else "")
     df_leader_elos["Match Count"] = df_leader_elos["leader_id"].apply(lambda lid: lid2match_count(lid))
     df_leader_elos["Elo"] = df_leader_elos["elo"].apply(lambda elo: elo)
     if match_count_min:
@@ -112,7 +112,7 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
         with dashboard.Grid(layout):
             index_cells = [[create_image_cell(leader_id2aa_image_url(leader_id,leader_id2leader_data),
                                               text=f"#{i+1}",
-                                              overlay_color=leader_id2leader_data[leader_id].to_hex_color(),
+                                              overlay_color=leader_id2leader_data[leader_id].to_hex_color() if leader_id in leader_id2leader_data else "#000000",
                                               horizontal=True,
                                               sx={"width": "200px"}) for
                             i, leader_id in df_leader_elos["leader_id"].items()]]
@@ -221,10 +221,25 @@ def main():
                                                 bq_leaders}
 
     # filter release_meta_formats
+    def lid2ldata(lid) -> Leader:
+        return leader_id2leader_data[lid] if lid in leader_id2leader_data else Leader(id="NaN",
+                        name="NaN",
+                        life=5,
+                        power=5000,
+                        release_meta=MetaFormat.OP01,
+                        avatar_icon_url="",
+                        image_url="",
+                        image_aa_url="",
+                        colors=[OPTcgColor.BLACK],
+                        attributes=[OPTcgAttribute.SLASH],
+                        ability="",
+                        fractions=[""],
+                        language=OPTcgLanguage.EN
+                    )
     if release_meta_formats:
-        leader_elos: list[LeaderElo] = [lelo for lelo in leader_elos if leader_id2leader_data[lelo.leader_id].release_meta in release_meta_formats]
+        leader_elos: list[LeaderElo] = [lelo for lelo in leader_elos if lid2ldata(lelo.leader_id).release_meta in release_meta_formats]
     if selected_leader_colors:
-        leader_elos: list[LeaderElo] = [lelo for lelo in leader_elos if any(lcolor in selected_leader_colors for lcolor in leader_id2leader_data[lelo.leader_id].colors)]
+        leader_elos: list[LeaderElo] = [lelo for lelo in leader_elos if any(lcolor in selected_leader_colors for lcolor in lid2ldata(lelo.leader_id).colors)]
 
     sorted_leader_elo_data: list[LeaderElo] = sorted(leader_elos, key=lambda x: x.elo,
                                                      reverse=True)

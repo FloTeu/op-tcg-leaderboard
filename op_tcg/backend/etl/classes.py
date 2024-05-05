@@ -87,9 +87,15 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
         df_all_matches = all_matches.to_dataframe()
         elo_ratings: list[LeaderElo] = []
         def calculate_all_elo_ratings(df_matches):
-            elo_creator = EloCreator(df_matches)
-            elo_creator.calculate_elo_ratings()
-            elo_ratings.extend(elo_creator.to_bq_leader_elos().elo_ratings)
+            meta_format = df_matches.meta_format.unique().tolist()
+            for only_official in [True, False]:
+                print(f"Calculate Elo for meta {meta_format} and only_official {only_official}")
+                if only_official:
+                    elo_creator = EloCreator(df_matches.query("official"), only_official=True)
+                else:
+                    elo_creator = EloCreator(df_matches, only_official=False)
+                elo_creator.calculate_elo_ratings()
+                elo_ratings.extend(elo_creator.to_bq_leader_elos().elo_ratings)
         df_all_matches.groupby("meta_format").apply(calculate_all_elo_ratings)
 
         return BQLeaderElos(elo_ratings=elo_ratings)
