@@ -1,18 +1,24 @@
 import pandas as pd
 import streamlit as st
 
+from op_tcg.backend.models.bq import BQDataset
+
 st.set_page_config(layout="wide")
 from streamlit_elements import elements, dashboard, mui, nivo
 from streamlit_theme import st_theme
+from datetime import datetime, date
+from uuid import uuid4
 
+from op_tcg.backend.etl.load import bq_add_rows, get_or_create_table
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader, OPTcgColor
-from op_tcg.backend.models.matches import LeaderElo, BQLeaderElos, Match
+from op_tcg.backend.models.matches import LeaderElo, BQLeaderElos, Match, MatchResult
 from op_tcg.frontend.sidebar import display_meta_select, display_only_official_toggle, display_release_meta_select, \
     display_match_count_slider_slider, display_leader_color_multiselect, display_leader_select
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_leader_data, get_match_data
 from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_cell, value2color_table_cell
 from op_tcg.frontend.utils.utils import leader_id2aa_image_url
+from op_tcg.frontend.utils.utils import bq_client
 
 ST_THEME = st_theme() or {"base": "dark"}
 
@@ -134,30 +140,63 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
 
 @st.experimental_dialog("Upload Match")
 def upload_match_dialog(leader_id2leader_data: dict[str, Leader]):
-    st.write(f"Upload your match")
     meta_format = display_meta_select(multiselect=False, key="upload_form_meta_format")[0]
     allowed_meta_fomats = MetaFormat.to_list()[0:MetaFormat.to_list().index(meta_format)+1]
     with st.form("upload_match_form"):
-        st.write("Inside the form")
-        leader_elo_data: list[LeaderElo] = get_leader_elo_data([meta_format])
-        # TODO: Ensure right meta is correctly includes in db
+        # TODO: Ensure right release meta is correctly included for each leader in db
         available_leader_ids = [lid for lid, ldata in leader_id2leader_data.items() if ldata.release_meta in allowed_meta_fomats]
-        print(available_leader_ids, len(leader_elo_data), "all", list(leader_id2leader_data.keys()))
-        # add name to ids
+        available_leader_ids = sorted(available_leader_ids)
+        # add name to ids (drop duplicates and ensures right order)
         available_leader_names: list[str] = list(dict.fromkeys(
            [
                f"{leader_id2leader_data[lid].name if lid in leader_id2leader_data else ''} ({lid})"
                for lid
                in available_leader_ids]))
         # display user input
-        selected_leader_id: str = display_leader_select(available_leader_ids=available_leader_names, multiselect=False, key="match_leader_id")[0].split("(")[1].strip(")")
-        selected_opponent_leader_id: str = display_leader_select(available_leader_ids=available_leader_names, multiselect=False, key="match_opponentleader_id")[0].split("(")[1].strip(")")
+        today_date = datetime.now().date()
+        match_day: date = st.date_input("Match Day", value=today_date, max_value=today_date)
+        match_datetime: datetime = datetime.combine(match_day, datetime.now().time())
+
+        selected_winner_leader_name: str | None = display_leader_select(available_leader_ids=available_leader_names, multiselect=False, label="Winner Leader", key="match_leader_id")[0]
+        selected_winner_leader_id: str | None = selected_winner_leader_name.split("(")[1].strip(")") if selected_winner_leader_name is not None else None
+        selected_loser_leader_name: str | None = display_leader_select(available_leader_ids=available_leader_names, multiselect=False, label="Looser Leader", key="match_opponentleader_id")[0]
+        selected_loser_leader_id: str | None = selected_loser_leader_name.split("(")[1].strip(")") if selected_loser_leader_name is not None else None
+        is_draw = st.checkbox("Is draw", value=False)
 
         # Every form must have a submit button.
         submitted = st.form_submit_button("Submit")
         if submitted:
-            st.balloons()
-            st.write("slider", selected_leader_id, "checkbox", selected_opponent_leader_id)
+            if selected_loser_leader_id is None or selected_winner_leader_id is None:
+                st.warning("Winner or loser leader not yet selected")
+            else:
+                match_id = uuid4().hex
+                rows_to_insert = []
+                rows_to_insert.append(Match(id=match_id,
+                    leader_id=selected_winner_leader_id,
+                    opponent_id=selected_loser_leader_id,
+                    result=MatchResult.DRAW if is_draw else MatchResult.WIN,
+                    meta_format=meta_format,
+                    official=False,
+                    is_reverse=False,
+                    timestamp=match_datetime).model_dump()
+                )
+                rows_to_insert.append(Match(id=match_id,
+                    leader_id=selected_loser_leader_id,
+                    opponent_id=selected_winner_leader_id,
+                    result=MatchResult.DRAW if is_draw else MatchResult.LOSE,
+                    meta_format=meta_format,
+                    official=False,
+                    is_reverse=True,
+                    timestamp=match_datetime).model_dump()
+                )
+
+                bq_leader_table = get_or_create_table(model=Match, dataset_id=BQDataset.MATCHES,
+                                                      client=bq_client)
+                try:
+                    bq_add_rows(rows_to_insert, table=bq_leader_table, client=bq_client)
+                    st.balloons()
+                except Exception as e:
+                    st.error(str(e))
 
 
 
