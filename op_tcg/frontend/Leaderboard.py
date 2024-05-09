@@ -12,7 +12,7 @@ from op_tcg.frontend.sidebar import sidebar_display_meta, sidebar_display_only_o
     sidebar_display_match_count_slider, sidebar_display_leader_color_multiselect
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_leader_data, get_match_data
 from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_cell, value2color_table_cell
-from op_tcg.frontend.utils.utils import leader_id2aa_image_url
+from op_tcg.frontend.utils.leader_data import leader_id2aa_image_url, lid2ldata
 
 ST_THEME = st_theme() or {"base": "dark"}
 
@@ -67,13 +67,7 @@ def leader_id2elo_chart(leader_id: str, df_leader_elos):
 
 
 
-def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.DataFrame, df_meta_match_data, leader_id2leader_data: dict[str, Leader], match_count_min: int=None, match_count_max: int=None):
-    def lid2name(leader_id: str) -> str:
-        return leader_id2leader_data.get(leader_id).name
-
-    def lid2meta(leader_id: str) -> MetaFormat | str:
-        return leader_id2leader_data.get(leader_id).id.split("-")[0]
-
+def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.DataFrame, df_meta_match_data, match_count_min: int=None, match_count_max: int=None):
     def lid2match_count(leader_id: str) -> int:
         return len(df_meta_match_data.query(f"leader_id == '{leader_id}'"))
 
@@ -85,7 +79,7 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
     display_columns = ["Name", "Release Set", "Match Count", "Elo"]
     #df_leader_elos["Meta"] = df_leader_elos["meta_format"].apply(lambda meta_format: meta_format)
     df_leader_elos["Release Set"] = df_leader_elos["leader_id"].apply(lambda lid: lid.split("-")[0])
-    df_leader_elos["Name"] = df_leader_elos["leader_id"].apply(lambda lid: leader_id2leader_data[lid].name.replace('"', " ").replace('.', " "))
+    df_leader_elos["Name"] = df_leader_elos["leader_id"].apply(lambda lid: lid2ldata(lid).name.replace('"', " ").replace('.', " "))
     df_leader_elos["Match Count"] = df_leader_elos["leader_id"].apply(lambda lid: lid2match_count(lid))
     df_leader_elos["Elo"] = df_leader_elos["elo"].apply(lambda elo: elo)
     if match_count_min:
@@ -102,9 +96,9 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
         ]
 
         with dashboard.Grid(layout):
-            index_cells = [[create_image_cell(leader_id2aa_image_url(leader_id,leader_id2leader_data),
+            index_cells = [[create_image_cell(leader_id2aa_image_url(leader_id),
                                               text=f"#{i+1}",
-                                              overlay_color=leader_id2leader_data[leader_id].to_hex_color(),
+                                              overlay_color=lid2ldata(leader_id).to_hex_color(),
                                               horizontal=True,
                                               sx={"width": "200px"}) for
                             i, leader_id in df_leader_elos["leader_id"].items()]]
@@ -145,15 +139,11 @@ def main():
     # get data
     leader_elos: list[LeaderElo] = get_leader_elo_data()
 
-    bq_leaders: list[Leader] = get_leader_data()
-    leader_id2leader_data: dict[str, Leader] = {bq_leader_data.id: bq_leader_data for bq_leader_data in
-                                                bq_leaders}
-
     # filter release_meta_formats
     if release_meta_formats:
-        leader_elos: list[LeaderElo] = [lelo for lelo in leader_elos if leader_id2leader_data[lelo.leader_id].release_meta in release_meta_formats]
+        leader_elos: list[LeaderElo] = [lelo for lelo in leader_elos if lid2ldata(lelo.leader_id).release_meta in release_meta_formats]
     if selected_leader_colors:
-        leader_elos: list[LeaderElo] = [lelo for lelo in leader_elos if any(lcolor in selected_leader_colors for lcolor in leader_id2leader_data[lelo.leader_id].colors)]
+        leader_elos: list[LeaderElo] = [lelo for lelo in leader_elos if any(lcolor in selected_leader_colors for lcolor in lid2ldata(lelo.leader_id).colors)]
 
     sorted_leader_elo_data: list[LeaderElo] = sorted(leader_elos, key=lambda x: x.elo,
                                                      reverse=True)
@@ -167,7 +157,7 @@ def main():
         df_leader_elos = BQLeaderElos(elo_ratings=sorted_leader_elo_data).to_dataframe()
         # only selected meta data
         df_leader_elos = df_leader_elos[df_leader_elos["only_official"] == only_official]
-        display_leaderboard_table(meta_formats[0], df_leader_elos, df_meta_match_data, leader_id2leader_data, match_count_min=match_count_min, match_count_max=match_count_max if match_count_max != display_max_match_count else None)
+        display_leaderboard_table(meta_formats[0], df_leader_elos, df_meta_match_data, match_count_min=match_count_min, match_count_max=match_count_max if match_count_max != display_max_match_count else None)
     else:
         st.warning("Seems like the selected meta does not contain any matches")
 

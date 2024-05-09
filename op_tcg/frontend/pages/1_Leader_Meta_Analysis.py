@@ -1,5 +1,6 @@
 import pandas as pd
 import streamlit as st
+
 st.set_page_config(layout="wide")
 from streamlit_elements import elements, mui, html, nivo, dashboard
 from streamlit_theme import st_theme
@@ -11,22 +12,21 @@ from op_tcg.frontend.utils.extract import get_leader_data, get_match_data, get_l
 from op_tcg.frontend.sidebar import sidebar_display_meta, sidebar_display_leader
 from op_tcg.frontend.utils.material_ui_fns import create_image_cell, display_table, value2color_table_cell, \
     add_tooltip
-from op_tcg.frontend.utils.utils import leader_id2aa_image_url
-
+from op_tcg.frontend.utils.leader_data import leader_id2aa_image_url, lid2ldata, get_lid2ldata_dict_cached
 
 ST_THEME = st_theme() or {"base": "dark"}
 
 
-def data_setup(selected_leader_names, selected_meta_formats, leader_id2leader_data):
+def data_setup(selected_leader_names, selected_meta_formats):
     selected_leader_ids: list[str] = [ln.split("(")[1].strip(")") for ln in selected_leader_names]
-    selected_bq_leaders: list[Leader] = [l for l in leader_id2leader_data.values() if l.id in selected_leader_ids]
+    selected_bq_leaders: list[Leader] = [lid2ldata(lid) for lid in selected_leader_ids]
     selected_match_data: list[Match] = get_match_data(meta_formats=selected_meta_formats,
                                                       leader_ids=selected_leader_ids)
     df_selected_match_data = pd.DataFrame([match.dict() for match in selected_match_data])
 
     # Create a new DataFrame with color information
     color_info = []
-    for leader_id, leader_data in leader_id2leader_data.items():
+    for leader_id, leader_data in get_lid2ldata_dict_cached().items():
         if leader_data:
             for color in leader_data.colors:
                 color_info.append({'opponent_id': leader_id, 'color': color})
@@ -47,10 +47,10 @@ def data_setup(selected_leader_names, selected_meta_formats, leader_id2leader_da
     def calculate_match_count(df_matches: pd.DataFrame) -> float:
         return len(df_matches)
 
-    match_counts_series = df_selected_match_data[df_selected_match_data["opponent_id"].isin(selected_leader_ids)].groupby(
+    match_counts_series = df_selected_match_data[
+        df_selected_match_data["opponent_id"].isin(selected_leader_ids)].groupby(
         ["leader_id", "opponent_id"]).apply(calculate_match_count, include_groups=False)
     df_Leader_vs_leader_match_count = match_counts_series.unstack(level=-1)
-
 
     win_rates_series = df_selected_color_match_data.groupby(["leader_id", "color"]).apply(calculate_win_rate,
                                                                                           include_groups=False)
@@ -59,16 +59,16 @@ def data_setup(selected_leader_names, selected_meta_formats, leader_id2leader_da
     return selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, df_Leader_vs_leader_match_count, df_color_win_rates
 
 
-def get_radar_chart_data(df_color_win_rates, leader_id2leader_data) -> list[dict[str, str | float]]:
+def get_radar_chart_data(df_color_win_rates) -> list[dict[str, str | float]]:
     # create color chart data
     radar_chart_data: list[dict[str, str | float]] = []
     for color in OPTcgColor.to_list():
         if color in df_color_win_rates.columns.values:
-            win_against_color = {leader_id2leader_data.get(lid).name: win_rate
+            win_against_color = {lid2ldata(lid).name: win_rate
                                  for lid, win_rate in df_color_win_rates[color].to_dict().items()}
             win_against_color = {k: v if not pd.isna(v) else 50 for k, v in win_against_color.items()}
         else:
-            win_against_color = {leader_id2leader_data.get(lid).name: 50.0 for lid in df_color_win_rates.index.values}
+            win_against_color = {lid2ldata(lid).name: 50.0 for lid in df_color_win_rates.index.values}
         radar_chart_data.append({
             "taste": color,
             **win_against_color
@@ -80,15 +80,7 @@ def display_elements(selected_leader_ids,
                      selected_bq_leaders,
                      df_Leader_vs_leader_win_rates,
                      df_Leader_vs_leader_match_count,
-                     radar_chart_data,
-                     leader_id2leader_data: dict[str, Leader]):
-    def lid2name(leader_id: str) -> str:
-        return leader_id2leader_data.get(leader_id).name
-
-    def lid2meta(leader_id: str) -> MetaFormat | str:
-        return leader_id2leader_data.get(leader_id).id.split("-")[0]
-
-
+                     radar_chart_data):
     # The rest of your code remains the same...
 
     with elements("dashboard"):
@@ -111,7 +103,6 @@ def display_elements(selected_leader_ids,
             children = [mui.Avatar(src=l.avatar_icon_url) for l in selected_bq_leaders]
             mui.AvatarGroup(children=children, key="lmeta_avatar_group_item")
 
-
             # leader win rate
             leader2win_rate = get_leader2avg_win_rate_dict(df_Leader_vs_leader_match_count,
                                                            df_Leader_vs_leader_win_rates)
@@ -120,30 +111,39 @@ def display_elements(selected_leader_ids,
             # sort data based on win rate
             df_Leader_vs_leader_win_rates = df_Leader_vs_leader_win_rates.loc[sorted_leader_ids]
             df_Leader_vs_leader_match_count = df_Leader_vs_leader_match_count.loc[sorted_leader_ids]
-            df_Leader_vs_leader_win_rates = df_Leader_vs_leader_win_rates.loc[:,sorted_leader_ids]
-            df_Leader_vs_leader_match_count = df_Leader_vs_leader_match_count.loc[:,sorted_leader_ids]
+            df_Leader_vs_leader_win_rates = df_Leader_vs_leader_win_rates.loc[:, sorted_leader_ids]
+            df_Leader_vs_leader_match_count = df_Leader_vs_leader_match_count.loc[:, sorted_leader_ids]
 
-
-            header_cells = [mui.TableCell(children="Winner\\Opponent"), mui.TableCell(children="Win Rate")] + [create_image_cell(leader_id2leader_data[col].image_url, text=lid2name(col), overlay_color=leader_id2leader_data[col].to_hex_color(), horizontal=False) for col in
-                          df_Leader_vs_leader_win_rates.columns.values]
+            header_cells = [mui.TableCell(children="Winner\\Opponent"), mui.TableCell(children="Win Rate")] + [
+                create_image_cell(lid2ldata(col).image_url,
+                                  text=lid2ldata(col).name.replace('"', " ").replace('.', " "),
+                                  overlay_color=lid2ldata(col).to_hex_color(), horizontal=False) for col in
+                df_Leader_vs_leader_win_rates.columns.values]
             index_cells = []
-            index_cells.append([create_image_cell(leader_id2aa_image_url(leader_id, leader_id2leader_data),
-                            text=lid2meta(leader_id) + "\n" + lid2name(leader_id), overlay_color=leader_id2leader_data[leader_id].to_hex_color()) for leader_id, df_row in df_Leader_vs_leader_win_rates.iterrows()])
-            index_cells.append([value2color_table_cell(leader2win_rate[leader_id], max=100) for leader_id in sorted_leader_ids])
+            index_cells.append([create_image_cell(leader_id2aa_image_url(leader_id),
+                                                  text=lid2ldata(leader_id).id.split("-")[0] + "\n" + lid2ldata(
+                                                      leader_id).name.replace('"', " ").replace('.', " "),
+                                                  overlay_color=lid2ldata(leader_id).to_hex_color()) for
+                                leader_id, df_row in df_Leader_vs_leader_win_rates.iterrows()])
+            index_cells.append(
+                [value2color_table_cell(leader2win_rate[leader_id], max=100) for leader_id in sorted_leader_ids])
 
             for col in df_Leader_vs_leader_match_count.columns.values:
                 df_Leader_vs_leader_match_count[col] = df_Leader_vs_leader_match_count[col].fillna(0)
-                df_Leader_vs_leader_match_count[col] = 'Match Count: ' + df_Leader_vs_leader_match_count[col].astype(int).astype(str)
+                df_Leader_vs_leader_match_count[col] = 'Match Count: ' + df_Leader_vs_leader_match_count[col].astype(
+                    int).astype(str)
 
             # create table cells with tooltip
             def apply_transform(row, other_df):
                 result_row = []
                 for i in range(len(row)):
                     other_df_cell = other_df.loc[row.name, row.index[i]]
-                    result_row.append(value2color_table_cell(row.iloc[i], max=100, cell_input=add_tooltip(row.iloc[i], tooltip=other_df_cell)))
+                    result_row.append(value2color_table_cell(row.iloc[i], max=100, cell_input=add_tooltip(row.iloc[i],
+                                                                                                          tooltip=other_df_cell)))
                 return result_row
 
-            df_Leader_vs_leader_win_rates_table_cells = df_Leader_vs_leader_win_rates.apply(lambda row: apply_transform(row, df_Leader_vs_leader_match_count), axis=1, result_type='expand')
+            df_Leader_vs_leader_win_rates_table_cells = df_Leader_vs_leader_win_rates.apply(
+                lambda row: apply_transform(row, df_Leader_vs_leader_match_count), axis=1, result_type='expand')
 
             display_table(df_Leader_vs_leader_win_rates_table_cells,
                           index_cells=index_cells,
@@ -151,54 +151,55 @@ def display_elements(selected_leader_ids,
                           title="Matchup Win Rates",
                           key="lmeta_table_item")
 
-            mui.Box(sx={"font-family": '"Source Sans Pro", sans-serif;'}, key="lmeta_radar_plot_item_title")(html.H2("Leader Color Win Rates"))
+            mui.Box(sx={"font-family": '"Source Sans Pro", sans-serif;'}, key="lmeta_radar_plot_item_title")(
+                html.H2("Leader Color Win Rates"))
             box_elements: list = []
-            #box_elements.append(html.H1("Color Win Rates"))
+            # box_elements.append(html.H1("Color Win Rates"))
             box_elements.append(nivo.Radar(
-                    data=radar_chart_data,
-                    keys=[lid2name(lid) for lid in selected_leader_ids],
-                    indexBy="taste",
-                    valueFormat=">-.2f",
-                    margin={"top": 70, "right": 80, "bottom": 70, "left": 80},
-                    borderColor={"from": "color"},
-                    gridLabelOffset=36,
-                    dotSize=10,
-                    dotColor={"theme": "background"},
-                    dotBorderWidth=2,
-                    motionConfig="wobbly",
-                    legends=[
-                        {
-                            "anchor": "top-left",
-                            "direction": "column",
-                            "translateX": -50,
-                            "translateY": -40,
-                            "itemWidth": 80,
-                            "itemHeight": 20,
-                            "itemTextColor": "#ffffff" if ST_THEME["base"] == "dark" else "#999",
-                            "symbolSize": 12,
-                            "symbolShape": "circle",
-                            "effects": [
-                                {
-                                    "on": "hover",
-                                    "style": {
-                                        "itemTextColor": "#000"
-                                    }
+                data=radar_chart_data,
+                keys=[lid2ldata(lid).name for lid in selected_leader_ids],
+                indexBy="taste",
+                valueFormat=">-.2f",
+                margin={"top": 70, "right": 80, "bottom": 70, "left": 80},
+                borderColor={"from": "color"},
+                gridLabelOffset=36,
+                dotSize=10,
+                dotColor={"theme": "background"},
+                dotBorderWidth=2,
+                motionConfig="wobbly",
+                legends=[
+                    {
+                        "anchor": "top-left",
+                        "direction": "column",
+                        "translateX": -50,
+                        "translateY": -40,
+                        "itemWidth": 80,
+                        "itemHeight": 20,
+                        "itemTextColor": "#ffffff" if ST_THEME["base"] == "dark" else "#999",
+                        "symbolSize": 12,
+                        "symbolShape": "circle",
+                        "effects": [
+                            {
+                                "on": "hover",
+                                "style": {
+                                    "itemTextColor": "#000"
                                 }
-                            ]
-                        }
-                    ],
-                    theme={
-                        "background": "#2C3A47" if ST_THEME["base"] == "dark" else "#ffffff",
-                        "textColor": "#ffffff" if ST_THEME["base"] == "dark" else "#31333F",
-                        "tooltip": {
-                            "container": {
-                                "background": "#FFFFFF",
-                                "color": "#31333F",
                             }
+                        ]
+                    }
+                ],
+                theme={
+                    "background": "#2C3A47" if ST_THEME["base"] == "dark" else "#ffffff",
+                    "textColor": "#ffffff" if ST_THEME["base"] == "dark" else "#31333F",
+                    "tooltip": {
+                        "container": {
+                            "background": "#FFFFFF",
+                            "color": "#31333F",
                         }
-                    },
-                    colors=[leader_id2leader_data[lid].to_hex_color() for lid in selected_leader_ids]
-                ))
+                    }
+                },
+                colors=[lid2ldata(lid).to_hex_color() for lid in selected_leader_ids]
+            ))
 
             mui.Box(key="lmeta_radar_plot_item", children=box_elements)
 
@@ -219,6 +220,7 @@ def get_leader2avg_win_rate_dict(df_Leader_vs_leader_match_count, df_Leader_vs_l
         leader2win_rate[leader_id] = float("%.1f" % avg_leader_win_rate)
     return leader2win_rate
 
+
 def main():
     st.header("Leader Meta Analysis")
 
@@ -232,13 +234,9 @@ def main():
         selected_leader_elo_data: list[LeaderElo] = get_leader_elo_data(meta_formats=selected_meta_formats)
         sorted_leader_elo_data: list[LeaderElo] = sorted(selected_leader_elo_data, key=lambda x: x.elo,
                                                          reverse=True)
-
-        bq_leaders: list[Leader] = get_leader_data()
-        leader_id2leader_data: dict[str, Leader] = {bq_leader_data.id: bq_leader_data for bq_leader_data in
-                                                    bq_leaders}
         available_leader_ids = list(dict.fromkeys(
             [
-                f"{leader_id2leader_data[l.leader_id].name if l.leader_id in leader_id2leader_data else ''} ({l.leader_id})"
+                f"{lid2ldata(l.leader_id).name} ({l.leader_id})"
                 for l
                 in sorted_leader_elo_data]))
         selected_leader_names: list[str] = sidebar_display_leader(available_leader_ids=available_leader_ids)
@@ -246,14 +244,14 @@ def main():
             st.warning("Please select at least two leaders")
         else:
             selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, df_Leader_vs_leader_match_count, df_color_win_rates = data_setup(
-                selected_leader_names, selected_meta_formats, leader_id2leader_data)
-            radar_chart_data = get_radar_chart_data(df_color_win_rates, leader_id2leader_data)
+                selected_leader_names, selected_meta_formats)
+            radar_chart_data = get_radar_chart_data(df_color_win_rates)
             display_elements(selected_leader_ids,
                              selected_bq_leaders,
                              df_Leader_vs_leader_win_rates,
                              df_Leader_vs_leader_match_count,
-                             radar_chart_data,
-                             leader_id2leader_data)
+                             radar_chart_data)
+
 
 if __name__ == "__main__":
     main()
