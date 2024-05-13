@@ -10,7 +10,7 @@ def get_template_leader() -> Leader:
            name="NaN",
            life=5,
            power=5000,
-           release_meta=MetaFormat.OP01,
+           release_meta=MetaFormat.to_list()[-1],
            avatar_icon_url="",
            image_url="",
            image_aa_url="",
