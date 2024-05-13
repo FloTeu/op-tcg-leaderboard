@@ -1,8 +1,6 @@
 import pandas as pd
 import streamlit as st
 
-from op_tcg.backend.models.bq import BQDataset
-
 st.set_page_config(layout="wide")
 from datetime import datetime, date
 from uuid import uuid4
@@ -11,6 +9,8 @@ from op_tcg.backend.etl.load import bq_add_rows, get_or_create_table
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader, OPTcgColor, OPTcgAttribute, OPTcgLanguage
 from op_tcg.backend.models.matches import LeaderElo, BQLeaderElos, Match, MatchResult
+from op_tcg.backend.models.bq import BQDataset
+from op_tcg.frontend.utils.session import get_session_id
 from op_tcg.frontend.sidebar import display_meta_select, display_only_official_toggle, display_release_meta_select, \
     display_match_count_slider_slider, display_leader_color_multiselect, display_leader_select
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_leader_data, get_match_data
@@ -167,6 +167,7 @@ def upload_match_dialog():
                 st.warning("Winner or loser leader not yet selected")
             else:
                 match_id = uuid4().hex
+                session_id = get_session_id()
                 rows_to_insert = []
                 rows_to_insert.append(Match(id=match_id,
                     leader_id=selected_winner_leader_id,
@@ -175,7 +176,8 @@ def upload_match_dialog():
                     meta_format=meta_format,
                     official=False,
                     is_reverse=False,
-                    timestamp=match_datetime).model_dump()
+                    source=session_id,
+                    match_timestamp=match_datetime).model_dump()
                 )
                 rows_to_insert.append(Match(id=match_id,
                     leader_id=selected_loser_leader_id,
@@ -184,7 +186,8 @@ def upload_match_dialog():
                     meta_format=meta_format,
                     official=False,
                     is_reverse=True,
-                    timestamp=match_datetime).model_dump()
+                    source=session_id,
+                    match_timestamp=match_datetime).model_dump()
                 )
 
                 bq_leader_table = get_or_create_table(model=Match, dataset_id=BQDataset.MATCHES,

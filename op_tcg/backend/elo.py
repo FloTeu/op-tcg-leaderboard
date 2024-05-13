@@ -9,13 +9,13 @@ class EloCreator:
     def __init__(self, df_all_matches: pd.DataFrame, only_official: bool | None = None):
         self.df_all_matches = df_all_matches
         self.leader_id2elo = {leader_id: 1000 for leader_id in df_all_matches.leader_id.unique()}
-        self.start_date = df_all_matches.sort_values("timestamp", ascending=True).iloc[0].timestamp.date()
-        self.end_date = df_all_matches.sort_values("timestamp", ascending=False).iloc[0].timestamp.date()
+        self.start_date = df_all_matches.sort_values("match_timestamp", ascending=True).iloc[0].match_timestamp.date()
+        self.end_date = df_all_matches.sort_values("match_timestamp", ascending=False).iloc[0].match_timestamp.date()
         self.only_official = only_official if only_official is not None else len(df_all_matches.query("official != True")) == 0
-        self.meta_format = df_all_matches.sort_values("timestamp", ascending=False).iloc[0].meta_format
+        self.meta_format = df_all_matches.sort_values("match_timestamp", ascending=False).iloc[0].meta_format
 
     def calculate_elo_ratings(self):
-        match_ids = self.df_all_matches.sort_values("timestamp", ascending=True).id.unique().tolist()
+        match_ids = self.df_all_matches.sort_values("match_timestamp", ascending=True).id.unique().tolist()
         for match_id in match_ids:
             df_match_rows = self.df_all_matches.query(f"id == '{match_id}'")
             assert len(df_match_rows) == 2, "A match should contain exactly two data rows"
