@@ -15,7 +15,8 @@ from op_tcg.frontend.sidebar import display_meta_select, display_only_official_t
     display_match_count_slider_slider, display_leader_color_multiselect, display_leader_select
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_leader_data, get_match_data
 from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_cell, value2color_table_cell
-from op_tcg.frontend.utils.leader_data import leader_id2aa_image_url, lid2ldata
+from op_tcg.frontend.utils.leader_data import leader_id2aa_image_url, lid2ldata, get_lid2ldata_dict_cached
+from op_tcg.frontend.utils.utils import bq_client
 
 if st.runtime.exists():
     from streamlit_elements import elements, dashboard, mui, nivo
@@ -134,7 +135,8 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
 
 
 @st.experimental_dialog("Upload Match")
-def upload_match_dialog(leader_id2leader_data: dict[str, Leader]):
+def upload_match_dialog():
+    leader_id2leader_data = get_lid2ldata_dict_cached()
     meta_format = display_meta_select(multiselect=False, key="upload_form_meta_format")[0]
     allowed_meta_fomats = MetaFormat.to_list()[0:MetaFormat.to_list().index(meta_format)+1]
     with st.form("upload_match_form"):
@@ -223,7 +225,7 @@ def main():
                                                       leader_ids=selected_meta_leader_ids)
     df_meta_match_data = pd.DataFrame([match.dict() for match in selected_meta_match_data])
     if st.button("Upload Match"):
-        upload_match_dialog(leader_id2leader_data)
+        upload_match_dialog()
 
     if sorted_leader_elo_data:
         # display table.
