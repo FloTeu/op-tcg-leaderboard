@@ -1,6 +1,6 @@
 import os
 import tempfile
-import time
+import requests
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -49,6 +49,7 @@ def display_upload_form(
         colors = st.multiselect("Leader Colors", OPTcgColor.to_list(), help="Colors of the leader", default=bq_leader_default_text.colors if bq_leader_default_text else None)
         attributes = st.multiselect("Leader Attribute", OPTcgAttribute.to_list(), help="Attribute of the leader, e.g. Slash", default=bq_leader_default_text.attributes if bq_leader_default_text else None)
         ability = st.text_area("Leader Ability", help="Ability of the leader", value=bq_leader_default_text.ability if bq_leader_default_text else None)
+        fractions = st.text_input("Leader Fractions", help="If the leader has more than one fraction, please split it by '/'", value="/".join(bq_leader_default_text.fractions) if bq_leader_default_text else None)
 
         submit_button = st.form_submit_button(label="Submit")
 
@@ -62,12 +63,13 @@ def display_upload_form(
                                    life=life,
                                    power=power,
                                    release_meta=MetaFormat(release_meta) if release_meta else None,
-                                   avatar_icon=avatar_icon if avatar_icon else None,
+                                   avatar_icon_url=avatar_icon if avatar_icon else None,
                                    image_url=image_url if image_url else None,
                                    image_aa_url=image_aa_url if image_aa_url else None,
                                    colors=[OPTcgColor(c) for c in colors] if colors else None,
                                    ability=ability if ability else None,
                                    attributes=attributes if attributes else None,
+                                   fractions=fractions.split("/") if fractions else None,
                                    language=OPTcgLanguage(language) if language else None
                                    )
             except ValidationError as ex:
@@ -129,6 +131,17 @@ where t1.id is NULL""")
 
 
 def upload2bq_and_storage(bq_leader):
+    with st.spinner('Upload Images to GCP Storage...'):
+        for blob_dir, img_url in {"avatar": bq_leader.avatar_icon_url, "standard": bq_leader.image_url,
+                                  "alt-art": bq_leader.image_aa_url}.items():
+            with tempfile.NamedTemporaryFile() as tmp:
+                img_data = requests.get(img_url).content
+                tmp.write(img_data)
+                file_type = img_url.split('.')[-1]
+                upload2gcp_storage(path_to_file=tmp.name,
+                                   blob_name=f"leader/images/{blob_dir}/{bq_leader.language.upper()}/{bq_leader.id}.{file_type}",
+                                   content_type=f"image/{file_type}")
+
     with st.spinner('Upload Leader Data to GCP BigQuery...'):
         bq_leader_table = get_or_create_table(table_id=Leader.__tablename__, dataset_id=BQDataset.LEADERS,
                                               model=Leader, client=bq_client)
@@ -142,17 +155,6 @@ def upload2bq_and_storage(bq_leader):
         bq_leader.image_aa_url = f"https://storage.googleapis.com/op-tcg-leaderboard-public/leader/images/alt-art/{bq_leader.language.upper()}/{bq_leader.id}.{file_type}"
 
         update_bq_leader_row(bq_leader, table=bq_leader_table, client=bq_client)
-    with st.spinner('Upload Images to GCP Storage...'):
-        for blob_dir, img_url in {"avatar": bq_leader.avatar_icon_url, "standard": bq_leader.image_url,
-                                  "alt-art": bq_leader.image_aa_url}.items():
-            with tempfile.NamedTemporaryFile() as tmp:
-                import requests
-                img_data = requests.get(img_url).content
-                tmp.write(img_data)
-                file_type = img_url.split('.')[-1]
-                upload2gcp_storage(path_to_file=tmp.name,
-                                   blob_name=f"leader/images/{blob_dir}/{bq_leader.language.upper()}/{bq_leader.id}.{file_type}",
-                                   content_type=f"image/{file_type}")
 
 
 def display_images(bq_leader):
