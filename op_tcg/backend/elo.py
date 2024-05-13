@@ -21,11 +21,20 @@ class EloCreator:
             assert len(df_match_rows) == 2, "A match should contain exactly two data rows"
             leader_id2new_elo: dict[str, int] = {}
             for i, match_data_row in df_match_rows.iterrows():
-                leader_id = match_data_row.leader_id
-                opponent_id = match_data_row.opponent_id
-                leader_id2new_elo[leader_id] = calculate_new_elo(self.leader_id2elo[leader_id],
-                                                                 self.leader_id2elo[opponent_id],
-                                                                    match_data_row.result, k_factor=32)
+                leader_elo = self.leader_id2elo[match_data_row.leader_id]
+                opponent_elo = self.leader_id2elo[match_data_row.opponent_id]
+                k_factor = 32
+                if leader_elo >= 3000:
+                    k_factor = 5
+                # ranges of FIDE
+                elif leader_elo >= 2400:
+                    k_factor = 10
+                elif leader_elo >= 1500:
+                    k_factor = 20
+                leader_id2new_elo[match_data_row.leader_id] = calculate_new_elo(leader_elo,
+                                                                 opponent_elo,
+                                                                 match_data_row.result,
+                                                                 k_factor=k_factor)
             for leader_id, new_elo in leader_id2new_elo.items():
                 self.leader_id2elo[leader_id] = new_elo
 
