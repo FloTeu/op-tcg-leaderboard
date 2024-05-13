@@ -63,8 +63,10 @@ class LocalMatchesToBigQueryEtlJob(AbstractETLJob[AllLeaderMetaDocs, BQMatches])
 
 
 class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
-    def __init__(self, matches_csv_file_path: Path | str | None = None):
+    def __init__(self, meta_formats: list[MetaFormat], matches_csv_file_path: Path | str | None = None):
         self.bq_client = bigquery.Client()
+        self.meta_formats = meta_formats
+        self.in_meta_format = "('" + "','".join(self.meta_formats) + "')"
         self.matches_csv_file_path = matches_csv_file_path
 
     def validate(self, extracted_data: AllLeaderMetaDocs) -> bool:
@@ -74,7 +76,7 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
         if self.matches_csv_file_path:
             df = pd.read_csv(self.matches_csv_file_path)
         else:
-            query = f"SELECT * FROM {BQDataset.MATCHES}.{Match.__tablename__}"
+            query = f"SELECT * FROM {BQDataset.MATCHES}.{Match.__tablename__} WHERE meta_format in {self.in_meta_format}"
             df = self.bq_client.query_and_wait(query).to_dataframe()
         matches: list[Match] = []
         for i, df_row in df.iterrows():
@@ -83,7 +85,6 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
 
 
     def transform(self, all_matches: BQMatches) -> BQLeaderElos:
-        # TODO Add more elo values for different metas
         df_all_matches = all_matches.to_dataframe()
         elo_ratings: list[LeaderElo] = []
         def calculate_all_elo_ratings(df_matches):
@@ -107,6 +108,15 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
         if len(df) > 0:
             # create tmp table with new data
             self.bq_client.load_table_from_dataframe(df, table_tmp)
+            # Insert all uneffected elo from other meta formats
+            query_job = self.bq_client.query(f"""
+            INSERT INTO {table_tmp.dataset_id}.{table_tmp.table_id}
+            SELECT *
+            FROM {table.dataset_id}.{table.table_id}
+            WHERE meta_format not in {self.in_meta_format};
+            """)
+            assert query_job.errors is None
+
             # wait some seconds to be sure data is ready in tmp table
             time.sleep(5)
             # Overwrite existing data with tmp table
@@ -115,4 +125,5 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
             SELECT *
             FROM {table_tmp.dataset_id}.{table_tmp.table_id}
             """)
+            # delete tmp table
             self.bq_client.delete_table(table_tmp)
