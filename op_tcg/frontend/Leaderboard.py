@@ -2,19 +2,27 @@ import pandas as pd
 import streamlit as st
 
 st.set_page_config(layout="wide")
-from streamlit_elements import elements, dashboard, mui, nivo
-from streamlit_theme import st_theme
+from datetime import datetime, date
+from uuid import uuid4
 
+from op_tcg.backend.etl.load import bq_add_rows, get_or_create_table
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.leader import Leader, OPTcgColor
-from op_tcg.backend.models.matches import LeaderElo, BQLeaderElos, Match
-from op_tcg.frontend.sidebar import sidebar_display_meta, sidebar_display_only_official, sidebar_display_release_meta, \
-    sidebar_display_match_count_slider, sidebar_display_leader_color_multiselect
+from op_tcg.backend.models.leader import Leader, OPTcgColor, OPTcgAttribute, OPTcgLanguage
+from op_tcg.backend.models.matches import LeaderElo, BQLeaderElos, Match, MatchResult
+from op_tcg.backend.models.bq import BQDataset
+from op_tcg.frontend.utils.session import get_session_id
+from op_tcg.frontend.sidebar import display_meta_select, display_only_official_toggle, display_release_meta_select, \
+    display_match_count_slider_slider, display_leader_color_multiselect, display_leader_select
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_leader_data, get_match_data
 from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_cell, value2color_table_cell
-from op_tcg.frontend.utils.leader_data import leader_id2aa_image_url, lid2ldata
+from op_tcg.frontend.utils.leader_data import leader_id2aa_image_url, lid2ldata, get_lid2ldata_dict_cached
+from op_tcg.frontend.utils.utils import bq_client
 
-ST_THEME = st_theme() or {"base": "dark"}
+if st.runtime.exists():
+    from streamlit_elements import elements, dashboard, mui, nivo
+    from streamlit_theme import st_theme
+    ST_THEME = st_theme() or {"base": "dark"}
+
 
 def leader_id2elo_chart(leader_id: str, df_leader_elos):
     # Streamlit Elements includes 45 dataviz components powered by Nivo.
@@ -126,15 +134,82 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
                           key="lboard_table_item")
 
 
+@st.experimental_dialog("Upload Match")
+def upload_match_dialog():
+    leader_id2leader_data = get_lid2ldata_dict_cached()
+    meta_format = display_meta_select(multiselect=False, key="upload_form_meta_format")[0]
+    allowed_meta_fomats = MetaFormat.to_list()[0:MetaFormat.to_list().index(meta_format)+1]
+    with st.form("upload_match_form"):
+        # TODO: Ensure right release meta is correctly included for each leader in db
+        available_leader_ids = [lid for lid, ldata in leader_id2leader_data.items() if ldata.release_meta in allowed_meta_fomats]
+        available_leader_ids = sorted(available_leader_ids)
+        # add name to ids (drop duplicates and ensures right order)
+        available_leader_names: list[str] = list(dict.fromkeys(
+           [
+               f"{leader_id2leader_data[lid].name if lid in leader_id2leader_data else ''} ({lid})"
+               for lid
+               in available_leader_ids]))
+        # display user input
+        today_date = datetime.now().date()
+        match_day: date = st.date_input("Match Day", value=today_date, max_value=today_date)
+        match_datetime: datetime = datetime.combine(match_day, datetime.now().time())
+
+        selected_winner_leader_name: str | None = display_leader_select(available_leader_ids=available_leader_names, multiselect=False, label="Winner Leader", key="match_leader_id")[0]
+        selected_winner_leader_id: str | None = selected_winner_leader_name.split("(")[1].strip(")") if selected_winner_leader_name is not None else None
+        selected_loser_leader_name: str | None = display_leader_select(available_leader_ids=available_leader_names, multiselect=False, label="Looser Leader", key="match_opponentleader_id")[0]
+        selected_loser_leader_id: str | None = selected_loser_leader_name.split("(")[1].strip(")") if selected_loser_leader_name is not None else None
+        is_draw = st.checkbox("Is draw", value=False)
+
+        # Every form must have a submit button.
+        submitted = st.form_submit_button("Submit")
+        if submitted:
+            if selected_loser_leader_id is None or selected_winner_leader_id is None:
+                st.warning("Winner or loser leader not yet selected")
+            else:
+                match_id = uuid4().hex
+                session_id = get_session_id()
+                rows_to_insert = []
+                rows_to_insert.append(Match(id=match_id,
+                    leader_id=selected_winner_leader_id,
+                    opponent_id=selected_loser_leader_id,
+                    result=MatchResult.DRAW if is_draw else MatchResult.WIN,
+                    meta_format=meta_format,
+                    official=False,
+                    is_reverse=False,
+                    source=session_id,
+                    match_timestamp=match_datetime).model_dump()
+                )
+                rows_to_insert.append(Match(id=match_id,
+                    leader_id=selected_loser_leader_id,
+                    opponent_id=selected_winner_leader_id,
+                    result=MatchResult.DRAW if is_draw else MatchResult.LOSE,
+                    meta_format=meta_format,
+                    official=False,
+                    is_reverse=True,
+                    source=session_id,
+                    match_timestamp=match_datetime).model_dump()
+                )
+
+                bq_leader_table = get_or_create_table(model=Match, dataset_id=BQDataset.MATCHES,
+                                                      client=bq_client)
+                try:
+                    bq_add_rows(rows_to_insert, table=bq_leader_table, client=bq_client)
+                    st.balloons()
+                except Exception as e:
+                    st.error(str(e))
+
+
+
 def main():
     # display data
     st.header("One Piece TCG Elo Leaderboard")
-    meta_formats: list[MetaFormat] = sidebar_display_meta(multiselect=False)
-    release_meta_formats: list[MetaFormat] | None = sidebar_display_release_meta(multiselect=True)
-    selected_leader_colors: list[OPTcgColor] | None = sidebar_display_leader_color_multiselect()
-    display_max_match_count=10000
-    match_count_min, match_count_max = sidebar_display_match_count_slider(min=0, max=display_max_match_count)
-    only_official: bool = sidebar_display_only_official()
+    with st.sidebar:
+        meta_formats: list[MetaFormat] = display_meta_select(multiselect=False)
+        release_meta_formats: list[MetaFormat] | None = display_release_meta_select(multiselect=True)
+        selected_leader_colors: list[OPTcgColor] | None = display_leader_color_multiselect()
+        display_max_match_count=10000
+        match_count_min, match_count_max = display_match_count_slider_slider(min=0, max=display_max_match_count)
+        only_official: bool = display_only_official_toggle()
 
     # get data
     leader_elos: list[LeaderElo] = get_leader_elo_data()
@@ -152,6 +227,9 @@ def main():
     selected_meta_match_data: list[Match] = get_match_data(meta_formats=meta_formats,
                                                       leader_ids=selected_meta_leader_ids)
     df_meta_match_data = pd.DataFrame([match.dict() for match in selected_meta_match_data])
+    if st.button("Upload Match"):
+        upload_match_dialog()
+
     if sorted_leader_elo_data:
         # display table.
         df_leader_elos = BQLeaderElos(elo_ratings=sorted_leader_elo_data).to_dataframe()

@@ -2171,14 +2171,14 @@ streamlit = ">=1.20"
 
 [[package]]
 name = "streamlit"
-version = "1.33.0"
+version = "1.34.0"
 description = "A faster way to build and share data apps"
 category = "main"
 optional = false
 python-versions = "!=3.9.7,>=3.8"
 files = [
-    {file = "streamlit-1.33.0-py2.py3-none-any.whl", hash = "sha256:bfacb5d1edefcf803c2040b051a21b4c81317a9865448e6767d0a0c6aae7edae"},
-    {file = "streamlit-1.33.0.tar.gz", hash = "sha256:a8da8ff46f5b948c56d2dc7aca7a61cf8d995f4f21744cf82258ae75e63004ba"},
+    {file = "streamlit-1.34.0-py2.py3-none-any.whl", hash = "sha256:411183cf7f525e468eb256b343c914782d11cd894b5e30a4ab3bb1d54e3ae339"},
+    {file = "streamlit-1.34.0.tar.gz", hash = "sha256:135a3b79a686b3132b73f204450ad6e889de04f3349d692925e09f0e21e74b52"},
 ]
 
 [package.dependencies]
@@ -2520,4 +2520,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.13"
-content-hash = "445c6508b01e69713464ecbd3f8fd13b146ca2ebac742f2c7e32237946215df9"
+content-hash = "cfc128cd59f46b65b27b2e7ee721e8f3348bb2a64c7f2471b741b1b5e33f282d"

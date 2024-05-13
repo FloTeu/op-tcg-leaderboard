@@ -2,6 +2,7 @@ import os
 from datetime import datetime, date
 from enum import IntEnum
 from types import UnionType, GenericAlias
+from typing import Any
 
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
@@ -97,7 +98,6 @@ def get_or_create_table(model: type[BQTableBaseModel], dataset_id: str, table_id
     # TODO: check if we can extract the table ref from this object
     table_id = table_id if table_id else model.__tablename__
     table_ref = dataset.table(table_id)
-    schema = pydantic_model_to_bq_schema(model)
 
     try:
         # Try to get the table (will raise NotFound if it does not exist)
@@ -105,19 +105,37 @@ def get_or_create_table(model: type[BQTableBaseModel], dataset_id: str, table_id
         print(f"Table {table_id} already exists.")
     except NotFound:
         # If the table does not exist, create it
+        schema = pydantic_model_to_bq_schema(model)
         table = bigquery.Table(table_ref, schema=schema)
         table = client.create_table(table)
         print(f"Table {table_id} created.")
 
     return table
 
+def bq_add_rows(rows_to_insert: list[dict[str, Any]], table: bigquery.Table, client: bigquery.Client | None = None) -> None:
+    """Adds a new row to BigQuery"""
+    client = client if client else bigquery.Client()
 
+    # ensure json serializability
+    for row in rows_to_insert:
+        for col_name, col_value in row.items():
+            if type(col_value) in [date, datetime]:
+                row[col_name] = str(col_value)
+
+    table_id = f"{table.project}.{table.dataset_id}.{table.table_id}"
+
+    errors = client.insert_rows_json(table_id, rows_to_insert)  # Make an API request.
+    if errors == []:
+        print("New rows have been added.")
+    else:
+        raise ValueError("Encountered errors while inserting rows: {}".format(errors))
 
 
 def update_bq_leader_row(bq_leader: Leader, table: bigquery.Table, client: bigquery.Client | None = None):
+    """Creates new row in big query or if it already exists, the row get updated"""
     client = client if client else bigquery.Client()
 
-    table_id = f"{table.project}.{table.dataset_id}.{table.table_id}"  # Replace with your actual project, dataset, and table name
+    table_id = f"{table.project}.{table.dataset_id}.{table.table_id}"
 
     # Use MERGE to update if the row exists, or insert if it does not
     merge_query = f"""
