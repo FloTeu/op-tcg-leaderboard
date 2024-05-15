@@ -2,7 +2,7 @@ from pathlib import Path
 
 import click
 from scrapy.crawler import CrawlerProcess
-from op_tcg.backend.crawling.spiders.limitless import LimitlessSpider
+from op_tcg.backend.crawling.spiders.limitless_matches import LimitlessMatchesSpider
 from op_tcg.backend.etl.extract import get_leader_ids
 from op_tcg.backend.models.input import MetaFormat
 
@@ -15,12 +15,21 @@ def crawling_group() -> None:
     pass
 
 
-@crawling_group.command()
+@click.group("limitless", help="Limitless Crawling functionality")
+def limitless_group() -> None:
+    """
+    Define a click group for the crawling limitless section
+    """
+    pass
+
+crawling_group.add_command(limitless_group)
+
+@limitless_group.command()
 @click.option("--meta-formats", "-m", multiple=True)
 @click.option("--leader_ids", "-l", multiple=True)
 @click.option("--use_all_leader_ids", is_flag=True, show_default=True, default=False)
 @click.option("--data-dir", type=click.Path(), default=None)
-def limitless(
+def matches(
     meta_formats: list[MetaFormat] | None = None,
     leader_ids: list[str] | None = None,
     use_all_leader_ids: bool = False,
@@ -49,9 +58,9 @@ def limitless(
     elif data_dir:
         # extract leader ids from already crawled files
         leader_ids = get_leader_ids(data_dir=data_dir)
-    process.crawl(LimitlessSpider, meta_formats=meta_formats, leader_ids=leader_ids)
+    process.crawl(LimitlessMatchesSpider, meta_formats=meta_formats, leader_ids=leader_ids)
     process.start() # the script will block here until the crawling is finished
 
 
 if __name__ == "__main__":
-    limitless()
+    matches()
