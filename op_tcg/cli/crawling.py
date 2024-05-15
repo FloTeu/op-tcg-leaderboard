@@ -1,8 +1,11 @@
+import os
+import click
+
 from pathlib import Path
 
-import click
 from scrapy.crawler import CrawlerProcess
-from op_tcg.backend.crawling.spiders.limitless_matches import LimitlessMatchesSpider
+from op_tcg.backend.crawling.spiders.limitless_matches import LimitlessMatchSpider
+from op_tcg.backend.crawling.spiders.limitless_tournaments import LimitlessTournamentSpider
 from op_tcg.backend.etl.extract import get_leader_ids
 from op_tcg.backend.models.input import MetaFormat
 
@@ -41,7 +44,7 @@ def matches(
     data_dir: directory with op_tcg.models.input.LimitlessLeaderMetaMatches files, if None OP01-001 is used
     """
     process = CrawlerProcess({
-        'ITEM_PIPELINES': {'op_tcg.backend.crawling.pipelines.MatchesPipeline': 1},  # Hooking in our custom pipline above
+        'ITEM_PIPELINES': {'op_tcg.backend.crawling.pipelines.MatchesPipeline': 1},  # Hooking in our custom pipline
     })
     if meta_formats:
         # ensure enum format
@@ -58,7 +61,26 @@ def matches(
     elif data_dir:
         # extract leader ids from already crawled files
         leader_ids = get_leader_ids(data_dir=data_dir)
-    process.crawl(LimitlessMatchesSpider, meta_formats=meta_formats, leader_ids=leader_ids)
+    process.crawl(LimitlessMatchSpider, meta_formats=meta_formats, leader_ids=leader_ids)
+    process.start() # the script will block here until the crawling is finished
+
+
+@limitless_group.command()
+@click.option("--meta-formats", "-m", multiple=True)
+def tournaments(
+    meta_formats: list[MetaFormat] | None = None,
+) -> None:
+    """
+    Starts a limitless crawler for tournament data
+    """
+    assert os.environ.get("LIMITLESS_API_TOKEN"), "LIMITLESS_API_TOKEN not set in environment"
+    process = CrawlerProcess({
+        'ITEM_PIPELINES': {'op_tcg.backend.crawling.pipelines.TournamentPipeline': 1},  # Hooking in our custom pipline
+    })
+    if meta_formats:
+        # ensure enum format
+        meta_formats = [MetaFormat(meta_format) for meta_format in meta_formats]
+    process.crawl(LimitlessTournamentSpider, meta_formats=meta_formats, api_token=os.environ.get("LIMITLESS_API_TOKEN"))
     process.start() # the script will block here until the crawling is finished
 
 

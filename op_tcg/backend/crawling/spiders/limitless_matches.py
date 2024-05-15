@@ -6,7 +6,7 @@ from op_tcg.backend.models.input import LimitlessMatch, LimitlessLeaderMetaDoc, 
 from op_tcg.backend.etl.extract import read_json_files
 
 
-class LimitlessMatchesSpider(scrapy.Spider):
+class LimitlessMatchSpider(scrapy.Spider):
     name = "limitless_matches"
 
     meta_formats: list[MetaFormat]

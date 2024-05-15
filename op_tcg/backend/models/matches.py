@@ -1,8 +1,9 @@
 import pandas as pd
 from pydantic import BaseModel, Field
 from datetime import datetime, date
-from enum import IntEnum, StrEnum
+from enum import IntEnum
 
+from op_tcg.backend.models.common import DataSource
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.base import BQTableBaseModel
 
@@ -13,18 +14,21 @@ class MatchResult(IntEnum):
     WIN = 2
 
 
-class MatchSource(StrEnum):
-    LIMITLESS = "limitless_tcg"
-
 class Match(BQTableBaseModel):
     id: str = Field(description="Unique id of single match. One match contains 2 rows, including one reverse match", primary_key=True)
-    leader_id: str = Field(description="The op tcg leader id e.g. OP03-099", primary_key=True)
+    leader_id: str = Field(description="The op tcg leader id e.g. OP03-099")
     opponent_id: str = Field(description="The op tcg opponent id e.g. OP03-099")
     result: MatchResult = Field(description="Result of the match. Can be win, lose or draw")
     meta_format: MetaFormat = Field(description="Meta in which matches happened, e.g. OP06")
     official: bool = Field(default=False, description="Whether the match is originated from an official tournament")
-    is_reverse: bool = Field(description="Whether its the reverse match")
-    source: MatchSource | str = Field(description="Origin of the match. In case of an unofficial match it can be the session id.")
+    is_reverse: bool = Field(description="Whether its the reverse match", primary_key=True)
+    source: DataSource | str = Field(description="Origin of the match. In case of an unofficial match it can be the session id.")
+    tournament_id: str | None = Field(None, description="Unique id of single tournament")
+    tournament_round: int | None = Field(None, description="Round during which the match happened.")
+    tournament_phase: int | None = Field(None, description="Phase during which the match happened.")
+    tournament_table: int | None = Field(None, description="Table number of the match (for all phase types except live brackets).")
+    player_id: str | None = Field(None, description="Username/ID used to uniquely identify the player. Does not change between tournaments.")
+    opponent_player_id: str | None = Field(None, description="Username/ID used to uniquely identify the opponent. Does not change between tournaments.")
     match_timestamp: datetime = Field(description="Approximate timestamp when the match happened")
     create_timestamp: datetime = Field(default_factory=datetime.now, description="Creation timestamp when the insert in BQ happened")
 
