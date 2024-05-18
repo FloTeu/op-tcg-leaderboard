@@ -1,8 +1,11 @@
 import op_tcg
 import json
 from pathlib import Path
+
+from op_tcg.backend.models.base import BQTableBaseModel
 from op_tcg.backend.models.input import LimitlessLeaderMetaDoc
-from op_tcg.backend.models.tournaments import Tournament
+from op_tcg.backend.models.matches import Match
+from op_tcg.backend.models.tournaments import Tournament, TournamentStanding
 
 
 class MatchesPipeline:
@@ -15,6 +18,7 @@ class MatchesPipeline:
 
 
 class TournamentPipeline:
-    def process_item(self, item: Tournament, spider):
-        # TODO: save to BQ
+    def process_item(self, item: Tournament | TournamentStanding | Match, spider):
+        if isinstance(item, BQTableBaseModel):
+            item.insert_to_bq(client=spider.bq_client)
         return item

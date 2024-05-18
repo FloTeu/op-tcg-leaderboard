@@ -4,14 +4,13 @@ from uuid import uuid4
 import scrapy
 import requests
 import json
-from pathlib import Path
-from bs4 import BeautifulSoup
+
+from google.cloud import bigquery
 from pydantic import BaseModel
 
 from op_tcg.backend.models.common import DataSource
-from op_tcg.backend.models.input import LimitlessMatch, LimitlessLeaderMetaDoc, MetaFormat
-from op_tcg.backend.etl.extract import read_json_files
-from op_tcg.backend.models.tournaments import Tournament, TournamentStandings
+from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.tournaments import Tournament, TournamentStanding
 from op_tcg.backend.models.matches import Match, MatchResult
 
 
@@ -29,6 +28,7 @@ class LimitlessTournamentSpider(scrapy.Spider):
         return list(optcg_formats.keys())
 
     def start_requests(self):
+        self.bq_client = bigquery.Client()
         meta_formats: list[MetaFormat] = self.meta_formats if self.meta_formats else [MetaFormat.OP01]
         meta_format2limitless_formats_dict: dict[str, list[str]] = {}
         for meta_format in meta_formats:
@@ -63,8 +63,8 @@ class LimitlessTournamentSpider(scrapy.Spider):
             # TODO check if this is true for leader id
             decklist = standing["decklist"]
             leader_id = list(standing.get("decklist").keys())[0]
-            tournament_standing = TournamentStandings(tournament_id=response.meta["id"], leader_id=leader_id,
-                                                      decklist=decklist, **standing)
+            tournament_standing = TournamentStanding(tournament_id=response.meta["id"], leader_id=leader_id,
+                                                     decklist=decklist, **standing)
             player_id2leader_id[standing["player"]] = leader_id
             yield tournament_standing
 
@@ -74,47 +74,6 @@ class LimitlessTournamentSpider(scrapy.Spider):
 
     def parse_tournament_pairings(self, response):
         json_res: list[dict[str, str]] = json.loads(response.body)
-        # TODO
-        """
-        [
-            {
-                "round": 1,
-                "phase": 1,
-                "table": 1,
-                "winner": "shoji300",
-                "player1": "hedilily",
-                "player2": "shoji300"
-            },
-            ...
-            {
-                "phase": 2,
-                "round": 12,
-                "match": "T2-1",
-                "winner": "espel",
-                "player1": "harun",
-                "player2": "espel"
-            }
-        ]
-        
-        class Match(BQTableBaseModel):
-                id: str = Field(description="Unique id of single match. One match contains 2 rows, including one reverse match", primary_key=True)
-                leader_id: str = Field(description="The op tcg leader id e.g. OP03-099")
-                opponent_id: str = Field(description="The op tcg opponent id e.g. OP03-099")
-                result: MatchResult = Field(description="Result of the match. Can be win, lose or draw")
-                meta_format: MetaFormat = Field(description="Meta in which matches happened, e.g. OP06")
-                official: bool = Field(default=False, description="Whether the match is originated from an official tournament")
-                is_reverse: bool = Field(description="Whether its the reverse match", primary_key=True)
-                source: DataSource | str = Field(description="Origin of the match. In case of an unofficial match it can be the session id.")
-                tournament_id: str | None = Field(None, description="Unique id of single tournament")
-                tournament_round: int | None = Field(None, description="Round during which the match happened.")
-                tournament_phase: int | None = Field(None, description="Phase during which the match happened.")
-                tournament_table: int | None = Field(None, description="Table number of the match (for all phase types except live brackets).")
-                player_id: str | None = Field(None, description="Username/ID used to uniquely identify the player. Does not change between tournaments.")
-                opponent_player_id: str | None = Field(None, description="Username/ID used to uniquely identify the opponent. Does not change between tournaments.")
-                match_timestamp: datetime = Field(description="Approximate timestamp when the match happened")
-                create_timestamp: datetime = Field(default_factory=datetime.now, description="Creation timestamp when the insert in BQ happened")
-        """
-
         class MatchPairingResult(BaseModel):
             id: str
             result: MatchResult
