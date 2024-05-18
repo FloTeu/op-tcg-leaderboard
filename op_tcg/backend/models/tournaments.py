@@ -39,7 +39,7 @@ class Tournament(BQTableBaseModel):
 
 class TournamentStandings(BQTableBaseModel):
     tournament_id: str = Field(description="Unique id of single tournament", primary_key=True)
-    player_id: str = Field(description="Username/ID used to uniquely identify the player. Does not change between tournaments.", primary_key=True)
+    player_id: str = Field(description="Username/ID used to uniquely identify the player. Does not change between tournaments.", alias="player", primary_key=True)
     name: str = Field(description="Display name chosen by the player, can change between tournaments")
     country: str = Field(description="ISO alpha-2 code of the player's country, as selected by them.")
     placing: int = Field(description="The player's final placing in the tournament.")
