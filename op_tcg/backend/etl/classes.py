@@ -1,5 +1,7 @@
 import os
 import time
+import logging
+import sys
 
 import pandas as pd
 
@@ -16,7 +18,8 @@ from google.cloud import bigquery
 from dotenv import load_dotenv
 
 load_dotenv()
-
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+_logger = logging.getLogger("etl_classes")
 
 class LocalMatchesToBigQueryEtlJob(AbstractETLJob[AllLeaderMetaDocs, BQMatches]):
     def __init__(self, data_dir: Path, meta_formats: list[MetaFormat] | None = None, official: bool=True):
@@ -59,7 +62,7 @@ class LocalMatchesToBigQueryEtlJob(AbstractETLJob[AllLeaderMetaDocs, BQMatches])
             """)
         # upload data of meta_formats to BQ
         self.bq_client.load_table_from_dataframe(df, table)
-
+        _logger.info(f"Loading to BQ table {table.dataset_id}.{table.table_id} succeeded")
 
 
 class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
@@ -78,6 +81,7 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
         else:
             query = f"SELECT * FROM {BQDataset.MATCHES}.{Match.__tablename__} WHERE meta_format in {self.in_meta_format}"
             df = self.bq_client.query_and_wait(query).to_dataframe()
+            _logger.info(f"Extracted data from bq {BQDataset.MATCHES}.{Match.__tablename__}")
         matches: list[Match] = []
         for i, df_row in df.iterrows():
             matches.append(Match(**df_row.to_dict()))
@@ -90,7 +94,7 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
         def calculate_all_elo_ratings(df_matches):
             meta_format = df_matches.meta_format.unique().tolist()
             for only_official in [True, False]:
-                print(f"Calculate Elo for meta {meta_format} and only_official {only_official}")
+                _logger.info(f"Calculate Elo for meta {meta_format} and only_official {only_official}")
                 if only_official:
                     elo_creator = EloCreator(df_matches.query("official"), only_official=True)
                 else:
@@ -115,6 +119,7 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
             FROM {table.dataset_id}.{table.table_id}
             WHERE meta_format not in {self.in_meta_format};
             """)
+            _logger.info(f"Tmp BQ table created {table_tmp.dataset_id}.{table_tmp.table_id}")
             assert query_job.errors is None
 
             # wait some seconds to be sure data is ready in tmp table
@@ -127,3 +132,5 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
             """)
             # delete tmp table
             self.bq_client.delete_table(table_tmp)
+            _logger.info(f"Loading to BQ table {table.dataset_id}.{table.table_id} succeeded")
+
