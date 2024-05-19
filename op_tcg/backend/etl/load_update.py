@@ -3,6 +3,7 @@ from google.cloud import bigquery
 from op_tcg.backend.models.leader import Leader
 
 
+# TODO: Try to insert the functionality to op_tcg/backend/models/bq_classes.py
 def update_bq_leader_row(bq_leader: Leader, table: bigquery.Table, client: bigquery.Client | None = None):
     """Creates new row in big query or if it already exists, the row get updated"""
     client = client if client else bigquery.Client()
