@@ -9,7 +9,7 @@ from op_tcg.backend.etl.load import bq_add_rows, get_or_create_table
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader, OPTcgColor, OPTcgAttribute, OPTcgLanguage
 from op_tcg.backend.models.matches import LeaderElo, BQLeaderElos, Match, MatchResult
-from op_tcg.backend.models.bq import BQDataset
+from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.frontend.utils.session import get_session_id
 from op_tcg.frontend.sidebar import display_meta_select, display_only_official_toggle, display_release_meta_select, \
     display_match_count_slider_slider, display_leader_color_multiselect, display_leader_select

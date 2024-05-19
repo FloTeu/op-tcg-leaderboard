@@ -2,8 +2,9 @@ from pydantic import BaseModel, Field
 from datetime import datetime, date
 from enum import IntEnum, StrEnum
 
+from op_tcg.backend.models.bq_enums import BQDataset
+from op_tcg.backend.models.bq_classes import BQTableBaseModel
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.base import BQTableBaseModel
 from op_tcg.backend.models.common import DataSource
 
 class TournamentMode(StrEnum):
@@ -24,6 +25,7 @@ class TournamentRecord(BaseModel):
     ties: int
 
 class Tournament(BQTableBaseModel):
+    _dataset_id: str = BQDataset.MATCHES
     id: str = Field(description="Unique id of single tournament", primary_key=True)
     name: str = Field(description="Tournament name set by the organizer")
     num_players: int = Field(description="Number of players that participated in the tournament", alias="players")
@@ -37,7 +39,8 @@ class Tournament(BQTableBaseModel):
     tournament_timestamp: datetime = Field(description="Scheduled tournament start set by the organizer.", alias="date")
     create_timestamp: datetime = Field(default_factory=datetime.now, description="Creation timestamp when the insert in BQ happened")
 
-class TournamentStandings(BQTableBaseModel):
+class TournamentStanding(BQTableBaseModel):
+    _dataset_id: str = BQDataset.MATCHES
     tournament_id: str = Field(description="Unique id of single tournament", primary_key=True)
     player_id: str = Field(description="Username/ID used to uniquely identify the player. Does not change between tournaments.", alias="player", primary_key=True)
     name: str = Field(description="Display name chosen by the player, can change between tournaments")

@@ -2,7 +2,7 @@ import op_tcg
 import json
 from pathlib import Path
 
-from op_tcg.backend.models.base import BQTableBaseModel
+from op_tcg.backend.models.bq_classes import BQTableBaseModel
 from op_tcg.backend.models.input import LimitlessLeaderMetaDoc
 from op_tcg.backend.models.matches import Match
 from op_tcg.backend.models.tournaments import Tournament, TournamentStanding

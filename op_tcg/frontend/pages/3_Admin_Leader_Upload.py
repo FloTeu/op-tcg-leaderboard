@@ -7,8 +7,9 @@ from dotenv import load_dotenv
 from pydantic import ValidationError
 
 from op_tcg.backend.etl.extract import limitless2bq_leader
-from op_tcg.backend.etl.load import get_or_create_table, update_bq_leader_row
-from op_tcg.backend.models.bq import BQDataset
+from op_tcg.backend.etl.load import get_or_create_table
+from op_tcg.backend.etl.load_update import update_bq_leader_row
+from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.leader import Leader, OPTcgLanguage, OPTcgColor, OPTcgAttribute
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.utils.utils import booleanize
@@ -143,7 +144,7 @@ def upload2bq_and_storage(bq_leader):
                                    content_type=f"image/{file_type}")
 
     with st.spinner('Upload Leader Data to GCP BigQuery...'):
-        bq_leader_table = get_or_create_table(table_id=Leader.__tablename__, dataset_id=BQDataset.LEADERS,
+        bq_leader_table = get_or_create_table(dataset_id=BQDataset.LEADERS,
                                               model=Leader, client=bq_client)
 
         # change image urls to gcp storage urls

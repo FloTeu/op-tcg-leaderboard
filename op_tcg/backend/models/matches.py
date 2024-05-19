@@ -3,9 +3,10 @@ from pydantic import BaseModel, Field
 from datetime import datetime, date
 from enum import IntEnum
 
+from op_tcg.backend.models.bq_enums import BQDataset
+from op_tcg.backend.models.bq_classes import BQTableBaseModel
 from op_tcg.backend.models.common import DataSource
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.base import BQTableBaseModel
 
 
 class MatchResult(IntEnum):
@@ -15,6 +16,7 @@ class MatchResult(IntEnum):
 
 
 class Match(BQTableBaseModel):
+    _dataset_id: str = BQDataset.MATCHES
     id: str = Field(description="Unique id of single match. One match contains 2 rows, including one reverse match", primary_key=True)
     leader_id: str = Field(description="The op tcg leader id e.g. OP03-099")
     opponent_id: str = Field(description="The op tcg opponent leader id e.g. OP03-099")
@@ -40,6 +42,7 @@ class BQMatches(BaseModel):
         return pd.DataFrame([r.dict() for r in self.matches])
 
 class LeaderElo(BQTableBaseModel):
+    _dataset_id: str = BQDataset.MATCHES
     meta_format: MetaFormat = Field(description="Meta until or in which the elo is calculated", primary_key=True)
     leader_id: str = Field(description="The op tcg leader id e.g. OP03-099", primary_key=True)
     only_official: bool = Field(default=False, description="Whether the matches are only originated from "

@@ -1,8 +1,10 @@
 from enum import StrEnum
 
 from pydantic import Field
-from op_tcg.backend.models.base import EnumBase, BQTableBaseModel
+from op_tcg.backend.models.base import EnumBase
 from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.bq_enums import BQDataset
+from op_tcg.backend.models.bq_classes import BQTableBaseModel
 from op_tcg.backend.utils.color_fns import average_hex_colors
 
 
@@ -40,6 +42,7 @@ class OPTcgLanguage(StrEnum):
     JP="jp"
 
 class Leader(BQTableBaseModel):
+    _dataset_id: str = BQDataset.LEADERS
     id: str = Field(description="The op tcg leader id e.g. OP03-099", primary_key=True)
     name: str = Field(description="The op tcg leader name e.g. Charlotte Katakuri")
     life: int = Field(description="Life of leader")

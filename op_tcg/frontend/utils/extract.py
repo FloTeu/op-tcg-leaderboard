@@ -1,4 +1,4 @@
-from op_tcg.backend.models.bq import BQDataset
+from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader
 from op_tcg.backend.models.matches import Match, LeaderElo
