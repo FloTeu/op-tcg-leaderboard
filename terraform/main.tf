@@ -25,6 +25,7 @@ resource "google_storage_bucket_object" "object" {
   source = "/tmp/function-source.zip" # Add path to the zipped function source code
 }
 
+# cloud function
 resource "google_cloudfunctions2_function" "default" {
   name        = "elo-update"
   location    = var.region
@@ -58,4 +59,32 @@ resource "google_cloud_run_service_iam_member" "member" {
 
 output "function_uri" {
   value = google_cloudfunctions2_function.default.service_config[0].uri
+}
+
+# cloud scheduler
+resource "google_cloud_scheduler_job" "job" {
+  name             = "elo-update-job"
+  region           = var.region
+  description      = "run cloud function http job"
+  schedule         = "0 * */1 * *"
+  time_zone        = "Europe/Berlin"
+  attempt_deadline = "320s"
+
+  retry_config {
+    retry_count = 1
+  }
+
+  http_target {
+    http_method = "POST"
+    uri         = "https://europe-west3-op-tcg-leaderboard-prod.cloudfunctions.net/elo-update"
+    headers = {
+      "Content-Type" = "application/json"
+    }
+    body    = base64encode("{\"meta_formats\":[]}")
+
+
+    oidc_token {
+      service_account_email = "streamlit-service-acc@${var.project}.iam.gserviceaccount.com"
+    }
+  }
 }

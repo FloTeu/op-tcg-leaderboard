@@ -18,12 +18,13 @@ def run_etl_elo_update(request):
     request_json = request.get_json(silent=True)
     request_args = request.args
 
+    meta_formats = []
     if request_json and "meta_formats" in request_json:
         meta_formats = request_json["meta_formats"]
     elif request_args and "meta_formats" in request_args:
         meta_formats = request_args["meta_formats"]
-    else:
-        meta_formats = MetaFormat.to_list()
+
+    meta_formats = meta_formats or MetaFormat.to_list()
 
     for meta_format in meta_formats:
         etl_job = EloUpdateToBigQueryEtlJob(meta_formats=[meta_format], matches_csv_file_path=None)
