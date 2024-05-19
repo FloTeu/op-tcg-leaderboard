@@ -8,33 +8,27 @@ terraform {
   }
 }
 
-resource "random_id" "default" {
-  byte_length = 8
+
+provider "google" {
+  project = var.project
 }
 
 resource "google_storage_bucket" "default" {
-  project = "op-tcg-leaderboard-prod"
-  name                        = "op-tcg-leaderboard-prod-terraform" # Every bucket name must be globally unique
-  location                    = "europe-west3"
+  name                        = "${var.project}-terraform" # Every bucket name must be globally unique
+  location                    = var.region
   uniform_bucket_level_access = true
 }
 
-data "archive_file" "default" {
-  type        = "zip"
-  output_path = "/tmp/function-source.zip"
-  source_dir  = "cloud_functions/"
-}
 resource "google_storage_bucket_object" "object" {
   name   = "function-source.zip"
   bucket = google_storage_bucket.default.name
-  source = data.archive_file.default.output_path # Add path to the zipped function source code
+  source = "/tmp/function-source.zip" # Add path to the zipped function source code
 }
 
 resource "google_cloudfunctions2_function" "default" {
-  project = "op-tcg-leaderboard-prod"
-  name        = "function-v2"
-  location    = "europe-west3"
-  description = "a new function"
+  name        = "elo-update"
+  location    = var.region
+  description = "Updates the elo of all leaders for given meta formats"
 
   build_config {
     runtime     = "python312"
@@ -48,10 +42,10 @@ resource "google_cloudfunctions2_function" "default" {
   }
 
   service_config {
-    max_instance_count = 1
+    max_instance_count = 5
     available_memory   = "512M"
     timeout_seconds    = 60
-    service_account_email = "streamlit-service-acc@op-tcg-leaderboard-prod.iam.gserviceaccount.com"
+    service_account_email = "streamlit-service-acc@${var.project}.iam.gserviceaccount.com"
   }
 }
 
@@ -59,7 +53,7 @@ resource "google_cloud_run_service_iam_member" "member" {
   location = google_cloudfunctions2_function.default.location
   service  = google_cloudfunctions2_function.default.name
   role     = "roles/run.invoker"
-  member   = "allUsers"
+  member   = "serviceAccount:streamlit-service-acc@${var.project}.iam.gserviceaccount.com"
 }
 
 output "function_uri" {

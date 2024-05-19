@@ -81,7 +81,7 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
         else:
             query = f"SELECT * FROM {BQDataset.MATCHES}.{Match.__tablename__} WHERE meta_format in {self.in_meta_format}"
             df = self.bq_client.query_and_wait(query).to_dataframe()
-            _logger.info(f"Extracted data from bq {BQDataset.MATCHES}.{Match.__tablename__}")
+            _logger.info(f"Extracted {len(df)} rows from bq {BQDataset.MATCHES}.{Match.__tablename__}")
         matches: list[Match] = []
         for i, df_row in df.iterrows():
             matches.append(Match(**df_row.to_dict()))
@@ -133,4 +133,6 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
             # delete tmp table
             self.bq_client.delete_table(table_tmp)
             _logger.info(f"Loading to BQ table {table.dataset_id}.{table.table_id} succeeded")
+        else:
+            _logger.info(f"Zero data received as transform output")
 

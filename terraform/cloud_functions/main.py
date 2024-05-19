@@ -4,7 +4,6 @@ from markupsafe import escape
 from op_tcg.backend.etl.classes import EloUpdateToBigQueryEtlJob
 from op_tcg.backend.models.input import MetaFormat
 
-
 @functions_framework.http
 def run_etl_elo_update(request):
     """HTTP Cloud Function.
@@ -26,9 +25,8 @@ def run_etl_elo_update(request):
     else:
         meta_formats = MetaFormat.to_list()
 
-    print(meta_formats, type(meta_formats))
-
-    etl_job = EloUpdateToBigQueryEtlJob(meta_formats=meta_formats, matches_csv_file_path=None)
-    etl_job.run()
+    for meta_format in meta_formats:
+        etl_job = EloUpdateToBigQueryEtlJob(meta_formats=[meta_format], matches_csv_file_path=None)
+        etl_job.run()
     return f"Success with meta formats {meta_formats}!"
 
