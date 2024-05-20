@@ -32,6 +32,27 @@ resource "google_project_iam_member" "bigquery_user" {
   member  = "serviceAccount:${google_service_account.cloud_function_sa.email}"
 }
 
+resource "google_project_iam_member" "run_invoker" {
+  project = var.project
+  role    = "roles/run.invoker"
+  member  = "serviceAccount:${google_service_account.cloud_function_sa.email}"
+}
+
+# pub /sub
+resource "google_pubsub_topic" "elo_update_pubsub_topic" {
+  name = "elo-update-pub-sub"
+}
+
+
+# Set IAM binding for the Cloud Function to be invoked by Pub/Sub
+resource "google_pubsub_topic_iam_binding" "pubsub_invoker" {
+  topic = google_pubsub_topic.elo_update_pubsub_topic.name
+  role  = "roles/pubsub.publisher"
+
+  members = [
+    "serviceAccount:${google_service_account.cloud_function_sa.email}"
+  ]
+}
 
 resource "google_storage_bucket" "default" {
   name     = "${var.project}-gcf-source"  # Every bucket name must be globally unique
@@ -68,10 +89,17 @@ resource "google_cloudfunctions2_function" "default" {
     }
   }
 
+  event_trigger {
+    trigger_region = var.region
+    event_type = "google.cloud.pubsub.topic.v1.messagePublished"
+    pubsub_topic = google_pubsub_topic.elo_update_pubsub_topic.id
+    retry_policy = "RETRY_POLICY_RETRY"
+  }
+
   service_config {
     max_instance_count = 1
-    available_memory   = "512M"
-    timeout_seconds    = 3600
+    available_memory   = "1024M"
+    timeout_seconds    = 540
     service_account_email = google_service_account.cloud_function_sa.email
   }
 }
@@ -117,17 +145,10 @@ resource "google_cloud_scheduler_job" "job" {
     retry_count = 1
   }
 
-  http_target {
-    http_method = "POST"
-    uri         = google_cloudfunctions2_function.default.service_config[0].uri
-    headers = {
-      "Content-Type" = "application/json"
-    }
-    body    = base64encode("{\"meta_formats\":[]}")
 
-
-    oidc_token {
-      service_account_email = google_service_account.cloud_function_sa.email
-    }
+  pubsub_target {
+    topic_name = google_pubsub_topic.elo_update_pubsub_topic.id
+    data       = base64encode("{\"meta_formats\":[]}")
   }
+
 }
