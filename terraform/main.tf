@@ -39,14 +39,25 @@ resource "google_project_iam_member" "run_invoker" {
 }
 
 # pub /sub
+resource "google_pubsub_topic" "all_elo_update_pubsub_topic" {
+  name = "all-elo-update-pub-sub"
+}
+
 resource "google_pubsub_topic" "elo_update_pubsub_topic" {
   name = "elo-update-pub-sub"
 }
 
-
 # Set IAM binding for the Cloud Function to be invoked by Pub/Sub
-resource "google_pubsub_topic_iam_binding" "pubsub_invoker" {
+resource "google_pubsub_topic_iam_binding" "elo_updatepubsub_invoker" {
   topic = google_pubsub_topic.elo_update_pubsub_topic.name
+  role  = "roles/pubsub.publisher"
+
+  members = [
+    "serviceAccount:${google_service_account.cloud_function_sa.email}"
+  ]
+}
+resource "google_pubsub_topic_iam_binding" "all_elo_update_pubsub_invoker" {
+  topic = google_pubsub_topic.all_elo_update_pubsub_topic.name
   role  = "roles/pubsub.publisher"
 
   members = [
@@ -70,7 +81,43 @@ resource "google_storage_bucket_object" "object" {
 
 # cloud function
 resource "google_cloudfunctions2_function" "default" {
-  name        = "elo-update"
+  name        = "all-elo-update"
+  location    = var.region
+  description = "Updates the elo of all leaders for all meta formats"
+
+  build_config {
+    runtime     = "python312"
+    entry_point = "run_all_etl_elo_update" # Set the entry point
+    source {
+      storage_source {
+        bucket = google_storage_bucket.default.name
+        object = google_storage_bucket_object.object.name
+      }
+    }
+  }
+
+
+  event_trigger {
+    trigger_region = var.region
+    event_type = "google.cloud.pubsub.topic.v1.messagePublished"
+    pubsub_topic = google_pubsub_topic.all_elo_update_pubsub_topic.id
+    retry_policy = "RETRY_POLICY_RETRY"
+  }
+
+  service_config {
+    max_instance_count = 1
+    available_memory   = "256M"
+    timeout_seconds    = 60
+    service_account_email = google_service_account.cloud_function_sa.email
+    # triggers redeploy
+    environment_variables = {
+        GOOGLE_CLOUD_PROJECT = var.project
+    }
+  }
+}
+
+resource "google_cloudfunctions2_function" "single-elo" {
+  name        = "single-elo-update"
   location    = var.region
   description = "Updates the elo of all leaders for given meta formats"
 
@@ -97,7 +144,7 @@ resource "google_cloudfunctions2_function" "default" {
   }
 
   service_config {
-    max_instance_count = 1
+    max_instance_count = 10
     available_memory   = "1024M"
     timeout_seconds    = 540
     service_account_email = google_service_account.cloud_function_sa.email
@@ -147,7 +194,7 @@ resource "google_cloud_scheduler_job" "job" {
 
 
   pubsub_target {
-    topic_name = google_pubsub_topic.elo_update_pubsub_topic.id
+    topic_name = google_pubsub_topic.all_elo_update_pubsub_topic.id
     data       = base64encode("{\"meta_formats\":[]}")
   }
 

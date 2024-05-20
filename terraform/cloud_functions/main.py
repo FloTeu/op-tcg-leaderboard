@@ -1,8 +1,36 @@
-import functions_framework
+import os
+import base64
+import json
 
-from markupsafe import escape
+import functions_framework
+from google.cloud import pubsub_v1
+
 from op_tcg.backend.etl.classes import EloUpdateToBigQueryEtlJob
 from op_tcg.backend.models.input import MetaFormat
+
+
+@functions_framework.http
+def run_all_etl_elo_update(request):
+    topic_id = "elo-update-pub-sub"
+    print("GOOGLE_CLOUD_PROJECT", os.getenv("GOOGLE_CLOUD_PROJECT"))
+
+    publisher = pubsub_v1.PublisherClient()
+    topic_path = publisher.topic_path(os.getenv("GOOGLE_CLOUD_PROJECT"), topic_id)
+
+    for meta_format in MetaFormat.to_list():
+        # Data must be a bytestring
+        data_dict = {"meta_formats": [meta_format]}
+        data = json.dumps(data_dict)  # Convert the dictionary to a JSON string
+        data = data.encode("utf-8")  # Convert the string to bytes
+        # Add two attributes, origin and username, to the message
+        future = publisher.publish(
+            topic_path, data
+        )
+        print(future.result())
+
+    print(f"Published messages with all meta formats to {topic_path}.")
+
+
 
 @functions_framework.http
 def run_etl_elo_update(request):

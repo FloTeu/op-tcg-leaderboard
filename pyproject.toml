@@ -34,6 +34,7 @@ st-theme = "^1.2.2"
 
 [tool.poetry.group.deployment.dependencies]
 functions-framework = "^3.5.0"
+google-cloud-pubsub = "^2.21.1"
 
 [build-system]
 requires = ["poetry-core"]
