@@ -15,9 +15,21 @@ provider "google" {
 }
 
 # iam
-resource "google_service_account" "cloud_function_caller" {
-  account_id   = "cloud-function-caller"
-  display_name = "Cloud Function Caller"
+resource "google_service_account" "cloud_function_sa" {
+  account_id   = "cloud-function-sa"
+  display_name = "Cloud Function Service Account"
+}
+
+resource "google_project_iam_member" "bigquery_data_editor" {
+  project = var.project
+  role    = "roles/bigquery.dataEditor"
+  member  = "serviceAccount:${google_service_account.cloud_function_sa.email}"
+}
+
+resource "google_project_iam_member" "bigquery_user" {
+  project = var.project
+  role    = "roles/bigquery.user"
+  member  = "serviceAccount:${google_service_account.cloud_function_sa.email}"
 }
 
 
@@ -56,13 +68,11 @@ resource "google_cloudfunctions2_function" "default" {
     }
   }
 
-
-
   service_config {
     max_instance_count = 1
     available_memory   = "512M"
     timeout_seconds    = 60
-    service_account_email = "streamlit-service-acc@${var.project}.iam.gserviceaccount.com"
+    service_account_email = google_service_account.cloud_function_sa.email
   }
 }
 
@@ -70,27 +80,11 @@ resource "google_cloud_run_service_iam_member" "member" {
   location = google_cloudfunctions2_function.default.location
   service  = google_cloudfunctions2_function.default.name
   role     = "roles/run.invoker"
-  member   = "serviceAccount:${google_service_account.cloud_function_caller.email}"
+  member   = "serviceAccount:${google_service_account.cloud_function_sa.email}"
 }
 
 output "function_uri" {
   value = google_cloudfunctions2_function.default.service_config[0].uri
-}
-
-# cloud function iam binding
-resource "google_cloudfunctions2_function_iam_binding" "invoke_cloud_function" {
-  cloud_function = google_cloudfunctions2_function.default.name
-  role        = "roles/cloudfunctions.invoker"
-
-  members = [
-    "serviceAccount:${google_service_account.cloud_function_caller.email}"
-  ]
-}
-
-resource "google_cloudfunctions2_function_iam_member" "invoker_permission" {
-  cloud_function = google_cloudfunctions2_function.default.name
-  role           = "roles/cloudfunctions.invoker"
-  member         = "serviceAccount:${google_service_account.cloud_function_caller.email}"
 }
 
 # cloud scheduler
@@ -116,7 +110,7 @@ resource "google_cloud_scheduler_job" "job" {
 
 
     oidc_token {
-      service_account_email = google_service_account.cloud_function_caller.email
+      service_account_email = google_service_account.cloud_function_sa.email
     }
   }
 }
