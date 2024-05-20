@@ -71,7 +71,7 @@ resource "google_cloudfunctions2_function" "default" {
   service_config {
     max_instance_count = 1
     available_memory   = "512M"
-    timeout_seconds    = 60
+    timeout_seconds    = 3600
     service_account_email = google_service_account.cloud_function_sa.email
   }
 }
@@ -82,6 +82,23 @@ resource "google_cloud_run_service_iam_member" "member" {
   role     = "roles/run.invoker"
   member   = "serviceAccount:${google_service_account.cloud_function_sa.email}"
 }
+
+# cloud function iam binding
+resource "google_cloudfunctions2_function_iam_binding" "invoke_cloud_function" {
+  cloud_function = google_cloudfunctions2_function.default.name
+  role        = "roles/cloudfunctions.invoker"
+
+  members = [
+    "serviceAccount:${google_service_account.cloud_function_sa.email}"
+  ]
+}
+
+resource "google_cloudfunctions2_function_iam_member" "invoker_permission" {
+  cloud_function = google_cloudfunctions2_function.default.name
+  role           = "roles/cloudfunctions.invoker"
+  member         = "serviceAccount:${google_service_account.cloud_function_sa.email}"
+}
+
 
 output "function_uri" {
   value = google_cloudfunctions2_function.default.service_config[0].uri
