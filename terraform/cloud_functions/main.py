@@ -24,6 +24,7 @@ def run_etl_elo_update(request):
     elif request_args and "meta_formats" in request_args:
         meta_formats = request_args["meta_formats"]
 
+    print("Call cloud function with meta_formats", meta_formats, type(meta_formats))
     meta_formats = meta_formats or MetaFormat.to_list()
 
     for meta_format in meta_formats:

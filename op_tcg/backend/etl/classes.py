@@ -67,7 +67,7 @@ class LocalMatchesToBigQueryEtlJob(AbstractETLJob[AllLeaderMetaDocs, BQMatches])
 
 class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
     def __init__(self, meta_formats: list[MetaFormat], matches_csv_file_path: Path | str | None = None):
-        self.bq_client = bigquery.Client()
+        self.bq_client = bigquery.Client(location="europe-west3")
         self.meta_formats = meta_formats
         self.in_meta_format = "('" + "','".join(self.meta_formats) + "')"
         self.matches_csv_file_path = matches_csv_file_path
@@ -80,6 +80,7 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
             df = pd.read_csv(self.matches_csv_file_path)
         else:
             query = f"SELECT * FROM {BQDataset.MATCHES}.{Match.__tablename__} WHERE meta_format in {self.in_meta_format}"
+            _logger.info(f"Query BQ with '{query}'")
             df = self.bq_client.query_and_wait(query).to_dataframe()
             _logger.info(f"Extracted {len(df)} rows from bq {BQDataset.MATCHES}.{Match.__tablename__}")
         matches: list[Match] = []
@@ -101,7 +102,8 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
                     elo_creator = EloCreator(df_matches, only_official=False)
                 elo_creator.calculate_elo_ratings()
                 elo_ratings.extend(elo_creator.to_bq_leader_elos().elo_ratings)
-        df_all_matches.groupby("meta_format").apply(calculate_all_elo_ratings)
+        if len(df_all_matches) > 0:
+            df_all_matches.groupby("meta_format").apply(calculate_all_elo_ratings)
 
         return BQLeaderElos(elo_ratings=elo_ratings)
 
