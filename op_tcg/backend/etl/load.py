@@ -121,7 +121,10 @@ def bq_add_rows(rows_to_insert: list[dict[str, Any]], table: bigquery.Table, cli
         for col_name, col_value in row.items():
             if type(col_value) in [date, datetime]:
                 row[col_name] = str(col_value)
-
+            if type(col_value) in [list]:
+                for i, col_value_i in enumerate(col_value):
+                    if type(col_value_i) == dict:
+                        row[col_name][i] = str(col_value_i)
     table_id = f"{table.project}.{table.dataset_id}.{table.table_id}"
 
     errors = client.insert_rows_json(table_id, rows_to_insert)  # Make an API request.

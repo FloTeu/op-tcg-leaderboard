@@ -21,23 +21,25 @@ class LimitlessTournamentSpider(scrapy.Spider):
     api_token: str
 
     def meta_format2limitless_formats(self, meta_format: MetaFormat) -> list[str]:
-        limitless_games = requests.get(f"https://play.limitlesstcg.com/api/games?key={self.api_token}")
+        response = requests.get(f"https://play.limitlesstcg.com/api/games?key={self.api_token}")
+        limitless_games: list[dict[str, str]] = json.loads(response.content)
+
         optcg_formats: dict[str, str] = \
-        [limitless_game for limitless_game in limitless_games if "OPTCG" == limitless_game["id"]][0]["formats"]
+        [limitless_game for limitless_game in limitless_games if "OP" == limitless_game["id"]][0]["formats"]
         # TODO: Filter by meta_formats
         return list(optcg_formats.keys())
 
     def start_requests(self):
-        self.bq_client = bigquery.Client()
+        self.bq_client = bigquery.Client(location="europe-west3")
         meta_formats: list[MetaFormat] = self.meta_formats if self.meta_formats else [MetaFormat.OP01]
         meta_format2limitless_formats_dict: dict[str, list[str]] = {}
         for meta_format in meta_formats:
             meta_format2limitless_formats_dict[meta_format] = self.meta_format2limitless_formats(meta_format)
 
-        for meta_format, limitless_formats in meta_format2limitless_formats_dict.items():
-            for limitless_format in limitless_formats:
-                url = f"https://play.limitlesstcg.com/api/tournaments?game=OP&format={limitless_format}&key={self.api_token}"
-                yield scrapy.Request(url=url, callback=self.parse_tournaments, meta={"meta_format": meta_format})
+        # for meta_format, limitless_formats in meta_format2limitless_formats_dict.items():
+        #     for limitless_format in limitless_formats:
+        url = f"https://play.limitlesstcg.com/api/tournaments?game=OP&limit=10&key={self.api_token}"
+        yield scrapy.Request(url=url, callback=self.parse_tournaments, meta={"meta_format": meta_format})
 
     def parse_tournaments(self, response):
         json_res: list[dict[str, str]] = json.loads(response.body)
