@@ -9,8 +9,7 @@ from op_tcg.backend.etl.classes import EloUpdateToBigQueryEtlJob
 from op_tcg.backend.models.input import MetaFormat
 
 
-@functions_framework.http
-def run_all_etl_elo_update(request):
+def run_all_etl_elo_update(event, context):
     topic_id = "elo-update-pub-sub"
     print("GOOGLE_CLOUD_PROJECT", os.getenv("GOOGLE_CLOUD_PROJECT"))
 
@@ -28,32 +27,30 @@ def run_all_etl_elo_update(request):
         )
         print(future.result())
 
-    print(f"Published messages with all meta formats to {topic_path}.")
+    return f"Successfully published all messages!"
 
 
-
-@functions_framework.http
-def run_etl_elo_update(request):
-    """HTTP Cloud Function.
-    Args:
-        request (flask.Request): The request object.
-        <https://flask.palletsprojects.com/en/1.1.x/api/#incoming-request-data>
-    Returns:
-        The response text, or any set of values that can be turned into a
-        Response object using `make_response`
-        <https://flask.palletsprojects.com/en/1.1.x/api/#flask.make_response>.
+def run_etl_elo_update(event, context):
     """
-    request_json = request.get_json(silent=True)
-    request_args = request.args
+    Background Cloud Function to be triggered by Pub/Sub.
+    This function is triggered by messages published to a Pub/Sub topic.
 
-    meta_formats = []
-    if request_json and "meta_formats" in request_json:
-        meta_formats = request_json["meta_formats"]
-    elif request_args and "meta_formats" in request_args:
-        meta_formats = request_args["meta_formats"]
+    Args:
+        event (dict): The dictionary with data specific to this type of event.
+                      The `data` field contains the Pub/Sub message data.
+        context (google.cloud.functions.Context): Metadata for the event.
+    """
 
+    # Decode the Pub/Sub message
+    pubsub_message = event['data']
+    message_data = base64.b64decode(pubsub_message).decode('utf-8')
+
+    # Convert message data from JSON string to dictionary
+    message_dict = json.loads(message_data)
+
+    print(f"Received message: {message_dict}")
+    meta_formats = message_dict.get("meta_formats") or MetaFormat.to_list()
     print("Call cloud function with meta_formats", meta_formats, type(meta_formats))
-    meta_formats = meta_formats or MetaFormat.to_list()
 
     for meta_format in meta_formats:
         etl_job = EloUpdateToBigQueryEtlJob(meta_formats=[meta_format], matches_csv_file_path=None)

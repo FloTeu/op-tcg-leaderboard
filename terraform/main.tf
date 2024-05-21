@@ -101,12 +101,12 @@ resource "google_cloudfunctions2_function" "default" {
     trigger_region = var.region
     event_type = "google.cloud.pubsub.topic.v1.messagePublished"
     pubsub_topic = google_pubsub_topic.all_elo_update_pubsub_topic.id
-    retry_policy = "RETRY_POLICY_RETRY"
+    retry_policy = "RETRY_POLICY_DO_NOT_RETRY"
   }
 
   service_config {
     max_instance_count = 1
-    available_memory   = "256M"
+    available_memory   = "512M"
     timeout_seconds    = 60
     service_account_email = google_service_account.cloud_function_sa.email
     # triggers redeploy
@@ -140,7 +140,7 @@ resource "google_cloudfunctions2_function" "single-elo" {
     trigger_region = var.region
     event_type = "google.cloud.pubsub.topic.v1.messagePublished"
     pubsub_topic = google_pubsub_topic.elo_update_pubsub_topic.id
-    retry_policy = "RETRY_POLICY_RETRY"
+    retry_policy = "RETRY_POLICY_DO_NOT_RETRY"
   }
 
   service_config {
