@@ -1,3 +1,4 @@
+import json
 import os
 from datetime import datetime, date
 from enum import IntEnum
@@ -6,6 +7,7 @@ from typing import Any
 
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
+from google.cloud.bigquery import QueryJobConfig
 from pydantic import BaseModel
 
 from op_tcg.backend.models.base import SQLTableBaseModel
@@ -40,6 +42,7 @@ def get_or_create_bq_dataset(dataset_id, client: bigquery.Client | None = None, 
 
     return dataset
 
+
 # Function to convert Pydantic model to BigQuery schema
 def pydantic_model_to_bq_schema(model: type[BaseModel]) -> list[bigquery.SchemaField]:
     schemata = []
@@ -56,21 +59,9 @@ def pydantic_model_to_bq_schema(model: type[BaseModel]) -> list[bigquery.SchemaF
             field_type = field_type.__args__[0]
 
         # get field type
-        bq_type = BQFieldType.STRING  # Default BigQuery type
-        if issubclass(field_type, bool):
-            bq_type = BQFieldType.BOOL
-        elif issubclass(field_type, int):
-            bq_type = BQFieldType.INT64
-        elif issubclass(field_type, float):
-            bq_type = BQFieldType.FLOAT64
-        elif issubclass(field_type, datetime):
-            bq_type = BQFieldType.TIMESTAMP
-        elif issubclass(field_type, date):
-            bq_type = BQFieldType.DATE
-        elif issubclass(field_type, IntEnum):
-            bq_type = BQFieldType.INT64
+        bq_type = get_bq_field_type(field_type)
         # get mode
-        mode = BQFieldMode.NULLABLE # Default BigQuery mode
+        mode = BQFieldMode.NULLABLE  # Default BigQuery mode
         if is_list:
             mode = BQFieldMode.REPEATED
         elif field_info.is_required():
@@ -79,8 +70,28 @@ def pydantic_model_to_bq_schema(model: type[BaseModel]) -> list[bigquery.SchemaF
         schemata.append(bigquery.SchemaField(field_name, bq_type, description=field_info.description, mode=mode))
     return schemata
 
+
+def get_bq_field_type(field_type):
+    bq_type = BQFieldType.STRING  # Default BigQuery type
+    if issubclass(field_type, bool):
+        bq_type = BQFieldType.BOOL
+    elif issubclass(field_type, int):
+        bq_type = BQFieldType.INT64
+    elif issubclass(field_type, float):
+        bq_type = BQFieldType.FLOAT64
+    elif issubclass(field_type, datetime):
+        bq_type = BQFieldType.TIMESTAMP
+    elif issubclass(field_type, date):
+        bq_type = BQFieldType.DATE
+    elif issubclass(field_type, IntEnum):
+        bq_type = BQFieldType.INT64
+    return bq_type
+
+
 # Function to get or create a BigQuery table
-def get_or_create_table(model: type[SQLTableBaseModel], dataset_id: str, table_id: str | None = None, client: bigquery.Client | None = None, location: str = 'europe-west3', project_id: str | None = None) -> bigquery.Table:
+def get_or_create_table(model: type[SQLTableBaseModel], dataset_id: str | None = None, table_id: str | None = None,
+                        client: bigquery.Client | None = None, location: str = 'europe-west3',
+                        project_id: str | None = None) -> bigquery.Table:
     """
     Get a BigQuery table, creating it if it does not exist. Create dataset as well if it does not exist.
 
@@ -92,6 +103,7 @@ def get_or_create_table(model: type[SQLTableBaseModel], dataset_id: str, table_i
     :param project_id: str - The GCP project ID (default is taken from environment).
     :return: google.cloud.bigquery.dataset.Dataset - The BigQuery dataset reference.
     """
+    dataset_id = dataset_id or model._dataset_id.default
     project_id = project_id if project_id else os.environ.get("GOOGLE_CLOUD_PROJECT")
     client = client if client else bigquery.Client(project=project_id)
     dataset = get_or_create_bq_dataset(dataset_id, client=client, location=location)
@@ -112,19 +124,23 @@ def get_or_create_table(model: type[SQLTableBaseModel], dataset_id: str, table_i
 
     return table
 
-def bq_add_rows(rows_to_insert: list[dict[str, Any]], table: bigquery.Table, client: bigquery.Client | None = None) -> None:
+
+def ensure_json_serializability(row_to_insert):
+    for col_name, col_value in row_to_insert.items():
+        if type(col_value) in [date, datetime]:
+            row_to_insert[col_name] = str(col_value)
+        if type(col_value) in [list]:
+            for i, col_value_i in enumerate(col_value):
+                if type(col_value_i) == dict:
+                    row_to_insert[col_name][i] = str(col_value_i)
+
+
+def bq_insert_rows(rows_to_insert: list[dict[str, Any]], table: bigquery.Table,
+                   client: bigquery.Client | None = None) -> None:
     """Adds a new row to BigQuery"""
     client = client if client else bigquery.Client()
-
-    # ensure json serializability
     for row in rows_to_insert:
-        for col_name, col_value in row.items():
-            if type(col_value) in [date, datetime]:
-                row[col_name] = str(col_value)
-            if type(col_value) in [list]:
-                for i, col_value_i in enumerate(col_value):
-                    if type(col_value_i) == dict:
-                        row[col_name][i] = str(col_value_i)
+        ensure_json_serializability(row)
     table_id = f"{table.project}.{table.dataset_id}.{table.table_id}"
 
     errors = client.insert_rows_json(table_id, rows_to_insert)  # Make an API request.
@@ -133,4 +149,61 @@ def bq_add_rows(rows_to_insert: list[dict[str, Any]], table: bigquery.Table, cli
     else:
         raise ValueError("Encountered errors while inserting rows: {}".format(errors))
 
+
+def generate_merge_statement(bq_model: SQLTableBaseModel) -> str:
+    """Function to generate MERGE statement for upserting a row"""
+    model_dict = json.loads(bq_model.model_dump_json())
+    ensure_json_serializability(model_dict)
+    # Prepare the columns and corresponding values
+    columns = ', '.join(f"`{key}`" for key in model_dict.keys())
+    values_placeholders = ', '.join(f"@{key}" for key in model_dict.keys())
+
+    # Prepare the primary keys for the ON clause
+    primary_keys = [field for field, value in bq_model.__fields__.items() if
+                    value.json_schema_extra and value.json_schema_extra.get('primary_key', False)]
+    on_clause = ' AND '.join(f"target.`{pk}` = @{pk}" for pk in primary_keys)
+
+    # Exclude primary keys from the UPDATE SET clause
+    update_clause = ', '.join(
+        f"target.`{key}` = @{key}" for key in model_dict.keys() if key not in primary_keys)
+
+    # Construct the MERGE statement
+    merge_sql = f"""
+    MERGE `{bq_model._dataset_id}.{bq_model.__tablename__}` target
+    USING (SELECT 1) S
+    ON {on_clause}
+    WHEN MATCHED THEN
+        UPDATE SET {update_clause}
+    WHEN NOT MATCHED THEN
+        INSERT ({columns}) VALUES ({values_placeholders})
+    """
+    return merge_sql.strip()
+
+def bq_upsert_row(bq_model: SQLTableBaseModel, client: bigquery.Client | None = None):
+    """Either inserts new row if not exists yet, or updates ro in BQ """
+    client = client if client else bigquery.Client()
+
+    merge_sql = generate_merge_statement(bq_model)
+
+    # Prepare the query parameters
+    model_dict = json.loads(bq_model.model_dump_json())
+    ensure_json_serializability(model_dict)
+    query_params = []
+    for key, value in model_dict.items():
+        bq_field_type = get_bq_field_type(type(value))
+        if any(isinstance(value, type_) for type_ in [list, tuple, set]):
+            query_params.append(bigquery.ArrayQueryParameter(key, bq_field_type, value))
+        else:
+            query_params.append(bigquery.ScalarQueryParameter(key, bq_field_type, value))
+
+    job_config = QueryJobConfig(query_parameters=query_params)
+
+    query_job = client.query(merge_sql, job_config=job_config)
+
+    try:
+        # Run the query and wait for it to complete
+        query_job.result()
+        print("Row upserted successfully.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 

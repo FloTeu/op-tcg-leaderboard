@@ -20,5 +20,5 @@ class MatchesPipeline:
 class TournamentPipeline:
     def process_item(self, item: Tournament | TournamentStanding | Match, spider):
         if isinstance(item, BQTableBaseModel):
-            item.insert_to_bq(client=spider.bq_client)
+            item.upsert_to_bq(client=spider.bq_client)
         return item

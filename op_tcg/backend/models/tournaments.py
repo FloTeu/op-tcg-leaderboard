@@ -19,11 +19,6 @@ class TournamentPhase(BaseModel):
     rounds: int = Field(description="Number of rounds in the phase. Note that live bracket phases are seen as 1 round internally.")
     mode: TournamentMode = Field(description="Number of games per match, BO1, BO3 or BO5.")
 
-class TournamentRecord(BaseModel):
-    wins: int
-    losses: int
-    ties: int
-
 class Tournament(BQTableBaseModel):
     _dataset_id: str = BQDataset.MATCHES
     id: str = Field(description="Unique id of single tournament", primary_key=True)
@@ -38,6 +33,12 @@ class Tournament(BQTableBaseModel):
     source: DataSource | str = Field(description="Origin of the tournament. In case of an unofficial match it can be the session id.")
     tournament_timestamp: datetime = Field(description="Scheduled tournament start set by the organizer.", alias="date")
     create_timestamp: datetime = Field(default_factory=datetime.now, description="Creation timestamp when the insert in BQ happened")
+
+
+class TournamentRecord(BaseModel):
+    wins: int
+    losses: int
+    ties: int
 
 class TournamentStanding(BQTableBaseModel):
     _dataset_id: str = BQDataset.MATCHES

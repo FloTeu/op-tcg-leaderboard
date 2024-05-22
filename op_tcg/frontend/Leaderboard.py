@@ -5,7 +5,7 @@ st.set_page_config(layout="wide")
 from datetime import datetime, date
 from uuid import uuid4
 
-from op_tcg.backend.etl.load import bq_add_rows, get_or_create_table
+from op_tcg.backend.etl.load import bq_insert_rows, get_or_create_table
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader, OPTcgColor, OPTcgAttribute, OPTcgLanguage
 from op_tcg.backend.models.matches import LeaderElo, BQLeaderElos, Match, MatchResult
@@ -193,7 +193,7 @@ def upload_match_dialog():
                 bq_leader_table = get_or_create_table(model=Match, dataset_id=BQDataset.MATCHES,
                                                       client=bq_client)
                 try:
-                    bq_add_rows(rows_to_insert, table=bq_leader_table, client=bq_client)
+                    bq_insert_rows(rows_to_insert, table=bq_leader_table, client=bq_client)
                     st.balloons()
                 except Exception as e:
                     st.error(str(e))
