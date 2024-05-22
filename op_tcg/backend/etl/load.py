@@ -2,8 +2,8 @@ import json
 import os
 from datetime import datetime, date
 from enum import IntEnum
-from types import UnionType, GenericAlias
-from typing import Any
+from types import UnionType, GenericAlias, NoneType
+from typing import Any, get_origin, get_args
 
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
@@ -44,26 +44,37 @@ def get_or_create_bq_dataset(dataset_id, client: bigquery.Client | None = None, 
 
 
 # Function to convert Pydantic model to BigQuery schema
-def pydantic_model_to_bq_schema(model: type[BaseModel]) -> list[bigquery.SchemaField]:
-    schemata = []
+
+def pydantic_model_to_bq_types(model: type[BaseModel]) -> dict[str, bigquery.SchemaField]:
+    field_name2bq_types = {}
     for field_name, field_info in model.__fields__.items():
         field_type = field_info.annotation
-        is_list = False
         if isinstance(field_type, UnionType):
             # Assume first type of union typing is the necessary one for BQ
             field_type = field_type.__args__[0]
 
-        if isinstance(field_type, GenericAlias):
+        if isinstance(field_type, GenericAlias) and not get_origin(field_type) == dict:
             # Assumption: Every field_type which is a GenericAlias, is a list
             is_list = True
             field_type = field_type.__args__[0]
 
         # get field type
-        bq_type = get_bq_field_type(field_type)
+        field_name2bq_types[field_name] = get_bq_field_type(field_type)
+    return field_name2bq_types
+
+def pydantic_model_to_bq_schema(model: type[BaseModel]) -> list[bigquery.SchemaField]:
+    schemata = []
+    field_name2bq_types = pydantic_model_to_bq_types(model)
+    for field_name, field_info in model.__fields__.items():
+        bq_type = field_name2bq_types[field_name]
+        is_list = False
+
         # get mode
         mode = BQFieldMode.NULLABLE  # Default BigQuery mode
         if is_list:
             mode = BQFieldMode.REPEATED
+        elif isinstance(field_info.annotation, UnionType) and any(arg == NoneType for arg in get_args(field_info.annotation)):
+            mode = BQFieldMode.NULLABLE
         elif field_info.is_required():
             mode = BQFieldMode.REQUIRED
         # Add more type conversions as needed
@@ -71,7 +82,7 @@ def pydantic_model_to_bq_schema(model: type[BaseModel]) -> list[bigquery.SchemaF
     return schemata
 
 
-def get_bq_field_type(field_type):
+def get_bq_field_type(field_type) -> bigquery.SchemaField:
     bq_type = BQFieldType.STRING  # Default BigQuery type
     if issubclass(field_type, bool):
         bq_type = BQFieldType.BOOL
@@ -127,7 +138,7 @@ def get_or_create_table(model: type[SQLTableBaseModel], dataset_id: str | None =
 
 def ensure_json_serializability(row_to_insert):
     for col_name, col_value in row_to_insert.items():
-        if type(col_value) in [date, datetime]:
+        if type(col_value) in [date, datetime, dict]:
             row_to_insert[col_name] = str(col_value)
         if type(col_value) in [list]:
             for i, col_value_i in enumerate(col_value):
@@ -188,13 +199,13 @@ def bq_upsert_row(bq_model: SQLTableBaseModel, client: bigquery.Client | None = 
     # Prepare the query parameters
     model_dict = json.loads(bq_model.model_dump_json())
     ensure_json_serializability(model_dict)
+    field_name2bq_field_type: dict[str, bigquery.SchemaField] = pydantic_model_to_bq_types(bq_model)
     query_params = []
     for key, value in model_dict.items():
-        bq_field_type = get_bq_field_type(type(value))
         if any(isinstance(value, type_) for type_ in [list, tuple, set]):
-            query_params.append(bigquery.ArrayQueryParameter(key, bq_field_type, value))
+            query_params.append(bigquery.ArrayQueryParameter(key, field_name2bq_field_type[key], value))
         else:
-            query_params.append(bigquery.ScalarQueryParameter(key, bq_field_type, value))
+            query_params.append(bigquery.ScalarQueryParameter(key, field_name2bq_field_type[key], value))
 
     job_config = QueryJobConfig(query_parameters=query_params)
 

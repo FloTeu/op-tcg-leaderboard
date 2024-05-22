@@ -45,11 +45,11 @@ class TournamentStanding(BQTableBaseModel):
     tournament_id: str = Field(description="Unique id of single tournament", primary_key=True)
     player_id: str = Field(description="Username/ID used to uniquely identify the player. Does not change between tournaments.", alias="player", primary_key=True)
     name: str = Field(description="Display name chosen by the player, can change between tournaments")
-    country: str = Field(description="ISO alpha-2 code of the player's country, as selected by them.")
+    country: str | None = Field(description="ISO alpha-2 code of the player's country, as selected by them.")
     placing: int = Field(description="The player's final placing in the tournament.")
     record: TournamentRecord = Field(description="Contains the number of wins, losses and ties the player finished with.")
-    leader_id: str = Field(description="The op tcg leader id e.g. OP03-099")
-    decklist: dict[str, int] = Field(description="Used decklist in this tournament. The key is the card id e.g. OP01-006 and the value is the number of cards in the deck")
+    leader_id: str | None = Field(description="The op tcg leader id e.g. OP03-099")
+    decklist: dict[str, int] | None = Field(description="Used decklist in this tournament. The key is the card id e.g. OP01-006 and the value is the number of cards in the deck")
     drop: int | None = Field(description="If the player dropped from the tournament, this field contains the round during which they did so.")
 
 
