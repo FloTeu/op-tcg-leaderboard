@@ -89,8 +89,8 @@ def display_upload_form(
 def main():
     if booleanize(os.environ.get("DEBUG", "")):
         if st.button("Uplaod all leader"):
-            all_leader_id_rows = run_bq_query("""SELECT DISTINCT leader_id FROM `op-tcg-leaderboard-dev.matches.leader_elo` as t0
-LEFT JOIN `op-tcg-leaderboard-dev.leaders.leaders` as t1
+            all_leader_id_rows = run_bq_query(f"""SELECT DISTINCT leader_id FROM `{st.secrets["gcp_service_account"]["project_id"]}.matches.leader_elo` as t0
+LEFT JOIN `{st.secrets["gcp_service_account"]["project_id"]}.leaders.leaders` as t1
 ON t0.leader_id = t1.id
 where t1.id is NULL""")
             all_leader_ids = [row["leader_id"] for row in all_leader_id_rows]

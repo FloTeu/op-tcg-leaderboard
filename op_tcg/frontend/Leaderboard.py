@@ -18,10 +18,9 @@ from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_ce
 from op_tcg.frontend.utils.leader_data import leader_id2aa_image_url, lid2ldata, get_lid2ldata_dict_cached
 from op_tcg.frontend.utils.utils import bq_client
 
-if st.runtime.exists():
-    from streamlit_elements import elements, dashboard, mui, nivo
-    from streamlit_theme import st_theme
-    ST_THEME = st_theme() or {"base": "dark"}
+from streamlit_elements import elements, dashboard, mui, nivo
+from streamlit_theme import st_theme
+ST_THEME = st_theme() or {"base": "dark"}
 
 
 def leader_id2elo_chart(leader_id: str, df_leader_elos):

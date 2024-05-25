@@ -12,10 +12,9 @@ from op_tcg.frontend.utils.material_ui_fns import create_image_cell, display_tab
     add_tooltip
 from op_tcg.frontend.utils.leader_data import leader_id2aa_image_url, lid2ldata, get_lid2ldata_dict_cached
 
-if st.runtime.exists():
-    from streamlit_elements import elements, mui, html, nivo, dashboard
-    from streamlit_theme import st_theme
-    ST_THEME = st_theme() or {"base": "dark"}
+from streamlit_elements import elements, mui, html, nivo, dashboard
+from streamlit_theme import st_theme
+ST_THEME = st_theme() or {"base": "dark"}
 
 
 
