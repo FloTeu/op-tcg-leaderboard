@@ -67,7 +67,9 @@ def matches(
 
 @limitless_group.command()
 @click.option("--meta-formats", "-m", multiple=True)
+@click.option("--num-tournament-limit", default=50)
 def tournaments(
+    num_tournament_limit: int,
     meta_formats: list[MetaFormat] | None = None,
 ) -> None:
     """
@@ -80,7 +82,7 @@ def tournaments(
     if meta_formats:
         # ensure enum format
         meta_formats = [MetaFormat(meta_format) for meta_format in meta_formats]
-    process.crawl(LimitlessTournamentSpider, meta_formats=meta_formats, api_token=os.environ.get("LIMITLESS_API_TOKEN"))
+    process.crawl(LimitlessTournamentSpider, meta_formats=meta_formats, api_token=os.environ.get("LIMITLESS_API_TOKEN"), num_tournament_limit=num_tournament_limit)
     process.start() # the script will block here until the crawling is finished
 
 

@@ -21,6 +21,7 @@ class LimitlessTournamentSpider(scrapy.Spider):
 
     meta_formats: list[MetaFormat]
     api_token: str
+    num_tournament_limit: int
 
     def get_already_crawled_tournament_ids(self) -> dict[str, bool]:
         """returns tournaments allready crawled and if they had decklists available back than"""
@@ -36,7 +37,7 @@ class LimitlessTournamentSpider(scrapy.Spider):
         self.tournament_standing_table = get_or_create_table(TournamentStanding, client=self.bq_client)
         self.known_tournament_id2contains_decklists = self.get_already_crawled_tournament_ids()
 
-        url = f"https://play.limitlesstcg.com/api/tournaments?game=OP&limit=1000&key={self.api_token}"
+        url = f"https://play.limitlesstcg.com/api/tournaments?game=OP&limit={self.num_tournament_limit}&key={self.api_token}"
         yield scrapy.Request(url=url, callback=self.parse_tournaments)
 
     def parse_tournaments(self, response):

@@ -14,15 +14,17 @@ class EloCreator:
         self.only_official = only_official if only_official is not None else len(df_all_matches.query("official != True")) == 0
         self.meta_format = df_all_matches.sort_values("match_timestamp", ascending=False).iloc[0].meta_format
 
+
     def calculate_elo_ratings(self):
-        match_ids = self.df_all_matches.sort_values("match_timestamp", ascending=True).id.unique().tolist()
-        for match_id in match_ids:
-            df_match_rows = self.df_all_matches.query(f"id == '{match_id}'")
-            assert len(df_match_rows) == 2, "A match should contain exactly two data rows"
-            leader_id2new_elo: dict[str, int] = {}
+        match_timestamps = self.df_all_matches.sort_values("match_timestamp", ascending=True).match_timestamp.unique().tolist()
+        df_all_matches = self.df_all_matches.set_index('match_timestamp')
+        for match_timestamp in match_timestamps:
+            leader_id2elo_change: dict[str, int] = {lid: 0 for lid in self.leader_id2elo.keys()}
+            df_match_rows = df_all_matches.loc[match_timestamp]
             for i, match_data_row in df_match_rows.iterrows():
-                leader_elo = self.leader_id2elo[match_data_row.leader_id]
-                opponent_elo = self.leader_id2elo[match_data_row.opponent_id]
+                # include dynamic elo change as otherwise high elo leader penalty is too high
+                leader_elo = self.leader_id2elo[match_data_row.leader_id] + leader_id2elo_change[match_data_row.leader_id]
+                opponent_elo = self.leader_id2elo[match_data_row.opponent_id]  + leader_id2elo_change[match_data_row.opponent_id]
                 k_factor = 32
                 if leader_elo >= 3000:
                     k_factor = 5
@@ -31,12 +33,14 @@ class EloCreator:
                     k_factor = 10
                 elif leader_elo >= 1500:
                     k_factor = 20
-                leader_id2new_elo[match_data_row.leader_id] = calculate_new_elo(leader_elo,
-                                                                 opponent_elo,
-                                                                 match_data_row.result,
-                                                                 k_factor=k_factor)
-            for leader_id, new_elo in leader_id2new_elo.items():
-                self.leader_id2elo[leader_id] = new_elo
+                new_elo = calculate_new_elo(leader_elo,
+                                             opponent_elo,
+                                             match_data_row.result,
+                                             k_factor=k_factor)
+                leader_id2elo_change[match_data_row.leader_id] = leader_id2elo_change[match_data_row.leader_id] + (new_elo - leader_elo)
+
+            for leader_id, elo_change in leader_id2elo_change.items():
+                self.leader_id2elo[leader_id] = self.leader_id2elo[leader_id] + elo_change
 
     def to_bq_leader_elos(self) -> BQLeaderElos:
         leader_elos: list[LeaderElo] = []
