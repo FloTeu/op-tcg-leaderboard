@@ -2,12 +2,13 @@ from datetime import datetime, timedelta
 from uuid import uuid4
 
 import scrapy
-import requests
 import json
 
 from google.cloud import bigquery
 from pydantic import BaseModel
 
+from op_tcg.backend.crawling.items import TournamentItem
+from op_tcg.backend.etl.load import get_or_create_table
 from op_tcg.backend.etl.transform import meta_format2release_datetime
 from op_tcg.backend.models.common import DataSource
 from op_tcg.backend.models.input import MetaFormat
@@ -21,35 +22,55 @@ class LimitlessTournamentSpider(scrapy.Spider):
     meta_formats: list[MetaFormat]
     api_token: str
 
-    def meta_format2limitless_formats(self, meta_format: MetaFormat) -> list[str]:
-        response = requests.get(f"https://play.limitlesstcg.com/api/games?key={self.api_token}")
-        limitless_games: list[dict[str, str]] = json.loads(response.content)
-
-        optcg_formats: dict[str, str] = \
-            [limitless_game for limitless_game in limitless_games if "OP" == limitless_game["id"]][0]["formats"]
-        # TODO: Filter by meta_formats
-        return list(optcg_formats.keys())
+    def get_already_crawled_tournament_ids(self) -> dict[str, bool]:
+        """returns tournaments allready crawled and if they had decklists available back than"""
+        tournament_id2decklists: dict[str, bool] = {}
+        for tournament_id in self.bq_client.query(f"SELECT id, decklists FROM `{self.tournament_table.full_table_id.replace(':','.')}`").result():
+            tournament_id2decklists[tournament_id["id"]] = tournament_id["decklists"]
+        return tournament_id2decklists
 
     def start_requests(self):
         self.bq_client = bigquery.Client(location="europe-west3")
-        # meta_formats: list[MetaFormat] = self.meta_formats if self.meta_formats else [MetaFormat.OP01]
-        # meta_format2limitless_formats_dict: dict[str, list[str]] = {}
-        # for meta_format in meta_formats:
-        #     meta_format2limitless_formats_dict[meta_format] = self.meta_format2limitless_formats(meta_format)
+        self.match_table = get_or_create_table(Match, client=self.bq_client)
+        self.tournament_table = get_or_create_table(Tournament, client=self.bq_client)
+        self.tournament_standing_table = get_or_create_table(TournamentStanding, client=self.bq_client)
+        self.known_tournament_id2contains_decklists = self.get_already_crawled_tournament_ids()
 
-        # for meta_format, limitless_formats in meta_format2limitless_formats_dict.items():
-        #     for limitless_format in limitless_formats:
-        url = f"https://play.limitlesstcg.com/api/tournaments?game=OP&limit=2&key={self.api_token}"
+        url = f"https://play.limitlesstcg.com/api/tournaments?game=OP&limit=1000&key={self.api_token}"
         yield scrapy.Request(url=url, callback=self.parse_tournaments)
 
     def parse_tournaments(self, response):
         json_res: list[dict[str, str]] = json.loads(response.body)
         for tournament in json_res:
-            # todo: decide if its official
-            official = True
-            url = f"https://play.limitlesstcg.com/api/tournaments/{tournament['id']}/standings?key={self.api_token}"
+            id = tournament["id"]
+            # ignore tournaments which already exist in db and where decklist is known
+            if id in self.known_tournament_id2contains_decklists and self.known_tournament_id2contains_decklists[id]:
+                print(f"Ignore tournament with id {id} as its already known")
+                continue
+
+            url = f"https://play.limitlesstcg.com/api/tournaments/{id}/details?key={self.api_token}"
+            yield scrapy.Request(url=url, callback=self.parse_tournament)
+
+    def parse_tournament(self, response):
+        json_res: dict[str, str] = json.loads(response.body)
+        tournament_id = json_res['id']
+        # online offline and public tournaments are considers as official
+        official = not json_res["isOnline"] and json_res["isPublic"]
+        proceed_crawling = True
+        if tournament_id in self.known_tournament_id2contains_decklists:
+            # decklist is now available, but not yet in db
+            if json_res["decklists"]:
+                proceed_crawling = True
+            else:
+                proceed_crawling = False
+                print(f"Ignore tournament with id {tournament_id} as its already known and contains no new decklist information")
+
+
+        if proceed_crawling:
+            url = f"https://play.limitlesstcg.com/api/tournaments/{tournament_id}/standings?key={self.api_token}"
             yield scrapy.Request(url=url, callback=self.parse_tournament_standings,
-                                 meta={"official": official, **tournament})
+                                 meta={"official": official, **json_res})
+
 
     def get_meta_format(self, all_decklists: list[dict[str, int]], tournament_date: datetime) -> MetaFormat:
         for meta_format in sorted(MetaFormat.to_list(), reverse=True):
@@ -65,6 +86,7 @@ class LimitlessTournamentSpider(scrapy.Spider):
         json_res: list[dict[str, str]] = json.loads(response.body)
         player_id2leader_id: dict[str, str] = {}
         all_decklists: list[dict[str, int]] = []
+        tournament_standings: list[TournamentStanding] = []
         for standing in json_res:
             decklist = standing["decklist"]
             leader_id = None
@@ -76,11 +98,11 @@ class LimitlessTournamentSpider(scrapy.Spider):
                 assert sum(decklist.values()) == 51, "Sum of card in deck should be 51"
                 all_decklists.append(decklist)
 
-            tournament_standing = TournamentStanding(tournament_id=response.meta["id"], leader_id=leader_id,
+            tournament_standings.append(TournamentStanding(tournament_id=response.meta["id"], leader_id=leader_id,
                                                      decklist=decklist,
-                                                     **{k: v for k, v in standing.items() if k not in ["decklist"]})
+                                                     **{k: v for k, v in standing.items() if k not in ["decklist"]}))
             player_id2leader_id[standing["player"]] = leader_id
-            yield tournament_standing
+
 
         meta_format = self.get_meta_format(all_decklists,
             tournament_date = datetime.strptime(response.meta["date"], "%Y-%m-%dT%H:%M:%S.%fZ"))
@@ -89,14 +111,17 @@ class LimitlessTournamentSpider(scrapy.Spider):
         if not any(leader_id == None for leader_id in player_id2leader_id.values()):
             yield scrapy.Request(url=url, callback=self.parse_tournament_pairings,
                                  meta={"player_id2leader_id": player_id2leader_id, "meta_format": meta_format,
-                                       **response.meta})
+                                       "tournament_standings": tournament_standings, **response.meta})
+        else:
+            tournament = Tournament(source=DataSource.LIMITLESS,
+                                    meta_format=meta_format, **response.meta)
+            yield self.get_tournamend_item(tournament=tournament, tournament_standings=tournament_standings)
 
-        url = f"https://play.limitlesstcg.com/api/tournaments/{response.meta['id']}/details?key={self.api_token}"
-        yield scrapy.Request(url=url, callback=self.parse_tournament,
-                             meta={"meta_format": meta_format, "official": response.meta["official"]})
+
 
     def parse_tournament_pairings(self, response):
         json_res: list[dict[str, str]] = json.loads(response.body)
+        matches: list[Match] = []
 
         class MatchPairingResult(BaseModel):
             id: str
@@ -107,8 +132,16 @@ class LimitlessTournamentSpider(scrapy.Spider):
             match_timestamp: datetime
 
         for pairing in json_res:
+            if "player2" not in pairing:
+                # case player 2 dropped or did not exist
+                # ignore this match as we dont have a opponent leader card for a valid match
+                continue
             id = uuid4().hex  # define new unique match id
             winner = pairing["winner"]
+            if "table" in pairing:
+                pairing["table"] = str(pairing["table"])
+            if "match" in pairing:
+                pairing["match"] = str(pairing["match"])
             datetime_obj = datetime.strptime(response.meta["date"], "%Y-%m-%dT%H:%M:%S.%fZ")
 
             # Assumes 30 minutes for each match
@@ -134,7 +167,7 @@ class LimitlessTournamentSpider(scrapy.Spider):
             assert len(match_results) == 2
 
             for match_result in match_results:
-                match = Match(
+                matches.append(Match(
                     leader_id=response.meta["player_id2leader_id"][match_result.player_id],
                     opponent_id=response.meta["player_id2leader_id"][match_result.opponent_player_id],
                     meta_format=response.meta["meta_format"],
@@ -142,12 +175,13 @@ class LimitlessTournamentSpider(scrapy.Spider):
                     source=DataSource.LIMITLESS,
                     official=response.meta["official"],
                     **{**match_result.model_dump(), **pairing}
-                )
-                yield match
+                ))
 
-    def parse_tournament(self, response):
-        json_res: dict[str, str] = json.loads(response.body)
-        tournament = Tournament(official=response.meta["official"], source=DataSource.LIMITLESS,
-                                meta_format=response.meta["meta_format"],
-                                **json_res)
-        yield tournament
+        tournament = Tournament(source=DataSource.LIMITLESS,
+                                **response.meta)
+        yield self.get_tournamend_item(tournament=tournament, tournament_standings=response.meta["tournament_standings"], matches=matches)
+
+
+    def get_tournamend_item(self, tournament: Tournament, tournament_standings: list[TournamentStanding], matches: list[Match] = None) -> TournamentItem:
+        matches = matches if matches is not None else []  # if no matches exist returns an empy list
+        return TournamentItem(tournament=tournament, tournament_standings=tournament_standings, matches=matches)

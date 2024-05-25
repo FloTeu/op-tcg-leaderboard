@@ -9,6 +9,7 @@ from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 from google.cloud.bigquery import QueryJobConfig
 from pydantic import BaseModel
+from pydantic.fields import FieldInfo
 
 from op_tcg.backend.models.base import SQLTableBaseModel
 from op_tcg.backend.models.bq_enums import BQFieldMode, BQFieldType
@@ -42,9 +43,12 @@ def get_or_create_bq_dataset(dataset_id, client: bigquery.Client | None = None, 
 
     return dataset
 
+def field_info_is_list(field_info: FieldInfo) -> bool:
+    # Assumption: Every field_type which is a GenericAlias (and not dict), is a list
+    return isinstance(field_info.annotation, GenericAlias) and not get_origin(field_info.annotation) == dict
+
 
 # Function to convert Pydantic model to BigQuery schema
-
 def pydantic_model_to_bq_types(model: type[BaseModel]) -> dict[str, bigquery.SchemaField]:
     field_name2bq_types = {}
     for field_name, field_info in model.__fields__.items():
@@ -54,8 +58,7 @@ def pydantic_model_to_bq_types(model: type[BaseModel]) -> dict[str, bigquery.Sch
             field_type = field_type.__args__[0]
 
         if isinstance(field_type, GenericAlias) and not get_origin(field_type) == dict:
-            # Assumption: Every field_type which is a GenericAlias, is a list
-            is_list = True
+            # Assumption: Every field_type which is a GenericAlias (and not dict), is a list
             field_type = field_type.__args__[0]
 
         # get field type
@@ -65,9 +68,16 @@ def pydantic_model_to_bq_types(model: type[BaseModel]) -> dict[str, bigquery.Sch
 def pydantic_model_to_bq_schema(model: type[BaseModel]) -> list[bigquery.SchemaField]:
     schemata = []
     field_name2bq_types = pydantic_model_to_bq_types(model)
-    for field_name, field_info in model.__fields__.items():
+    fields = model.__fields__
+    # but timestamp to end of schema
+    if "create_timestamp" in fields:
+        field_info_create_timestamp = fields["create_timestamp"]
+        fields.pop('create_timestamp', None)
+        fields["create_timestamp"] = field_info_create_timestamp
+
+    for field_name, field_info in fields.items():
         bq_type = field_name2bq_types[field_name]
-        is_list = False
+        is_list = field_info_is_list(field_info)
 
         # get mode
         mode = BQFieldMode.NULLABLE  # Default BigQuery mode

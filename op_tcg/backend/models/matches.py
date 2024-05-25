@@ -28,12 +28,11 @@ class Match(BQTableBaseModel):
     tournament_id: str | None = Field(None, description="Unique id of single tournament")
     tournament_round: int | None = Field(None, description="Round during which the match happened.", alias="round")
     tournament_phase: int | None = Field(None, description="Phase during which the match happened.", alias="phase")
-    tournament_table: int | None = Field(None, description="Table number of the match (for all phase types except live brackets).", alias="table")
-    tournament_match: int | None = Field(None, description="Match label, used in live brackets to identify where in the bracket it happened.", alias="match")
+    tournament_table: str | None = Field(None, description="Table number of the match (for all phase types except live brackets).", alias="table")
+    tournament_match: str | None = Field(None, description="Match label, used in live brackets to identify where in the bracket it happened.", alias="match")
     player_id: str | None = Field(None, description="Username/ID used to uniquely identify the player. Does not change between tournaments.")
     opponent_player_id: str | None = Field(None, description="Username/ID used to uniquely identify the opponent. Does not change between tournaments.")
     match_timestamp: datetime = Field(description="Approximate timestamp when the match happened")
-    create_timestamp: datetime = Field(default_factory=datetime.now, description="Creation timestamp when the insert in BQ happened")
 
 class BQMatches(BaseModel):
     matches: list[Match]

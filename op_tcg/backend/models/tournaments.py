@@ -32,7 +32,6 @@ class Tournament(BQTableBaseModel):
     official: bool = Field(default=False, description="Whether the tournament is official, i.e. comes from a official source")
     source: DataSource | str = Field(description="Origin of the tournament. In case of an unofficial match it can be the session id.")
     tournament_timestamp: datetime = Field(description="Scheduled tournament start set by the organizer.", alias="date")
-    create_timestamp: datetime = Field(default_factory=datetime.now, description="Creation timestamp when the insert in BQ happened")
 
 
 class TournamentRecord(BaseModel):
