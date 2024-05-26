@@ -78,6 +78,12 @@ def leader_id2elo_chart(leader_id: str, df_leader_elos):
 def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.DataFrame, df_meta_match_data, df_tournament_wins: pd.DataFrame, match_count_min: int=None, match_count_max: int=None, sort_by: LeaderboardSortBy = "elo"):
     def lid2match_count(leader_id: str) -> int:
         return len(df_meta_match_data.query(f"leader_id == '{leader_id}'"))
+    def lid2win_rate(leader_id: str) -> int:
+        result_counts = df_meta_match_data.query(f"leader_id == '{leader_id}'").groupby("result").count()["id"]
+        if 2 not in result_counts.index:
+            return "0%"
+        else:
+            return f'{int(float("%.2f" % (result_counts.loc[2] / result_counts.sum())) * 100)}%'
 
     def lid2tournament_wins(leader_id: str) -> int:
         return df_tournament_wins.query(f"leader_id == '{leader_id}'")["count"].sum()
@@ -87,11 +93,12 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
     relevant_meta_formats = all_meta_formats[:all_meta_formats.index(meta_format)+1]
     df_all_leader_elos = df_all_leader_elos.query("meta_format in @relevant_meta_formats")
     df_leader_elos = df_all_leader_elos.query(f"meta_format == '{meta_format}'")
-    display_columns = ["Name", "Release Set", "Match Count", "Tournament Wins", "Elo"]
+    display_columns = ["Name", "Release Set", "Match Count", LeaderboardSortBy.WIN_RATE, LeaderboardSortBy.TOURNAMENT_WINS, "Elo"]
     #df_leader_elos["Meta"] = df_leader_elos["meta_format"].apply(lambda meta_format: meta_format)
     df_leader_elos["Release Set"] = df_leader_elos["leader_id"].apply(lambda lid: lid.split("-")[0])
     df_leader_elos["Name"] = df_leader_elos["leader_id"].apply(lambda lid: lid2ldata(lid).name.replace('"', " ").replace('.', " "))
     df_leader_elos["Match Count"] = df_leader_elos["leader_id"].apply(lambda lid: lid2match_count(lid))
+    df_leader_elos[LeaderboardSortBy.WIN_RATE] = df_leader_elos["leader_id"].apply(lambda lid: lid2win_rate(lid))
     df_leader_elos[LeaderboardSortBy.TOURNAMENT_WINS] = df_leader_elos["leader_id"].apply(lambda lid: lid2tournament_wins(lid))
     df_leader_elos["Elo"] = df_leader_elos["elo"].apply(lambda elo: elo)
     if match_count_min:
