@@ -8,9 +8,9 @@ from op_tcg.backend.models.leader import OPTcgColor
 
 
 class LeaderboardSortBy(EnumBase, StrEnum):
-    ELO="elo"
     TOURNAMENT_WINS= "Tournament Wins"
     WIN_RATE= "Win Rate"
+    ELO="elo"
 
 
 def display_meta_select(multiselect: bool=True, key: str|None=None) -> list[MetaFormat]:

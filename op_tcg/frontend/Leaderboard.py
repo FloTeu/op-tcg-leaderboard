@@ -93,7 +93,7 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
     relevant_meta_formats = all_meta_formats[:all_meta_formats.index(meta_format)+1]
     df_all_leader_elos = df_all_leader_elos.query("meta_format in @relevant_meta_formats")
     df_leader_elos = df_all_leader_elos.query(f"meta_format == '{meta_format}'")
-    display_columns = ["Name", "Release Set", "Match Count", LeaderboardSortBy.WIN_RATE, LeaderboardSortBy.TOURNAMENT_WINS, "Elo"]
+    display_columns = ["Name", "Release Set", LeaderboardSortBy.TOURNAMENT_WINS, "Match Count", LeaderboardSortBy.WIN_RATE, "Elo"]
     #df_leader_elos["Meta"] = df_leader_elos["meta_format"].apply(lambda meta_format: meta_format)
     df_leader_elos["Release Set"] = df_leader_elos["leader_id"].apply(lambda lid: lid.split("-")[0])
     df_leader_elos["Name"] = df_leader_elos["leader_id"].apply(lambda lid: lid2ldata(lid).name.replace('"', " ").replace('.', " "))

@@ -18,11 +18,8 @@ ST_THEME = st_theme() or {"base": "dark"}
 
 
 
-def data_setup(selected_leader_names, selected_meta_formats):
-    selected_leader_ids: list[str] = [ln.split("(")[1].strip(")") for ln in selected_leader_names]
+def data_setup(selected_leader_ids: list[str], selected_match_data: list[Match]):
     selected_bq_leaders: list[Leader] = [lid2ldata(lid) for lid in selected_leader_ids]
-    selected_match_data: list[Match] = get_match_data(meta_formats=selected_meta_formats,
-                                                      leader_ids=selected_leader_ids)
     df_selected_match_data = pd.DataFrame([match.dict() for match in selected_match_data])
 
     # Create a new DataFrame with color information
@@ -230,6 +227,10 @@ def main():
     if len(selected_meta_formats) == 0:
         st.warning("Please select at least one meta format")
     else:
+
+        selected_match_data: list[Match] = get_match_data(meta_formats=selected_meta_formats)
+
+
         # first element is leader with best elo
         selected_leader_elo_data: list[LeaderElo] = get_leader_elo_data(meta_formats=selected_meta_formats)
         sorted_leader_elo_data: list[LeaderElo] = sorted(selected_leader_elo_data, key=lambda x: x.elo,
@@ -244,8 +245,10 @@ def main():
         if len(selected_leader_names) < 2:
             st.warning("Please select at least two leaders")
         else:
+            selected_leader_ids: list[str] = [ln.split("(")[1].strip(")") for ln in selected_leader_names]
+            selected_match_data = [bqm for bqm in selected_match_data if (bqm.leader_id in selected_leader_ids)]
             selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, df_Leader_vs_leader_match_count, df_color_win_rates = data_setup(
-                selected_leader_names, selected_meta_formats)
+                selected_leader_ids, selected_match_data)
             radar_chart_data = get_radar_chart_data(df_color_win_rates)
             display_elements(selected_leader_ids,
                              selected_bq_leaders,

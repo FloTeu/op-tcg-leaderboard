@@ -1,18 +1,14 @@
 import json
 import os
 from datetime import datetime, date
-from enum import IntEnum
-from types import UnionType, GenericAlias, NoneType
-from typing import Any, get_origin, get_args
+from typing import Any
 
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 from google.cloud.bigquery import QueryJobConfig
-from pydantic import BaseModel
-from pydantic.fields import FieldInfo
 
 from op_tcg.backend.models.base import SQLTableBaseModel
-from op_tcg.backend.models.bq_enums import BQFieldMode, BQFieldType
+from op_tcg.backend.utils.annotations import pydantic_model_to_bq_types, pydantic_model_to_bq_schema
 
 
 def get_or_create_bq_dataset(dataset_id, client: bigquery.Client | None = None, location='europe-west3',
@@ -43,70 +39,7 @@ def get_or_create_bq_dataset(dataset_id, client: bigquery.Client | None = None, 
 
     return dataset
 
-def field_info_is_list(field_info: FieldInfo) -> bool:
-    # Assumption: Every field_type which is a GenericAlias (and not dict), is a list
-    return isinstance(field_info.annotation, GenericAlias) and not get_origin(field_info.annotation) == dict
 
-
-# Function to convert Pydantic model to BigQuery schema
-def pydantic_model_to_bq_types(model: type[BaseModel]) -> dict[str, bigquery.SchemaField]:
-    field_name2bq_types = {}
-    for field_name, field_info in model.__fields__.items():
-        field_type = field_info.annotation
-        if isinstance(field_type, UnionType):
-            # Assume first type of union typing is the necessary one for BQ
-            field_type = field_type.__args__[0]
-
-        if isinstance(field_type, GenericAlias) and not get_origin(field_type) == dict:
-            # Assumption: Every field_type which is a GenericAlias (and not dict), is a list
-            field_type = field_type.__args__[0]
-
-        # get field type
-        field_name2bq_types[field_name] = get_bq_field_type(field_type)
-    return field_name2bq_types
-
-def pydantic_model_to_bq_schema(model: type[BaseModel]) -> list[bigquery.SchemaField]:
-    schemata = []
-    field_name2bq_types = pydantic_model_to_bq_types(model)
-    fields = model.__fields__
-    # but timestamp to end of schema
-    if "create_timestamp" in fields:
-        field_info_create_timestamp = fields["create_timestamp"]
-        fields.pop('create_timestamp', None)
-        fields["create_timestamp"] = field_info_create_timestamp
-
-    for field_name, field_info in fields.items():
-        bq_type = field_name2bq_types[field_name]
-        is_list = field_info_is_list(field_info)
-
-        # get mode
-        mode = BQFieldMode.NULLABLE  # Default BigQuery mode
-        if is_list:
-            mode = BQFieldMode.REPEATED
-        elif isinstance(field_info.annotation, UnionType) and any(arg == NoneType for arg in get_args(field_info.annotation)):
-            mode = BQFieldMode.NULLABLE
-        elif field_info.is_required():
-            mode = BQFieldMode.REQUIRED
-        # Add more type conversions as needed
-        schemata.append(bigquery.SchemaField(field_name, bq_type, description=field_info.description, mode=mode))
-    return schemata
-
-
-def get_bq_field_type(field_type) -> bigquery.SchemaField:
-    bq_type = BQFieldType.STRING  # Default BigQuery type
-    if issubclass(field_type, bool):
-        bq_type = BQFieldType.BOOL
-    elif issubclass(field_type, int):
-        bq_type = BQFieldType.INT64
-    elif issubclass(field_type, float):
-        bq_type = BQFieldType.FLOAT64
-    elif issubclass(field_type, datetime):
-        bq_type = BQFieldType.TIMESTAMP
-    elif issubclass(field_type, date):
-        bq_type = BQFieldType.DATE
-    elif issubclass(field_type, IntEnum):
-        bq_type = BQFieldType.INT64
-    return bq_type
 
 
 # Function to get or create a BigQuery table
