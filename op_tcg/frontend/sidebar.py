@@ -1,7 +1,16 @@
+from enum import StrEnum
+
 import streamlit as st
 
+from op_tcg.backend.models.base import EnumBase
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import OPTcgColor
+
+
+class LeaderboardSortBy(EnumBase, StrEnum):
+    TOURNAMENT_WINS= "Tournament Wins"
+    WIN_RATE= "Win Rate"
+    ELO="elo"
 
 
 def display_meta_select(multiselect: bool=True, key: str|None=None) -> list[MetaFormat]:
@@ -30,6 +39,9 @@ def display_match_count_slider_slider(min=0, max=20000):
 def display_only_official_toggle() -> bool:
     return st.toggle("Only Official", value=True)
 
+def display_sortby_select() -> bool:
+    return st.selectbox("Sort By", LeaderboardSortBy.to_list())
+
 def display_leader_select(available_leader_ids: list[str] | None = None, multiselect: bool=True, default: list[str] = None, label: str="Leader", key: str|None=None) -> list[str]:
     available_leader_ids = available_leader_ids if available_leader_ids else ["OP01-001", "OP05-041", "OP02-001", "ST01-001", "OP02-093", "OP02-026"]
     if multiselect:
@@ -39,3 +51,4 @@ def display_leader_select(available_leader_ids: list[str] | None = None, multise
 
 def display_match_result_toggle() -> bool:
     return st.toggle("Only Official", value=True)
+

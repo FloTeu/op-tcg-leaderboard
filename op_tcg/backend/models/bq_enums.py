@@ -1,5 +1,6 @@
 from enum import StrEnum
 
+
 class BQFieldMode(StrEnum):
     NULLABLE="NULLABLE"
     REQUIRED="REQUIRED"
@@ -20,3 +21,5 @@ class BQFieldType(StrEnum):
 class BQDataset(StrEnum):
     MATCHES="matches"
     LEADERS="leaders"
+
+
