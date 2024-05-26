@@ -1,5 +1,8 @@
 import pandas as pd
+from pandera.typing import DataFrame
 import streamlit as st
+
+from op_tcg.backend.utils.leader_fns import df_match_data2lid_dicts
 
 st.set_page_config(layout="wide")
 
@@ -18,9 +21,7 @@ ST_THEME = st_theme() or {"base": "dark"}
 
 
 
-def data_setup(selected_leader_ids: list[str], selected_match_data: list[Match]):
-    selected_bq_leaders: list[Leader] = [lid2ldata(lid) for lid in selected_leader_ids]
-    df_selected_match_data = pd.DataFrame([match.dict() for match in selected_match_data])
+def data_setup(selected_leader_ids: list[str], df_selected_match_data: DataFrame[Match.paSchema()]):
 
     # Create a new DataFrame with color information
     color_info = []
@@ -54,7 +55,7 @@ def data_setup(selected_leader_ids: list[str], selected_match_data: list[Match])
                                                                                           include_groups=False)
     df_color_win_rates = win_rates_series.unstack(level=-1)
 
-    return selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, df_Leader_vs_leader_match_count, df_color_win_rates
+    return df_Leader_vs_leader_win_rates, df_Leader_vs_leader_match_count, df_color_win_rates
 
 
 def get_radar_chart_data(df_color_win_rates) -> list[dict[str, str | float]]:
@@ -229,11 +230,12 @@ def main():
     else:
 
         selected_match_data: list[Match] = get_match_data(meta_formats=selected_meta_formats)
-
+        df_selected_match_data: DataFrame[Match.paSchema()] = pd.DataFrame([match.dict() for match in selected_match_data])
+        lid2win_rate, lid2match_count = df_match_data2lid_dicts(df_selected_match_data)
 
         # first element is leader with best elo
         selected_leader_elo_data: list[LeaderElo] = get_leader_elo_data(meta_formats=selected_meta_formats)
-        sorted_leader_elo_data: list[LeaderElo] = sorted(selected_leader_elo_data, key=lambda x: x.elo,
+        sorted_leader_elo_data: list[LeaderElo] = sorted(selected_leader_elo_data, key=lambda x: lid2win_rate[x.leader_id] if (x.leader_id in lid2win_rate and lid2match_count[x.leader_id] > 50) else 0,
                                                          reverse=True)
         available_leader_ids = list(dict.fromkeys(
             [
@@ -246,9 +248,10 @@ def main():
             st.warning("Please select at least two leaders")
         else:
             selected_leader_ids: list[str] = [ln.split("(")[1].strip(")") for ln in selected_leader_names]
-            selected_match_data = [bqm for bqm in selected_match_data if (bqm.leader_id in selected_leader_ids)]
-            selected_leader_ids, selected_bq_leaders, df_Leader_vs_leader_win_rates, df_Leader_vs_leader_match_count, df_color_win_rates = data_setup(
-                selected_leader_ids, selected_match_data)
+            df_selected_match_data = df_selected_match_data.query("leader_id in @selected_leader_ids")
+            selected_bq_leaders: list[Leader] = [lid2ldata(lid) for lid in selected_leader_ids]
+            df_Leader_vs_leader_win_rates, df_Leader_vs_leader_match_count, df_color_win_rates = data_setup(
+                selected_leader_ids, df_selected_match_data)
             radar_chart_data = get_radar_chart_data(df_color_win_rates)
             display_elements(selected_leader_ids,
                              selected_bq_leaders,

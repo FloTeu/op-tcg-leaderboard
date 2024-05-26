@@ -1,4 +1,5 @@
 import pandera as pa
+import pandas as pd
 from datetime import datetime, date
 from enum import IntEnum, Enum, StrEnum
 from types import UnionType, GenericAlias, NoneType
@@ -11,16 +12,28 @@ from pydantic.fields import FieldInfo
 from op_tcg.backend.models.bq_enums import BQFieldType, BQFieldMode
 
 
-def pydantic_type_to_pandera_type(pydantic_field_info):
-    pydantic_type = pydantic_field_annotation_to_type(pydantic_field_info)
-    if any([issubclass(pydantic_type, type_) for type_ in [int, IntEnum]]):
-        return pa.Column(pa.Int)
+def pydantic_type_to_pandera_type(field_info) -> pa.Column:
+    pydantic_type = pydantic_field_annotation_to_type(field_info)
+    nullable = False
+    if isinstance(field_info.annotation, UnionType) and any(
+            arg == NoneType for arg in get_args(field_info.annotation)):
+        nullable = True
+    elif field_info.is_required():
+        nullable = False
+    is_int = any([issubclass(pydantic_type, type_) for type_ in [int, IntEnum]])
+    is_float = any([issubclass(pydantic_type, type_) for type_ in [float]])
+    if pydantic_type == bool:
+        return pa.Column(pa.Bool, nullable=nullable)
+    elif is_float or (is_int and nullable):
+        # nullable int pandas columns do not exist
+        return pa.Column(pa.Float, nullable=nullable)
+    elif is_int:
+        return pa.Column(pa.Int, nullable=nullable)
     elif any([issubclass(pydantic_type, type_) for type_ in [str, Enum, StrEnum]]):
-        return pa.Column(pa.String)
-    elif pydantic_type == bool:
-        return pa.Column(pa.Bool)
+        return pa.Column(pa.String, nullable=nullable)
     elif pydantic_type == datetime:
-        return pa.Column(pa.DateTime)
+        # Use a custom check to allow timezone-aware datetime columns
+        return pa.Column(pd.DatetimeTZDtype(tz="UTC"), nullable=nullable)
     # Add more mappings as necessary
     # Note: You may need to handle more complex types or custom types
     else:

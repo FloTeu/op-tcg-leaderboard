@@ -58,11 +58,8 @@ class EloCreator:
                             saka_elo_change.append(f"{self.leader_id2elo[match_data_row.leader_id] + leader_id2elo_change[leader_id]} | {elo_change}")
                         leader_id2elo_change[leader_id] += elo_change
 
-            # random shuffle with id (order has a strong impact in elo)
-            id2random = {id: uuid4().hex for id in df_matches_at_same_time.id.unique().tolist()}
-            df_matches_at_same_time["id_random"] = df_matches_at_same_time["id"].map(lambda x: id2random[x])
             # apply elo change for each match
-            df_matches_at_same_time.groupby("id_random").apply(add_elo_change_of_match)
+            df_matches_at_same_time.groupby("id").apply(add_elo_change_of_match)
 
             for leader_id, elo_change in leader_id2elo_change.items():
                 self.leader_id2elo[leader_id] = self.leader_id2elo[leader_id] + elo_change
