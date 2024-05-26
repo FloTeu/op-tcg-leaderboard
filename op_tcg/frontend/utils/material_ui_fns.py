@@ -2,9 +2,7 @@ import streamlit as st
 import pandas as pd
 from typing import Any
 
-# tmp solution since streamlit 1.34.0
-if st.runtime.exists():
-    from streamlit_elements import mui, html, core
+from streamlit_elements import mui, html, core
 
 def display_table(table_cells,
                   index_cells: list[list[Any]]=None,

@@ -5,7 +5,8 @@ from datetime import timedelta, datetime
 from uuid import uuid4
 
 from op_tcg.backend.models.input import LimitlessLeaderMetaDoc, LimitlessMatch, MetaFormat, AllLeaderMetaDocs
-from op_tcg.backend.models.matches import BQMatches, Match, MatchResult, MatchSource
+from op_tcg.backend.models.matches import BQMatches, Match, MatchResult
+from op_tcg.backend.models.common import DataSource
 from op_tcg.backend.models.transform import Transform2BQMatch
 
 
@@ -67,7 +68,7 @@ class BQMatchCreator:
                 meta_format=meta_format,
                 official=self.official,
                 is_reverse=transform_match.is_reverse,
-                source=MatchSource.LIMITLESS,
+                source=DataSource.LIMITLESS,
                 match_timestamp=match_timestamp
             ))
             # after reverse match, we incremente timestamp

@@ -25,7 +25,7 @@ poetry shell
 ## Crawling
 Get raw data from limitless
 ```
-optcg crawl limitless
+optcg crawl limitless matches
 ```
 
 
