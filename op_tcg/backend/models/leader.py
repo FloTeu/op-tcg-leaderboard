@@ -63,3 +63,9 @@ class Leader(BQTableBaseModel):
         for color in self.colors:
             hex_colors.append(color.to_hex_color())
         return average_hex_colors(hex_colors)
+
+class TournamentWinner(BQTableBaseModel):
+    _dataset_id: str = BQDataset.LEADERS
+    meta_format: MetaFormat = Field(description="Meta in which tournaments happened", primary_key=True)
+    leader_id: str = Field(description="The op tcg leader id e.g. OP03-099", primary_key=True)
+    count: int = Field(description="Number of tournament wins")
