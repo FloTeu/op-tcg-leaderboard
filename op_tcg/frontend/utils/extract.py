@@ -1,8 +1,8 @@
 import streamlit as st
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.leader import Leader, TournamentWinner
-from op_tcg.backend.models.matches import Match, LeaderElo
+from op_tcg.backend.models.leader import Leader, TournamentWinner, LeaderElo
+from op_tcg.backend.models.matches import Match
 from op_tcg.frontend.utils.utils import run_bq_query
 
 

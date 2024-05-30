@@ -2,6 +2,7 @@ import os
 import time
 import logging
 import sys
+from datetime import datetime
 
 import pandas as pd
 
@@ -11,9 +12,11 @@ from op_tcg.backend.etl.load import get_or_create_table
 from op_tcg.backend.etl.transform import BQMatchCreator
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.input import AllLeaderMetaDocs, MetaFormat, LimitlessLeaderMetaDoc
-from op_tcg.backend.models.matches import BQMatches, Match, BQLeaderElos, LeaderElo
+from op_tcg.backend.models.matches import BQMatches, Match, BQLeaderElos
+from op_tcg.backend.models.leader import LeaderElo
 from op_tcg.backend.etl.extract import read_json_files
 from pathlib import Path
+from tqdm import tqdm
 from google.cloud import bigquery
 from dotenv import load_dotenv
 
@@ -108,33 +111,7 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
         return BQLeaderElos(elo_ratings=elo_ratings)
 
     def load(self, transformed_data: BQLeaderElos) -> None:
-        table_tmp = get_or_create_table(model=LeaderElo, table_id=f"{LeaderElo.__tablename__}_tmp", dataset_id="matches", client=self.bq_client)
-        table = get_or_create_table(model=LeaderElo, table_id=LeaderElo.__tablename__, dataset_id="matches", client=self.bq_client)
-        df = transformed_data.to_dataframe()
-        if len(df) > 0:
-            # create tmp table with new data
-            self.bq_client.load_table_from_dataframe(df, table_tmp)
-            # Insert all uneffected elo from other meta formats
-            query_job = self.bq_client.query(f"""
-            INSERT INTO {table_tmp.dataset_id}.{table_tmp.table_id}
-            SELECT *
-            FROM {table.dataset_id}.{table.table_id}
-            WHERE meta_format not in {self.in_meta_format};
-            """)
-            _logger.info(f"Tmp BQ table created {table_tmp.dataset_id}.{table_tmp.table_id}")
-            assert query_job.errors is None
-
-            # wait some seconds to be sure data is ready in tmp table
-            time.sleep(5)
-            # Overwrite existing data with tmp table
-            self.bq_client.query(f"""
-            CREATE OR REPLACE TABLE {table.dataset_id}.{table.table_id} AS
-            SELECT *
-            FROM {table_tmp.dataset_id}.{table_tmp.table_id}
-            """)
-            # delete tmp table
-            self.bq_client.delete_table(table_tmp)
-            _logger.info(f"Loading to BQ table {table.dataset_id}.{table.table_id} succeeded")
-        else:
-            _logger.info(f"Zero data received as transform output")
-
+        for bq_leader_elo in tqdm(transformed_data.elo_ratings):
+            bq_leader_elo.create_timestamp = datetime.now()
+            bq_leader_elo.upsert_to_bq(client=self.bq_client)
+        _logger.info(f"Loading to {transformed_data.elo_ratings} rows with meta {self.meta_formats} succeeded")

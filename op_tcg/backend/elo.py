@@ -2,7 +2,8 @@ from uuid import uuid4
 
 import pandas as pd
 
-from op_tcg.backend.models.matches import MatchResult, BQLeaderElos, LeaderElo
+from op_tcg.backend.models.matches import MatchResult, BQLeaderElos
+from op_tcg.backend.models.leader import LeaderElo
 
 
 class EloCreator:
