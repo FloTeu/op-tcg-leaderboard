@@ -42,10 +42,9 @@ def tournament_standings2decklist_data(tournament_standings: list[TournamentStan
                         card_id2total_count=card_id2total_count,
                         card_id2avg_count_card=card_id2avg_count_card)
 
-def add_modal_script():
-    components.html("""
-    <style>
-      /* Styles for the modal */
+def get_modal_style() -> str:
+    return """
+    /* Styles for the modal */
       .modal {
         display: none;
         position: fixed;
@@ -83,41 +82,44 @@ def add_modal_script():
       }
 
       .modal-image {
-        width: 100%;
+        width: 50%;
         height: auto;
       }
-    </style>
+    """
+
+def get_modal_body() -> str:
+    return """
     <!-- The Modal -->
     <div id="myModal" class="modal">
       <span class="modal-close" onclick="closeModal()">&times;</span>
       <img class="modal-image" id="img01">
     </div>
+    """
 
-    <script>
+def get_modal_script() -> str:
+    return """
     // Get the modal
-    var modal = document.getElementById("myModal");
+var modal = document.getElementById("myModal");
 
-    // Get the image and insert it inside the modal
-    function openModal(imgElement) {
-      var modalImg = document.getElementById("img01");
-      modal.style.display = "block";
-      modalImg.src = imgElement.querySelector('img').src;
-    }
+// Get the image and insert it inside the modal
+function openModal(imgElement) {
+  var modalImg = document.getElementById("img01");
+  modal.style.display = "block";
+  modalImg.src = imgElement.querySelector('img').src;
+}
 
-    // Get the <span> element that closes the modal
-    function closeModal() {
-      modal.style.display = "none";
-    }
+// Get the <span> element that closes the modal
+function closeModal() {
+  modal.style.display = "none";
+}
 
-    // When the user clicks anywhere outside of the modal, close it
-    window.onclick = function(event) {
-      if (event.target === modal) {
-        closeModal();
-      }
-    }
-    </script>
+// When the user clicks anywhere outside of the modal, close it
+window.onclick = function(event) {
+  if (event.target === modal) {
+    closeModal();
+  }
+}"""
 
-    """)
 
 def display_list_view(decklist_data: DecklistData, card_ids: list[str]):
     lis = ""
@@ -141,9 +143,8 @@ def display_list_view(decklist_data: DecklistData, card_ids: list[str]):
   </li>
 """
 
-    components.html("""
-
-<style>
+    style = """
+    
   .list-view {
     list-style: none;
     padding: 0;
@@ -193,85 +194,28 @@ def display_list_view(decklist_data: DecklistData, card_ids: list[str]):
     margin-bottom: 5px;
     font-size: 0.9em;
   }
-  
-  /* Styles for the modal */
-  .modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    background-color: rgba(0, 0, 0, 0.7);
-  }
+  """ + get_modal_style()
 
-  .modal-content {
-    position: relative;
-    background-color: #fefefe;
-    margin: 10% auto;
-    padding: 20px;
-    border: 1px solid #888;
-    width: 80%;
-    max-width: 700px;
-  }
-
-  .modal-close {
-    color: #aaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
-  }
-
-  .modal-close:hover,
-  .modal-close:focus {
-    color: black;
-    text-decoration: none;
-    cursor: pointer;
-  }
-
-  .modal-image {
-    width: 100%;
-    height: auto;
-  }
-</style>
-<body>
+    components.html(f"""
+<style> {style} </style>"
 
 <ul class="list-view">
-  """ + lis + "</ul>" +"""
-  
+  {lis}
+</ul>
 
-<!-- The Modal -->
-<div id="myModal" class="modal">
-  <span class="modal-close" onclick="closeModal()">&times;</span>
-  <img class="modal-image" id="img01">
-</div>
+{get_modal_body()}
 
 <script>
-// Get the modal
-var modal = document.getElementById("myModal");
-
-// Get the image and insert it inside the modal
-function openModal(imgElement) {
-  var modalImg = document.getElementById("img01");
-  modal.style.display = "block";
-  modalImg.src = imgElement.querySelector('img').src;
-}
-
-// Get the <span> element that closes the modal
-function closeModal() {
-  modal.style.display = "none";
-}
-
-// When the user clicks anywhere outside of the modal, close it
-window.onclick = function(event) {
-  if (event.target === modal) {
-    closeModal();
-  }
-}
+{get_modal_script()}
 </script>
-  """)
+  """,
+    height=600, scrolling=True)
+
+
+
+    components.html("""
+
+        """)
 
 
 def main():
