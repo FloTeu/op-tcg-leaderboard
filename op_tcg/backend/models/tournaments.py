@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from datetime import datetime, date
 from enum import IntEnum, StrEnum
 
@@ -40,6 +40,10 @@ class TournamentRecord(BaseModel):
     ties: int
 
 class TournamentStanding(BQTableBaseModel):
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+
     _dataset_id: str = BQDataset.MATCHES
     tournament_id: str = Field(description="Unique id of single tournament", primary_key=True)
     player_id: str = Field(description="Username/ID used to uniquely identify the player. Does not change between tournaments.", alias="player", primary_key=True)
@@ -50,6 +54,23 @@ class TournamentStanding(BQTableBaseModel):
     leader_id: str | None = Field(description="The op tcg leader id e.g. OP03-099")
     decklist: dict[str, int] | None = Field(description="Used decklist in this tournament. The key is the card id e.g. OP01-006 and the value is the number of cards in the deck")
     drop: int | None = Field(description="If the player dropped from the tournament, this field contains the round during which they did so.")
+
+    @field_validator('decklist', 'record', mode="before")
+    def parse_dicts(cls, value):
+        if isinstance(value, str):
+            try:
+                # Attempt to parse the string as a dictionary
+                field_dict = eval(value)
+                if not isinstance(field_dict, dict):
+                    raise ValueError("Parsed value is not a dictionary")
+                # Optionally, you can add more checks here to ensure the keys and values are correct
+                return field_dict
+            except Exception as e:
+                raise ValueError(f"Invalid decklist string: {e}")
+        elif isinstance(value, dict):
+            return value
+        else:
+            raise ValueError("decklist must be a dictionary or a string that represents a dictionary")
 
 
 

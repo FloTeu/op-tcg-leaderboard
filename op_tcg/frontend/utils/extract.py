@@ -3,6 +3,7 @@ from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader, TournamentWinner, LeaderElo
 from op_tcg.backend.models.matches import Match
+from op_tcg.backend.models.tournaments import TournamentStanding, Tournament
 from op_tcg.frontend.utils.utils import run_bq_query
 
 
@@ -25,6 +26,20 @@ def get_match_data(meta_formats: list[MetaFormat], leader_ids: list[str] | None 
     else:
         return bq_matches
 
+
+def get_tournament_standing_data(meta_formats: list[MetaFormat], leader_id: list[str]) -> list[TournamentStanding]:
+    bq_tournament_standings: list[TournamentStanding] = []
+    for meta_format in meta_formats:
+        # cached for each session
+        tournament_standing_rows = run_bq_query(f"""
+SELECT t1.* FROM `{st.secrets["gcp_service_account"]["project_id"]}.matches.{TournamentStanding.__tablename__}` t1
+left join `{st.secrets["gcp_service_account"]["project_id"]}.matches.{Tournament.__tablename__}` t2
+on t1.tournament_id = t2.id
+where t2.meta_format = '{meta_format}' and t1.leader_id = '{leader_id}'
+""")
+        bq_tournament_standings.extend([TournamentStanding(**d) for d in tournament_standing_rows])
+
+    return bq_tournament_standings
 
 def get_leader_elo_data(meta_formats: list[MetaFormat] | None=None) -> list[LeaderElo]:
     """First element is leader with best elo.
