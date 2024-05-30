@@ -22,7 +22,6 @@ Access environment in your shell
 poetry shell
 ```
 
-
 ## Crawling
 Get raw data from limitless
 ```
@@ -41,3 +40,14 @@ optcg etl upload-matches
 ```
 optcg frontend start
 ```
+
+
+## Cloud Setup
+The app is running in Google cloud and can be initialized by terraform. 
+
+### Prerequisites
+* Activate Cloud Functions API
+* Activate Cloud Run API
+* Activate Cloud Build API 
+* Activate Cloud Scheduler API 
+* Setup IAM service account with BigQuery read/write access

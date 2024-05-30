@@ -67,7 +67,7 @@ class EloCreator:
         print("Elo calculation completed")
 
 
-    def to_bq_leader_elos(self) -> BQLeaderElos:
+    def to_bq_leader_elos(self) -> list[LeaderElo]:
         leader_elos: list[LeaderElo] = []
         for leader_id, elo in self.leader_id2elo.items():
             leader_elos.append(LeaderElo(
@@ -78,7 +78,7 @@ class EloCreator:
                 start_date=self.start_date,
                 end_date=self.end_date
             ))
-        return BQLeaderElos(elo_ratings=leader_elos)
+        return leader_elos
 
 
 def calculate_new_elo(current_elo: int, opponent_elo: int, result: MatchResult, k_factor=32) -> int:
