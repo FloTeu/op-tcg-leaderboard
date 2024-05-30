@@ -3,6 +3,7 @@ import logging
 import sys
 
 import pandas as pd
+import polars as pl
 
 from op_tcg.backend.elo import EloCreator
 from op_tcg.backend.etl.base import AbstractETLJob, E, T
@@ -75,35 +76,37 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
     def validate(self, extracted_data: AllLeaderMetaDocs) -> bool:
         return True
 
-    def extract(self) -> BQMatches:
+    def extract(self) -> Match.paSchema():
         if self.matches_csv_file_path:
             df = pd.read_csv(self.matches_csv_file_path)
         else:
             query = f"SELECT * FROM {BQDataset.MATCHES}.{Match.__tablename__} WHERE meta_format in {self.in_meta_format}"
             _logger.info(f"Query BQ with '{query}'")
-            df = self.bq_client.query_and_wait(query).to_dataframe()
+            #df = self.bq_client.query_and_wait(query).to_dataframe()
+            df = pl.from_arrow(self.bq_client.query_and_wait(query).to_arrow())
             _logger.info(f"Extracted {len(df)} rows from bq {BQDataset.MATCHES}.{Match.__tablename__}")
-        matches: list[Match] = []
-        for i, df_row in df.iterrows():
-            matches.append(Match(**df_row.to_dict()))
-        return BQMatches(matches=matches)
+        # matches: list[Match] = []
+        # for i, df_row in df.iterrows():
+        #     matches.append(Match(**df_row.to_dict()))
+        return df
 
 
-    def transform(self, all_matches: BQMatches) -> list[LeaderElo]:
-        df_all_matches = all_matches.to_dataframe()
+    def transform(self, df_all_matches: Match.paSchema()) -> list[LeaderElo]:
+        # df_all_matches = all_matches.to_dataframe()
         elo_ratings: list[LeaderElo] = []
         def calculate_all_elo_ratings(df_matches):
-            meta_format = df_matches.meta_format.unique().tolist()
+            #meta_format = df_matches.unique("meta_format").tolist()
+            meta_format = df_matches.unique("meta_format").item(0,"meta_format")
             for only_official in [True, False]:
                 _logger.info(f"Calculate Elo for meta {meta_format} and only_official {only_official}")
                 if only_official:
-                    elo_creator = EloCreator(df_matches.query("official"), only_official=True)
+                    elo_creator = EloCreator(df_matches.filter(pl.col("official")), only_official=True)
                 else:
                     elo_creator = EloCreator(df_matches, only_official=False)
                 elo_creator.calculate_elo_ratings()
                 elo_ratings.extend(elo_creator.to_bq_leader_elos())
-        if len(df_all_matches) > 0:
-            df_all_matches.groupby("meta_format").apply(calculate_all_elo_ratings)
+        #if len(df_all_matches) > 0:
+        df_all_matches.group_by("meta_format").map_groups(calculate_all_elo_ratings)
         return elo_ratings
 
     def load(self, transformed_data: list[LeaderElo]) -> None:
