@@ -1,6 +1,10 @@
 # op-tcg
 Unofficial one piece tcg leaderboard with extended analytic features. 
 
+## Application
+The app is currently deployed in the community cloud of streamlit.
+PROD: https://optcg-leaderboard.streamlit.app/
+DEV: https://optcg-leaderboard-dev.streamlit.app/
 
 ## Local Setup
 
@@ -49,5 +53,4 @@ The app is running in Google cloud and can be initialized by terraform.
 * Activate Cloud Functions API
 * Activate Cloud Run API
 * Activate Cloud Build API 
-* Activate Cloud Scheduler API 
-* Setup IAM service account with BigQuery read/write access
+* Activate Cloud Scheduler API
