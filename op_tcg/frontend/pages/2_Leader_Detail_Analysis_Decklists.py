@@ -44,47 +44,49 @@ def tournament_standings2decklist_data(tournament_standings: list[TournamentStan
 
 def get_modal_style() -> str:
     return """
-    /* Styles for the modal */
-      .modal {
-        display: none;
-        position: fixed;
-        z-index: 1000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        overflow: auto;
-        background-color: rgba(0, 0, 0, 0.7);
-      }
+    
+/* Styles for the modal */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: var(--modal-bg-color-light);
+}
 
-      .modal-content {
-        position: relative;
-        background-color: #fefefe;
-        margin: 10% auto;
-        padding: 20px;
-        border: 1px solid #888;
-        width: 80%;
-        max-width: 700px;
-      }
+.modal-content {
+  position: relative;
+  background-color: #fefefe;
+  margin: 10% auto;
+  padding: 20px;
+  border: 1px solid #888;
+  width: 80%;
+  max-width: 700px;
+}
 
-      .modal-close {
-        color: #aaa;
-        float: right;
-        font-size: 28px;
-        font-weight: bold;
-      }
+.modal-close {
+  color: #aaa;
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+}
 
-      .modal-close:hover,
-      .modal-close:focus {
-        color: black;
-        text-decoration: none;
-        cursor: pointer;
-      }
+.modal-close:hover,
+.modal-close:focus {
+  color: black;
+  text-decoration: none;
+  cursor: pointer;
+}
 
-      .modal-image {
-        width: 50%;
-        height: auto;
-      }
+.modal-image {
+  width: 50%;
+  height: auto;
+}
+
     """
 
 def get_modal_body() -> str:
@@ -144,56 +146,92 @@ def display_list_view(decklist_data: DecklistData, card_ids: list[str]):
 """
 
     style = """
+    /* Define color variables for light and dark themes */
+    :root {
+      --background-color-light: #f9f9f9;
+      --border-color-light: #ccc;
+      --text-color-light: #333;
+      --modal-bg-color-light: rgba(0, 0, 0, 0.7);
     
-  .list-view {
-    list-style: none;
-    padding: 0;
-    margin: 0;
+      --background-color-dark: #1e1e1e;
+      --border-color-dark: #444;
+      --text-color-dark: #f1f1f1;
+      --modal-bg-color-dark: rgba(255, 255, 255, 0.7);
+    }
+    
+    /* Apply light theme by default */
+    body {
+      background-color: var(--background-color-light);
+      color: var(--text-color-light);
+    }
+
+.list-view {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.list-item {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color-light);
+  padding: 10px;
+  background-color: var(--background-color-light);
+}
+
+.list-item:last-child {
+  border-bottom: none;
+}
+
+.item-image {
+  width: 100px;
+  height: 100px;
+  margin-right: 20px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.item-image img {
+  width: 100%;
+  height: auto;
+}
+
+.item-details {
+  flex-grow: 1;
+}
+
+.item-title {
+  font-size: 1.2em;
+  margin: 0 0 5px;
+}
+
+.item-facts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item-facts li {
+  margin-bottom: 5px;
+  font-size: 0.9em;
+}
+
+/* Detect dark mode preference and apply dark theme */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: var(--background-color-dark);
+    color: var(--text-color-dark);
   }
 
   .list-item {
-    display: flex;
-    align-items: center;
-    border-bottom: 1px solid #ccc;
-    padding: 10px;
+    border-bottom: 1px solid var(--border-color-dark);
+    background-color: var(--background-color-dark);
   }
 
-  .list-item:last-child {
-    border-bottom: none;
+  .modal {
+    background-color: var(--modal-bg-color-dark);
   }
-
-  .item-image {
-    width: 100px;
-    height: 100px;
-    margin-right: 20px;
-    border-radius: 50%;
-    overflow: hidden;
-  }
-
-  .item-image img {
-    width: 100%;
-    height: auto;
-  }
-
-  .item-details {
-    flex-grow: 1;
-  }
-
-  .item-title {
-    font-size: 1.2em;
-    margin: 0 0 5px;
-  }
-
-  .item-facts {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .item-facts li {
-    margin-bottom: 5px;
-    font-size: 0.9em;
-  }
+}
   """ + get_modal_style()
 
     components.html(f"""
@@ -245,7 +283,7 @@ def main():
             st.image(f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{leader_id.split('-')[0]}/{leader_id}_{OPTcgLanguage.EN.upper()}.webp",
                 width=400,  # Manually Adjust the width of the image as per requirement
             )
-            display_list_view(decklist_data, card_ids_sorted[0:20])
+            display_list_view(decklist_data, card_ids_sorted[0:40])
             #add_modal_script()
 
 
