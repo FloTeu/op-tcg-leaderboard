@@ -1,14 +1,12 @@
-import os
-import time
+import json
 import logging
 import sys
-from datetime import datetime
 
 import pandas as pd
 
 from op_tcg.backend.elo import EloCreator
 from op_tcg.backend.etl.base import AbstractETLJob, E, T
-from op_tcg.backend.etl.load import get_or_create_table
+from op_tcg.backend.etl.load import get_or_create_table, bq_insert_rows
 from op_tcg.backend.etl.transform import BQMatchCreator
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.input import AllLeaderMetaDocs, MetaFormat, LimitlessLeaderMetaDoc
@@ -16,7 +14,6 @@ from op_tcg.backend.models.matches import BQMatches, Match, BQLeaderElos
 from op_tcg.backend.models.leader import LeaderElo
 from op_tcg.backend.etl.extract import read_json_files
 from pathlib import Path
-from tqdm import tqdm
 from google.cloud import bigquery
 from dotenv import load_dotenv
 
@@ -92,7 +89,7 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
         return BQMatches(matches=matches)
 
 
-    def transform(self, all_matches: BQMatches) -> BQLeaderElos:
+    def transform(self, all_matches: BQMatches) -> list[LeaderElo]:
         df_all_matches = all_matches.to_dataframe()
         elo_ratings: list[LeaderElo] = []
         def calculate_all_elo_ratings(df_matches):
@@ -104,14 +101,21 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
                 else:
                     elo_creator = EloCreator(df_matches, only_official=False)
                 elo_creator.calculate_elo_ratings()
-                elo_ratings.extend(elo_creator.to_bq_leader_elos().elo_ratings)
+                elo_ratings.extend(elo_creator.to_bq_leader_elos())
         if len(df_all_matches) > 0:
             df_all_matches.groupby("meta_format").apply(calculate_all_elo_ratings)
+        return elo_ratings
 
-        return BQLeaderElos(elo_ratings=elo_ratings)
+    def load(self, transformed_data: list[LeaderElo]) -> None:
+        # ensure bq table exists
+        table = get_or_create_table(LeaderElo)
+        leader_ids_to_update = list(set([d.leader_id for d in transformed_data]))
+        in_leader_ids_to_update = "('" + "','".join(leader_ids_to_update) + "')"
 
-    def load(self, transformed_data: BQLeaderElos) -> None:
-        for bq_leader_elo in tqdm(transformed_data.elo_ratings):
-            bq_leader_elo.create_timestamp = datetime.now()
-            bq_leader_elo.upsert_to_bq(client=self.bq_client)
-        _logger.info(f"Loading to {transformed_data.elo_ratings} rows with meta {self.meta_formats} succeeded")
+        # delete all rows of meta
+        self.bq_client.query(
+            f"DELETE FROM `{table.full_table_id.split(':')[1]}` WHERE meta_format in {self.in_meta_format} and leader_id in {in_leader_ids_to_update};").result()
+        # insert all new rows
+        rows_to_insert = [json.loads(bq_leader_elo.model_dump_json()) for bq_leader_elo in transformed_data]
+        bq_insert_rows(rows_to_insert, table=table, client=self.bq_client)
+        _logger.info(f"Loading {len(transformed_data)} rows with meta {self.meta_formats} succeeded")
