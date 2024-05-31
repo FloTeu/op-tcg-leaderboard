@@ -13,6 +13,7 @@
 
 /* Apply light theme by default */
 body {
+  font-family: "Source Sans Pro", sans-serif;
   background-color: var(--background-color-light);
   color: var(--text-color-light);
 }
@@ -66,6 +67,18 @@ body {
 .item-facts li {
   margin-bottom: 5px;
   font-size: 0.9em;
+}
+
+
+.item-fact-circle {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-weight: bold;
 }
 
 /* Detect dark mode preference and apply dark theme */

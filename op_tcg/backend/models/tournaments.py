@@ -33,6 +33,13 @@ class Tournament(BQTableBaseModel):
     source: DataSource | str = Field(description="Origin of the tournament. In case of an unofficial match it can be the session id.")
     tournament_timestamp: datetime = Field(description="Scheduled tournament start set by the organizer.", alias="date")
 
+    @field_validator('phases', mode="before")
+    def parse_phases(cls, value):
+        phases_parsed = []
+        for phase in value:
+            phases_parsed.append(cls.str2dict(phase))
+        return phases_parsed
+
 
 class TournamentRecord(BaseModel):
     wins: int
@@ -58,19 +65,12 @@ class TournamentStanding(BQTableBaseModel):
     @field_validator('decklist', 'record', mode="before")
     def parse_dicts(cls, value):
         if isinstance(value, str):
-            try:
-                # Attempt to parse the string as a dictionary
-                field_dict = eval(value)
-                if not isinstance(field_dict, dict):
-                    raise ValueError("Parsed value is not a dictionary")
-                # Optionally, you can add more checks here to ensure the keys and values are correct
-                return field_dict
-            except Exception as e:
-                raise ValueError(f"Invalid decklist string: {e}")
+            return cls.str2dict(value)
         elif isinstance(value, dict):
             return value
         else:
             raise ValueError("decklist must be a dictionary or a string that represents a dictionary")
 
-
+class TournamentStandingExtended(TournamentStanding, Tournament):
+    pass
 
