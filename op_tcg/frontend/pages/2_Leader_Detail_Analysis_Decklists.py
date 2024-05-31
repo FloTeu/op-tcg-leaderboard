@@ -1,3 +1,5 @@
+import os
+
 import streamlit as st
 from pydantic import BaseModel
 
@@ -42,85 +44,6 @@ def tournament_standings2decklist_data(tournament_standings: list[TournamentStan
                         card_id2total_count=card_id2total_count,
                         card_id2avg_count_card=card_id2avg_count_card)
 
-def get_modal_style() -> str:
-    return """
-    
-/* Styles for the modal */
-.modal {
-  display: none;
-  position: fixed;
-  z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  overflow: auto;
-  background-color: var(--modal-bg-color-light);
-}
-
-.modal-content {
-  position: relative;
-  background-color: #fefefe;
-  margin: 10% auto;
-  padding: 20px;
-  border: 1px solid #888;
-  width: 80%;
-  max-width: 700px;
-}
-
-.modal-close {
-  color: #aaa;
-  float: right;
-  font-size: 28px;
-  font-weight: bold;
-}
-
-.modal-close:hover,
-.modal-close:focus {
-  color: black;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.modal-image {
-  width: 50%;
-  height: auto;
-}
-
-    """
-
-def get_modal_body() -> str:
-    return """
-    <!-- The Modal -->
-    <div id="myModal" class="modal">
-      <span class="modal-close" onclick="closeModal()">&times;</span>
-      <img class="modal-image" id="img01">
-    </div>
-    """
-
-def get_modal_script() -> str:
-    return """
-    // Get the modal
-var modal = document.getElementById("myModal");
-
-// Get the image and insert it inside the modal
-function openModal(imgElement) {
-  var modalImg = document.getElementById("img01");
-  modal.style.display = "block";
-  modalImg.src = imgElement.querySelector('img').src;
-}
-
-// Get the <span> element that closes the modal
-function closeModal() {
-  modal.style.display = "none";
-}
-
-// When the user clicks anywhere outside of the modal, close it
-window.onclick = function(event) {
-  if (event.target === modal) {
-    closeModal();
-  }
-}"""
 
 
 def display_list_view(decklist_data: DecklistData, card_ids: list[str]):
@@ -145,115 +68,36 @@ def display_list_view(decklist_data: DecklistData, card_ids: list[str]):
   </li>
 """
 
-    style = """
-    /* Define color variables for light and dark themes */
-    :root {
-      --background-color-light: #f9f9f9;
-      --border-color-light: #ccc;
-      --text-color-light: #333;
-      --modal-bg-color-light: rgba(0, 0, 0, 0.7);
-    
-      --background-color-dark: #1e1e1e;
-      --border-color-dark: #444;
-      --text-color-dark: #f1f1f1;
-      --modal-bg-color-dark: rgba(255, 255, 255, 0.7);
-    }
-    
-    /* Apply light theme by default */
-    body {
-      background-color: var(--background-color-light);
-      color: var(--text-color-light);
-    }
+    with open(os.getcwd() + "/op_tcg/frontend/styles/list_view.css", "r") as fp:
+        list_view_css = fp.read()
 
-.list-view {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
+    with open(os.getcwd() + "/op_tcg/frontend/styles/modal.css", "r") as fp:
+        modal_css = fp.read()
 
-.list-item {
-  display: flex;
-  align-items: center;
-  border-bottom: 1px solid var(--border-color-light);
-  padding: 10px;
-  background-color: var(--background-color-light);
-}
+    with open(os.getcwd() + "/op_tcg/frontend/scripts/modal.js", "r") as fp:
+        modal_js = fp.read()
 
-.list-item:last-child {
-  border-bottom: none;
-}
-
-.item-image {
-  width: 100px;
-  height: 100px;
-  margin-right: 20px;
-  border-radius: 50%;
-  overflow: hidden;
-}
-
-.item-image img {
-  width: 100%;
-  height: auto;
-}
-
-.item-details {
-  flex-grow: 1;
-}
-
-.item-title {
-  font-size: 1.2em;
-  margin: 0 0 5px;
-}
-
-.item-facts {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.item-facts li {
-  margin-bottom: 5px;
-  font-size: 0.9em;
-}
-
-/* Detect dark mode preference and apply dark theme */
-@media (prefers-color-scheme: dark) {
-  body {
-    background-color: var(--background-color-dark);
-    color: var(--text-color-dark);
-  }
-
-  .list-item {
-    border-bottom: 1px solid var(--border-color-dark);
-    background-color: var(--background-color-dark);
-  }
-
-  .modal {
-    background-color: var(--modal-bg-color-dark);
-  }
-}
-  """ + get_modal_style()
+    with open(os.getcwd() + "/op_tcg/frontend/html/modal.html", "r") as fp:
+        modal_html = fp.read()
 
     components.html(f"""
-<style> {style} </style>"
-
+<style> 
+{list_view_css}
+{modal_css} 
+</style>
+<body>
 <ul class="list-view">
   {lis}
 </ul>
 
-{get_modal_body()}
+{modal_html}
+</body>
 
 <script>
-{get_modal_script()}
+{modal_js}
 </script>
   """,
     height=600, scrolling=True)
-
-
-
-    components.html("""
-
-        """)
 
 
 def main():
@@ -279,12 +123,11 @@ def main():
             tournament_standings: list[TournamentStanding] = get_tournament_standing_data(meta_formats=selected_meta_formats, leader_id=leader_id)
             decklist_data: DecklistData = tournament_standings2decklist_data(tournament_standings)
             card_ids_sorted = sorted(decklist_data.card_id2occurrence_proportion.keys(), key=lambda d: decklist_data.card_id2occurrences[d], reverse=True)
-            card_ids_sorted = [card_id for card_id in card_ids_sorted if card_id != leader_id]
+            card_ids_filtered = [card_id for card_id in card_ids_sorted if card_id != leader_id and decklist_data.card_id2occurrence_proportion[card_id] >= 0.02]
             st.image(f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{leader_id.split('-')[0]}/{leader_id}_{OPTcgLanguage.EN.upper()}.webp",
                 width=400,  # Manually Adjust the width of the image as per requirement
             )
-            display_list_view(decklist_data, card_ids_sorted[0:40])
-            #add_modal_script()
+            display_list_view(decklist_data, card_ids_filtered)
 
 
 
