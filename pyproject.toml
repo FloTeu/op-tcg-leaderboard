@@ -10,7 +10,7 @@ packages = [{include = "op_tcg"}]
 [tool.poetry.dependencies]
 python = ">=3.11,<3.13"
 python-dotenv = "^1.0.0"
-pydantic = "^2.6.0"
+pydantic = "2.6.0"
 click = "^8.1.7"
 google-cloud-bigquery = "^3.20.1"
 pandas = "^2.2.2"
@@ -21,6 +21,7 @@ requests = "^2.31.0"
 beautifulsoup4 = "^4.12.3"
 st-theme = "^1.2.2"
 pandera = "^0.19.3"
+tqdm = "^4.66.4"
 
 
 [tool.poetry.group.crawler.dependencies]

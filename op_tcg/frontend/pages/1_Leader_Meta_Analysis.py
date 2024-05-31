@@ -7,8 +7,8 @@ from op_tcg.backend.utils.leader_fns import df_match_data2lid_dicts
 st.set_page_config(layout="wide")
 
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.leader import Leader, OPTcgColor
-from op_tcg.backend.models.matches import Match, LeaderElo
+from op_tcg.backend.models.leader import Leader, OPTcgColor, LeaderElo
+from op_tcg.backend.models.matches import Match
 from op_tcg.frontend.utils.extract import get_leader_data, get_match_data, get_leader_elo_data
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select
 from op_tcg.frontend.utils.material_ui_fns import create_image_cell, display_table, value2color_table_cell, \

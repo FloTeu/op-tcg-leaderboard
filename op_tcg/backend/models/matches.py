@@ -2,12 +2,13 @@ import pandas as pd
 import pandera as pa
 from pydantic import BaseModel, Field
 from datetime import datetime, date
-from enum import IntEnum
+from enum import IntEnum, StrEnum
 
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
 from op_tcg.backend.models.common import DataSource
 from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.leader import LeaderElo
 
 
 class MatchResult(IntEnum):
@@ -50,9 +51,3 @@ class LeaderElo(BQTableBaseModel):
     elo: int = Field(description="Elo rating of leader until a certain time/ meta format")
     start_date: date = Field(description="Date in which the elo calculation started")
     end_date: date = Field(description="Date in which the elo calculation ended")
-
-class BQLeaderElos(BaseModel):
-    elo_ratings: list[LeaderElo]
-
-    def to_dataframe(self) -> pd.DataFrame:
-        return pd.DataFrame([r.dict() for r in self.elo_ratings])

@@ -1,5 +1,7 @@
 import json
 import os
+import logging
+import sys
 from datetime import datetime, date
 from typing import Any
 
@@ -10,6 +12,7 @@ from google.cloud.bigquery import QueryJobConfig
 from op_tcg.backend.models.base import SQLTableBaseModel
 from op_tcg.backend.utils.annotations import pydantic_model_to_bq_types, pydantic_model_to_bq_schema
 
+_logger = logging.getLogger("load")
 
 def get_or_create_bq_dataset(dataset_id, client: bigquery.Client | None = None, location='europe-west3',
                              project_id: str | None = None) -> bigquery.Dataset:
@@ -30,12 +33,12 @@ def get_or_create_bq_dataset(dataset_id, client: bigquery.Client | None = None, 
     try:
         # Try to get the dataset (will raise NotFound if it does not exist)
         dataset = client.get_dataset(dataset_id)
-        print(f"Dataset {dataset_id} already exists.")
+        _logger.debug(f"Dataset {dataset_id} already exists.")
     except NotFound:
         # If the dataset does not exist, create it
         dataset.location = location
         dataset = client.create_dataset(dataset, timeout=30)
-        print(f"Dataset {dataset_id} created.")
+        _logger.info(f"Dataset {dataset_id} created.")
 
     return dataset
 
@@ -68,13 +71,13 @@ def get_or_create_table(model: type[SQLTableBaseModel], dataset_id: str | None =
     try:
         # Try to get the table (will raise NotFound if it does not exist)
         table = client.get_table(table_ref)
-        print(f"Table {table_id} already exists.")
+        _logger.debug(f"Table {table_id} already exists.")
     except NotFound:
         # If the table does not exist, create it
         schema = pydantic_model_to_bq_schema(model)
         table = bigquery.Table(table_ref, schema=schema)
         table = client.create_table(table)
-        print(f"Table {table_id} created.")
+        _logger.info(f"Table {table_id} created.")
 
     return table
 
@@ -99,7 +102,7 @@ def bq_insert_rows(rows_to_insert: list[dict[str, Any]], table: bigquery.Table,
 
     errors = client.insert_rows_json(table_id, rows_to_insert)  # Make an API request.
     if errors == []:
-        print("New rows have been added.")
+        _logger.debug("New rows have been added.")
     else:
         raise ValueError("Encountered errors while inserting rows: {}".format(errors))
 
@@ -157,7 +160,7 @@ def bq_upsert_row(bq_model: SQLTableBaseModel, client: bigquery.Client | None = 
     try:
         # Run the query and wait for it to complete
         query_job.result()
-        print("Row upserted successfully.")
+        _logger.debug("Row upserted successfully.")
     except Exception as e:
-        print(f"An error occurred: {e}")
+        _logger.exception(f"An error occurred: {e}")
 

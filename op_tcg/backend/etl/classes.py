@@ -1,22 +1,25 @@
-import os
-import time
+import json
+import logging
+import sys
 
 import pandas as pd
 
 from op_tcg.backend.elo import EloCreator
 from op_tcg.backend.etl.base import AbstractETLJob, E, T
-from op_tcg.backend.etl.load import get_or_create_table
+from op_tcg.backend.etl.load import get_or_create_table, bq_insert_rows
 from op_tcg.backend.etl.transform import BQMatchCreator
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.input import AllLeaderMetaDocs, MetaFormat, LimitlessLeaderMetaDoc
-from op_tcg.backend.models.matches import BQMatches, Match, BQLeaderElos, LeaderElo
+from op_tcg.backend.models.matches import BQMatches, Match
+from op_tcg.backend.models.leader import LeaderElo
 from op_tcg.backend.etl.extract import read_json_files
 from pathlib import Path
 from google.cloud import bigquery
 from dotenv import load_dotenv
 
 load_dotenv()
-
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+_logger = logging.getLogger("etl_classes")
 
 class LocalMatchesToBigQueryEtlJob(AbstractETLJob[AllLeaderMetaDocs, BQMatches]):
     def __init__(self, data_dir: Path, meta_formats: list[MetaFormat] | None = None, official: bool=True):
@@ -59,12 +62,12 @@ class LocalMatchesToBigQueryEtlJob(AbstractETLJob[AllLeaderMetaDocs, BQMatches])
             """)
         # upload data of meta_formats to BQ
         self.bq_client.load_table_from_dataframe(df, table)
+        _logger.info(f"Loading to BQ table {table.dataset_id}.{table.table_id} succeeded")
 
 
-
-class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
+class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, list[LeaderElo]]):
     def __init__(self, meta_formats: list[MetaFormat], matches_csv_file_path: Path | str | None = None):
-        self.bq_client = bigquery.Client()
+        self.bq_client = bigquery.Client(location="europe-west3")
         self.meta_formats = meta_formats
         self.in_meta_format = "('" + "','".join(self.meta_formats) + "')"
         self.matches_csv_file_path = matches_csv_file_path
@@ -77,53 +80,42 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
             df = pd.read_csv(self.matches_csv_file_path)
         else:
             query = f"SELECT * FROM {BQDataset.MATCHES}.{Match.__tablename__} WHERE meta_format in {self.in_meta_format}"
+            _logger.info(f"Query BQ with '{query}'")
             df = self.bq_client.query_and_wait(query).to_dataframe()
+            _logger.info(f"Extracted {len(df)} rows from bq {BQDataset.MATCHES}.{Match.__tablename__}")
         matches: list[Match] = []
         for i, df_row in df.iterrows():
             matches.append(Match(**df_row.to_dict()))
         return BQMatches(matches=matches)
 
 
-    def transform(self, all_matches: BQMatches) -> BQLeaderElos:
+    def transform(self, all_matches: BQMatches) -> list[LeaderElo]:
         df_all_matches = all_matches.to_dataframe()
         elo_ratings: list[LeaderElo] = []
         def calculate_all_elo_ratings(df_matches):
             meta_format = df_matches.meta_format.unique().tolist()
             for only_official in [True, False]:
-                print(f"Calculate Elo for meta {meta_format} and only_official {only_official}")
+                _logger.info(f"Calculate Elo for meta {meta_format} and only_official {only_official}")
                 if only_official:
                     elo_creator = EloCreator(df_matches.query("official"), only_official=True)
                 else:
                     elo_creator = EloCreator(df_matches, only_official=False)
                 elo_creator.calculate_elo_ratings()
-                elo_ratings.extend(elo_creator.to_bq_leader_elos().elo_ratings)
-        df_all_matches.groupby("meta_format").apply(calculate_all_elo_ratings)
+                elo_ratings.extend(elo_creator.to_bq_leader_elos())
+        if len(df_all_matches) > 0:
+            df_all_matches.groupby("meta_format").apply(calculate_all_elo_ratings)
+        return elo_ratings
 
-        return BQLeaderElos(elo_ratings=elo_ratings)
+    def load(self, transformed_data: list[LeaderElo]) -> None:
+        # ensure bq table exists
+        table = get_or_create_table(LeaderElo)
+        leader_ids_to_update = list(set([d.leader_id for d in transformed_data]))
+        in_leader_ids_to_update = "('" + "','".join(leader_ids_to_update) + "')"
 
-    def load(self, transformed_data: BQLeaderElos) -> None:
-        table_tmp = get_or_create_table(model=LeaderElo, table_id=f"{LeaderElo.__tablename__}_tmp", dataset_id="matches", client=self.bq_client)
-        table = get_or_create_table(model=LeaderElo, table_id=LeaderElo.__tablename__, dataset_id="matches", client=self.bq_client)
-        df = transformed_data.to_dataframe()
-        if len(df) > 0:
-            # create tmp table with new data
-            self.bq_client.load_table_from_dataframe(df, table_tmp)
-            # Insert all uneffected elo from other meta formats
-            query_job = self.bq_client.query(f"""
-            INSERT INTO {table_tmp.dataset_id}.{table_tmp.table_id}
-            SELECT *
-            FROM {table.dataset_id}.{table.table_id}
-            WHERE meta_format not in {self.in_meta_format};
-            """)
-            assert query_job.errors is None
-
-            # wait some seconds to be sure data is ready in tmp table
-            time.sleep(5)
-            # Overwrite existing data with tmp table
-            self.bq_client.query(f"""
-            CREATE OR REPLACE TABLE {table.dataset_id}.{table.table_id} AS
-            SELECT *
-            FROM {table_tmp.dataset_id}.{table_tmp.table_id}
-            """)
-            # delete tmp table
-            self.bq_client.delete_table(table_tmp)
+        # delete all rows of meta
+        self.bq_client.query(
+            f"DELETE FROM `{table.full_table_id.split(':')[1]}` WHERE meta_format in {self.in_meta_format} and leader_id in {in_leader_ids_to_update};").result()
+        # insert all new rows
+        rows_to_insert = [json.loads(bq_leader_elo.model_dump_json()) for bq_leader_elo in transformed_data]
+        bq_insert_rows(rows_to_insert, table=table, client=self.bq_client)
+        _logger.info(f"Loading {len(transformed_data)} rows with meta {self.meta_formats} succeeded")
