@@ -27,9 +27,9 @@ poetry shell
 ```
 
 ## Crawling
-Get raw data from limitless
+Get tournament data from limitless
 ```
-optcg crawl limitless matches
+optcg crawl limitless tournaments
 ```
 
 
@@ -53,4 +53,5 @@ The app is running in Google cloud and can be initialized by terraform.
 * Activate Cloud Functions API
 * Activate Cloud Run API
 * Activate Cloud Build API 
-* Activate Cloud Scheduler API
+* Activate Cloud Scheduler API 
+* Setup IAM service account with BigQuery read/write access
