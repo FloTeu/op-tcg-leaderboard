@@ -27,9 +27,9 @@ poetry shell
 ```
 
 ## Crawling
-Get raw data from limitless
+Get tournament data from limitless
 ```
-optcg crawl limitless matches
+optcg crawl limitless tournaments
 ```
 
 

@@ -47,6 +47,10 @@ resource "google_pubsub_topic" "elo_update_pubsub_topic" {
   name = "elo-update-pub-sub"
 }
 
+resource "google_pubsub_topic" "crawl_tournaments_pubsub_topic" {
+  name = "crawl-tournaments-pub-sub"
+}
+
 # Set IAM binding for the Cloud Function to be invoked by Pub/Sub
 resource "google_pubsub_topic_iam_binding" "elo_updatepubsub_invoker" {
   topic = google_pubsub_topic.elo_update_pubsub_topic.name
@@ -151,6 +155,45 @@ resource "google_cloudfunctions2_function" "single-elo" {
   }
 }
 
+
+resource "google_cloudfunctions2_function" "crawl-tournaments" {
+  name        = "crawl-tournaments"
+  location    = var.region
+  description = "Inserts latest tournament data to BQ"
+
+  build_config {
+    runtime     = "python312"
+    entry_point = "run_crawl_tournament" # Set the entry point
+    source {
+      storage_source {
+        bucket = google_storage_bucket.default.name
+        object = google_storage_bucket_object.object.name
+      }
+    }
+    # triggers redeploy
+    environment_variables = {
+        DEPLOYED_AT = timestamp()
+    }
+  }
+
+  event_trigger {
+    trigger_region = var.region
+    event_type = "google.cloud.pubsub.topic.v1.messagePublished"
+    pubsub_topic = google_pubsub_topic.crawl_tournaments_pubsub_topic.id
+    retry_policy = "RETRY_POLICY_DO_NOT_RETRY"
+  }
+
+  service_config {
+    max_instance_count = 10
+    available_memory   = "512M"
+    timeout_seconds    = 540
+    service_account_email = google_service_account.cloud_function_sa.email
+    environment_variables = {
+        LIMITLESS_API_TOKEN = var.limitless_api_token
+    }
+  }
+}
+
 resource "google_cloud_run_service_iam_member" "member" {
   location = google_cloudfunctions2_function.default.location
   service  = google_cloudfunctions2_function.default.name
@@ -180,10 +223,10 @@ output "function_uri" {
 }
 
 # cloud scheduler
-resource "google_cloud_scheduler_job" "job" {
+resource "google_cloud_scheduler_job" "elo-update-job" {
   name             = "elo-update-job"
   region           = var.region
-  description      = "run cloud function http job"
+  description      = "run cloud function pub/sub job to start elo update"
   schedule         = "0 0 */1 * *"
   time_zone        = "Europe/Berlin"
   attempt_deadline = "320s"
@@ -197,5 +240,23 @@ resource "google_cloud_scheduler_job" "job" {
     topic_name = google_pubsub_topic.all_elo_update_pubsub_topic.id
     data       = base64encode("{\"meta_formats\":[]}")
   }
+}
 
+
+resource "google_cloud_scheduler_job" "crawl-tournament-job" {
+  name             = "crawl-tournament-job"
+  region           = var.region
+  description      = "run cloud function pub/sub job to start tournament update"
+  schedule         = "0 22 */1 * *"
+  time_zone        = "Europe/Berlin"
+  attempt_deadline = "320s"
+
+  retry_config {
+    retry_count = 1
+  }
+
+  pubsub_target {
+    topic_name = google_pubsub_topic.crawl_tournaments_pubsub_topic.id
+    data       = base64encode("{\"num_tournament_limit\":30}")
+  }
 }

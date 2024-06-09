@@ -105,18 +105,19 @@ class LimitlessTournamentSpider(scrapy.Spider):
             player_id2leader_id[standing["player"]] = leader_id
 
 
-        meta_format = self.get_meta_format(all_decklists,
+        meta_format: MetaFormat = self.get_meta_format(all_decklists,
             tournament_date = datetime.strptime(response.meta["date"], "%Y-%m-%dT%H:%M:%S.%fZ"))
-        url = f"https://play.limitlesstcg.com/api/tournaments/{response.meta['id']}/pairings?key={self.api_token}"
-        # only add matches, if all players have a leader information
-        if not any(leader_id == None for leader_id in player_id2leader_id.values()):
-            yield scrapy.Request(url=url, callback=self.parse_tournament_pairings,
-                                 meta={"player_id2leader_id": player_id2leader_id, "meta_format": meta_format,
-                                       "tournament_standings": tournament_standings, **response.meta})
-        else:
-            tournament = Tournament(source=DataSource.LIMITLESS,
-                                    meta_format=meta_format, **response.meta)
-            yield self.get_tournamend_item(tournament=tournament, tournament_standings=tournament_standings)
+        if meta_format in self.meta_formats:
+            url = f"https://play.limitlesstcg.com/api/tournaments/{response.meta['id']}/pairings?key={self.api_token}"
+            # only add matches, if all players have a leader information
+            if not any(leader_id == None for leader_id in player_id2leader_id.values()):
+                yield scrapy.Request(url=url, callback=self.parse_tournament_pairings,
+                                     meta={"player_id2leader_id": player_id2leader_id, "meta_format": meta_format,
+                                           "tournament_standings": tournament_standings, **response.meta})
+            else:
+                tournament = Tournament(source=DataSource.LIMITLESS,
+                                        meta_format=meta_format, **response.meta)
+                yield self.get_tournamend_item(tournament=tournament, tournament_standings=tournament_standings)
 
 
 
