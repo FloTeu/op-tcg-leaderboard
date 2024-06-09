@@ -1,6 +1,10 @@
 # op-tcg
 Unofficial one piece tcg leaderboard with extended analytic features. 
 
+## Application
+The app is currently deployed in the community cloud of streamlit.
+PROD: https://optcg-leaderboard.streamlit.app/
+DEV: https://optcg-leaderboard-dev.streamlit.app/
 
 ## Local Setup
 

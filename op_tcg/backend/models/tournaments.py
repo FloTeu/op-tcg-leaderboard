@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from datetime import datetime, date
 from enum import IntEnum, StrEnum
 
@@ -33,6 +33,13 @@ class Tournament(BQTableBaseModel):
     source: DataSource | str = Field(description="Origin of the tournament. In case of an unofficial match it can be the session id.")
     tournament_timestamp: datetime = Field(description="Scheduled tournament start set by the organizer.", alias="date")
 
+    @field_validator('phases', mode="before")
+    def parse_phases(cls, value):
+        phases_parsed = []
+        for phase in value:
+            phases_parsed.append(cls.str2dict(phase))
+        return phases_parsed
+
 
 class TournamentRecord(BaseModel):
     wins: int
@@ -40,6 +47,10 @@ class TournamentRecord(BaseModel):
     ties: int
 
 class TournamentStanding(BQTableBaseModel):
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+
     _dataset_id: str = BQDataset.MATCHES
     tournament_id: str = Field(description="Unique id of single tournament", primary_key=True)
     player_id: str = Field(description="Username/ID used to uniquely identify the player. Does not change between tournaments.", alias="player", primary_key=True)
@@ -51,5 +62,15 @@ class TournamentStanding(BQTableBaseModel):
     decklist: dict[str, int] | None = Field(description="Used decklist in this tournament. The key is the card id e.g. OP01-006 and the value is the number of cards in the deck")
     drop: int | None = Field(description="If the player dropped from the tournament, this field contains the round during which they did so.")
 
+    @field_validator('decklist', 'record', mode="before")
+    def parse_dicts(cls, value):
+        if isinstance(value, str):
+            return cls.str2dict(value)
+        elif isinstance(value, dict):
+            return value
+        else:
+            raise ValueError("decklist must be a dictionary or a string that represents a dictionary")
 
+class TournamentStandingExtended(TournamentStanding, Tournament):
+    pass
 

@@ -10,7 +10,7 @@ from op_tcg.backend.etl.load import get_or_create_table, bq_insert_rows
 from op_tcg.backend.etl.transform import BQMatchCreator
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.input import AllLeaderMetaDocs, MetaFormat, LimitlessLeaderMetaDoc
-from op_tcg.backend.models.matches import BQMatches, Match, BQLeaderElos
+from op_tcg.backend.models.matches import BQMatches, Match
 from op_tcg.backend.models.leader import LeaderElo
 from op_tcg.backend.etl.extract import read_json_files
 from pathlib import Path
@@ -65,7 +65,7 @@ class LocalMatchesToBigQueryEtlJob(AbstractETLJob[AllLeaderMetaDocs, BQMatches])
         _logger.info(f"Loading to BQ table {table.dataset_id}.{table.table_id} succeeded")
 
 
-class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, BQLeaderElos]):
+class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, list[LeaderElo]]):
     def __init__(self, meta_formats: list[MetaFormat], matches_csv_file_path: Path | str | None = None):
         self.bq_client = bigquery.Client(location="europe-west3")
         self.meta_formats = meta_formats

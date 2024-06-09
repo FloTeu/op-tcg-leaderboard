@@ -8,7 +8,7 @@ from uuid import uuid4
 from op_tcg.backend.etl.load import bq_insert_rows, get_or_create_table
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import OPTcgColor, TournamentWinner, LeaderElo
-from op_tcg.backend.models.matches import BQLeaderElos, Match, MatchResult
+from op_tcg.backend.models.matches import Match, MatchResult
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.frontend.utils.session import get_session_id
 from op_tcg.frontend.sidebar import display_meta_select, display_only_official_toggle, display_release_meta_select, \
@@ -249,7 +249,7 @@ def main():
 
     if sorted_leader_elo_data:
         # display table.
-        df_leader_elos = BQLeaderElos(elo_ratings=sorted_leader_elo_data).to_dataframe()
+        df_leader_elos = pd.DataFrame([r.dict() for r in sorted_leader_elo_data])
         # only selected meta data
         df_leader_elos = df_leader_elos[df_leader_elos["only_official"] == only_official]
         display_leaderboard_table(meta_formats[0], df_leader_elos, df_meta_match_data, df_tournament_wins, match_count_min=match_count_min, match_count_max=match_count_max if match_count_max != display_max_match_count else None, sort_by=sort_by)

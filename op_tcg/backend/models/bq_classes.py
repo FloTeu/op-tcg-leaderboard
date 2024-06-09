@@ -19,6 +19,17 @@ class BQTableBaseModel(SQLTableBaseModel, ABC):
     _dataset_id: str
     create_timestamp: datetime = Field(default_factory=datetime.now, description="Creation timestamp when the insert in BQ happened")
 
+    @classmethod
+    def str2dict(cls, value: str) -> dict:
+        try:
+            # Attempt to parse the string as a dictionary
+            field_dict = eval(value)
+            if not isinstance(field_dict, dict):
+                raise ValueError("Parsed value is not a dictionary")
+            # Optionally, you can add more checks here to ensure the keys and values are correct
+            return field_dict
+        except Exception as e:
+            raise ValueError(f"Invalid decklist string: {e}")
 
     @classmethod
     def paSchema(cls):

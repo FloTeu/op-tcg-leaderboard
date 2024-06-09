@@ -10,7 +10,7 @@ packages = [{include = "op_tcg"}]
 [tool.poetry.dependencies]
 python = ">=3.11,<3.13"
 python-dotenv = "^1.0.0"
-pydantic = "^2.6.0"
+pydantic = "2.6.0"
 click = "^8.1.7"
 google-cloud-bigquery = "^3.20.1"
 pandas = "^2.2.2"
