@@ -5,7 +5,7 @@ import scrapy
 import json
 
 from google.cloud import bigquery
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from op_tcg.backend.crawling.items import TournamentItem
 from op_tcg.backend.etl.load import get_or_create_table
@@ -98,10 +98,12 @@ class LimitlessTournamentSpider(scrapy.Spider):
                                              decklist["character"] + decklist["event"] + decklist["stage"]}}
                 assert sum(decklist.values()) == 51, "Sum of card in deck should be 51"
                 all_decklists.append(decklist)
-
-            tournament_standings.append(TournamentStanding(tournament_id=response.meta["id"], leader_id=leader_id,
+            try:
+                tournament_standings.append(TournamentStanding(tournament_id=response.meta["id"], leader_id=leader_id,
                                                      decklist=decklist,
                                                      **{k: v for k, v in standing.items() if k not in ["decklist"]}))
+            except ValidationError as e:
+                print(e)
             player_id2leader_id[standing["player"]] = leader_id
 
 
