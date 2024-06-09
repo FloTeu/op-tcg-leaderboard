@@ -37,7 +37,12 @@ class Tournament(BQTableBaseModel):
     def parse_phases(cls, value):
         phases_parsed = []
         for phase in value:
-            phases_parsed.append(cls.str2dict(phase))
+            if isinstance(phase, dict):
+                phases_parsed.append(phase)
+            elif isinstance(phase, str):
+                phases_parsed.append(cls.str2dict(phase))
+            else:
+                raise NotImplementedError
         return phases_parsed
 
 
@@ -66,7 +71,7 @@ class TournamentStanding(BQTableBaseModel):
     def parse_dicts(cls, value):
         if isinstance(value, str):
             return cls.str2dict(value)
-        elif isinstance(value, dict):
+        elif isinstance(value, dict) or value is None:
             return value
         else:
             raise ValueError("decklist must be a dictionary or a string that represents a dictionary")

@@ -24,7 +24,7 @@ class LimitlessTournamentSpider(scrapy.Spider):
     num_tournament_limit: int
 
     def get_already_crawled_tournament_ids(self) -> dict[str, bool]:
-        """returns tournaments allready crawled and if they had decklists available back than"""
+        """returns tournaments already crawled and if they had decklists available back than"""
         tournament_id2decklists: dict[str, bool] = {}
         for tournament_id in self.bq_client.query(f"SELECT id, decklists FROM `{self.tournament_table.full_table_id.replace(':','.')}`").result():
             tournament_id2decklists[tournament_id["id"]] = tournament_id["decklists"]
