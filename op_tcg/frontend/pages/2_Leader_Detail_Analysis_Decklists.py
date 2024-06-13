@@ -126,8 +126,10 @@ def main():
                 for l
                 in selected_leader_elo_data]))
         with st.sidebar:
+            qp_lid = st.query_params.get('lid', None)
+            default = f"{lid2ldata(qp_lid).name} ({qp_lid})" if qp_lid else available_leader_ids[0]
             selected_leader_names: list[str] = display_leader_select(available_leader_ids=available_leader_ids,
-                                                                     multiselect=False)
+                                                                     multiselect=False, default=default)
             oldest_release_data: date = datetime.now().date()
             for meta_format in selected_meta_formats:
                 release_date = meta_format2release_datetime(meta_format)

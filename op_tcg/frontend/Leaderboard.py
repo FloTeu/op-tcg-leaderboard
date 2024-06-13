@@ -29,9 +29,7 @@ ST_THEME = st_theme() or {"base": "dark"}
 from timer import timer
 
 with st.spinner("Launch App"):
-    with timer() as t:
-        init_load_data()
-        print("init_load_data", t.elapse)
+    init_load_data()
 
 def leader_id2elo_chart(leader_id: str, df_leader_elos):
     # Streamlit Elements includes 45 dataviz components powered by Nivo.
@@ -102,7 +100,7 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
     display_columns = ["Name", "Release Set", LeaderboardSortBy.TOURNAMENT_WINS, "Match Count", LeaderboardSortBy.WIN_RATE, "Elo"]
     #df_leader_elos["Meta"] = df_leader_elos["meta_format"].apply(lambda meta_format: meta_format)
     df_leader_elos["Release Set"] = df_leader_elos["leader_id"].apply(lambda lid: lid.split("-")[0])
-    df_leader_elos["Name"] = df_leader_elos["leader_id"].apply(lambda lid: lid2ldata(lid).name.replace('"', " ").replace('.', " "))
+    df_leader_elos["Name"] = df_leader_elos["leader_id"]#.apply(lambda lid: lid2ldata(lid).name.replace('"', " ").replace('.', " "))
     df_leader_elos["Match Count"] = df_leader_elos["leader_id"].apply(lambda lid: lid2match_count(lid))
     df_leader_elos[LeaderboardSortBy.WIN_RATE] = df_leader_elos["leader_id"].apply(lambda lid: lid2win_rate(lid))
     df_leader_elos[LeaderboardSortBy.TOURNAMENT_WINS] = df_leader_elos["leader_id"].apply(lambda lid: lid2tournament_wins(lid))
@@ -142,6 +140,8 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
                 if col == "Elo":
                     max_elo = df_leader_elos_display[col].max()
                     df_leader_elos_display[col] = df_leader_elos_display[col].apply(lambda elo: value2color_table_cell(elo, max=max_elo, color_switch_threshold=1000 if 1000 < max_elo else (max_elo*(7/8))))
+                elif col == "Name":
+                    df_leader_elos_display[col] = df_leader_elos_display[col].apply(lambda x: mui.TableCell(mui.Link(str(lid2ldata(x).name.replace('"', " ").replace('.', " ")), href=f"/Leader_Detail_Analysis_Decklists?lid={x}", target="_blank")))
                 else:
                     df_leader_elos_display[col] = df_leader_elos_display[col].apply(lambda x: mui.TableCell(str(x)))
             df_leader_elos_display["Elo Chart"] = df_leader_elos["leader_id"].apply(
@@ -222,7 +222,6 @@ def upload_match_dialog():
 
 def main():
     # display data
-    print("Display header")
     st.header("One Piece TCG Elo Leaderboard")
 
     with st.sidebar:

@@ -47,7 +47,8 @@ def display_leader_select(available_leader_ids: list[str] | None = None, multise
     if multiselect:
         return st.multiselect(label, available_leader_ids, default=default, key=key)
     else:
-        leader = st.selectbox(label, available_leader_ids, index=None, key=key)
+        index = available_leader_ids.index(default) if default else None
+        leader = st.selectbox(label, available_leader_ids, index=index, key=key)
         return None if leader is None else [leader]
 
 def display_match_result_toggle() -> bool:
