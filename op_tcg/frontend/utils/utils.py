@@ -14,7 +14,7 @@ bq_client = bigquery.Client(credentials=credentials)
 storage_client = storage.Client(credentials=credentials)
 
 
-@st.cache_data(ttl=60*60)
+@st.cache_data(ttl=60*60, show_spinner=False)
 def run_bq_query(query: str) -> list[dict[str, Any]]:
     """Runs a bigquery query
     Uses st.cache_data to only rerun when the query changes or after 60 min.

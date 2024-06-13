@@ -1,10 +1,10 @@
 import pandas as pd
 import streamlit as st
 
-st.set_page_config(layout="wide")
 from datetime import datetime, date
 from uuid import uuid4
 
+from op_tcg.frontend.utils.launch import init_load_data
 from op_tcg.backend.etl.load import bq_insert_rows, get_or_create_table
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import OPTcgColor, TournamentWinner, LeaderElo
@@ -22,9 +22,16 @@ from op_tcg.frontend.utils.utils import bq_client
 
 from streamlit_elements import elements, dashboard, mui, nivo
 from streamlit_theme import st_theme
+
+st.set_page_config(layout="wide")
 ST_THEME = st_theme() or {"base": "dark"}
 
 from timer import timer
+
+with st.spinner("Launch App"):
+    with timer() as t:
+        init_load_data()
+        print("init_load_data", t.elapse)
 
 def leader_id2elo_chart(leader_id: str, df_leader_elos):
     # Streamlit Elements includes 45 dataviz components powered by Nivo.
@@ -217,6 +224,7 @@ def main():
     # display data
     print("Display header")
     st.header("One Piece TCG Elo Leaderboard")
+
     with st.sidebar:
         meta_formats: list[MetaFormat] = display_meta_select(multiselect=False)
         release_meta_formats: list[MetaFormat] | None = display_release_meta_select(multiselect=True)
