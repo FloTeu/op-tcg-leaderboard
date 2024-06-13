@@ -39,7 +39,7 @@ def display_match_count_slider_slider(min=0, max=20000):
 def display_only_official_toggle() -> bool:
     return st.toggle("Only Official", value=True)
 
-def display_sortby_select() -> bool:
+def display_sortby_select() -> LeaderboardSortBy:
     return st.selectbox("Sort By", LeaderboardSortBy.to_list())
 
 def display_leader_select(available_leader_ids: list[str] | None = None, multiselect: bool=True, default: list[str] = None, label: str="Leader", key: str|None=None) -> list[str] | None:

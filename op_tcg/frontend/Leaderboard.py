@@ -111,7 +111,15 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
         df_leader_elos = df_leader_elos.loc[df_leader_elos["Match Count"] < match_count_max]
 
     # sort table
-    df_leader_elos = df_leader_elos.sort_values(sort_by, ascending=False).reset_index()
+    if sort_by == LeaderboardSortBy.TOURNAMENT_WINS:
+        # Custom sorting key
+        df_leader_elos['sort_key'] = df_leader_elos.apply(lambda row: (row[sort_by] > 0, row[sort_by], row[LeaderboardSortBy.ELO]), axis=1)
+        # Sort the DataFrame using the custom sort key
+        df_leader_elos = df_leader_elos.sort_values(by='sort_key', ascending=False).reset_index()
+        # Drop the temporary sort key column
+        df_leader_elos = df_leader_elos.drop(columns=['sort_key'])
+    else:
+        df_leader_elos = df_leader_elos.sort_values(sort_by, ascending=False).reset_index()
 
     with elements("dashboard"):
         # Layout for every element in the dashboard
