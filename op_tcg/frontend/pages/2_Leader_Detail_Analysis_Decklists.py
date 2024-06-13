@@ -128,7 +128,7 @@ def main():
         with st.sidebar:
             qp_lid = st.query_params.get('lid', None)
             default = f"{lid2ldata(qp_lid).name} ({qp_lid})" if qp_lid else available_leader_ids[0]
-            selected_leader_names: list[str] = display_leader_select(available_leader_ids=available_leader_ids,
+            selected_leader_name: str = display_leader_select(available_leader_ids=available_leader_ids,
                                                                      multiselect=False, default=default)
             oldest_release_data: date = datetime.now().date()
             for meta_format in selected_meta_formats:
@@ -137,8 +137,8 @@ def main():
                     oldest_release_data = release_date.date()
             start_date: date = st.date_input("Start Date", oldest_release_data)
 
-        if selected_leader_names:
-            leader_id: list[str] = [ln.split("(")[1].strip(")") for ln in selected_leader_names][0]
+        if selected_leader_name:
+            leader_id: str = selected_leader_name.split("(")[1].strip(")")
             tournament_standings: list[TournamentStandingExtended] = get_tournament_standing_data(meta_formats=selected_meta_formats, leader_id=leader_id)
             # filter by start date
             tournament_standings = [tstand for tstand in tournament_standings if tstand.tournament_timestamp.date() >= start_date]

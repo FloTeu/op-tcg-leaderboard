@@ -182,9 +182,9 @@ def upload_match_dialog():
         match_day: date = st.date_input("Match Day", value=today_date, max_value=today_date)
         match_datetime: datetime = datetime.combine(match_day, datetime.now().time())
 
-        selected_winner_leader_name: str | None = display_leader_select(available_leader_ids=available_leader_names, multiselect=False, label="Winner Leader", key="match_leader_id")[0]
+        selected_winner_leader_name: str | None = display_leader_select(available_leader_ids=available_leader_names, multiselect=False, label="Winner Leader", key="match_leader_id")
         selected_winner_leader_id: str | None = selected_winner_leader_name.split("(")[1].strip(")") if selected_winner_leader_name is not None else None
-        selected_loser_leader_name: str | None = display_leader_select(available_leader_ids=available_leader_names, multiselect=False, label="Looser Leader", key="match_opponentleader_id")[0]
+        selected_loser_leader_name: str | None = display_leader_select(available_leader_ids=available_leader_names, multiselect=False, label="Looser Leader", key="match_opponentleader_id")
         selected_loser_leader_id: str | None = selected_loser_leader_name.split("(")[1].strip(")") if selected_loser_leader_name is not None else None
         is_draw = st.checkbox("Is draw", value=False)
 

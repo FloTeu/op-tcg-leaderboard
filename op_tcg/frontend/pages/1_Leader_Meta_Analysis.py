@@ -254,7 +254,7 @@ def main():
                 for l
                 in sorted_leader_elo_data]))
         with st.sidebar:
-            selected_leader_names: list[str] = display_leader_select(available_leader_ids=available_leader_ids, default=available_leader_ids[0:5])
+            selected_leader_names: list[str] = display_leader_select(available_leader_ids=available_leader_ids, multiselect=True, default=available_leader_ids[0:5])
         if len(selected_leader_names) < 2:
             st.warning("Please select at least two leaders")
         else:
