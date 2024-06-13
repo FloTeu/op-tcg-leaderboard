@@ -83,7 +83,7 @@ def leader_id2elo_chart(leader_id: str, df_leader_elos):
     return mui.Box(radar_plot, sx={"height": 120, "width": 190})
 
 
-def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.DataFrame, df_meta_win_rate_data: LeaderWinRate.paSchema(), df_tournament_wins: pd.DataFrame, match_count_min: int=None, match_count_max: int=None, sort_by: LeaderboardSortBy = "elo"):
+def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.DataFrame, df_meta_win_rate_data: LeaderWinRate.paSchema(), df_tournament_wins: TournamentWinner.paSchema(), match_count_min: int=None, match_count_max: int=None, sort_by: LeaderboardSortBy = "elo"):
     def lid2match_count(leader_id: str) -> int:
         return df_meta_win_rate_data.query(f"leader_id == '{leader_id}'")["total_matches"].sum()
     def lid2win_rate(leader_id: str) -> str:
@@ -92,7 +92,7 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
         return f'{int(float("%.2f" % weighted_average) * 100)}%'
 
     def lid2tournament_wins(leader_id: str) -> int:
-        return df_tournament_wins.query(f"leader_id == '{leader_id}'")["count"].sum()
+        return df_tournament_wins.query(f"leader_id == '{leader_id}'")["win_count"].sum()
 
     # data preprocessing
     all_meta_formats = MetaFormat.to_list()
@@ -235,45 +235,32 @@ def main():
         sort_by: LeaderboardSortBy = display_sortby_select()
 
     # get data
-
-    with timer() as t:
-        leader_elos: list[LeaderElo] = get_leader_elo_data()
-        print("get_leader_elo_data", t.elapse)
-
-    with timer() as t:
-        leader_tournament_wins: list[TournamentWinner] = get_leader_tournament_wins(meta_formats=meta_formats, only_official=only_official)
-        print("get_leader_tournament_wins", t.elapse)
+    leader_elos: list[LeaderElo] = get_leader_elo_data()
+    leader_tournament_wins: list[TournamentWinner] = get_leader_tournament_wins(meta_formats=meta_formats)
 
     # filter release_meta_formats
-    with timer() as t:
-        if release_meta_formats:
-            leader_elos: list[LeaderElo] = [lelo for lelo in leader_elos if lid2ldata(lelo.leader_id).release_meta in release_meta_formats]
-        if selected_leader_colors:
-            leader_elos: list[LeaderElo] = [lelo for lelo in leader_elos if any(lcolor in selected_leader_colors for lcolor in lid2ldata(lelo.leader_id).colors)]
+    if release_meta_formats:
+        leader_elos: list[LeaderElo] = [lelo for lelo in leader_elos if lid2ldata(lelo.leader_id).release_meta in release_meta_formats]
+    if selected_leader_colors:
+        leader_elos: list[LeaderElo] = [lelo for lelo in leader_elos if any(lcolor in selected_leader_colors for lcolor in lid2ldata(lelo.leader_id).colors)]
 
-        sorted_leader_elo_data: list[LeaderElo] = sorted(leader_elos, key=lambda x: x.elo,
-                                                         reverse=True)
-        print("filter release_meta_formats", t.elapse)
+    sorted_leader_elo_data: list[LeaderElo] = sorted(leader_elos, key=lambda x: x.elo,
+                                                     reverse=True)
 
     selected_meta_leader_ids: list[str] = [lelo.leader_id for lelo in leader_elos]
-    with timer() as t:
-        selected_meta_win_rate_data: list[LeaderWinRate] = get_leader_win_rate(meta_formats=meta_formats,
-                                                                               leader_ids=selected_meta_leader_ids)
-        print("get_leader_win_rate", t.elapse)
-    with timer() as t:
-        df_meta_win_rate_data = pd.DataFrame([lwr.dict() for lwr in selected_meta_win_rate_data if (lwr.only_official if only_official else True)])
-        df_tournament_wins = pd.DataFrame([twin.dict() for twin in leader_tournament_wins])
+    selected_meta_win_rate_data: list[LeaderWinRate] = get_leader_win_rate(meta_formats=meta_formats,
+                                                                           leader_ids=selected_meta_leader_ids)
+    df_meta_win_rate_data = pd.DataFrame([lwr.dict() for lwr in selected_meta_win_rate_data if (lwr.only_official if only_official else True)])
+    df_tournament_wins = pd.DataFrame([twin.dict() for twin in leader_tournament_wins if (twin.only_official if only_official else True)])
 
     if st.button("Upload Match"):
         upload_match_dialog()
     if sorted_leader_elo_data:
-        with timer() as t:
-            # display table.
-            df_leader_elos = pd.DataFrame([r.dict() for r in sorted_leader_elo_data])
-            # only selected meta data
-            df_leader_elos = df_leader_elos[df_leader_elos["only_official"] == only_official]
-            display_leaderboard_table(meta_formats[0], df_leader_elos, df_meta_win_rate_data, df_tournament_wins, match_count_min=match_count_min, match_count_max=match_count_max if match_count_max != display_max_match_count else None, sort_by=sort_by)
-            print("display_leaderboard_table", t.elapse)
+        # display table.
+        df_leader_elos = pd.DataFrame([r.dict() for r in sorted_leader_elo_data])
+        # only selected meta data
+        df_leader_elos = df_leader_elos[df_leader_elos["only_official"] == only_official]
+        display_leaderboard_table(meta_formats[0], df_leader_elos, df_meta_win_rate_data, df_tournament_wins, match_count_min=match_count_min, match_count_max=match_count_max if match_count_max != display_max_match_count else None, sort_by=sort_by)
     else:
         st.warning("Seems like the selected meta does not contain any matches")
 

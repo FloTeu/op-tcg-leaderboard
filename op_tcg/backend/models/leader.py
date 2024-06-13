@@ -65,12 +65,6 @@ class Leader(BQTableBaseModel):
             hex_colors.append(color.to_hex_color())
         return average_hex_colors(hex_colors)
 
-class TournamentWinner(BQTableBaseModel):
-    _dataset_id: str = BQDataset.LEADERS
-    meta_format: MetaFormat = Field(description="Meta in which tournaments happened", primary_key=True)
-    leader_id: str = Field(description="The op tcg leader id e.g. OP03-099", primary_key=True)
-    count: int = Field(description="Number of tournament wins")
-
 
 class LeaderElo(BQTableBaseModel):
     _dataset_id: str = BQDataset.LEADERS
@@ -81,3 +75,12 @@ class LeaderElo(BQTableBaseModel):
     elo: int = Field(description="Elo rating of leader until a certain time/ meta format")
     start_date: date = Field(description="Date in which the elo calculation started")
     end_date: date = Field(description="Date in which the elo calculation ended")
+
+
+class TournamentWinner(BQTableBaseModel):
+    _dataset_id: str = BQDataset.LEADERS
+    meta_format: MetaFormat = Field(description="Meta until or in which the elo is calculated", primary_key=True)
+    leader_id: str = Field(description="The op tcg leader id e.g. OP03-099", primary_key=True)
+    win_count: int = Field(description="Number of total tournament wins in meta format")
+    only_official: bool = Field(default=False, description="Whether the matches are only originated from "
+                                                           "official tournaments", primary_key=True)

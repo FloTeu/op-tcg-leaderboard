@@ -68,18 +68,17 @@ def get_leader_elo_data(meta_formats: list[MetaFormat] | None=None) -> list[Lead
     return bq_leader_elos
 
 
-def get_leader_tournament_wins(meta_formats: list[MetaFormat] | None=None, only_official: bool = True) -> list[TournamentWinner]:
+def get_leader_tournament_wins(meta_formats: list[MetaFormat] | None=None) -> list[TournamentWinner]:
     """First element is leader with best elo.
     """
-    table_id = "tournament_winner_only_official" if only_official else "tournament_winner_all"
     bq_leader_tournament_wins: list[TournamentWinner] = []
     if meta_formats:
         for meta_format in meta_formats:
             # cached for each session
-            leader_wins_rows = run_bq_query(f"""SELECT * FROM `{st.secrets["gcp_service_account"]["project_id"]}.leaders.{table_id}` where meta_format = '{meta_format}'""")
+            leader_wins_rows = run_bq_query(f"""SELECT * FROM `{st.secrets["gcp_service_account"]["project_id"]}.{TournamentWinner.get_dataset_id()}.{TournamentWinner.__tablename__}` where meta_format = '{meta_format}'""")
             bq_leader_tournament_wins.extend([TournamentWinner(**d) for d in leader_wins_rows])
     else:
         leader_wins_rows = run_bq_query(
-            f"""SELECT * FROM `{st.secrets["gcp_service_account"]["project_id"]}.leaders.{table_id}`""")
+            f"""SELECT * FROM `{st.secrets["gcp_service_account"]["project_id"]}.{TournamentWinner.get_dataset_id()}.{TournamentWinner.__tablename__}`""")
         bq_leader_tournament_wins.extend([TournamentWinner(**d) for d in leader_wins_rows])
     return bq_leader_tournament_wins
