@@ -13,6 +13,10 @@ from op_tcg.frontend.sidebar import display_meta_select, display_leader_select
 from op_tcg.frontend.utils.extract import get_match_data, get_leader_elo_data, get_tournament_standing_data
 from op_tcg.frontend.utils.leader_data import lid2ldata
 import streamlit.components.v1 as components
+from streamlit_elements import elements, mui, nivo, dashboard, html as element_html
+
+st.set_page_config(layout="wide")
+
 
 class DecklistData(BaseModel):
     num_decklists: int
@@ -46,6 +50,27 @@ def tournament_standings2decklist_data(tournament_standings: list[TournamentStan
                         card_id2occurrence_proportion=card_id2occurrence_proportion,
                         card_id2total_count=card_id2total_count,
                         card_id2avg_count_card=card_id2avg_count_card)
+
+def get_best_matching_decklist(tournament_standings: list[TournamentStandingExtended], decklist_data: DecklistData) -> dict[str, int]:
+    decklists: list[dict[str, int]] = [ts.decklist for ts in tournament_standings]
+    card_ids_sorted: list[str] = sorted(decklist_data.card_id2occurrence_proportion.keys(),
+                             key=lambda d: decklist_data.card_id2occurrences[d], reverse=True)
+    should_have_card_ids_in_decklist: set[str] = set()
+    card_count: float = 0.0
+    for card_id in card_ids_sorted:
+        if card_count < 51: # 50 + leader
+            should_have_card_ids_in_decklist.add(card_id)
+            card_count += decklist_data.card_id2avg_count_card[card_id]
+    best_matching_decklist: dict[str, int] = {}
+    best_overlap = 0
+    for decklist in decklists:
+        card_in_decklist = set(decklist.keys())
+        current_overlap = len(card_in_decklist.intersection(should_have_card_ids_in_decklist))
+        if best_overlap < current_overlap:
+            best_matching_decklist = decklist
+            best_overlap = current_overlap
+
+    return best_matching_decklist
 
 
 
@@ -109,6 +134,38 @@ def display_list_view(decklist_data: DecklistData, card_ids: list[str]):
     height=600, scrolling=True)
 
 
+def display_decklist(decklist: dict[str, int]):
+
+    with elements("dashboard"):
+        # First, build a default layout for every element you want to include in your dashboard
+
+        layout = [
+            # Parameters: element_identifier, x_pos, y_pos, width, height, [item properties...]
+            dashboard.Item(f"item_{card_id}", ((i*2)%6), 0, 2, 3, isResizable=False, isDraggable=True, preventCollision=True)
+            for i, (card_id, _) in enumerate(decklist.items())
+        ]
+
+        # Next, create a dashboard layout using the 'with' syntax. It takes the layout
+        # as first parameter, plus additional properties you can find in the GitHub links below.
+
+        with dashboard.Grid(layout):
+            for card_id, count in decklist.items():
+                op_set = card_id.split("-")[0]
+                image_url = f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{op_set}/{card_id}_{OPTcgLanguage.EN.upper()}.webp"
+                #mui.Box(component="img", src=image_url, alt=f"image_{card_id}", sx={"display": "flex"}, key=f"item_{card_id}")
+                mui.Container(
+                    children=[
+                        # Image at the top
+                        element_html.Img(src=image_url, style={"width": "100%", "height": "auto"}),
+                        # Text block below the image
+                        mui.Typography(
+                            variant="h5",
+                            component="h2",
+                            children=f"x {count}",
+                            gutterBottom=True
+                        )], key=f"item_{card_id}"
+                )
+
 def main():
     st.header("Leader Decklist")
 
@@ -145,12 +202,24 @@ def main():
             decklist_data: DecklistData = tournament_standings2decklist_data(tournament_standings)
             card_ids_sorted = sorted(decklist_data.card_id2occurrence_proportion.keys(), key=lambda d: decklist_data.card_id2occurrences[d], reverse=True)
             card_ids_filtered = [card_id for card_id in card_ids_sorted if card_id != leader_id and decklist_data.card_id2occurrence_proportion[card_id] >= 0.02]
+            st.write(f"Number of decks: {len(tournament_standings)}")
             col1, col2, col3 = st.columns([0.4, 0.5, 0.1])
             col1.image(f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{leader_id.split('-')[0]}/{leader_id}_{OPTcgLanguage.EN.upper()}.webp",
                 width=400,  # Manually Adjust the width of the image as per requirement
             )
             with col2:
                 display_list_view(decklist_data, card_ids_filtered)
+
+            selected_matching_decklist = get_best_matching_decklist(tournament_standings, decklist_data)
+            st.subheader("Average Decklist")
+            player_id = st.selectbox("Select Players Decklist", [ts.player_id for ts in tournament_standings], index=None)
+            if player_id:
+                selected_matching_decklist = [ts.decklist for ts in tournament_standings if ts.player_id == player_id][0]
+            selected_matching_decklist.pop(leader_id)
+            display_decklist(selected_matching_decklist)
+
+
+
 
 
 if __name__ == "__main__":

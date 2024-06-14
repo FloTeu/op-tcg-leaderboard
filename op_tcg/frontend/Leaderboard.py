@@ -258,7 +258,7 @@ def main():
     selected_meta_win_rate_data: list[LeaderWinRate] = get_leader_win_rate(meta_formats=meta_formats,
                                                                            leader_ids=selected_meta_leader_ids)
     df_meta_win_rate_data = pd.DataFrame([lwr.dict() for lwr in selected_meta_win_rate_data if (lwr.only_official if only_official else True)])
-    df_tournament_wins = pd.DataFrame([twin.dict() for twin in leader_tournament_wins if (twin.only_official if only_official else True)])
+    df_tournament_wins = pd.DataFrame([twin.dict() for twin in leader_tournament_wins if twin.only_official == only_official])
 
     if st.button("Upload Match"):
         upload_match_dialog()
