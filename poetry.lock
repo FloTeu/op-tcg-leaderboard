@@ -2297,6 +2297,18 @@ files = [
 doc = ["reno", "sphinx", "tornado (>=4.5)"]
 
 [[package]]
+name = "timer"
+version = "0.3.0"
+description = "Python Code Timer"
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "timer-0.3.0-py3-none-any.whl", hash = "sha256:7d97061be15de87d309697c3088a30af58712bd60c971536161fccc0e3d051f3"},
+    {file = "timer-0.3.0.tar.gz", hash = "sha256:9b11b71a48648f878dc4c29aa84387806d193ed9f71a39e84edb10f38ed6941f"},
+]
+
+[[package]]
 name = "tldextract"
 version = "5.1.2"
 description = "Accurately separates a URL's subdomain, domain, and public suffix, using the Public Suffix List (PSL). By default, this includes the public ICANN TLDs and their exceptions. You can optionally support the Public Suffix List's private domains as well."
@@ -2717,4 +2729,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.13"
-content-hash = "3ad867afb22587cda913e51e4f1ceab4282eec48577361e8295f454b26a67403"
+content-hash = "e947b7b2b7caa452d53bddaa959d19cefd89e013e3c445081723ff2854bda8e4"

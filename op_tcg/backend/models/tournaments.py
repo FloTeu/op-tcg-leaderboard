@@ -37,7 +37,12 @@ class Tournament(BQTableBaseModel):
     def parse_phases(cls, value):
         phases_parsed = []
         for phase in value:
-            phases_parsed.append(cls.str2dict(phase))
+            if isinstance(phase, dict):
+                phases_parsed.append(phase)
+            elif isinstance(phase, str):
+                phases_parsed.append(cls.str2dict(phase))
+            else:
+                raise NotImplementedError
         return phases_parsed
 
 
@@ -56,7 +61,7 @@ class TournamentStanding(BQTableBaseModel):
     player_id: str = Field(description="Username/ID used to uniquely identify the player. Does not change between tournaments.", alias="player", primary_key=True)
     name: str = Field(description="Display name chosen by the player, can change between tournaments")
     country: str | None = Field(description="ISO alpha-2 code of the player's country, as selected by them.")
-    placing: int = Field(description="The player's final placing in the tournament.")
+    placing: int | None = Field(description="The player's final placing in the tournament.")
     record: TournamentRecord = Field(description="Contains the number of wins, losses and ties the player finished with.")
     leader_id: str | None = Field(description="The op tcg leader id e.g. OP03-099")
     decklist: dict[str, int] | None = Field(description="Used decklist in this tournament. The key is the card id e.g. OP01-006 and the value is the number of cards in the deck")
@@ -66,7 +71,7 @@ class TournamentStanding(BQTableBaseModel):
     def parse_dicts(cls, value):
         if isinstance(value, str):
             return cls.str2dict(value)
-        elif isinstance(value, dict):
+        elif isinstance(value, dict) or value is None:
             return value
         else:
             raise ValueError("decklist must be a dictionary or a string that represents a dictionary")

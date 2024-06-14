@@ -5,7 +5,7 @@ import scrapy
 import json
 
 from google.cloud import bigquery
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from op_tcg.backend.crawling.items import TournamentItem
 from op_tcg.backend.etl.load import get_or_create_table
@@ -24,7 +24,7 @@ class LimitlessTournamentSpider(scrapy.Spider):
     num_tournament_limit: int
 
     def get_already_crawled_tournament_ids(self) -> dict[str, bool]:
-        """returns tournaments allready crawled and if they had decklists available back than"""
+        """returns tournaments already crawled and if they had decklists available back than"""
         tournament_id2decklists: dict[str, bool] = {}
         for tournament_id in self.bq_client.query(f"SELECT id, decklists FROM `{self.tournament_table.full_table_id.replace(':','.')}`").result():
             tournament_id2decklists[tournament_id["id"]] = tournament_id["decklists"]
@@ -98,25 +98,28 @@ class LimitlessTournamentSpider(scrapy.Spider):
                                              decklist["character"] + decklist["event"] + decklist["stage"]}}
                 assert sum(decklist.values()) == 51, "Sum of card in deck should be 51"
                 all_decklists.append(decklist)
-
-            tournament_standings.append(TournamentStanding(tournament_id=response.meta["id"], leader_id=leader_id,
+            try:
+                tournament_standings.append(TournamentStanding(tournament_id=response.meta["id"], leader_id=leader_id,
                                                      decklist=decklist,
                                                      **{k: v for k, v in standing.items() if k not in ["decklist"]}))
+            except ValidationError as e:
+                print(e)
             player_id2leader_id[standing["player"]] = leader_id
 
 
-        meta_format = self.get_meta_format(all_decklists,
+        meta_format: MetaFormat = self.get_meta_format(all_decklists,
             tournament_date = datetime.strptime(response.meta["date"], "%Y-%m-%dT%H:%M:%S.%fZ"))
-        url = f"https://play.limitlesstcg.com/api/tournaments/{response.meta['id']}/pairings?key={self.api_token}"
-        # only add matches, if all players have a leader information
-        if not any(leader_id == None for leader_id in player_id2leader_id.values()):
-            yield scrapy.Request(url=url, callback=self.parse_tournament_pairings,
-                                 meta={"player_id2leader_id": player_id2leader_id, "meta_format": meta_format,
-                                       "tournament_standings": tournament_standings, **response.meta})
-        else:
-            tournament = Tournament(source=DataSource.LIMITLESS,
-                                    meta_format=meta_format, **response.meta)
-            yield self.get_tournamend_item(tournament=tournament, tournament_standings=tournament_standings)
+        if meta_format in self.meta_formats:
+            url = f"https://play.limitlesstcg.com/api/tournaments/{response.meta['id']}/pairings?key={self.api_token}"
+            # only add matches, if all players have a leader information
+            if not any(leader_id == None for leader_id in player_id2leader_id.values()):
+                yield scrapy.Request(url=url, callback=self.parse_tournament_pairings,
+                                     meta={"player_id2leader_id": player_id2leader_id, "meta_format": meta_format,
+                                           "tournament_standings": tournament_standings, **response.meta})
+            else:
+                tournament = Tournament(source=DataSource.LIMITLESS,
+                                        meta_format=meta_format, **response.meta)
+                yield self.get_tournamend_item(tournament=tournament, tournament_standings=tournament_standings)
 
 
 

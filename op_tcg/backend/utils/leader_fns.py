@@ -1,13 +1,44 @@
 import pandera as pa
 from pandera.typing import DataFrame
 
-from op_tcg.backend.models.matches import Match
+from op_tcg.backend.models.matches import Match, LeaderWinRate
+
+
+def df_win_rate_data2lid_dicts(df_win_rate_data: DataFrame[LeaderWinRate.paSchema()], leader_ids: list[str] | None = None) -> tuple[dict[str, float], dict[str, float]]:
+    """Returns leader id 2 win rate dict and leader id 2 match count dict as tuple
+    If leader_ids is provided, its ensured that all leader ids are contained in the output dicts
+    """
+    leader_ids: list[str] = leader_ids or []
+    lid2win_rate: dict[str, float] = {}
+    lid2match_count: dict[str, int] = {}
+
+    def calculate_win_rate(df_lid_results):
+        lid = df_lid_results.iloc[0].leader_id
+        num_matches = df_lid_results.total_matches.sum()
+        weighted_average = (df_lid_results['win_rate'] * df_lid_results['total_matches']).sum() / df_lid_results['total_matches'].sum()
+
+        # fill output dicts
+        lid2win_rate[lid] = float("%.2f" % (weighted_average))
+        lid2match_count[lid] = num_matches
+
+    df_win_rate_data.groupby(["leader_id"]).apply(calculate_win_rate)
+
+    # fill up leader ids with no matches yet
+    for lid in leader_ids:
+        if lid not in lid2win_rate:
+            lid2win_rate[lid] = 0.0
+        if lid not in lid2match_count:
+            lid2match_count[lid] = 0
+
+    return lid2win_rate, lid2match_count
+
 
 
 def df_match_data2lid_dicts(df_match_data: DataFrame[Match.paSchema()]) -> tuple[dict[str, float], dict[str, float]]:
     """Returns lid 2 win rate dict and lid 2 match count dict as tuple"""
     lid2win_rate: dict[str, float] = {}
     lid2match_count: dict[str, int] = {}
+
 
     def calculate_win_rate(df_lid_results):
         lid = df_lid_results.iloc[0].leader_id

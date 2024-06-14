@@ -19,6 +19,7 @@ class BQTableBaseModel(SQLTableBaseModel, ABC):
     _dataset_id: str
     create_timestamp: datetime = Field(default_factory=datetime.now, description="Creation timestamp when the insert in BQ happened")
 
+
     @classmethod
     def str2dict(cls, value: str) -> dict:
         try:
@@ -34,6 +35,10 @@ class BQTableBaseModel(SQLTableBaseModel, ABC):
     @classmethod
     def paSchema(cls):
         return create_pandera_schema_from_pydantic(cls)
+
+    @classmethod
+    def get_dataset_id(cls):
+        return cls._dataset_id.default
 
     def insert_to_bq(self, client: bigquery.Client | None = None):
         """Adds a new row to BQ"""

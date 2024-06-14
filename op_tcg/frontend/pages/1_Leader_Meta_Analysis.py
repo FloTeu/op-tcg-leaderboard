@@ -2,29 +2,43 @@ import pandas as pd
 from pandera.typing import DataFrame
 import streamlit as st
 
-from op_tcg.backend.utils.leader_fns import df_match_data2lid_dicts
-
-st.set_page_config(layout="wide")
-
+from op_tcg.backend.utils.leader_fns import df_win_rate_data2lid_dicts
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader, OPTcgColor, LeaderElo
-from op_tcg.backend.models.matches import Match
-from op_tcg.frontend.utils.extract import get_leader_data, get_match_data, get_leader_elo_data
-from op_tcg.frontend.sidebar import display_meta_select, display_leader_select
+from op_tcg.backend.models.matches import LeaderWinRate
+from op_tcg.frontend.utils.extract import get_leader_elo_data, get_leader_win_rate
+from op_tcg.frontend.sidebar import display_meta_select, display_leader_select, display_only_official_toggle
 from op_tcg.frontend.utils.material_ui_fns import create_image_cell, display_table, value2color_table_cell, \
     add_tooltip
 from op_tcg.frontend.utils.leader_data import leader_id2aa_image_url, lid2ldata, get_lid2ldata_dict_cached
 
 from streamlit_elements import elements, mui, html, nivo, dashboard
 from streamlit_theme import st_theme
+
+st.set_page_config(layout="wide")
 ST_THEME = st_theme() or {"base": "dark"}
 
+def data_setup(df_win_rate_data: DataFrame[LeaderWinRate.paSchema()], selected_leader_ids: list[str]):
+    def calculate_win_rate(df_win_rates: pd.DataFrame) -> float:
+        weighted_average = (df_win_rates['win_rate'] * df_win_rates['total_matches']).sum() / df_win_rates['total_matches'].sum()
+        return float("%.1f" % (weighted_average * 100))
 
+    # calculate match counts between leaders
+    def calculate_match_count(df_matches: pd.DataFrame) -> float:
+        return df_matches.total_matches.sum()
 
-def data_setup(selected_leader_ids: list[str], df_selected_match_data: DataFrame[Match.paSchema()]):
+    ## Win Rate and Match Count
+    df_win_rate_selected_leader_data = df_win_rate_data.query("leader_id in @selected_leader_ids and opponent_id in @selected_leader_ids")
 
+    win_rates_series = df_win_rate_selected_leader_data.groupby(["leader_id", "opponent_id"]).apply(calculate_win_rate, include_groups=False)
+    df_Leader_vs_leader_win_rates = win_rates_series.unstack(level=-1)
+    match_counts_series = df_win_rate_selected_leader_data.groupby(
+        ["leader_id", "opponent_id"]).apply(calculate_match_count, include_groups=False)
+    df_Leader_vs_leader_match_count = match_counts_series.unstack(level=-1)
+
+    ## Color win rate
     # Create a new DataFrame with color information
-    color_info = []
+    color_info: list[dict[str, str | OPTcgColor]] = []
     for leader_id, leader_data in get_lid2ldata_dict_cached().items():
         if leader_data:
             for color in leader_data.colors:
@@ -32,30 +46,26 @@ def data_setup(selected_leader_ids: list[str], df_selected_match_data: DataFrame
 
     # Convert the color_info list to a DataFrame
     df_color_info = pd.DataFrame(color_info)
-    df_selected_color_match_data = df_selected_match_data.merge(df_color_info, on='opponent_id', how='left')
+    df_selected_color_match_data = df_win_rate_data.merge(df_color_info, on='opponent_id', how='left')
 
     # Calculate win rates
-    def calculate_win_rate(df_matches: pd.DataFrame) -> float:
-        return float("%.1f" % (((df_matches['result'] == 2).sum() / len(df_matches)) * 100))
-
-    win_rates_series = df_selected_match_data[df_selected_match_data["opponent_id"].isin(selected_leader_ids)].groupby(
-        ["leader_id", "opponent_id"]).apply(calculate_win_rate, include_groups=False)
-    df_Leader_vs_leader_win_rates = win_rates_series.unstack(level=-1)
-
-    # calculate match counts between leaders
-    def calculate_match_count(df_matches: pd.DataFrame) -> float:
-        return len(df_matches)
-
-    match_counts_series = df_selected_match_data[
-        df_selected_match_data["opponent_id"].isin(selected_leader_ids)].groupby(
-        ["leader_id", "opponent_id"]).apply(calculate_match_count, include_groups=False)
-    df_Leader_vs_leader_match_count = match_counts_series.unstack(level=-1)
-
-    win_rates_series = df_selected_color_match_data.groupby(["leader_id", "color"]).apply(calculate_win_rate,
-                                                                                          include_groups=False)
+    win_rates_series = df_selected_color_match_data.query("leader_id in @selected_leader_ids").groupby(
+        ["leader_id", "color"]).apply(calculate_win_rate, include_groups=False)
     df_color_win_rates = win_rates_series.unstack(level=-1)
 
-    return df_Leader_vs_leader_win_rates, df_Leader_vs_leader_match_count, df_color_win_rates
+    ## Ensure correct order
+    dfs = [df_Leader_vs_leader_win_rates, df_Leader_vs_leader_match_count]
+    for i in range(len(dfs)):
+        # Convert the index to a categorical type with the specified order
+        dfs[i].index = pd.Categorical(dfs[i].index, categories=selected_leader_ids, ordered=True)
+        dfs[i].columns = pd.Categorical(dfs[i].columns, categories=selected_leader_ids, ordered=True)
+        # Sort the DataFrame by the custom order (overwrites values in dfs list)
+        dfs[i] = dfs[i].sort_index().sort_index(axis=1)
+
+    df_color_win_rates.index = pd.Categorical(df_color_win_rates.index, categories=selected_leader_ids, ordered=True)
+    df_color_win_rates = df_color_win_rates.sort_index().sort_index(axis=1)
+
+    return dfs[0], dfs[1], df_color_win_rates
 
 
 def get_radar_chart_data(df_color_win_rates) -> list[dict[str, str | float]]:
@@ -225,13 +235,14 @@ def main():
     # TODO clean code up
     with st.sidebar:
         selected_meta_formats: list[MetaFormat] = display_meta_select()
+        only_official: bool = display_only_official_toggle()
     if len(selected_meta_formats) == 0:
         st.warning("Please select at least one meta format")
     else:
 
-        selected_match_data: list[Match] = get_match_data(meta_formats=selected_meta_formats)
-        df_selected_match_data: DataFrame[Match.paSchema()] = pd.DataFrame([match.dict() for match in selected_match_data])
-        lid2win_rate, lid2match_count = df_match_data2lid_dicts(df_selected_match_data)
+        selected_meta_win_rate_data: list[LeaderWinRate] = get_leader_win_rate(meta_formats=selected_meta_formats)
+        df_meta_win_rate_data = pd.DataFrame([lwr.dict() for lwr in selected_meta_win_rate_data if lwr.only_official == only_official])
+        lid2win_rate, lid2match_count = df_win_rate_data2lid_dicts(df_meta_win_rate_data)
 
         # first element is leader with best elo
         selected_leader_elo_data: list[LeaderElo] = get_leader_elo_data(meta_formats=selected_meta_formats)
@@ -243,15 +254,14 @@ def main():
                 for l
                 in sorted_leader_elo_data]))
         with st.sidebar:
-            selected_leader_names: list[str] = display_leader_select(available_leader_ids=available_leader_ids, default=available_leader_ids[0:5])
+            selected_leader_names: list[str] = display_leader_select(available_leader_ids=available_leader_ids, multiselect=True, default=available_leader_ids[0:5])
         if len(selected_leader_names) < 2:
             st.warning("Please select at least two leaders")
         else:
             selected_leader_ids: list[str] = [ln.split("(")[1].strip(")") for ln in selected_leader_names]
-            df_selected_match_data = df_selected_match_data.query("leader_id in @selected_leader_ids")
             selected_bq_leaders: list[Leader] = [lid2ldata(lid) for lid in selected_leader_ids]
             df_Leader_vs_leader_win_rates, df_Leader_vs_leader_match_count, df_color_win_rates = data_setup(
-                selected_leader_ids, df_selected_match_data)
+                df_meta_win_rate_data, selected_leader_ids)
             radar_chart_data = get_radar_chart_data(df_color_win_rates)
             display_elements(selected_leader_ids,
                              selected_bq_leaders,

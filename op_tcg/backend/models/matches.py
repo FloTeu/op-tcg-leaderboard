@@ -51,3 +51,17 @@ class LeaderElo(BQTableBaseModel):
     elo: int = Field(description="Elo rating of leader until a certain time/ meta format")
     start_date: date = Field(description="Date in which the elo calculation started")
     end_date: date = Field(description="Date in which the elo calculation ended")
+
+class LeaderWinRate(BQTableBaseModel):
+    _dataset_id: str = BQDataset.MATCHES
+    meta_format: MetaFormat = Field(description="Meta until or in which the elo is calculated", primary_key=True)
+    leader_id: str = Field(description="The op tcg leader id e.g. OP03-099", primary_key=True)
+    opponent_id: str = Field(description="The op tcg opponent leader id e.g. OP03-099", primary_key=True)
+    win_rate: float = Field(description="Win rate as float value between 0 and 1, where 1 is 100% win rate")
+    total_matches: int = Field(description="Number of matches between leader and opponent")
+    only_official: bool = Field(default=False, description="Whether the matches are only originated from "
+                                                           "official tournaments", primary_key=True)
+
+
+
+
