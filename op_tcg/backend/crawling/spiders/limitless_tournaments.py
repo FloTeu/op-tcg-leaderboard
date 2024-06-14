@@ -55,8 +55,8 @@ class LimitlessTournamentSpider(scrapy.Spider):
     def parse_tournament(self, response):
         json_res: dict[str, str] = json.loads(response.body)
         tournament_id = json_res['id']
-        # online offline and public tournaments are considers as official
-        official = not json_res["isOnline"] and json_res["isPublic"]
+        # public tournaments are considers as official
+        official = json_res["isPublic"]
         proceed_crawling = True
         if tournament_id in self.known_tournament_id2contains_decklists:
             # decklist is now available, but not yet in db
