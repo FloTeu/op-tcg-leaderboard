@@ -11,6 +11,7 @@ from op_tcg.backend.models.leader import LeaderElo, OPTcgLanguage
 from op_tcg.backend.models.tournaments import TournamentStanding, TournamentStandingExtended
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select
 from op_tcg.frontend.utils.extract import get_match_data, get_leader_elo_data, get_tournament_standing_data
+#from op_tcg.frontend.utils.js import is_mobile
 from op_tcg.frontend.utils.leader_data import lid2ldata
 import streamlit.components.v1 as components
 from streamlit_elements import elements, mui, nivo, dashboard, html as element_html
@@ -134,14 +135,14 @@ def display_list_view(decklist_data: DecklistData, card_ids: list[str]):
     height=600, scrolling=True)
 
 
-def display_decklist(decklist: dict[str, int]):
+def display_decklist(decklist: dict[str, int], is_mobile: bool):
 
     with elements("dashboard"):
         # First, build a default layout for every element you want to include in your dashboard
-
+        num_cols = 3
         layout = [
             # Parameters: element_identifier, x_pos, y_pos, width, height, [item properties...]
-            dashboard.Item(f"item_{card_id}", ((i*2)%6), 0, 2, 3, isResizable=False, isDraggable=True, preventCollision=True)
+            dashboard.Item(f"item_{card_id}", ((i*2)%(num_cols*2)), 0, 2, 3, isResizable=False, isDraggable=not is_mobile, preventCollision=True)
             for i, (card_id, _) in enumerate(decklist.items())
         ]
 
@@ -216,7 +217,7 @@ def main():
             if player_id:
                 selected_matching_decklist = [ts.decklist for ts in tournament_standings if ts.player_id == player_id][0]
             selected_matching_decklist.pop(leader_id)
-            display_decklist(selected_matching_decklist)
+            display_decklist(selected_matching_decklist, False)
 
 
 
