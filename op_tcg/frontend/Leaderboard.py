@@ -126,7 +126,7 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
 
         layout = [
             # Parameters: element_identifier, x_pos, y_pos, width, height, [item properties...]
-            dashboard.Item("lboard_table_item", 0, 0, -1, 6, isResizable=False, isDraggable=False),
+            dashboard.Item("lboard_table_item", 0, 0, 12, 6, isResizable=False, isDraggable=False),
         ]
 
         with dashboard.Grid(layout):
