@@ -78,7 +78,7 @@ def leader_id2elo_chart(leader_id: str, df_leader_elos):
     )
 
 
-    return mui.Box(radar_plot, sx={"height": 120, "width": 190})
+    return mui.TableCell(mui.Box(radar_plot, sx={"height": 120, "width": 190}), sx={"padding": "0px"})
 
 
 def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.DataFrame, df_meta_win_rate_data: LeaderWinRate.paSchema(), df_tournament_wins: TournamentWinner.paSchema(), match_count_min: int=None, match_count_max: int=None, sort_by: LeaderboardSortBy = "elo"):
@@ -126,15 +126,14 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
 
         layout = [
             # Parameters: element_identifier, x_pos, y_pos, width, height, [item properties...]
-            dashboard.Item("lboard_table_item", 0, 0, 6, 6, isResizable=False, isDraggable=False),
+            dashboard.Item("lboard_table_item", 0, 0, -1, 6, isResizable=False, isDraggable=False),
         ]
 
         with dashboard.Grid(layout):
             index_cells = [[create_image_cell(leader_id2aa_image_url(leader_id),
                                               text=f"#{i+1}",
                                               overlay_color=lid2ldata(leader_id).to_hex_color(),
-                                              horizontal=True,
-                                              sx={"width": "200px"}) for
+                                              horizontal=True) for
                             i, leader_id in df_leader_elos["leader_id"].items()]]
             # keep only relevant columns
             df_leader_elos_filtered = df_leader_elos.drop(
