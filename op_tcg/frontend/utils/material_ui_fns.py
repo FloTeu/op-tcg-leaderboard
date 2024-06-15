@@ -97,7 +97,7 @@ def create_image_cell(image_url, text: str | None=None, overlay_color='#000000',
                             }
                         ) for text_line in text.split("\n")]
 
-    return mui.TableCell(
+    return mui.TableCell(mui.Box(mui.Box(
         sx={
             'backgroundImage': f'linear-gradient(to top, {overlay_color}, transparent), url("{image_url}")',
             #'backgroundImage': f'url("{image_url}")',
@@ -107,7 +107,8 @@ def create_image_cell(image_url, text: str | None=None, overlay_color='#000000',
             #'backgroundPosition': 'center -40px',  # Start from 50px from the top
             'backgroundRepeat': 'no-repeat',
             'position': 'relative',  # Needed to position children absolutely
-            'height': '80px',  # Adjust height as needed
+            'height': '120px',  # Adjust height as needed
+            'width': '200px' if horizontal else 'auto',
             **sx
         },
         children=[
@@ -120,6 +121,7 @@ def create_image_cell(image_url, text: str | None=None, overlay_color='#000000',
                 },
                 children=text_blocks
             )
-        ]
+        ]), sx={'position': 'relative', 'width': '100%'})
+        , sx={"padding": "0px"}
     )
 

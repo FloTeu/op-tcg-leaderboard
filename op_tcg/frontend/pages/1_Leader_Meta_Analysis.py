@@ -97,9 +97,9 @@ def display_elements(selected_leader_ids,
         layout = [
             # Parameters: element_identifier, x_pos, y_pos, width, height, [item properties...]
             dashboard.Item("lmeta_radar_plot_item_title", 0, 0, 3, 0.5, isDraggable=False, isResizable=False),
-            dashboard.Item("lmeta_radar_plot_item", 0, 1, 6, 2, isDraggable=True, isResizable=True),
-            dashboard.Item("lmeta_avatar_group_item", 4, 0, 2, 0.5, isDraggable=True),
-            dashboard.Item("lmeta_table_item", 0, 3, 6, 6, isResizable=False, isDraggable=False),
+            dashboard.Item("lmeta_radar_plot_item", 0, 1, 11, 2, isDraggable=True, isResizable=True),
+            dashboard.Item("lmeta_avatar_group_item", 9, 0, 2, 0.5, isDraggable=True),
+            dashboard.Item("lmeta_table_item", 0, 3, 11, 6, isResizable=False, isDraggable=False),
         ]
 
         def handle_layout_change(updated_layout):
