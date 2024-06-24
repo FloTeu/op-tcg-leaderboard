@@ -17,7 +17,8 @@ from op_tcg.frontend.sidebar import display_meta_select, display_only_official_t
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_match_data, \
     get_leader_tournament_wins, get_leader_win_rate
 from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_cell, value2color_table_cell
-from op_tcg.frontend.utils.leader_data import leader_id2aa_image_url, lid2ldata, get_lid2ldata_dict_cached
+from op_tcg.frontend.utils.leader_data import leader_id2aa_image_url, lid2ldata, get_lid2ldata_dict_cached, \
+    get_template_leader
 from op_tcg.frontend.utils.utils import bq_client
 
 from streamlit_elements import elements, dashboard, mui, nivo
@@ -92,6 +93,9 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
     def lid2tournament_wins(leader_id: str) -> int:
         return df_tournament_wins.query(f"leader_id == '{leader_id}'")["win_count"].sum()
 
+
+    lid2ldata_dict = get_lid2ldata_dict_cached()
+
     # data preprocessing
     all_meta_formats = MetaFormat.to_list()
     relevant_meta_formats = all_meta_formats[:all_meta_formats.index(meta_format)+1]
@@ -132,7 +136,7 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
         with dashboard.Grid(layout):
             index_cells = [[create_image_cell(leader_id2aa_image_url(leader_id),
                                               text=f"#{i+1}",
-                                              overlay_color=lid2ldata(leader_id).to_hex_color(),
+                                              overlay_color=lid2ldata_dict.get(leader_id, get_template_leader()).to_hex_color(),
                                               horizontal=True) for
                             i, leader_id in df_leader_elos["leader_id"].items()]]
             # keep only relevant columns
@@ -148,7 +152,7 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
                     max_elo = df_leader_elos_display[col].max()
                     df_leader_elos_display[col] = df_leader_elos_display[col].apply(lambda elo: value2color_table_cell(elo, max=max_elo, color_switch_threshold=1000 if 1000 < max_elo else (max_elo*(7/8))))
                 elif col == "Name":
-                    df_leader_elos_display[col] = df_leader_elos_display[col].apply(lambda x: mui.TableCell(mui.Link(str(lid2ldata(x).name.replace('"', " ").replace('.', " ")), href=f"/Leader_Detail_Analysis_Decklists?lid={x}", target="_blank")))
+                    df_leader_elos_display[col] = df_leader_elos_display[col].apply(lambda x: mui.TableCell(mui.Link(str(lid2ldata_dict.get(x, get_template_leader()).name.replace('"', " ").replace('.', " ")), href=f"/Leader_Detail_Analysis_Decklists?lid={x}", target="_blank")))
                 else:
                     df_leader_elos_display[col] = df_leader_elos_display[col].apply(lambda x: mui.TableCell(str(x)))
             df_leader_elos_display["Elo Chart"] = df_leader_elos["leader_id"].apply(
