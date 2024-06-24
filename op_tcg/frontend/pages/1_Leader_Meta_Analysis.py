@@ -10,7 +10,8 @@ from op_tcg.frontend.utils.extract import get_leader_elo_data, get_leader_win_ra
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select, display_only_official_toggle
 from op_tcg.frontend.utils.material_ui_fns import create_image_cell, display_table, value2color_table_cell, \
     add_tooltip
-from op_tcg.frontend.utils.leader_data import leader_id2aa_image_url, lid2ldata, get_lid2ldata_dict_cached
+from op_tcg.frontend.utils.leader_data import leader_id2aa_image_url, lid2ldata, get_lid2ldata_dict_cached, \
+    get_template_leader
 
 from streamlit_elements import elements, mui, html, nivo, dashboard
 from streamlit_theme import st_theme
@@ -91,7 +92,10 @@ def display_elements(selected_leader_ids,
                      df_Leader_vs_leader_match_count,
                      radar_chart_data):
 
-    colors = [lid2ldata(lid).to_hex_color() for lid in selected_leader_ids]
+    lid2ldata_dict = get_lid2ldata_dict_cached()
+    selected_leader_names = [lid2ldata_dict.get(lid, get_template_leader()).name for lid in selected_leader_ids]
+    colors = [lid2ldata_dict.get(lid, get_template_leader()).to_hex_color() for lid in selected_leader_ids]
+
     with elements("dashboard"):
         # Layout for every element in the dashboard
 
@@ -124,15 +128,14 @@ def display_elements(selected_leader_ids,
             df_Leader_vs_leader_match_count = df_Leader_vs_leader_match_count.loc[:, sorted_leader_ids]
 
             header_cells = [mui.TableCell(children="Winner\\Opponent"), mui.TableCell(children="Win Rate")] + [
-                create_image_cell(lid2ldata(col).image_url,
-                                  text=lid2ldata(col).name.replace('"', " ").replace('.', " "),
-                                  overlay_color=lid2ldata(col).to_hex_color(), horizontal=False) for col in
+                create_image_cell(lid2ldata_dict.get(col, get_template_leader()).image_url,
+                                  text=lid2ldata_dict.get(col, get_template_leader()).name.replace('"', " ").replace('.', " "),
+                                  overlay_color=lid2ldata_dict.get(col, get_template_leader()).to_hex_color(), horizontal=False) for col in
                 df_Leader_vs_leader_win_rates.columns.values]
             index_cells = []
-            index_cells.append([create_image_cell(leader_id2aa_image_url(leader_id),
-                                                  text=lid2ldata(leader_id).id.split("-")[0] + "\n" + lid2ldata(
-                                                      leader_id).name.replace('"', " ").replace('.', " "),
-                                                  overlay_color=lid2ldata(leader_id).to_hex_color()) for
+            index_cells.append([create_image_cell(leader_id2aa_image_url(leader_id, lid2ldata_dict),
+                                                  text=lid2ldata_dict.get(leader_id, get_template_leader()).id.split("-")[0] + "\n" + lid2ldata_dict.get(leader_id, get_template_leader()).name.replace('"', " ").replace('.', " "),
+                                                  overlay_color=lid2ldata_dict.get(leader_id, get_template_leader()).to_hex_color()) for
                                 leader_id, df_row in df_Leader_vs_leader_win_rates.iterrows()])
             index_cells.append(
                 [value2color_table_cell(leader2win_rate[leader_id], max=100) for leader_id in sorted_leader_ids])
@@ -166,7 +169,7 @@ def display_elements(selected_leader_ids,
             # box_elements.append(html.H1("Color Win Rates"))
             box_elements.append(nivo.Radar(
                 data=radar_chart_data,
-                keys=[lid2ldata(lid).name for lid in selected_leader_ids],
+                keys=selected_leader_names,
                 indexBy="taste",
                 valueFormat=">-.2f",
                 margin={"top": 70, "right": 80, "bottom": 70, "left": 80},
