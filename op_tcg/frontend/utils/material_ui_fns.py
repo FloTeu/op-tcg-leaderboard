@@ -108,7 +108,6 @@ def create_image_cell(image_url, text: str | None=None, overlay_color='#000000',
             'backgroundRepeat': 'no-repeat',
             'position': 'relative',  # Needed to position children absolutely
             'height': '120px',  # Adjust height as needed
-            'width': '200px' if horizontal else 'auto',
             **sx
         },
         children=[
@@ -122,6 +121,8 @@ def create_image_cell(image_url, text: str | None=None, overlay_color='#000000',
                 children=text_blocks
             )
         ]), sx={'position': 'relative', 'width': '100%'})
-        , sx={"padding": "0px"}
+        , sx={"padding": "0px",
+              'width': '200px' if horizontal else 'auto'
+              }
     )
 
