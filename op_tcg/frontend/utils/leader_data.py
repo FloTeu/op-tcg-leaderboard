@@ -32,13 +32,13 @@ def lid2ldata(lid, leader_id2leader_data: dict[str, Leader] | None=None) -> Lead
     """Return the leader data to a specific leader id. If no leader data is available, the template leader is used"""
     if leader_id2leader_data is None:
         leader_id2leader_data = get_lid2ldata_dict_cached()
-    return leader_id2leader_data[lid] if lid in leader_id2leader_data else get_template_leader()
+    return leader_id2leader_data.get(lid, get_template_leader())
 
 
-def leader_id2aa_image_url(leader_id: str):
+def leader_id2aa_image_url(leader_id: str, leader_id2leader_data: dict[str, Leader] | None=None):
     """If exists, it returns the alternative art of a leader
     """
     constructed_deck_leaders_with_aa = ["ST13-001", "ST13-002", "ST13-002"]
-    leader_data: Leader = lid2ldata(leader_id)
+    leader_data: Leader = lid2ldata(leader_id, leader_id2leader_data)
     has_aa = leader_id in constructed_deck_leaders_with_aa or not (leader_id[0:2] in ["ST"] or leader_id[0] in ["P"])
     return leader_data.image_aa_url if has_aa else leader_data.image_url

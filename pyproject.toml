@@ -23,6 +23,7 @@ st-theme = "^1.2.2"
 pandera = "^0.19.3"
 tqdm = "^4.66.4"
 timer = "^0.3.0"
+streamlit-js-eval = "^0.1.7"
 
 
 [tool.poetry.group.crawler.dependencies]
