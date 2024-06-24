@@ -2282,6 +2282,21 @@ files = [
 streamlit = ">=1.4.0"
 
 [[package]]
+name = "streamlit-js-eval"
+version = "0.1.7"
+description = "A custom Streamlit component to evaluate arbitrary Javascript expressions."
+category = "main"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "streamlit_js_eval-0.1.7-py3-none-any.whl", hash = "sha256:c99c23d1c6e2a27fd45794262e2ac07befaef9603a86e4e325a9e980cad8c78d"},
+    {file = "streamlit_js_eval-0.1.7.tar.gz", hash = "sha256:af80eff45e2f23a676588578aff7d2790080360528c656f4a4476c1484574c97"},
+]
+
+[package.dependencies]
+streamlit = ">=1.0.0"
+
+[[package]]
 name = "tenacity"
 version = "8.2.3"
 description = "Retry code until it succeeds"
@@ -2729,4 +2744,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.13"
-content-hash = "e947b7b2b7caa452d53bddaa959d19cefd89e013e3c445081723ff2854bda8e4"
+content-hash = "031a88bf16bafad21102e43468e99f3ef562898c292ba30c2132c959d2fc33aa"

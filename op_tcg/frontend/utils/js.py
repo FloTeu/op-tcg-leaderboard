@@ -1,7 +1,7 @@
 import time
 import random
 
-#from streamlit_js_eval import streamlit_js_eval
+from streamlit_js_eval import streamlit_js_eval
 from functools import cache
 from uuid import uuid4
 from op_tcg.frontend.utils.session import get_session_id

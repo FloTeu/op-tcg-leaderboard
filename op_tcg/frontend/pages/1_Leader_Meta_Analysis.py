@@ -91,6 +91,7 @@ def display_elements(selected_leader_ids,
                      df_Leader_vs_leader_match_count,
                      radar_chart_data):
 
+    colors = [lid2ldata(lid).to_hex_color() for lid in selected_leader_ids]
     with elements("dashboard"):
         # Layout for every element in the dashboard
 
@@ -206,7 +207,7 @@ def display_elements(selected_leader_ids,
                         }
                     }
                 },
-                colors=[lid2ldata(lid).to_hex_color() for lid in selected_leader_ids]
+                colors=colors
             ))
 
             mui.Box(key="lmeta_radar_plot_item", children=box_elements)

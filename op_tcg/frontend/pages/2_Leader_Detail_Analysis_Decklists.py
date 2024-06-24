@@ -11,7 +11,7 @@ from op_tcg.backend.models.leader import LeaderElo, OPTcgLanguage
 from op_tcg.backend.models.tournaments import TournamentStanding, TournamentStandingExtended
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select
 from op_tcg.frontend.utils.extract import get_match_data, get_leader_elo_data, get_tournament_standing_data
-#from op_tcg.frontend.utils.js import is_mobile
+from op_tcg.frontend.utils.js import is_mobile
 from op_tcg.frontend.utils.leader_data import lid2ldata
 import streamlit.components.v1 as components
 from streamlit_elements import elements, mui, nivo, dashboard, html as element_html
@@ -217,7 +217,7 @@ def main():
             if player_id:
                 selected_matching_decklist = [ts.decklist for ts in tournament_standings if ts.player_id == player_id][0]
             selected_matching_decklist.pop(leader_id)
-            display_decklist(selected_matching_decklist, False)
+            display_decklist(selected_matching_decklist, is_mobile())
 
 
 
