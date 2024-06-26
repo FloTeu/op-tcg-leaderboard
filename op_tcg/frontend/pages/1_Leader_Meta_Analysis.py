@@ -243,20 +243,24 @@ def main():
     if len(selected_meta_formats) == 0:
         st.warning("Please select at least one meta format")
     else:
-
         selected_meta_win_rate_data: list[LeaderWinRate] = get_leader_win_rate(meta_formats=selected_meta_formats)
         df_meta_win_rate_data = pd.DataFrame([lwr.dict() for lwr in selected_meta_win_rate_data if lwr.only_official == only_official])
         lid2win_rate, lid2match_count = df_win_rate_data2lid_dicts(df_meta_win_rate_data)
+        min_match_count = min(int(max(lid2match_count.values()) * 0.1), 50)
 
         # first element is leader with best elo
         selected_leader_elo_data: list[LeaderElo] = get_leader_elo_data(meta_formats=selected_meta_formats)
-        sorted_leader_elo_data: list[LeaderElo] = sorted(selected_leader_elo_data, key=lambda x: lid2win_rate[x.leader_id] if (x.leader_id in lid2win_rate and lid2match_count[x.leader_id] > 50) else 0,
-                                                         reverse=True)
-        available_leader_ids = list(dict.fromkeys(
-            [
-                f"{lid2ldata(l.leader_id).name} ({l.leader_id})"
-                for l
-                in sorted_leader_elo_data]))
+        if selected_leader_elo_data:
+            sorted_leader_elo_data: list[LeaderElo] = sorted(selected_leader_elo_data, key=lambda x: lid2win_rate[x.leader_id] if (x.leader_id in lid2win_rate and lid2match_count[x.leader_id] > min_match_count) else 0,
+                                                             reverse=True)
+            available_leader_ids = list(dict.fromkeys(
+                [
+                    f"{lid2ldata(l.leader_id).name} ({l.leader_id})"
+                    for l
+                    in sorted_leader_elo_data]))
+        else:
+            # case no elo data available
+            available_leader_ids = [f"{lid2ldata(lid).name} ({lid})" for lid, match_count in lid2match_count.items() if min_match_count < match_count]
         with st.sidebar:
             selected_leader_names: list[str] = display_leader_select(available_leader_ids=available_leader_ids, multiselect=True, default=available_leader_ids[0:5])
         if len(selected_leader_names) < 2:

@@ -28,7 +28,7 @@ class MetaFormat(EnumBase, StrEnum):
             if not only_after_release:
                 return_meta_formats.append(meta_format)
             elif meta_format2release_datetime(meta_format) and (
-                    meta_format2release_datetime(meta_format) < datetime.now()):
+                    meta_format2release_datetime(meta_format) <= datetime.now()):
                 return_meta_formats.append(meta_format)
         return return_meta_formats
 
