@@ -1,12 +1,14 @@
 cd cloud_functions
 poetry build
-cp ../../dist/op_tcg-0.1.0.tar.gz .
+export version=$(poetry version -s)
+cp ../../dist/op_tcg-$version.tar.gz .
 cat > requirements.txt << EOF
-op_tcg-0.1.0.tar.gz
+op_tcg-$version.tar.gz
 functions-framework
 google-cloud-pubsub
 scrapy
 EOF
-zip -r function-source.zip main.py requirements.txt op_tcg-0.1.0.tar.gz $new_tmp_file
+rm -f function-source.zip
+zip -r function-source.zip main.py requirements.txt op_tcg-$version.tar.gz $new_tmp_file
 cd ..
 terraform apply
