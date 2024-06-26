@@ -4,9 +4,8 @@ import streamlit as st
 from pydantic import BaseModel
 from pathlib import Path
 
-from op_tcg.backend.etl.transform import meta_format2release_datetime
 from op_tcg.frontend import styles, html, scripts
-from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.input import MetaFormat, meta_format2release_datetime
 from op_tcg.backend.models.leader import LeaderElo, OPTcgLanguage
 from op_tcg.backend.models.tournaments import TournamentStanding, TournamentStandingExtended
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select

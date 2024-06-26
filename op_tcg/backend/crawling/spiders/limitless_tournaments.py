@@ -9,9 +9,8 @@ from pydantic import BaseModel, ValidationError
 
 from op_tcg.backend.crawling.items import TournamentItem
 from op_tcg.backend.etl.load import get_or_create_table
-from op_tcg.backend.etl.transform import meta_format2release_datetime
 from op_tcg.backend.models.common import DataSource
-from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.input import MetaFormat, meta_format2release_datetime
 from op_tcg.backend.models.tournaments import Tournament, TournamentStanding
 from op_tcg.backend.models.matches import Match, MatchResult
 
@@ -78,7 +77,7 @@ class LimitlessTournamentSpider(scrapy.Spider):
                                             decklist.keys() if card_id[:2] == "OP"]
         if decklist_meta_formats:
             latest_meta_format = sorted(decklist_meta_formats, reverse=True)[0]
-            return MetaFormat(latest_meta_format) if latest_meta_format in MetaFormat.to_list() else latest_meta_format
+            return MetaFormat(latest_meta_format) if latest_meta_format in MetaFormat.to_list(only_after_release=False) else latest_meta_format
         for meta_format in sorted(MetaFormat.to_list(), reverse=True):
             if tournament_date > meta_format2release_datetime(meta_format):
                 return meta_format

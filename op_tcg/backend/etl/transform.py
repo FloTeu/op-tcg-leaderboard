@@ -1,10 +1,9 @@
 import copy
-import datetime
 import random
 from datetime import timedelta, datetime
 from uuid import uuid4
 
-from op_tcg.backend.models.input import LimitlessLeaderMetaDoc, LimitlessMatch, MetaFormat, AllLeaderMetaDocs
+from op_tcg.backend.models.input import LimitlessMatch, MetaFormat, AllLeaderMetaDocs, meta_format2release_datetime
 from op_tcg.backend.models.matches import BQMatches, Match, MatchResult
 from op_tcg.backend.models.common import DataSource
 from op_tcg.backend.models.transform import Transform2BQMatch
@@ -102,21 +101,6 @@ def randomize_datetime(start_datetime: datetime):
     result_datetime = start_datetime + delta
 
     return result_datetime
-
-
-def meta_format2release_datetime(meta_format: MetaFormat) -> datetime:
-    if meta_format == MetaFormat.OP01:
-        return datetime(2022, 12, 2)
-    if meta_format == MetaFormat.OP02:
-        return datetime(2023, 3, 10)
-    if meta_format == MetaFormat.OP03:
-        return datetime(2023, 6, 30)
-    if meta_format == MetaFormat.OP04:
-        return datetime(2023, 9, 22)
-    if meta_format == MetaFormat.OP05:
-        return datetime(2023, 12, 8)
-    if meta_format == MetaFormat.OP06:
-        return datetime(2024, 3, 8)
 
 
 def meta_format2approximate_datetime(meta_format: MetaFormat) -> datetime:
