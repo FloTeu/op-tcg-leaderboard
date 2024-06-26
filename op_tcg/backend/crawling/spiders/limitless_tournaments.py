@@ -26,7 +26,8 @@ class LimitlessTournamentSpider(scrapy.Spider):
     def get_already_crawled_tournament_ids(self) -> dict[str, bool]:
         """returns tournaments already crawled and if they had decklists available back than"""
         tournament_id2decklists: dict[str, bool] = {}
-        for tournament_id in self.bq_client.query(f"SELECT id, decklists FROM `{self.tournament_table.full_table_id.replace(':','.')}`").result():
+        for tournament_id in self.bq_client.query(
+                f"SELECT id, decklists FROM `{self.tournament_table.full_table_id.replace(':', '.')}`").result():
             tournament_id2decklists[tournament_id["id"]] = tournament_id["decklists"]
         return tournament_id2decklists
 
@@ -64,20 +65,20 @@ class LimitlessTournamentSpider(scrapy.Spider):
                 proceed_crawling = True
             else:
                 proceed_crawling = False
-                print(f"Ignore tournament with id {tournament_id} as its already known and contains no new decklist information")
-
+                print(
+                    f"Ignore tournament with id {tournament_id} as its already known and contains no new decklist information")
 
         if proceed_crawling:
             url = f"https://play.limitlesstcg.com/api/tournaments/{tournament_id}/standings?key={self.api_token}"
             yield scrapy.Request(url=url, callback=self.parse_tournament_standings,
                                  meta={"official": official, **json_res})
 
-
-    def get_meta_format(self, all_decklists: list[dict[str, int]], tournament_date: datetime) -> MetaFormat:
-        for meta_format in sorted(MetaFormat.to_list(), reverse=True):
-            for decklists in all_decklists:
-                if any(card_id.split("-")[0] == meta_format for card_id in  decklists.keys()):
-                    return meta_format
+    def get_meta_format(self, all_decklists: list[dict[str, int]], tournament_date: datetime) -> MetaFormat | str:
+        decklist_meta_formats: list[str] = [card_id.split("-")[0] for decklist in all_decklists for card_id in
+                                            decklist.keys() if card_id[:2] == "OP"]
+        if decklist_meta_formats:
+            latest_meta_format = sorted(decklist_meta_formats, reverse=True)[0]
+            return MetaFormat(latest_meta_format) if latest_meta_format in MetaFormat.to_list() else latest_meta_format
         for meta_format in sorted(MetaFormat.to_list(), reverse=True):
             if tournament_date > meta_format2release_datetime(meta_format):
                 return meta_format
@@ -100,15 +101,16 @@ class LimitlessTournamentSpider(scrapy.Spider):
                 all_decklists.append(decklist)
             try:
                 tournament_standings.append(TournamentStanding(tournament_id=response.meta["id"], leader_id=leader_id,
-                                                     decklist=decklist,
-                                                     **{k: v for k, v in standing.items() if k not in ["decklist"]}))
+                                                               decklist=decklist,
+                                                               **{k: v for k, v in standing.items() if
+                                                                  k not in ["decklist"]}))
             except ValidationError as e:
                 print(e)
             player_id2leader_id[standing["player"]] = leader_id
 
-
-        meta_format: MetaFormat = self.get_meta_format(all_decklists,
-            tournament_date = datetime.strptime(response.meta["date"], "%Y-%m-%dT%H:%M:%S.%fZ"))
+        meta_format: MetaFormat | str = self.get_meta_format(all_decklists,
+                                                       tournament_date=datetime.strptime(response.meta["date"],
+                                                                                         "%Y-%m-%dT%H:%M:%S.%fZ"))
         if meta_format in self.meta_formats:
             url = f"https://play.limitlesstcg.com/api/tournaments/{response.meta['id']}/pairings?key={self.api_token}"
             # only add matches, if all players have a leader information
@@ -120,8 +122,6 @@ class LimitlessTournamentSpider(scrapy.Spider):
                 tournament = Tournament(source=DataSource.LIMITLESS,
                                         meta_format=meta_format, **response.meta)
                 yield self.get_tournamend_item(tournament=tournament, tournament_standings=tournament_standings)
-
-
 
     def parse_tournament_pairings(self, response):
         json_res: list[dict[str, str]] = json.loads(response.body)
@@ -183,9 +183,10 @@ class LimitlessTournamentSpider(scrapy.Spider):
 
         tournament = Tournament(source=DataSource.LIMITLESS,
                                 **response.meta)
-        yield self.get_tournamend_item(tournament=tournament, tournament_standings=response.meta["tournament_standings"], matches=matches)
+        yield self.get_tournamend_item(tournament=tournament,
+                                       tournament_standings=response.meta["tournament_standings"], matches=matches)
 
-
-    def get_tournamend_item(self, tournament: Tournament, tournament_standings: list[TournamentStanding], matches: list[Match] = None) -> TournamentItem:
+    def get_tournamend_item(self, tournament: Tournament, tournament_standings: list[TournamentStanding],
+                            matches: list[Match] = None) -> TournamentItem:
         matches = matches if matches is not None else []  # if no matches exist returns an empy list
         return TournamentItem(tournament=tournament, tournament_standings=tournament_standings, matches=matches)

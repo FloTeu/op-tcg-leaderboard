@@ -28,7 +28,7 @@ class Tournament(BQTableBaseModel):
     is_public: bool = Field(description="Indicates whether the tournament is listed publicly (otherwise accessible through direct link only)", alias="isPublic")
     is_online: bool = Field(description="Set to true if the tournament is played online, false if it's an in-person event", alias="isOnline")
     phases: list[TournamentPhase] = Field(description="The tournament structure as an array of objects, one per phase")
-    meta_format: MetaFormat = Field(description="Meta in which tournament happened, e.g. OP06")
+    meta_format: MetaFormat | str = Field(description="Meta in which tournament happened, e.g. OP06")
     official: bool = Field(default=False, description="Whether the tournament is official, i.e. comes from a official source")
     source: DataSource | str = Field(description="Origin of the tournament. In case of an unofficial match it can be the session id.")
     tournament_timestamp: datetime = Field(description="Scheduled tournament start set by the organizer.", alias="date")

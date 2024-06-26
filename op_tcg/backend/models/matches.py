@@ -23,7 +23,7 @@ class Match(BQTableBaseModel):
     leader_id: str = Field(description="The op tcg leader id e.g. OP03-099")
     opponent_id: str = Field(description="The op tcg opponent leader id e.g. OP03-099")
     result: MatchResult = Field(description="Result of the match. Can be win, lose or draw")
-    meta_format: MetaFormat = Field(description="Meta in which matches happened, e.g. OP06")
+    meta_format: MetaFormat | str = Field(description="Meta in which matches happened, e.g. OP06")
     official: bool = Field(default=False, description="Whether the match is originated from an official tournament")
     is_reverse: bool = Field(description="Whether its the reverse match", primary_key=True)
     source: DataSource | str = Field(description="Origin of the match. In case of an unofficial match it can be the session id.")
