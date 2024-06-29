@@ -248,19 +248,16 @@ def main():
         lid2win_rate, lid2match_count = df_win_rate_data2lid_dicts(df_meta_win_rate_data)
         min_match_count = min(int(max(lid2match_count.values()) * 0.1), 50)
 
-        # first element is leader with best elo
-        selected_leader_elo_data: list[LeaderElo] = get_leader_elo_data(meta_formats=selected_meta_formats)
-        if selected_leader_elo_data:
-            sorted_leader_elo_data: list[LeaderElo] = sorted(selected_leader_elo_data, key=lambda x: lid2win_rate[x.leader_id] if (x.leader_id in lid2win_rate and lid2match_count[x.leader_id] > min_match_count) else 0,
-                                                             reverse=True)
-            available_leader_ids = list(dict.fromkeys(
-                [
-                    f"{lid2ldata(l.leader_id).name} ({l.leader_id})"
-                    for l
-                    in sorted_leader_elo_data]))
-        else:
-            # case no elo data available
-            available_leader_ids = [f"{lid2ldata(lid).name} ({lid})" for lid, match_count in lid2match_count.items() if min_match_count < match_count]
+        # first element is leader with best win rate
+        sorted_leader_ids_by_win_rate = sorted([lid for lid, count in lid2match_count.items() if count > min_match_count], key= lambda lid: lid2win_rate[lid], reverse=True)
+        available_leader_ids = list(dict.fromkeys(
+            [
+                f"{lid2ldata(lid).name} ({lid})"
+                for lid
+                in sorted_leader_ids_by_win_rate
+            ]
+        ))
+
         with st.sidebar:
             selected_leader_names: list[str] = display_leader_select(available_leader_ids=available_leader_ids, multiselect=True, default=available_leader_ids[0:5])
         if len(selected_leader_names) < 2:

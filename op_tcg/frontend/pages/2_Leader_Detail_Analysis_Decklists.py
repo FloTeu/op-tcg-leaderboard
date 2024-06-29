@@ -192,11 +192,12 @@ def main():
                 release_date = meta_format2release_datetime(meta_format)
                 if release_date.date() < oldest_release_data:
                     oldest_release_data = release_date.date()
-            start_date: date = st.date_input("Start Date", oldest_release_data)
 
         if selected_leader_name:
             leader_id: str = selected_leader_name.split("(")[1].strip(")")
             tournament_standings: list[TournamentStandingExtended] = get_tournament_standing_data(meta_formats=selected_meta_formats, leader_id=leader_id)
+            start_date: date = st.sidebar.date_input("Start Date", min(oldest_release_data, min([ts.tournament_timestamp.date() for ts in tournament_standings])))
+
             # filter by start date
             tournament_standings = [tstand for tstand in tournament_standings if tstand.tournament_timestamp.date() >= start_date]
             decklist_data: DecklistData = tournament_standings2decklist_data(tournament_standings)
@@ -211,13 +212,15 @@ def main():
                 display_list_view(decklist_data, card_ids_filtered)
 
             selected_matching_decklist = get_best_matching_decklist(tournament_standings, decklist_data)
-            st.subheader("Average Decklist")
-            player_id = st.selectbox("Select Players Decklist", [ts.player_id for ts in tournament_standings], index=None)
-            if player_id:
-                selected_matching_decklist = [ts.decklist for ts in tournament_standings if ts.player_id == player_id][0]
-            selected_matching_decklist.pop(leader_id)
-            display_decklist(selected_matching_decklist, is_mobile())
-
+            if selected_matching_decklist:
+                st.subheader("Average Decklist")
+                player_id = st.selectbox("Select Players Decklist", [ts.player_id for ts in tournament_standings], index=None)
+                if player_id:
+                    selected_matching_decklist = [ts.decklist for ts in tournament_standings if ts.player_id == player_id][0]
+                selected_matching_decklist.pop(leader_id)
+                display_decklist(selected_matching_decklist, is_mobile())
+            else:
+                st.warning("No decklists available. Please change the 'Start Date'")
 
 
 
