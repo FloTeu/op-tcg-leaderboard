@@ -8,7 +8,6 @@ from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
 from op_tcg.backend.models.common import DataSource
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.leader import LeaderElo
 
 
 class MatchResult(IntEnum):
@@ -23,7 +22,7 @@ class Match(BQTableBaseModel):
     leader_id: str = Field(description="The op tcg leader id e.g. OP03-099")
     opponent_id: str = Field(description="The op tcg opponent leader id e.g. OP03-099")
     result: MatchResult = Field(description="Result of the match. Can be win, lose or draw")
-    meta_format: MetaFormat = Field(description="Meta in which matches happened, e.g. OP06")
+    meta_format: MetaFormat | str = Field(description="Meta in which matches happened, e.g. OP06")
     official: bool = Field(default=False, description="Whether the match is originated from an official tournament")
     is_reverse: bool = Field(description="Whether its the reverse match", primary_key=True)
     source: DataSource | str = Field(description="Origin of the match. In case of an unofficial match it can be the session id.")
@@ -41,16 +40,6 @@ class BQMatches(BaseModel):
 
     def to_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame([r.dict() for r in self.matches])
-
-class LeaderElo(BQTableBaseModel):
-    _dataset_id: str = BQDataset.MATCHES
-    meta_format: MetaFormat = Field(description="Meta until or in which the elo is calculated", primary_key=True)
-    leader_id: str = Field(description="The op tcg leader id e.g. OP03-099", primary_key=True)
-    only_official: bool = Field(default=False, description="Whether the matches are only originated from "
-                                                           "official tournaments", primary_key=True)
-    elo: int = Field(description="Elo rating of leader until a certain time/ meta format")
-    start_date: date = Field(description="Date in which the elo calculation started")
-    end_date: date = Field(description="Date in which the elo calculation ended")
 
 class LeaderWinRate(BQTableBaseModel):
     _dataset_id: str = BQDataset.MATCHES
