@@ -29,9 +29,6 @@ ST_THEME = st_theme() or {"base": "dark"}
 
 from timer import timer
 
-with st.spinner("Launch App"):
-    init_load_data()
-
 def leader_id2elo_chart(leader_id: str, df_leader_elos):
     # Streamlit Elements includes 45 dataviz components powered by Nivo.
     data_lines = df_leader_elos.query(f"leader_id == '{leader_id}'").sort_values("meta_format")[["meta_format", "elo"]].rename(columns={"meta_format": "x", "elo": "y"}).to_dict(orient="records")
@@ -234,6 +231,9 @@ def upload_match_dialog():
 def main():
     # display data
     st.header("One Piece TCG Elo Leaderboard")
+
+    with st.spinner("Launch App"):
+        init_load_data()
 
     with st.sidebar:
         meta_formats: list[MetaFormat] = display_meta_select(multiselect=False)
