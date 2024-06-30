@@ -89,7 +89,7 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
     def lid2win_rate(leader_id: str) -> str:
         df = df_meta_win_rate_data.query(f"leader_id == '{leader_id}'")
         weighted_average = (df['win_rate'] * df['total_matches']).sum() / df['total_matches'].sum()
-        return f'{int(float("%.2f" % weighted_average) * 100)}%'
+        return f'{int(float("%.2f" % weighted_average) * 100)}%' if not pd.isna(weighted_average) else "0%"
 
     def lid2tournament_wins(leader_id: str) -> int:
         return df_tournament_wins.query(f"leader_id == '{leader_id}'")["win_count"].sum()
@@ -263,12 +263,13 @@ def main():
                                                                            leader_ids=selected_meta_leader_ids)
     df_meta_win_rate_data = pd.DataFrame([lwr.dict() for lwr in selected_meta_win_rate_data if (lwr.only_official if only_official else True)])
     df_tournament_wins = pd.DataFrame([twin.dict() for twin in leader_tournament_wins if twin.only_official == only_official])
+    leaders_with_win_rate = set(df_meta_win_rate_data.leader_id.unique())
 
     if st.button("Upload Match"):
         upload_match_dialog()
     if sorted_leader_elo_data:
         # display table.
-        df_leader_elos = pd.DataFrame([r.dict() for r in sorted_leader_elo_data])
+        df_leader_elos = pd.DataFrame([r.dict() for r in sorted_leader_elo_data if r.leader_id in leaders_with_win_rate])
         # only selected meta data
         df_leader_elos = df_leader_elos[df_leader_elos["only_official"] == only_official]
         display_leaderboard_table(meta_formats[0], df_leader_elos, df_meta_win_rate_data, df_tournament_wins, match_count_min=match_count_min, match_count_max=match_count_max if match_count_max != display_max_match_count else None, sort_by=sort_by)
