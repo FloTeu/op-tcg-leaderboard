@@ -285,7 +285,6 @@ if booleanize(os.environ.get("DEBUG", "")):
     pages.append(st.Page(main_leader_detail_anylsis, title='Leader_Detail_Analysis', url_path="Leader_Detail_Analysis"))
     pages.append(st.Page(main_admin_leader_upload, title='Admin_Leader_Upload', url_path="Admin_Leader_Upload"))
 
-print("user email", st.experimental_user.email)
 if st.experimental_user.email in st.secrets["admin"]["emails"]:
     if not booleanize(os.environ.get("DEBUG", "")):
         pages.append(st.Page(main_admin_leader_upload, title='Admin_Leader_Upload', url_path="Admin_Leader_Upload"))
