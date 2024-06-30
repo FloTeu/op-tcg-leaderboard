@@ -16,8 +16,7 @@ from op_tcg.frontend.utils.leader_data import leader_id2aa_image_url, lid2ldata_
 from streamlit_elements import elements, mui, html, nivo, dashboard
 from streamlit_theme import st_theme
 
-st.set_page_config(layout="wide")
-ST_THEME = st_theme() or {"base": "dark"}
+ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 
 def data_setup(df_win_rate_data: DataFrame[LeaderWinRate.paSchema()], selected_leader_ids: list[str]):
     def calculate_win_rate(df_win_rates: pd.DataFrame) -> float:
@@ -233,7 +232,7 @@ def get_leader2avg_win_rate_dict(df_Leader_vs_leader_match_count, df_Leader_vs_l
     return leader2win_rate
 
 
-def main():
+def main_meta_analysis():
     st.header("Leader Meta Analysis")
 
     # TODO clean code up
@@ -270,4 +269,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main_meta_analysis()

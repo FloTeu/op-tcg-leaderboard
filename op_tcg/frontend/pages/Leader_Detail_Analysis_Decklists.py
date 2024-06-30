@@ -15,8 +15,6 @@ from op_tcg.frontend.utils.leader_data import lid2ldata_fn
 import streamlit.components.v1 as components
 from streamlit_elements import elements, mui, nivo, dashboard, html as element_html
 
-st.set_page_config(layout="wide")
-
 
 class DecklistData(BaseModel):
     num_decklists: int
@@ -166,7 +164,7 @@ def display_decklist(decklist: dict[str, int], is_mobile: bool):
                         )], key=f"item_{card_id}"
                 )
 
-def main():
+def main_leader_detail_analysis_decklists():
     st.header("Leader Decklist")
 
     with st.sidebar:
@@ -226,4 +224,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main_leader_detail_analysis_decklists()

@@ -118,8 +118,8 @@ def display_upload_form(
 #             print(f"Upload leader: {leader_id} {bq_leader.name}")
 #             upload2bq_and_storage(bq_leader)
 
-def main():
-    if booleanize(os.environ.get("DEBUG", "")):
+def main_admin_leader_upload():
+    if st.experimental_user.email in st.secrets["admin"]["emails"]:
         with st.sidebar:
             release_meta_formats: list[MetaFormat] | None = display_release_meta_select(multiselect=True)
             selected_leader_colors: list[OPTcgColor] | None = display_leader_color_multiselect()
@@ -186,7 +186,8 @@ def main():
             display_upload_view(session_upload_form_data, id_default_text, language_default_text, False,
                                 new_upload=True,
                                 key=key)
-
+    else:
+        st.error("You are not allowed to see this page")
 
 def display_upload_view(session_upload_form_data, id_default_text, language_default_text, expanded=False,
                         new_upload: bool = False,
@@ -251,4 +252,4 @@ def display_bq_leader(bq_leader):
 
 
 if __name__ == "__main__":
-    main()
+    main_admin_leader_upload()

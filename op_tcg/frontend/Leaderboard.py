@@ -1,9 +1,12 @@
+import os
+
 import pandas as pd
 import streamlit as st
 
 from datetime import datetime, date
 from uuid import uuid4
 
+from op_tcg.backend.utils.utils import booleanize
 from op_tcg.frontend.utils.launch import init_load_data
 from op_tcg.backend.etl.load import bq_insert_rows, get_or_create_table
 from op_tcg.backend.models.input import MetaFormat
@@ -20,12 +23,13 @@ from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_ce
 from op_tcg.frontend.utils.leader_data import leader_id2aa_image_url, lid2ldata_fn, get_lid2ldata_dict_cached, \
     get_template_leader, lids_to_name_and_lids, lname_and_lid_to_lid
 from op_tcg.frontend.utils.utils import bq_client
+from op_tcg.frontend.pages import main_meta_analysis, main_leader_detail_analysis_decklists, main_leader_detail_anylsis, main_admin_leader_upload
 
 from streamlit_elements import elements, dashboard, mui, nivo
 from streamlit_theme import st_theme
 
 st.set_page_config(layout="wide")
-ST_THEME = st_theme() or {"base": "dark"}
+ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 
 from timer import timer
 
@@ -271,5 +275,19 @@ def main():
     else:
         st.warning("Seems like the selected meta does not contain any matches")
 
-if __name__ == "__main__":
-    main()
+# main_meta_analysis, main_leader_detail_analysis_decklists, main_leader_detail_anylsis, main_admin_leader_upload
+pages = [
+    st.Page(main, title="Leaderboard", default=True),
+    st.Page(main_meta_analysis, title='Leader_Meta_Analysis', url_path="Leader_Meta_Analysis"),
+    st.Page(main_leader_detail_analysis_decklists, title='Leader_Detail_Analysis_Decklists', url_path="Leader_Detail_Analysis_Decklists"),
+]
+if booleanize(os.environ.get("DEBUG", "")):
+    pages.append(st.Page(main_leader_detail_anylsis, title='Leader_Detail_Analysis', url_path="Leader_Detail_Analysis"))
+    pages.append(st.Page(main_admin_leader_upload, title='Admin_Leader_Upload', url_path="Admin_Leader_Upload"))
+
+if st.experimental_user.email in st.secrets["admin"]["emails"]:
+    if not booleanize(os.environ.get("DEBUG", "")):
+        pages.append(st.Page(main_admin_leader_upload, title='Admin_Leader_Upload', url_path="Admin_Leader_Upload"))
+
+pg = st.navigation(pages)
+pg.run()
