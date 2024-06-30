@@ -10,8 +10,8 @@ from op_tcg.frontend.utils.extract import get_leader_elo_data, get_leader_win_ra
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select, display_only_official_toggle
 from op_tcg.frontend.utils.material_ui_fns import create_image_cell, display_table, value2color_table_cell, \
     add_tooltip
-from op_tcg.frontend.utils.leader_data import leader_id2aa_image_url, lid2ldata, get_lid2ldata_dict_cached, \
-    get_template_leader
+from op_tcg.frontend.utils.leader_data import leader_id2aa_image_url, lid2ldata_fn, get_lid2ldata_dict_cached, \
+    get_template_leader, lids_to_name_and_lids, lname_and_lid_to_lid
 
 from streamlit_elements import elements, mui, html, nivo, dashboard
 from streamlit_theme import st_theme
@@ -74,11 +74,11 @@ def get_radar_chart_data(df_color_win_rates) -> list[dict[str, str | float]]:
     radar_chart_data: list[dict[str, str | float]] = []
     for color in OPTcgColor.to_list():
         if color in df_color_win_rates.columns.values:
-            win_against_color = {lid2ldata(lid).name: win_rate
+            win_against_color = {lid2ldata_fn(lid).name: win_rate
                                  for lid, win_rate in df_color_win_rates[color].to_dict().items()}
             win_against_color = {k: v if not pd.isna(v) else 50 for k, v in win_against_color.items()}
         else:
-            win_against_color = {lid2ldata(lid).name: 50.0 for lid in df_color_win_rates.index.values}
+            win_against_color = {lid2ldata_fn(lid).name: 50.0 for lid in df_color_win_rates.index.values}
         radar_chart_data.append({
             "taste": color,
             **win_against_color
@@ -250,21 +250,15 @@ def main():
 
         # first element is leader with best win rate
         sorted_leader_ids_by_win_rate = sorted([lid for lid, count in lid2match_count.items() if count > min_match_count], key= lambda lid: lid2win_rate[lid], reverse=True)
-        available_leader_ids = list(dict.fromkeys(
-            [
-                f"{lid2ldata(lid).name} ({lid})"
-                for lid
-                in sorted_leader_ids_by_win_rate
-            ]
-        ))
+        available_leader_ids = lids_to_name_and_lids(list(dict.fromkeys(sorted_leader_ids_by_win_rate)))
 
         with st.sidebar:
             selected_leader_names: list[str] = display_leader_select(available_leader_ids=available_leader_ids, multiselect=True, default=available_leader_ids[0:5])
         if len(selected_leader_names) < 2:
             st.warning("Please select at least two leaders")
         else:
-            selected_leader_ids: list[str] = [ln.split("(")[1].strip(")") for ln in selected_leader_names]
-            selected_bq_leaders: list[Leader] = [lid2ldata(lid) for lid in selected_leader_ids]
+            selected_leader_ids: list[str] = [lname_and_lid_to_lid(ln) for ln in selected_leader_names]
+            selected_bq_leaders: list[Leader] = [lid2ldata_fn(lid) for lid in selected_leader_ids]
             df_Leader_vs_leader_win_rates, df_Leader_vs_leader_match_count, df_color_win_rates = data_setup(
                 df_meta_win_rate_data, selected_leader_ids)
             radar_chart_data = get_radar_chart_data(df_color_win_rates)

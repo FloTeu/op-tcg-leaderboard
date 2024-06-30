@@ -11,7 +11,7 @@ from op_tcg.backend.models.tournaments import TournamentStanding, TournamentStan
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select
 from op_tcg.frontend.utils.extract import get_match_data, get_leader_elo_data, get_tournament_standing_data
 from op_tcg.frontend.utils.js import is_mobile
-from op_tcg.frontend.utils.leader_data import lid2ldata
+from op_tcg.frontend.utils.leader_data import lid2ldata_fn
 import streamlit.components.v1 as components
 from streamlit_elements import elements, mui, nivo, dashboard, html as element_html
 
@@ -179,12 +179,12 @@ def main():
         selected_leader_elo_data: list[LeaderElo] = get_leader_elo_data(meta_formats=selected_meta_formats)
         available_leader_ids = list(dict.fromkeys(
             [
-                f"{lid2ldata(l.leader_id).name} ({l.leader_id})"
+                f"{lid2ldata_fn(l.leader_id).name} ({l.leader_id})"
                 for l
                 in selected_leader_elo_data]))
         with st.sidebar:
             qp_lid = st.query_params.get('lid', None)
-            default = f"{lid2ldata(qp_lid).name} ({qp_lid})" if qp_lid else available_leader_ids[0]
+            default = f"{lid2ldata_fn(qp_lid).name} ({qp_lid})" if qp_lid else available_leader_ids[0]
             selected_leader_name: str = display_leader_select(available_leader_ids=available_leader_ids,
                                                                      multiselect=False, default=default)
             oldest_release_data: date = datetime.now().date()

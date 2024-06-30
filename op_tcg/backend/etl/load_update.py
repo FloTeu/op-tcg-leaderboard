@@ -33,7 +33,6 @@ def update_bq_leader_row(bq_leader: Leader, table: bigquery.Table, client: bigqu
         INSERT (id, name, life, power, release_meta, avatar_icon_url, image_url, image_aa_url, colors, attributes, ability, fractions, language)
         VALUES (@id, @name, @life, @power, @release_meta, @avatar_icon_url, @image_url, @image_aa_url, @colors, @attributes, @ability, @fractions, @language)
     """
-
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
             bigquery.ScalarQueryParameter("id", "STRING", bq_leader.id),

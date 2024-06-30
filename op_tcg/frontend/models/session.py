@@ -9,4 +9,5 @@ class LeaderUploadForm(BaseModel):
     image_url_default_text: str | None = None
     image_aa_url_default_text: str | None = None
     release_meta_default_text: MetaFormat | None = None
+    new_upload: bool = False
     bq_leader: Leader | None = None
