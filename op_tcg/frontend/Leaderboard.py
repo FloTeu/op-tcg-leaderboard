@@ -2,6 +2,7 @@ import os
 
 import pandas as pd
 import streamlit as st
+st.set_page_config(layout="wide")
 
 from datetime import datetime, date
 from uuid import uuid4
@@ -28,7 +29,6 @@ from op_tcg.frontend.pages import main_meta_analysis, main_leader_detail_analysi
 from streamlit_elements import elements, dashboard, mui, nivo
 from streamlit_theme import st_theme
 
-st.set_page_config(layout="wide")
 ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 
 from timer import timer
@@ -286,6 +286,8 @@ if booleanize(os.environ.get("DEBUG", "")):
     pages.append(st.Page(main_admin_leader_upload, title='Admin_Leader_Upload', url_path="Admin_Leader_Upload"))
 
 print("st.experimental_user.email", st.experimental_user.email)
+test = booleanize(os.environ.get("DEBUG", ""))
+st.write(f"st.experimental_user.email {st.experimental_user.email} {test}")
 if st.experimental_user.email in st.secrets["admin"]["emails"]:
     if not booleanize(os.environ.get("DEBUG", "")):
         pages.append(st.Page(main_admin_leader_upload, title='Admin_Leader_Upload', url_path="Admin_Leader_Upload"))
