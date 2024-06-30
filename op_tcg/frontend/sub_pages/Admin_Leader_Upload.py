@@ -119,75 +119,74 @@ def display_upload_form(
 #             upload2bq_and_storage(bq_leader)
 
 def main_admin_leader_upload():
-    if st.experimental_user.email in st.secrets["admin"]["emails"]:
-        with st.sidebar:
-            release_meta_formats: list[MetaFormat] | None = display_release_meta_select(multiselect=True)
-            selected_leader_colors: list[OPTcgColor] | None = display_leader_color_multiselect()
-            only_without_meta: bool = st.checkbox("Without release meta")
+    with st.sidebar:
+        release_meta_formats: list[MetaFormat] | None = display_release_meta_select(multiselect=True)
+        selected_leader_colors: list[OPTcgColor] | None = display_leader_color_multiselect()
+        only_without_meta: bool = st.checkbox("Without release meta")
 
-        lid_to_ldata: dict[str, Leader] = get_lid2ldata_dict_cached()
-        # filter leader data
-        if release_meta_formats:
-            lid_to_ldata = {lid: ldata for lid, ldata in lid_to_ldata.items() if
-                            ldata.release_meta in release_meta_formats}
-        if selected_leader_colors:
-            lid_to_ldata = {lid: ldata for lid, ldata in lid_to_ldata.items() if
-                            any(c in selected_leader_colors for c in ldata.colors)}
-        if only_without_meta:
-            lid_to_ldata = {lid: ldata for lid, ldata in lid_to_ldata.items() if ldata.release_meta is None}
-        num_leaders = len(lid_to_ldata)
+    lid_to_ldata: dict[str, Leader] = get_lid2ldata_dict_cached()
+    # filter leader data
+    if release_meta_formats:
+        lid_to_ldata = {lid: ldata for lid, ldata in lid_to_ldata.items() if
+                        ldata.release_meta in release_meta_formats}
+    if selected_leader_colors:
+        lid_to_ldata = {lid: ldata for lid, ldata in lid_to_ldata.items() if
+                        any(c in selected_leader_colors for c in ldata.colors)}
+    if only_without_meta:
+        lid_to_ldata = {lid: ldata for lid, ldata in lid_to_ldata.items() if ldata.release_meta is None}
+    num_leaders = len(lid_to_ldata)
 
-        tab1, tab2 = st.tabs(["Edit", "New"])
-        with tab1:
-            key = "upload_leader_form_edit"
-            session_upload_form_data = st.session_state.get(f"{key}_data", LeaderUploadForm())
-            st.header("Edit existing leader")
-            st.write(f"Number existing leaders {num_leaders}")
-            if len(lid_to_ldata) == 0:
-                st.warning("No leaders available")
-            else:
-                available_leader_ids = [lid_to_name_and_lid(lid, ldata.name) for lid, ldata in lid_to_ldata.items()]
-                selected_leader_name: str = display_leader_select(available_leader_ids=available_leader_ids,
-                                                                  multiselect=False, default=available_leader_ids[0])
-                selected_leader_id: str = lname_and_lid_to_lid(selected_leader_name)
-                bq_leader: Leader = lid_to_ldata[selected_leader_id]
-                if session_upload_form_data.bq_leader is None or (bq_leader.id != session_upload_form_data.bq_leader.id):
-                    session_upload_form_data.bq_leader = bq_leader
-                    st.session_state[f"{key}_data"] = session_upload_form_data
-                display_upload_view(session_upload_form_data, bq_leader.id, bq_leader.language, True,
-                                    new_upload=False,
-                                    key=key)
-
-        with tab2:
-            key = "upload_leader_form_new"
-            session_upload_form_data = st.session_state.get(f"{key}_data", LeaderUploadForm())
-            st.header("Upload new leader")
-            selected_meta_win_rate_data: list[LeaderWinRate] = get_leader_win_rate(meta_formats=MetaFormat.to_list())
-            # leader ids which exists in win rate table (in match table as well) but not in leader table
-            leader_ids_not_yet_uploaded = list(
-                set([lwd.leader_id for lwd in selected_meta_win_rate_data]) - set(get_lid2ldata_dict_cached().keys()))
-            selected_leader_id = None
-            col1, col2 = st.columns(2)
-            if leader_ids_not_yet_uploaded:
-                with col2:
-                    st.write("Leaders not yet uploaded")
-                    selected_leader_id: str | None = display_leader_select(
-                        available_leader_ids=leader_ids_not_yet_uploaded,
-                        multiselect=False, default=None)
-            id_default_text = col1.text_input("Leader Id", value=selected_leader_id, help="e.g. OP01-001")
-            language_default_text = st.selectbox("Language", [OPTcgLanguage.EN, OPTcgLanguage.JP],
-                                                 help="Language of ability text")
-
-            if st.button("Auto fill"):
-                bq_leader = limitless2bq_leader(id_default_text, language=language_default_text)
+    tab1, tab2 = st.tabs(["Edit", "New"])
+    with tab1:
+        key = "upload_leader_form_edit"
+        session_upload_form_data = st.session_state.get(f"{key}_data", LeaderUploadForm())
+        st.header("Edit existing leader")
+        st.write(f"Number existing leaders {num_leaders}")
+        if len(lid_to_ldata) == 0:
+            st.warning("No leaders available")
+        else:
+            available_leader_ids = [lid_to_name_and_lid(lid, ldata.name) for lid, ldata in lid_to_ldata.items()]
+            selected_leader_name: str = display_leader_select(available_leader_ids=available_leader_ids,
+                                                              multiselect=False, default=available_leader_ids[0])
+            selected_leader_id: str = lname_and_lid_to_lid(selected_leader_name)
+            bq_leader: Leader = lid_to_ldata[selected_leader_id]
+            if session_upload_form_data.bq_leader is None or (bq_leader.id != session_upload_form_data.bq_leader.id):
                 session_upload_form_data.bq_leader = bq_leader
                 st.session_state[f"{key}_data"] = session_upload_form_data
-
-            display_upload_view(session_upload_form_data, id_default_text, language_default_text, False,
-                                new_upload=True,
+            display_upload_view(session_upload_form_data, bq_leader.id, bq_leader.language, True,
+                                new_upload=False,
                                 key=key)
-    else:
-        st.error("You are not allowed to see this page")
+
+    with tab2:
+        key = "upload_leader_form_new"
+        session_upload_form_data = st.session_state.get(f"{key}_data", LeaderUploadForm())
+        st.header("Upload new leader")
+        selected_meta_win_rate_data: list[LeaderWinRate] = get_leader_win_rate(meta_formats=MetaFormat.to_list())
+        # leader ids which exists in win rate table (in match table as well) but not in leader table
+        leader_ids_not_yet_uploaded = list(
+            set([lwd.leader_id for lwd in selected_meta_win_rate_data]) - set(get_lid2ldata_dict_cached().keys()))
+        selected_leader_id = None
+        col1, col2 = st.columns(2)
+        if leader_ids_not_yet_uploaded:
+            with col2:
+                st.write("Leaders not yet uploaded")
+                selected_leader_id: str | None = display_leader_select(
+                    available_leader_ids=leader_ids_not_yet_uploaded,
+                    multiselect=False, default=None)
+        id_default_text = col1.text_input("Leader Id", value=selected_leader_id, help="e.g. OP01-001")
+        language_default_text = st.selectbox("Language", [OPTcgLanguage.EN, OPTcgLanguage.JP],
+                                             help="Language of ability text")
+
+        if st.button("Auto fill"):
+            bq_leader = limitless2bq_leader(id_default_text, language=language_default_text)
+            session_upload_form_data.bq_leader = bq_leader
+            st.session_state[f"{key}_data"] = session_upload_form_data
+
+        display_upload_view(session_upload_form_data, id_default_text, language_default_text, False,
+                            new_upload=True,
+                            key=key)
+# else:
+#     st.error("You are not allowed to see this page")
 
 def display_upload_view(session_upload_form_data, id_default_text, language_default_text, expanded=False,
                         new_upload: bool = False,
