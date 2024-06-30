@@ -249,7 +249,3 @@ def display_bq_leader(bq_leader):
     col3.text("Leader AA Card Image")
     col3.image(bq_leader.image_aa_url)
     st.json(bq_leader.model_dump_json())
-
-
-if __name__ == "__main__":
-    main_admin_leader_upload()

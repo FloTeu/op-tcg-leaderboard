@@ -220,8 +220,3 @@ def main_leader_detail_analysis_decklists():
             else:
                 st.warning("No decklists available. Please change the 'Start Date'")
 
-
-
-
-if __name__ == "__main__":
-    main_leader_detail_analysis_decklists()

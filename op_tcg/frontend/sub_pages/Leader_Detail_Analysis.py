@@ -75,6 +75,3 @@ def main_leader_detail_anylsis():
 
             mui.Box(key="ldetailmeta_radar_plot_item", children=box_elements)
 
-
-if __name__ == "__main__":
-    main_leader_detail_anylsis()

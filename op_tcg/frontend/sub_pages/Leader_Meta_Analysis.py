@@ -111,7 +111,7 @@ def display_elements(selected_leader_ids,
             # You can pass it back to dashboard.Grid() if you want to restore a saved layout.
             pass
 
-        with dashboard.Grid(layout, onLayoutChange=handle_layout_change):
+        with dashboard.Grid(layout):
             children = [mui.Avatar(src=l.avatar_icon_url) for l in selected_bq_leaders]
             mui.AvatarGroup(children=children, key="lmeta_avatar_group_item")
 
@@ -235,7 +235,6 @@ def get_leader2avg_win_rate_dict(df_Leader_vs_leader_match_count, df_Leader_vs_l
 def main_meta_analysis():
     st.header("Leader Meta Analysis")
 
-    # TODO clean code up
     with st.sidebar:
         selected_meta_formats: list[MetaFormat] = display_meta_select()
         only_official: bool = display_only_official_toggle()
@@ -267,6 +266,3 @@ def main_meta_analysis():
                              df_Leader_vs_leader_match_count,
                              radar_chart_data)
 
-
-if __name__ == "__main__":
-    main_meta_analysis()
