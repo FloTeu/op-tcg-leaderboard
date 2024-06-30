@@ -1,9 +1,12 @@
+import os
+
 import pandas as pd
 import streamlit as st
 
 from datetime import datetime, date
 from uuid import uuid4
 
+from op_tcg.backend.utils.utils import booleanize
 from op_tcg.frontend.utils.launch import init_load_data
 from op_tcg.backend.etl.load import bq_insert_rows, get_or_create_table
 from op_tcg.backend.models.input import MetaFormat
@@ -17,15 +20,16 @@ from op_tcg.frontend.sidebar import display_meta_select, display_only_official_t
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_match_data, \
     get_leader_tournament_wins, get_leader_win_rate
 from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_cell, value2color_table_cell
-from op_tcg.frontend.utils.leader_data import leader_id2aa_image_url, lid2ldata, get_lid2ldata_dict_cached, \
-    get_template_leader
+from op_tcg.frontend.utils.leader_data import leader_id2aa_image_url, lid2ldata_fn, get_lid2ldata_dict_cached, \
+    get_template_leader, lids_to_name_and_lids, lname_and_lid_to_lid
 from op_tcg.frontend.utils.utils import bq_client
+from op_tcg.frontend.pages import main_meta_analysis, main_leader_detail_analysis_decklists, main_leader_detail_anylsis, main_admin_leader_upload
 
 from streamlit_elements import elements, dashboard, mui, nivo
 from streamlit_theme import st_theme
 
 st.set_page_config(layout="wide")
-ST_THEME = st_theme() or {"base": "dark"}
+ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 
 from timer import timer
 
@@ -172,20 +176,17 @@ def upload_match_dialog():
         available_leader_ids = [lid for lid, ldata in leader_id2leader_data.items() if ldata.release_meta in allowed_meta_fomats]
         available_leader_ids = sorted(available_leader_ids)
         # add name to ids (drop duplicates and ensures right order)
-        available_leader_names: list[str] = list(dict.fromkeys(
-           [
-               f"{leader_id2leader_data[lid].name if lid in leader_id2leader_data else ''} ({lid})"
-               for lid
-               in available_leader_ids]))
+        available_leader_names: list[str] = lids_to_name_and_lids(list([lid for lid in dict.fromkeys(available_leader_ids) if lid in leader_id2leader_data]))
+
         # display user input
         today_date = datetime.now().date()
         match_day: date = st.date_input("Match Day", value=today_date, max_value=today_date)
         match_datetime: datetime = datetime.combine(match_day, datetime.now().time())
 
         selected_winner_leader_name: str | None = display_leader_select(available_leader_ids=available_leader_names, multiselect=False, label="Winner Leader", key="match_leader_id")
-        selected_winner_leader_id: str | None = selected_winner_leader_name.split("(")[1].strip(")") if selected_winner_leader_name is not None else None
+        selected_winner_leader_id: str | None = lname_and_lid_to_lid(selected_winner_leader_name) if selected_winner_leader_name is not None else None
         selected_loser_leader_name: str | None = display_leader_select(available_leader_ids=available_leader_names, multiselect=False, label="Looser Leader", key="match_opponentleader_id")
-        selected_loser_leader_id: str | None = selected_loser_leader_name.split("(")[1].strip(")") if selected_loser_leader_name is not None else None
+        selected_loser_leader_id: str | None = lname_and_lid_to_lid(selected_loser_leader_name) if selected_loser_leader_name is not None else None
         is_draw = st.checkbox("Is draw", value=False)
 
         # Every form must have a submit button.
@@ -250,9 +251,9 @@ def main():
 
     # filter release_meta_formats
     if release_meta_formats:
-        leader_elos: list[LeaderElo] = [lelo for lelo in leader_elos if lid2ldata(lelo.leader_id).release_meta in release_meta_formats]
+        leader_elos: list[LeaderElo] = [lelo for lelo in leader_elos if lid2ldata_fn(lelo.leader_id).release_meta in release_meta_formats]
     if selected_leader_colors:
-        leader_elos: list[LeaderElo] = [lelo for lelo in leader_elos if any(lcolor in selected_leader_colors for lcolor in lid2ldata(lelo.leader_id).colors)]
+        leader_elos: list[LeaderElo] = [lelo for lelo in leader_elos if any(lcolor in selected_leader_colors for lcolor in lid2ldata_fn(lelo.leader_id).colors)]
 
     sorted_leader_elo_data: list[LeaderElo] = sorted(leader_elos, key=lambda x: x.elo,
                                                      reverse=True)
@@ -274,5 +275,19 @@ def main():
     else:
         st.warning("Seems like the selected meta does not contain any matches")
 
-if __name__ == "__main__":
-    main()
+# main_meta_analysis, main_leader_detail_analysis_decklists, main_leader_detail_anylsis, main_admin_leader_upload
+pages = [
+    st.Page(main, title="Leaderboard", default=True),
+    st.Page(main_meta_analysis, title='Leader_Meta_Analysis', url_path="Leader_Meta_Analysis"),
+    st.Page(main_leader_detail_analysis_decklists, title='Leader_Detail_Analysis_Decklists', url_path="Leader_Detail_Analysis_Decklists"),
+]
+if booleanize(os.environ.get("DEBUG", "")):
+    pages.append(st.Page(main_leader_detail_anylsis, title='Leader_Detail_Analysis', url_path="Leader_Detail_Analysis"))
+    pages.append(st.Page(main_admin_leader_upload, title='Admin_Leader_Upload', url_path="Admin_Leader_Upload"))
+
+if st.experimental_user.email in st.secrets["admin"]["emails"]:
+    if not booleanize(os.environ.get("DEBUG", "")):
+        pages.append(st.Page(main_admin_leader_upload, title='Admin_Leader_Upload', url_path="Admin_Leader_Upload"))
+
+pg = st.navigation(pages)
+pg.run()

@@ -3,7 +3,7 @@ from streamlit_elements import elements, mui, dashboard, nivo
 
 st.write("Example chart for leader performance vs different colors")
 
-def main():
+def main_leader_detail_anylsis():
 
     with elements("dashboard"):
         # Layout for every element in the dashboard
@@ -77,4 +77,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main_leader_detail_anylsis()
