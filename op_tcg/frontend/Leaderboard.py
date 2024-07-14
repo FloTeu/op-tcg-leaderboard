@@ -11,7 +11,8 @@ from op_tcg.backend.utils.utils import booleanize
 from op_tcg.frontend.utils.launch import init_load_data
 from op_tcg.backend.etl.load import bq_insert_rows, get_or_create_table
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.leader import OPTcgColor, TournamentWinner, LeaderElo
+from op_tcg.backend.models.leader import TournamentWinner, LeaderElo
+from op_tcg.backend.models.cards import OPTcgColor
 from op_tcg.backend.models.matches import Match, MatchResult, LeaderWinRate
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.frontend.utils.session import get_session_id

@@ -4,7 +4,7 @@ import streamlit as st
 
 from op_tcg.backend.models.base import EnumBase
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.leader import OPTcgColor
+from op_tcg.backend.models.cards import OPTcgColor
 
 
 class LeaderboardSortBy(EnumBase, StrEnum):

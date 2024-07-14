@@ -10,7 +10,8 @@ from op_tcg.backend.etl.extract import limitless2bq_leader
 from op_tcg.backend.etl.load import get_or_create_table
 from op_tcg.backend.etl.load_update import update_bq_leader_row
 from op_tcg.backend.models.bq_enums import BQDataset
-from op_tcg.backend.models.leader import Leader, OPTcgLanguage, OPTcgColor, OPTcgAttribute
+from op_tcg.backend.models.leader import Leader
+from op_tcg.backend.models.cards import OPTcgColor, OPTcgAttribute, OPTcgLanguage
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.matches import LeaderWinRate
 from op_tcg.backend.utils.utils import booleanize

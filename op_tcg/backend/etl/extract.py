@@ -7,7 +7,8 @@ import requests
 from bs4 import BeautifulSoup
 
 from op_tcg.backend.models.input import AllLeaderMetaDocs, LimitlessLeaderMetaDoc, MetaFormat
-from op_tcg.backend.models.leader import OPTcgLanguage, Leader, OPTcgColor, OPTcgAttribute
+from op_tcg.backend.models.leader import Leader
+from op_tcg.backend.models.cards import OPTcgColor, OPTcgAttribute, OPTcgLanguage
 
 
 def read_json_files(data_dir: str | Path) -> AllLeaderMetaDocs:

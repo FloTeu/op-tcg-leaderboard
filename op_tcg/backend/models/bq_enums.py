@@ -21,5 +21,6 @@ class BQFieldType(StrEnum):
 class BQDataset(StrEnum):
     MATCHES="matches"
     LEADERS="leaders"
+    CARDS="cards"
 
 

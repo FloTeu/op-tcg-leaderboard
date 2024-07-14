@@ -1,46 +1,12 @@
 from datetime import date
-from enum import StrEnum
 
 from pydantic import Field
-from op_tcg.backend.models.base import EnumBase
+from op_tcg.backend.models.cards import OPTcgColor, OPTcgAttribute, OPTcgLanguage
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
 from op_tcg.backend.utils.color_fns import average_hex_colors
 
-
-class OPTcgColor(EnumBase, StrEnum):
-    RED="Red"
-    GREEN="Green"
-    BLUE="Blue"
-    PURPLE="Purple"
-    BLACK="Black"
-    YELLOW="Yellow"
-
-    def to_hex_color(self) -> str:
-        if self == self.RED:
-            return "#c0392b"
-        elif self == self.GREEN:
-            return "#27ae60"
-        elif self == self.BLUE:
-            return "#2980b9"
-        elif self == self.PURPLE:
-            return "#8e44ad"
-        elif self == self.BLACK:
-            return "#0b1214"
-        elif self == self.YELLOW:
-            return "#f1c40f"
-
-class OPTcgAttribute(EnumBase, StrEnum):
-    SLASH="Slash"
-    STRIKE="Strike"
-    SPECIAL="Special"
-    WISDOM="Wisdom"
-    RANGED="Ranged"
-
-class OPTcgLanguage(StrEnum):
-    EN="en"
-    JP="jp"
 
 class Leader(BQTableBaseModel):
     _dataset_id: str = BQDataset.LEADERS

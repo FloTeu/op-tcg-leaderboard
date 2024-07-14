@@ -6,7 +6,8 @@ from pathlib import Path
 
 from op_tcg.frontend import styles, html, scripts
 from op_tcg.backend.models.input import MetaFormat, meta_format2release_datetime
-from op_tcg.backend.models.leader import LeaderElo, OPTcgLanguage
+from op_tcg.backend.models.leader import LeaderElo
+from op_tcg.backend.models.cards import OPTcgLanguage
 from op_tcg.backend.models.tournaments import TournamentStanding, TournamentStandingExtended
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select
 from op_tcg.frontend.utils.extract import get_match_data, get_leader_elo_data, get_tournament_standing_data
