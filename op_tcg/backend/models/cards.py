@@ -49,12 +49,12 @@ class OPTcgLanguage(StrEnum):
     JP="jp"
 
 class OPTcgCardCatagory(StrEnum):
-    LEADER="leader"
-    CHARACTER="character"
-    EVENT="event"
-    STAGE="stage"
+    LEADER="Leader"
+    CHARACTER="Character"
+    EVENT="Event"
+    STAGE="Stage"
 
-class CardBase(BaseModel):
+class BaseCard(BaseModel):
     """attributes which all card have in common"""
     id: str = Field(description="The op tcg id e.g. OP03-099", primary_key=True)
     name: str = Field(description="The op tcg name e.g. Charlotte Katakuri")
@@ -66,6 +66,7 @@ class CardBase(BaseModel):
     tournament_status: OPTcgTournamentStatus | None = Field(description="Whether the card is banned for tournaments")
     fractions: list[str] = Field(description="List of fractions of the leader, e.g. Straw Hat Crew")
     language: OPTcgLanguage = Field(default=OPTcgLanguage.EN, description="Language of the text data in this instance", primary_key=True)
+    card_category: OPTcgCardCatagory = Field(description="Category of card e.g. 'character'")
 
 
     def to_hex_color(self) -> str:
@@ -75,17 +76,11 @@ class CardBase(BaseModel):
         return average_hex_colors(hex_colors)
 
 
-class Card(CardBase, BQTableBaseModel):
+class Card(BaseCard, BQTableBaseModel):
     _dataset_id: str = BQDataset.CARDS
-    attributes: list[OPTcgAttribute] | None = Field(description="Attributes of the leader or character card, e.g. Slash")
+    attributes: list[OPTcgAttribute] = Field(description="Attributes of the leader or character card, e.g. Slash")
     power: int | None = Field(description="Power of leader or character card")
     cost: int | None = Field(description="Costs to summon the non-leader card e.g. 4")
     counter: int | None = Field(description="Counter value of a character card e.g. +2000")
     life: int | None = Field(description="Life of leader card e.g. 4")
-    card_category: OPTcgCardCatagory = Field(description="Category of card e.g. 'character'")
 
-    def to_hex_color(self) -> str:
-        hex_colors: list[str] = []
-        for color in self.colors:
-            hex_colors.append(color.to_hex_color())
-        return average_hex_colors(hex_colors)

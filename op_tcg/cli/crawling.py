@@ -77,7 +77,8 @@ def tournaments(
     """
     assert os.environ.get("LIMITLESS_API_TOKEN"), "LIMITLESS_API_TOKEN not set in environment"
     process = CrawlerProcess({
-        'ITEM_PIPELINES': {'op_tcg.backend.crawling.pipelines.TournamentPipeline': 1},  # Hooking in our custom pipline
+        'ITEM_PIPELINES': {'op_tcg.backend.crawling.pipelines.CardPipeline': 1,
+                           'op_tcg.backend.crawling.pipelines.TournamentPipeline': 2},
     })
     if meta_formats:
         # ensure enum format

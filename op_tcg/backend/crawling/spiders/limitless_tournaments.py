@@ -9,6 +9,7 @@ from pydantic import BaseModel, ValidationError
 
 from op_tcg.backend.crawling.items import TournamentItem
 from op_tcg.backend.etl.load import get_or_create_table
+from op_tcg.backend.models.cards import Card
 from op_tcg.backend.models.common import DataSource
 from op_tcg.backend.models.input import MetaFormat, meta_format2release_datetime
 from op_tcg.backend.models.tournaments import Tournament, TournamentStanding
@@ -30,12 +31,23 @@ class LimitlessTournamentSpider(scrapy.Spider):
             tournament_id2decklists[tournament_id["id"]] = tournament_id["decklists"]
         return tournament_id2decklists
 
+    def get_already_crawled_card_ids(self) -> list[str]:
+        """returns card ids already crawled"""
+        card_ids: list[str] = []
+        for card_row in self.bq_client.query(
+                f"SELECT id FROM `{self.card_table.full_table_id.replace(':', '.')}`").result():
+            card_ids.append(card_row["id"])
+        return card_ids
+
     def start_requests(self):
         self.bq_client = bigquery.Client(location="europe-west3")
         self.match_table = get_or_create_table(Match, client=self.bq_client)
         self.tournament_table = get_or_create_table(Tournament, client=self.bq_client)
         self.tournament_standing_table = get_or_create_table(TournamentStanding, client=self.bq_client)
+        self.card_table = get_or_create_table(Card, client=self.bq_client)
         self.known_tournament_id2contains_decklists = self.get_already_crawled_tournament_ids()
+        self.already_crawled_card_ids = self.get_already_crawled_card_ids()
+
 
         url = f"https://play.limitlesstcg.com/api/tournaments?game=OP&limit={self.num_tournament_limit}&key={self.api_token}"
         yield scrapy.Request(url=url, callback=self.parse_tournaments)

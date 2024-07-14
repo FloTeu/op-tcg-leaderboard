@@ -2,7 +2,9 @@ import op_tcg
 import json
 from pathlib import Path
 
+from op_tcg.backend.etl.extract import limitless2bq_leader, limitless2bq_card
 from op_tcg.backend.etl.load import bq_insert_rows, get_or_create_table
+from op_tcg.backend.models.cards import Card
 from op_tcg.backend.models.input import LimitlessLeaderMetaDoc
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
 from op_tcg.backend.crawling.items import TournamentItem
@@ -50,5 +52,29 @@ class TournamentPipeline:
             spider.bq_client.query(f"DELETE FROM `{bq_table.full_table_id.split(':')[1]}` WHERE id = '{item.tournament.id}';").result()
             # insert all new matches
             bq_insert_rows([json.loads(item.tournament.model_dump_json())], table=bq_table, client=spider.bq_client)
+
+        return item
+
+class CardPipeline:
+
+    def process_item(self, item: TournamentItem, spider):
+        """
+        Crawls all card data which is not yet available in big query and gcp
+        """
+        if isinstance(item, TournamentItem):
+            card_table = spider.card_table
+            decklist_card_ids = []
+            for tournament_standing in item.tournament_standings:
+                if tournament_standing.decklist:
+                    decklist_card_ids.extend(list(tournament_standing.decklist.keys()))
+            new_unique_card_ids = set(decklist_card_ids) - set(spider.already_crawled_card_ids)
+            for card_id in new_unique_card_ids:
+                # Crawl data from limitless
+                bq_card: Card = limitless2bq_card(card_id)
+                # TODO: upload images to gcp and change bq_card
+                # Upload to big query
+                bq_insert_rows([json.loads(bq_card.model_dump_json())], table=card_table, client=spider.bq_client)
+                # mark card id as crawled
+                spider.already_crawled_card_ids.append(card_id)
 
         return item
