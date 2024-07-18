@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import StrEnum
 
 from pydantic import Field, BaseModel
@@ -54,18 +55,34 @@ class OPTcgCardCatagory(StrEnum):
     EVENT="Event"
     STAGE="Stage"
 
+class OPTcgCardRarity(StrEnum):
+    COMMON="Common"
+    UNCOMMON="Uncommon"
+    RARE="Rare"
+    SUPER_RARE="Super Rare"
+    SECRET_RARE="Secret Rare"
+    LEADER="Leader"
+    PROMO="Promo"
+
+class CardCurrency(EnumBase, StrEnum):
+    EURO="eur"
+    US_DOLLAR="usd"
+
 class BaseCard(BaseModel):
     """attributes which all card have in common"""
     id: str = Field(description="The op tcg id e.g. OP03-099", primary_key=True)
+    language: OPTcgLanguage = Field(default=OPTcgLanguage.EN, description="Language of the text data in this instance", primary_key=True)
+    aa_version: int = Field(description="Alt art version of design, 0 is the original design, 1 the first alt art etc.", primary_key=True)
     name: str = Field(description="The op tcg name e.g. Charlotte Katakuri")
     release_meta: MetaFormat | None = Field(None, description="The meta format in which the Leader was released")
     image_url: str = Field(description="Public accessible url to standard image of the card")
-    image_aa_urls: list[str] = Field(description="Public accessible url to alternative artwork image")
     colors: list[OPTcgColor] = Field(description="Colors of the leader")
     ability: str = Field(description="Ability of the leader")
     tournament_status: OPTcgTournamentStatus | None = Field(description="Whether the card is banned for tournaments")
     fractions: list[str] = Field(description="List of fractions of the leader, e.g. Straw Hat Crew")
-    language: OPTcgLanguage = Field(default=OPTcgLanguage.EN, description="Language of the text data in this instance", primary_key=True)
+    rarity: OPTcgCardRarity = Field(description="Rarity of the card, e.g. Common")
+    release_set: str = Field(description="Set in which the card was released, e.g. 'Memorial Collection (EB01)'")
+    release_set_url: str = Field(description="Data source web url in which all cards of release set are listed, e.g. 'https://onepiece.limitlesstcg.com/cards/en/eb01-memorial-collection'")
     card_category: OPTcgCardCatagory = Field(description="Category of card e.g. 'character'")
 
 
@@ -84,3 +101,18 @@ class Card(BaseCard, BQTableBaseModel):
     counter: int | None = Field(description="Counter value of a character card e.g. +2000")
     life: int | None = Field(description="Life of leader card e.g. 4")
 
+
+class CardPrice(BQTableBaseModel):
+    _dataset_id: str = BQDataset.CARDS
+    card_id: str = Field(description="The op tcg card id e.g. OP03-099", primary_key=True)
+    language: OPTcgLanguage = Field(default=OPTcgLanguage.EN, description="Language of the text data in this instance", primary_key=True)
+    aa_version: int = Field(description="Alt art version of design, 0 is the original design, 1 the first alt art etc.", primary_key=True)
+    price: float = Field(description="Price of the card at the related timestamp, e.g. 4.39")
+    currency: CardCurrency = Field(description="Currency of the price, e.g. 'usd'")
+    create_timestamp: datetime = Field(default_factory=datetime.now, description="Creation timestamp when the insert in BQ happened", primary_key=True)
+
+
+
+class LimitlessCardData(BaseModel):
+    cards: list[Card]
+    card_prices: list[CardPrice]

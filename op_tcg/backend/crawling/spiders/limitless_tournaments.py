@@ -9,7 +9,7 @@ from pydantic import BaseModel, ValidationError
 
 from op_tcg.backend.crawling.items import TournamentItem
 from op_tcg.backend.etl.load import get_or_create_table
-from op_tcg.backend.models.cards import Card
+from op_tcg.backend.models.cards import Card, CardPrice
 from op_tcg.backend.models.common import DataSource
 from op_tcg.backend.models.input import MetaFormat, meta_format2release_datetime
 from op_tcg.backend.models.tournaments import Tournament, TournamentStanding
@@ -45,6 +45,7 @@ class LimitlessTournamentSpider(scrapy.Spider):
         self.tournament_table = get_or_create_table(Tournament, client=self.bq_client)
         self.tournament_standing_table = get_or_create_table(TournamentStanding, client=self.bq_client)
         self.card_table = get_or_create_table(Card, client=self.bq_client)
+        self.card_price_table = get_or_create_table(CardPrice, client=self.bq_client)
         self.known_tournament_id2contains_decklists = self.get_already_crawled_tournament_ids()
         self.already_crawled_card_ids = self.get_already_crawled_card_ids()
 

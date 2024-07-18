@@ -1,10 +1,12 @@
+import logging
+
 import op_tcg
 import json
 from pathlib import Path
 
-from op_tcg.backend.etl.extract import limitless2bq_leader, limitless2bq_card
+from op_tcg.backend.etl.extract import limitless2bq_leader, crawl_limitless_card
 from op_tcg.backend.etl.load import bq_insert_rows, get_or_create_table
-from op_tcg.backend.models.cards import Card
+from op_tcg.backend.models.cards import Card, LimitlessCardData
 from op_tcg.backend.models.input import LimitlessLeaderMetaDoc
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
 from op_tcg.backend.crawling.items import TournamentItem
@@ -62,7 +64,6 @@ class CardPipeline:
         Crawls all card data which is not yet available in big query and gcp
         """
         if isinstance(item, TournamentItem):
-            card_table = spider.card_table
             decklist_card_ids = []
             for tournament_standing in item.tournament_standings:
                 if tournament_standing.decklist:
@@ -70,10 +71,14 @@ class CardPipeline:
             new_unique_card_ids = set(decklist_card_ids) - set(spider.already_crawled_card_ids)
             for card_id in new_unique_card_ids:
                 # Crawl data from limitless
-                bq_card: Card = limitless2bq_card(card_id)
-                # TODO: upload images to gcp and change bq_card
+                try:
+                    card_data: LimitlessCardData = crawl_limitless_card(card_id)
+                except Exception as e:
+                    logging.warning("Card data could not be extracted", str(e))
+                    continue
                 # Upload to big query
-                bq_insert_rows([json.loads(bq_card.model_dump_json())], table=card_table, client=spider.bq_client)
+                bq_insert_rows([json.loads(bq_card.model_dump_json()) for bq_card in card_data.cards], table=spider.card_table, client=spider.bq_client)
+                bq_insert_rows([json.loads(bq_card_price.model_dump_json()) for bq_card_price in card_data.card_prices], table=spider.card_price_table, client=spider.bq_client)
                 # mark card id as crawled
                 spider.already_crawled_card_ids.append(card_id)
 
