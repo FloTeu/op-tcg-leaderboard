@@ -61,3 +61,7 @@ If not already done, update package version
 ```shell
 poetry version patch/minor/major/prepatch/preminor/premajor/prerelease
 ```
+```shell
+cd terraform
+sh terraform_apply.sh
+```
