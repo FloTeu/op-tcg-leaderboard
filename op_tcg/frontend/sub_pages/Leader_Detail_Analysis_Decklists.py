@@ -199,6 +199,10 @@ def display_decklist(decklist: dict[str, int], is_mobile: bool):
                         )], key=f"item_{card_id}"
                 )
 
+def add_query_param(kwargs: dict[str, str]):
+    for qparam, session_key in kwargs.items():
+        st.query_params[qparam] = st.session_state[session_key].split("(")[1].strip(")")
+
 
 def main_leader_detail_analysis_decklists():
     st.header("Leader Decklist")
@@ -219,8 +223,8 @@ def main_leader_detail_analysis_decklists():
         with st.sidebar:
             qp_lid = st.query_params.get('lid', None)
             default = f"{lid2ldata_fn(qp_lid).name} ({qp_lid})" if qp_lid else available_leader_ids[0]
-            selected_leader_name: str = display_leader_select(available_leader_ids=available_leader_ids,
-                                                              multiselect=False, default=default)
+            selected_leader_name: str = display_leader_select(available_leader_ids=available_leader_ids, key="select_lid",
+                                                              multiselect=False, default=default, on_change=add_query_param, kwargs={"lid": "select_lid"})
             oldest_release_data: date = datetime.now().date()
             for meta_format in selected_meta_formats:
                 release_date = meta_format2release_datetime(meta_format)
