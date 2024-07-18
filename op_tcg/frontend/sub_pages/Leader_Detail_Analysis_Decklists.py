@@ -220,11 +220,15 @@ def main_leader_detail_analysis_decklists():
                 f"{lid2ldata_fn(l.leader_id).name} ({l.leader_id})"
                 for l
                 in selected_leader_elo_data]))
+
+        qp_lid = st.query_params.get('lid', None)
+        default_leader_name = f"{lid2ldata_fn(qp_lid).name} ({qp_lid})" if qp_lid else available_leader_ids[0]
+        if default_leader_name not in available_leader_ids:
+            st.warning(f"Leader {default_leader_name} is not available")
+            default_leader_name = None
         with st.sidebar:
-            qp_lid = st.query_params.get('lid', None)
-            default = f"{lid2ldata_fn(qp_lid).name} ({qp_lid})" if qp_lid else available_leader_ids[0]
             selected_leader_name: str = display_leader_select(available_leader_ids=available_leader_ids, key="select_lid",
-                                                              multiselect=False, default=default, on_change=add_query_param, kwargs={"lid": "select_lid"})
+                                                              multiselect=False, default=default_leader_name, on_change=add_query_param, kwargs={"lid": "select_lid"})
             oldest_release_data: date = datetime.now().date()
             for meta_format in selected_meta_formats:
                 release_date = meta_format2release_datetime(meta_format)
@@ -257,10 +261,13 @@ def main_leader_detail_analysis_decklists():
                                                                    min([ts.tournament_timestamp.date() for ts in
                                                                         tournament_standings])))
                 end_date: date = st.date_input("End Date", datetime.now().date())
+                min_tournament_placing: int = st.number_input("Min Tournament Placing", value=None, min_value=1)
+
 
             # filter by selected date and cost range
             def filter_tournament_standing(ts: TournamentStanding) -> bool:
                 return (
+                    (ts.placing <= min_tournament_placing if ts.placing and min_tournament_placing else True) and
                     ts.tournament_timestamp.date() >= start_date and
                     ts.tournament_timestamp.date() <= end_date and
                     (
@@ -279,34 +286,37 @@ def main_leader_detail_analysis_decklists():
                                      tournament_standings}
             decklist_id2price_usd = {(ts.id, ts.player_id): decklist_id2price_usd[ts.id, ts.player_id] for ts in
                                      tournament_standings}
-            decklist_data: DecklistData = tournament_standings2decklist_data(tournament_standings)
-            decklist_data.avg_price_eur = mean(decklist_id2price_eur.values())
-            decklist_data.avg_price_usd = mean(decklist_id2price_usd.values())
-
-            card_ids_sorted = sorted(decklist_data.card_id2occurrence_proportion.keys(),
-                                     key=lambda d: decklist_data.card_id2occurrences[d], reverse=True)
-            card_ids_filtered = [card_id for card_id in card_ids_sorted if
-                                 card_id != leader_id and decklist_data.card_id2occurrence_proportion[card_id] >= 0.02]
-            st.write(f"Number of decks: {len(tournament_standings)}")
-            st.write(
-                f"Average Price: {'%.2f' % decklist_data.avg_price_eur}€ | ${'%.2f' % decklist_data.avg_price_usd}")
-            col1, col2, col3 = st.columns([0.4, 0.5, 0.1])
-            col1.image(
-                f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{leader_id.split('-')[0]}/{leader_id}_{OPTcgLanguage.EN.upper()}.webp",
-                width=400,  # Manually Adjust the width of the image as per requirement
-                )
-            with col2:
-                display_list_view(decklist_data, card_ids_filtered)
-
-            selected_matching_decklist = get_best_matching_decklist(tournament_standings, decklist_data)
-            if selected_matching_decklist:
-                st.subheader("Average Decklist")
-                player_id = st.selectbox("Select Players Decklist", [ts.player_id for ts in tournament_standings],
-                                         index=None)
-                if player_id:
-                    selected_matching_decklist = \
-                    [ts.decklist for ts in tournament_standings if ts.player_id == player_id][0]
-                selected_matching_decklist.pop(leader_id)
-                display_decklist(selected_matching_decklist, is_mobile())
+            if len(tournament_standings) == 0:
+                st.warning("No decklists available")
             else:
-                st.warning("No decklists available. Please change the 'Start Date'")
+                decklist_data: DecklistData = tournament_standings2decklist_data(tournament_standings)
+                decklist_data.avg_price_eur = mean(decklist_id2price_eur.values())
+                decklist_data.avg_price_usd = mean(decklist_id2price_usd.values())
+
+                card_ids_sorted = sorted(decklist_data.card_id2occurrence_proportion.keys(),
+                                         key=lambda d: decklist_data.card_id2occurrences[d], reverse=True)
+                card_ids_filtered = [card_id for card_id in card_ids_sorted if
+                                     card_id != leader_id and decklist_data.card_id2occurrence_proportion[card_id] >= 0.02]
+                st.write(f"Number of decks: {len(tournament_standings)}")
+                st.write(
+                    f"Average Price: {'%.2f' % decklist_data.avg_price_eur}€ | ${'%.2f' % decklist_data.avg_price_usd}")
+                col1, col2, col3 = st.columns([0.4, 0.5, 0.1])
+                col1.image(
+                    f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{leader_id.split('-')[0]}/{leader_id}_{OPTcgLanguage.EN.upper()}.webp",
+                    width=400,  # Manually Adjust the width of the image as per requirement
+                    )
+                with col2:
+                    display_list_view(decklist_data, card_ids_filtered)
+
+                selected_matching_decklist = get_best_matching_decklist(tournament_standings, decklist_data)
+                if selected_matching_decklist:
+                    st.subheader("Average Decklist")
+                    player_id = st.selectbox("Select Players Decklist", [ts.player_id for ts in tournament_standings],
+                                             index=None)
+                    if player_id:
+                        selected_matching_decklist = \
+                        [ts.decklist for ts in tournament_standings if ts.player_id == player_id][0]
+                    selected_matching_decklist.pop(leader_id)
+                    display_decklist(selected_matching_decklist, is_mobile())
+                else:
+                    st.warning("No decklists available. Please change the 'Start Date'")
