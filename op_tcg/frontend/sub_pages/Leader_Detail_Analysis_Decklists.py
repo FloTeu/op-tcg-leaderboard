@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 import streamlit as st
 from statistics import mean
@@ -230,10 +230,12 @@ def main_leader_detail_analysis_decklists():
             selected_leader_name: str = display_leader_select(available_leader_ids=available_leader_ids, key="select_lid",
                                                               multiselect=False, default=default_leader_name, on_change=add_query_param, kwargs={"lid": "select_lid"})
             oldest_release_data: date = datetime.now().date()
+            oldest_release_datetime: datetime = datetime.now()
             for meta_format in selected_meta_formats:
                 release_date = meta_format2release_datetime(meta_format)
                 if release_date.date() < oldest_release_data:
                     oldest_release_data = release_date.date()
+                    oldest_release_datetime = release_date
 
         if selected_leader_name:
             leader_id: str = selected_leader_name.split("(")[1].strip(")")
@@ -257,28 +259,42 @@ def main_leader_detail_analysis_decklists():
                                                                        (min_price, max_price))
                 else:
                     selected_min_price, selected_max_price = min_price, max_price
-                start_date: date = st.date_input("Start Date", min(oldest_release_data,
-                                                                   min([ts.tournament_timestamp.date() for ts in
-                                                                        tournament_standings])))
-                end_date: date = st.date_input("End Date", datetime.now().date())
+
+                min_date = min(oldest_release_datetime.date(),
+                    min([ts.tournament_timestamp.date() for ts in tournament_standings]))
+                min_datetime = datetime(min_date.year, min_date.month, min_date.day)
+                max_datetime = datetime(datetime.now().year, datetime.now().month, datetime.now().day)
+                start_datetime, end_datetime = st.slider(
+                    "Date Range",
+                    min_value=min_datetime,
+                    max_value=max_datetime,
+                    value=(min_datetime, max_datetime),
+                    step=timedelta(days=1),
+                    format="DD/MM/YY",
+                    help="Format: DD/MM/YY")
+
                 min_tournament_placing: int = st.number_input("Min Tournament Placing", value=None, min_value=1)
 
 
             # filter by selected date and cost range
             def filter_tournament_standing(ts: TournamentStanding) -> bool:
-                return (
-                    (ts.placing <= min_tournament_placing if ts.placing and min_tournament_placing else True) and
-                    ts.tournament_timestamp.date() >= start_date and
-                    ts.tournament_timestamp.date() <= end_date and
-                    (
+                is_in_placing = (ts.placing <= min_tournament_placing if ts.placing and min_tournament_placing else True)
+                if filter_currency == CardCurrency.EURO:
+                    is_in_price = (
                             decklist_id2price_eur[ts.id, ts.player_id] >= selected_min_price and
                             decklist_id2price_eur[ts.id, ts.player_id] <= selected_max_price
                     )
-                    if filter_currency == CardCurrency.EURO else
-                    (
-                            decklist_id2price_usd[ts.id, ts.player_id] >= selected_min_price and
-                            decklist_id2price_usd[ts.id, ts.player_id] <= selected_max_price
+                else:
+                    is_in_price = (
+                        decklist_id2price_usd[ts.id, ts.player_id] >= selected_min_price and
+                        decklist_id2price_usd[ts.id, ts.player_id] <= selected_max_price
                     )
+                return (
+                    ts.tournament_timestamp.date() >= start_datetime.date() and
+                    ts.tournament_timestamp.date() <= end_datetime.date() and
+                    is_in_placing and
+                    is_in_price
+
                 )
 
             tournament_standings = [ts for ts in tournament_standings if filter_tournament_standing(ts)]
