@@ -9,7 +9,7 @@ from pathlib import Path
 from op_tcg.frontend import styles, html, scripts
 from op_tcg.backend.models.input import MetaFormat, meta_format2release_datetime
 from op_tcg.backend.models.leader import LeaderElo
-from op_tcg.backend.models.cards import OPTcgLanguage, LatestCardPrice
+from op_tcg.backend.models.cards import OPTcgLanguage, LatestCardPrice, CardCurrency
 from op_tcg.backend.models.tournaments import TournamentStanding, TournamentStandingExtended
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select
 from op_tcg.frontend.utils.extract import get_match_data, get_leader_elo_data, get_tournament_standing_data, \
@@ -22,8 +22,8 @@ from streamlit_elements import elements, mui, nivo, dashboard, html as element_h
 
 class DecklistData(BaseModel):
     num_decklists: int
-    avg_price_eur: float
-    avg_price_usd: float
+    avg_price_eur: float | None = None
+    avg_price_usd: float | None = None
     card_id2occurrences: dict[str, int]
     card_id2occurrence_proportion: dict[str, float]
     card_id2total_count: dict[str, int]
@@ -31,20 +31,34 @@ class DecklistData(BaseModel):
     card_id2card_data: dict[str, LatestCardPrice]
 
 
-def tournament_standings2decklist_data(tournament_standings: list[TournamentStandingExtended]) -> DecklistData:
-    num_decklists = len(tournament_standings)
-    deck_prices_eur = []
-    deck_prices_usd = []
+def get_decklist_price(decklist: dict[str, int], card_id2card_data: dict[str, LatestCardPrice],
+                       currency: CardCurrency = CardCurrency.EURO) -> float:
+    deck_price = 0.0
+    for card_id, count in decklist.items():
+        card_data = card_id2card_data.get(card_id, None)
+        if currency == CardCurrency.EURO:
+            deck_price += card_data.latest_eur_price * count if card_data else 0.0
+        elif currency == CardCurrency.US_DOLLAR:
+            deck_price += card_data.latest_usd_price * count if card_data else 0.0
+        else:
+            raise NotImplementedError
+    return deck_price
+
+
+def get_card_id_card_data_lookup() -> dict[str, LatestCardPrice]:
     card_data = get_card_data()
     card_data = [cdata for cdata in card_data if cdata.aa_version == 0]
-    card_id2card_data = {card.id: card for card in card_data}
+    return {card.id: card for card in card_data}
+
+
+def tournament_standings2decklist_data(tournament_standings: list[TournamentStandingExtended]) -> DecklistData:
+    num_decklists = len(tournament_standings)
+    card_id2card_data = get_card_id_card_data_lookup()
     card_id2occurrences: dict[str, int] = {}
     card_id2occurrence_proportion: dict[str, float] = {}
     card_id2total_count: dict[str, int] = {}
     card_id2avg_count_card: dict[str, float] = {}
     for tournament_standing in tournament_standings:
-        deck_price_eur = 0.0
-        deck_price_usd = 0.0
         for card_id, count in tournament_standing.decklist.items():
             if card_id not in card_id2occurrences:
                 card_id2occurrences[card_id] = 1
@@ -52,35 +66,28 @@ def tournament_standings2decklist_data(tournament_standings: list[TournamentStan
             else:
                 card_id2occurrences[card_id] += 1
                 card_id2total_count[card_id] += count
-            card_data = card_id2card_data.get(card_id, None)
-            deck_price_eur += card_data.latest_eur_price * count if card_data else 0.0
-            deck_price_usd += card_data.latest_usd_price * count if card_data else 0.0
-
-        deck_prices_eur.append(deck_price_eur)
-        deck_prices_usd.append(deck_price_usd)
-
 
     for card_id, total_count in card_id2total_count.items():
         card_id2avg_count_card[card_id] = float("%.2f" % (total_count / card_id2occurrences[card_id]))
         card_id2occurrence_proportion[card_id] = card_id2occurrences[card_id] / num_decklists
 
     return DecklistData(num_decklists=num_decklists,
-                        avg_price_eur=mean(deck_prices_eur),
-                        avg_price_usd=mean(deck_prices_usd),
                         card_id2occurrences=card_id2occurrences,
                         card_id2occurrence_proportion=card_id2occurrence_proportion,
                         card_id2total_count=card_id2total_count,
                         card_id2avg_count_card=card_id2avg_count_card,
                         card_id2card_data=card_id2card_data)
 
-def get_best_matching_decklist(tournament_standings: list[TournamentStandingExtended], decklist_data: DecklistData) -> dict[str, int]:
+
+def get_best_matching_decklist(tournament_standings: list[TournamentStandingExtended], decklist_data: DecklistData) -> \
+dict[str, int]:
     decklists: list[dict[str, int]] = [ts.decklist for ts in tournament_standings]
     card_ids_sorted: list[str] = sorted(decklist_data.card_id2occurrence_proportion.keys(),
-                             key=lambda d: decklist_data.card_id2occurrences[d], reverse=True)
+                                        key=lambda d: decklist_data.card_id2occurrences[d], reverse=True)
     should_have_card_ids_in_decklist: set[str] = set()
     card_count: float = 0.0
     for card_id in card_ids_sorted:
-        if card_count < 51: # 50 + leader
+        if card_count < 51:  # 50 + leader
             should_have_card_ids_in_decklist.add(card_id)
             card_count += decklist_data.card_id2avg_count_card[card_id]
     best_matching_decklist: dict[str, int] = {}
@@ -93,7 +100,6 @@ def get_best_matching_decklist(tournament_standings: list[TournamentStandingExte
             best_overlap = current_overlap
 
     return best_matching_decklist
-
 
 
 def display_list_view(decklist_data: DecklistData, card_ids: list[str]):
@@ -115,7 +121,7 @@ def display_list_view(decklist_data: DecklistData, card_ids: list[str]):
       {card_headline_html}
       <ul class="item-facts">
         <li>Card ID: {card_id}</li>
-        <li>Occurrence: {int(decklist_data.card_id2occurrence_proportion[card_id]*100)}%</li>
+        <li>Occurrence: {int(decklist_data.card_id2occurrence_proportion[card_id] * 100)}%</li>
         <li>Average Count in Deck: {decklist_data.card_id2avg_count_card[card_id]} ({round(decklist_data.card_id2avg_count_card[card_id])})</li>
         {price_html}
         <!-- Add more facts as needed -->
@@ -123,7 +129,7 @@ def display_list_view(decklist_data: DecklistData, card_ids: list[str]):
     </div>
     
     <div class="item-fact-circle" style="background: rgba(123, 237, 159, {occurence_percantage})">
-      {int(occurence_percantage*100)}%
+      {int(occurence_percantage * 100)}%
     </div>
     
   </li>
@@ -158,17 +164,17 @@ def display_list_view(decklist_data: DecklistData, card_ids: list[str]):
 {modal_js}
 </script>
   """,
-    height=600, scrolling=True)
+                    height=600, scrolling=True)
 
 
 def display_decklist(decklist: dict[str, int], is_mobile: bool):
-
     with elements("dashboard"):
         # First, build a default layout for every element you want to include in your dashboard
         num_cols = 3
         layout = [
             # Parameters: element_identifier, x_pos, y_pos, width, height, [item properties...]
-            dashboard.Item(f"item_{card_id}", ((i*2)%(num_cols*2)), 0, 2, 3, isResizable=False, isDraggable=not is_mobile, preventCollision=True)
+            dashboard.Item(f"item_{card_id}", ((i * 2) % (num_cols * 2)), 0, 2, 3, isResizable=False,
+                           isDraggable=not is_mobile, preventCollision=True)
             for i, (card_id, _) in enumerate(decklist.items())
         ]
 
@@ -179,7 +185,7 @@ def display_decklist(decklist: dict[str, int], is_mobile: bool):
             for card_id, count in decklist.items():
                 op_set = card_id.split("-")[0]
                 image_url = f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{op_set}/{card_id}_{OPTcgLanguage.EN.upper()}.webp"
-                #mui.Box(component="img", src=image_url, alt=f"image_{card_id}", sx={"display": "flex"}, key=f"item_{card_id}")
+                # mui.Box(component="img", src=image_url, alt=f"image_{card_id}", sx={"display": "flex"}, key=f"item_{card_id}")
                 mui.Container(
                     children=[
                         # Image at the top
@@ -192,6 +198,7 @@ def display_decklist(decklist: dict[str, int], is_mobile: bool):
                             gutterBottom=True
                         )], key=f"item_{card_id}"
                 )
+
 
 def main_leader_detail_analysis_decklists():
     st.header("Leader Decklist")
@@ -213,7 +220,7 @@ def main_leader_detail_analysis_decklists():
             qp_lid = st.query_params.get('lid', None)
             default = f"{lid2ldata_fn(qp_lid).name} ({qp_lid})" if qp_lid else available_leader_ids[0]
             selected_leader_name: str = display_leader_select(available_leader_ids=available_leader_ids,
-                                                                     multiselect=False, default=default)
+                                                              multiselect=False, default=default)
             oldest_release_data: date = datetime.now().date()
             for meta_format in selected_meta_formats:
                 release_date = meta_format2release_datetime(meta_format)
@@ -222,32 +229,80 @@ def main_leader_detail_analysis_decklists():
 
         if selected_leader_name:
             leader_id: str = selected_leader_name.split("(")[1].strip(")")
-            tournament_standings: list[TournamentStandingExtended] = get_tournament_standing_data(meta_formats=selected_meta_formats, leader_id=leader_id)
-            start_date: date = st.sidebar.date_input("Start Date", min(oldest_release_data, min([ts.tournament_timestamp.date() for ts in tournament_standings])))
-            end_date: date = st.sidebar.date_input("End Date", datetime.now().date())
+            tournament_standings: list[TournamentStandingExtended] = get_tournament_standing_data(
+                meta_formats=selected_meta_formats, leader_id=leader_id)
+            card_id2card_data = get_card_id_card_data_lookup()
+            decklist_id2price_eur = {
+                (ts.id, ts.player_id): get_decklist_price(ts.decklist, card_id2card_data, currency=CardCurrency.EURO)
+                for ts in tournament_standings if ts.decklist}
+            decklist_id2price_usd = {(ts.id, ts.player_id): get_decklist_price(ts.decklist, card_id2card_data,
+                                                                               currency=CardCurrency.US_DOLLAR) for ts
+                                     in tournament_standings if ts.decklist}
+            with st.sidebar:
+                filter_currency = st.selectbox("Currency", [CardCurrency.EURO, CardCurrency.US_DOLLAR])
+                min_price = min(decklist_id2price_eur.values()) if filter_currency == CardCurrency.EURO else min(
+                    decklist_id2price_usd.values())
+                max_price = max(decklist_id2price_eur.values()) if filter_currency == CardCurrency.EURO else max(
+                    decklist_id2price_usd.values())
+                if min_price < max_price:
+                    selected_min_price, selected_max_price = st.slider("Decklist Cost Range", min_price, max_price,
+                                                                       (min_price, max_price))
+                else:
+                    selected_min_price, selected_max_price = min_price, max_price
+                start_date: date = st.date_input("Start Date", min(oldest_release_data,
+                                                                   min([ts.tournament_timestamp.date() for ts in
+                                                                        tournament_standings])))
+                end_date: date = st.date_input("End Date", datetime.now().date())
 
-            # filter by start date
-            tournament_standings = [tstand for tstand in tournament_standings if tstand.tournament_timestamp.date() >= start_date and tstand.tournament_timestamp.date() <= end_date]
+            # filter by selected date and cost range
+            def filter_tournament_standing(ts: TournamentStanding) -> bool:
+                return (
+                    ts.tournament_timestamp.date() >= start_date and
+                    ts.tournament_timestamp.date() <= end_date and
+                    (
+                            decklist_id2price_eur[ts.id, ts.player_id] >= selected_min_price and
+                            decklist_id2price_eur[ts.id, ts.player_id] <= selected_max_price
+                    )
+                    if filter_currency == CardCurrency.EURO else
+                    (
+                            decklist_id2price_usd[ts.id, ts.player_id] >= selected_min_price and
+                            decklist_id2price_usd[ts.id, ts.player_id] <= selected_max_price
+                    )
+                )
+
+            tournament_standings = [ts for ts in tournament_standings if filter_tournament_standing(ts)]
+            decklist_id2price_eur = {(ts.id, ts.player_id): decklist_id2price_eur[ts.id, ts.player_id] for ts in
+                                     tournament_standings}
+            decklist_id2price_usd = {(ts.id, ts.player_id): decklist_id2price_usd[ts.id, ts.player_id] for ts in
+                                     tournament_standings}
             decklist_data: DecklistData = tournament_standings2decklist_data(tournament_standings)
-            card_ids_sorted = sorted(decklist_data.card_id2occurrence_proportion.keys(), key=lambda d: decklist_data.card_id2occurrences[d], reverse=True)
-            card_ids_filtered = [card_id for card_id in card_ids_sorted if card_id != leader_id and decklist_data.card_id2occurrence_proportion[card_id] >= 0.02]
+            decklist_data.avg_price_eur = mean(decklist_id2price_eur.values())
+            decklist_data.avg_price_usd = mean(decklist_id2price_usd.values())
+
+            card_ids_sorted = sorted(decklist_data.card_id2occurrence_proportion.keys(),
+                                     key=lambda d: decklist_data.card_id2occurrences[d], reverse=True)
+            card_ids_filtered = [card_id for card_id in card_ids_sorted if
+                                 card_id != leader_id and decklist_data.card_id2occurrence_proportion[card_id] >= 0.02]
             st.write(f"Number of decks: {len(tournament_standings)}")
-            st.write(f"Average Price: {'%.2f' % decklist_data.avg_price_eur}€ | ${'%.2f' % decklist_data.avg_price_usd}")
+            st.write(
+                f"Average Price: {'%.2f' % decklist_data.avg_price_eur}€ | ${'%.2f' % decklist_data.avg_price_usd}")
             col1, col2, col3 = st.columns([0.4, 0.5, 0.1])
-            col1.image(f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{leader_id.split('-')[0]}/{leader_id}_{OPTcgLanguage.EN.upper()}.webp",
+            col1.image(
+                f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{leader_id.split('-')[0]}/{leader_id}_{OPTcgLanguage.EN.upper()}.webp",
                 width=400,  # Manually Adjust the width of the image as per requirement
-            )
+                )
             with col2:
                 display_list_view(decklist_data, card_ids_filtered)
 
             selected_matching_decklist = get_best_matching_decklist(tournament_standings, decklist_data)
             if selected_matching_decklist:
                 st.subheader("Average Decklist")
-                player_id = st.selectbox("Select Players Decklist", [ts.player_id for ts in tournament_standings], index=None)
+                player_id = st.selectbox("Select Players Decklist", [ts.player_id for ts in tournament_standings],
+                                         index=None)
                 if player_id:
-                    selected_matching_decklist = [ts.decklist for ts in tournament_standings if ts.player_id == player_id][0]
+                    selected_matching_decklist = \
+                    [ts.decklist for ts in tournament_standings if ts.player_id == player_id][0]
                 selected_matching_decklist.pop(leader_id)
                 display_decklist(selected_matching_decklist, is_mobile())
             else:
                 st.warning("No decklists available. Please change the 'Start Date'")
-
