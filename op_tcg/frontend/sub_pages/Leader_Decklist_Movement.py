@@ -1,21 +1,21 @@
-from datetime import datetime, date, timedelta
-
 import streamlit as st
 from statistics import mean
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from streamlit_elements import elements, mui, dashboard, html as element_html
 
-from op_tcg.backend.models.input import MetaFormat, meta_format2release_datetime
+from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import LeaderElo
 from op_tcg.backend.models.cards import OPTcgLanguage, CardCurrency
 from op_tcg.backend.models.tournaments import TournamentStanding, TournamentStandingExtended
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select
+from op_tcg.frontend.sub_pages.Leader_Detail_Analysis_Decklists import get_decklist_price
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_tournament_standing_data
-from op_tcg.frontend.utils.js import is_mobile
-from op_tcg.frontend.utils.leader_data import lid2ldata_fn, lid_to_name_and_lid, lname_and_lid_to_lid
+from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid, lname_and_lid_to_lid, \
+    get_lid2ldata_dict_cached
 from op_tcg.frontend.utils.query_params import add_query_param, get_default_leader_name
-from op_tcg.frontend.utils.decklist import tournament_standings2decklist_data, DecklistData
+from op_tcg.frontend.utils.decklist import tournament_standings2decklist_data, DecklistData, \
+    get_card_id_card_data_lookup
 
 
 def display_decklist(decklist: dict[str, int], is_mobile: bool):
@@ -56,6 +56,12 @@ class CardMovement(BaseModel):
     occurrence_proportion_after: float
     occurrence_proportion_change: float
 
+    @field_validator("occurrence_proportion_before", "occurrence_proportion_after", "occurrence_proportion_change")
+    @classmethod
+    def round_floats(cls, value):
+        return float("%.2f" % value)
+
+
 
 def get_card_movement(decklist_data_past: DecklistData, decklist_data_current: DecklistData) -> dict[str, CardMovement]:
     card_movement: dict[str, CardMovement] = {}
@@ -76,6 +82,10 @@ def get_card_movement(decklist_data_past: DecklistData, decklist_data_current: D
         add_card_movement(card_id)
     return card_movement
 
+def get_avg_price(tournament_standings: list[TournamentStanding], currency: CardCurrency) -> float:
+    card_id2card_data = get_card_id_card_data_lookup()
+    return mean([get_decklist_price(ts.decklist, card_id2card_data, currency=currency) for ts in tournament_standings])
+
 def main_leader_decklist_movement():
     st.header("Leader Decklist Movement")
 
@@ -84,7 +94,8 @@ def main_leader_decklist_movement():
         previous_meta_format: MetaFormat = MetaFormat.to_list()[MetaFormat.to_list().index(selected_meta_format) - 1]
 
     selected_leader_elo_data: list[LeaderElo] = get_leader_elo_data(meta_formats=[selected_meta_format])
-    available_leader_ids = list(dict.fromkeys([l.leader_id for l in selected_leader_elo_data]))
+    leader_id2leader_data = get_lid2ldata_dict_cached()
+    available_leader_ids = list(dict.fromkeys([l.leader_id for l in selected_leader_elo_data if leader_id2leader_data[l.leader_id].release_meta != selected_meta_format]))
     available_leader_names = [lid_to_name_and_lid(lid) for lid in available_leader_ids]
     default_leader_name = get_default_leader_name(available_leader_ids)
     with st.sidebar:
@@ -102,19 +113,34 @@ def main_leader_decklist_movement():
         if len(tournament_standings_selected_meta) == 0 or len(tournament_standings_previous_meta) == 0:
             st.warning("No decklists available")
         else:
-            st.write(f"Number of decks ({previous_meta_format}): {len(tournament_standings_previous_meta)}")
-            st.write(f"Number of decks ({selected_meta_format}): {len(tournament_standings_selected_meta)}")
             decklist_data_previous_meta: DecklistData = tournament_standings2decklist_data(
                 tournament_standings_previous_meta)
             decklist_data_selected_meta: DecklistData = tournament_standings2decklist_data(
                 tournament_standings_selected_meta)
             card_movement = get_card_movement(decklist_data_previous_meta, decklist_data_selected_meta)
+            avg_price_eur_previous_meta = get_avg_price(tournament_standings_previous_meta, currency=CardCurrency.EURO)
+            avg_price_eur_selected_meta = get_avg_price(tournament_standings_selected_meta, currency=CardCurrency.EURO)
+            avg_price_usd_previous_meta = get_avg_price(tournament_standings_previous_meta, currency=CardCurrency.US_DOLLAR)
+            avg_price_usd_selected_meta = get_avg_price(tournament_standings_selected_meta, currency=CardCurrency.US_DOLLAR)
 
-            st.subheader("Decklist Loser")
-            for key in sorted(card_movement, key=lambda lid: card_movement[lid].occurrence_proportion_change):
-                if card_movement[key].occurrence_proportion_change < -0.4:
-                    st.write(f"{key} change: {card_movement[key].occurrence_proportion_change}")
-            st.subheader("Decklist Winner")
-            for key in sorted(card_movement, key=lambda lid: card_movement[lid].occurrence_proportion_change, reverse=True):
-                if card_movement[key].occurrence_proportion_change > 0.4:
-                    st.write(f"{key} change: {card_movement[key].occurrence_proportion_change}")
+
+            col1, col2, col3, col4, col5 = st.columns([5,1,4,1,5])
+            with col1:
+                st.write(f"Number of decks ({previous_meta_format}): {len(tournament_standings_previous_meta)}")
+                st.write(f"Average price: {'%.2f' % avg_price_eur_previous_meta}€ | ${'%.2f' % avg_price_usd_previous_meta}")
+                st.subheader("Decklist Loser")
+                for key in sorted(card_movement, key=lambda lid: card_movement[lid].occurrence_proportion_change):
+                    if card_movement[key].occurrence_proportion_change < -0.4:
+                        st.image(decklist_data_previous_meta.card_id2card_data[key].image_url)
+                        st.write(f"Occurrence {int(card_movement[key].occurrence_proportion_before*100)}% -> {int(card_movement[key].occurrence_proportion_after*100)}%")
+            with col3:
+                st.subheader("Decklist Leader")
+                st.image(decklist_data_selected_meta.card_id2card_data[leader_id].image_url)
+            with col5:
+                st.write(f"Number of decks ({selected_meta_format}): {len(tournament_standings_selected_meta)}")
+                st.write(f"Average price: {'%.2f' % avg_price_eur_selected_meta}€ | ${'%.2f' % avg_price_usd_selected_meta}")
+                st.subheader("Decklist Winner")
+                for key in sorted(card_movement, key=lambda lid: card_movement[lid].occurrence_proportion_change, reverse=True):
+                    if card_movement[key].occurrence_proportion_change > 0.4:
+                        st.image(decklist_data_selected_meta.card_id2card_data[key].image_url)
+                        st.write(f"Occurrence {int(card_movement[key].occurrence_proportion_before*100)}% -> {int(card_movement[key].occurrence_proportion_after*100)}%")
