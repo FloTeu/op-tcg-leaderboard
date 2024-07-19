@@ -102,6 +102,7 @@ def main_leader_decklist_movement():
         selected_leader_name: str = display_leader_select(available_leader_ids=available_leader_names, key="select_lid",
                                                           multiselect=False, default=default_leader_name,
                                                           on_change=add_query_param, kwargs={"lid": "select_lid"})
+        threshold: int = st.slider("Min Occurrence Change (in %)", min_value=5, max_value=100, value=40)
 
     if selected_leader_name:
         leader_id: str = lname_and_lid_to_lid(selected_leader_name)
@@ -130,7 +131,7 @@ def main_leader_decklist_movement():
                 st.write(f"Average price: {'%.2f' % avg_price_eur_previous_meta}€ | ${'%.2f' % avg_price_usd_previous_meta}")
                 st.subheader("Decklist Loser")
                 for key in sorted(card_movement, key=lambda lid: card_movement[lid].occurrence_proportion_change):
-                    if card_movement[key].occurrence_proportion_change < -0.4:
+                    if card_movement[key].occurrence_proportion_change < -(threshold/100):
                         st.image(decklist_data_previous_meta.card_id2card_data[key].image_url)
                         st.write(f"Occurrence {int(card_movement[key].occurrence_proportion_before*100)}% -> {int(card_movement[key].occurrence_proportion_after*100)}%")
             with col3:
@@ -141,6 +142,6 @@ def main_leader_decklist_movement():
                 st.write(f"Average price: {'%.2f' % avg_price_eur_selected_meta}€ | ${'%.2f' % avg_price_usd_selected_meta}")
                 st.subheader("Decklist Winner")
                 for key in sorted(card_movement, key=lambda lid: card_movement[lid].occurrence_proportion_change, reverse=True):
-                    if card_movement[key].occurrence_proportion_change > 0.4:
+                    if card_movement[key].occurrence_proportion_change > (threshold/100):
                         st.image(decklist_data_selected_meta.card_id2card_data[key].image_url)
                         st.write(f"Occurrence {int(card_movement[key].occurrence_proportion_before*100)}% -> {int(card_movement[key].occurrence_proportion_after*100)}%")
