@@ -1,10 +1,6 @@
-import os
-from pathlib import Path
-
 import click
 import streamlit as st
 import streamlit.web.bootstrap as st_bootstrap
-from streamlit import config as _config
 from op_tcg.frontend.Leaderboard import main
 
 

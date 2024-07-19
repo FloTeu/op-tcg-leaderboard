@@ -1,13 +1,21 @@
+import json
+import logging
 import os
 import click
 
 from pathlib import Path
 
+from google.cloud import bigquery
 from scrapy.crawler import CrawlerProcess
+from tqdm import tqdm
+
 from op_tcg.backend.crawling.spiders.limitless_matches import LimitlessMatchSpider
 from op_tcg.backend.crawling.spiders.limitless_tournaments import LimitlessTournamentSpider
-from op_tcg.backend.etl.extract import get_leader_ids
+from op_tcg.backend.etl.extract import get_leader_ids, crawl_limitless_card
+from op_tcg.backend.etl.load import get_or_create_table, bq_insert_rows
+from op_tcg.backend.models.cards import Card, CardPrice, LimitlessCardData
 from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.tournaments import TournamentStanding
 
 
 @click.group("crawl", help="Crawling functionality")
@@ -77,13 +85,51 @@ def tournaments(
     """
     assert os.environ.get("LIMITLESS_API_TOKEN"), "LIMITLESS_API_TOKEN not set in environment"
     process = CrawlerProcess({
-        'ITEM_PIPELINES': {'op_tcg.backend.crawling.pipelines.TournamentPipeline': 1},  # Hooking in our custom pipline
+        'ITEM_PIPELINES': {'op_tcg.backend.crawling.pipelines.CardPipeline': 1,
+                           'op_tcg.backend.crawling.pipelines.TournamentPipeline': 2},
     })
     if meta_formats:
         # ensure enum format
         meta_formats = [MetaFormat(meta_format) for meta_format in meta_formats]
     process.crawl(LimitlessTournamentSpider, meta_formats=meta_formats, api_token=os.environ.get("LIMITLESS_API_TOKEN"), num_tournament_limit=num_tournament_limit)
     process.start() # the script will block here until the crawling is finished
+
+
+@limitless_group.command()
+def crawl_decklist_cards(
+) -> None:
+    """
+    Crawls all card in existing decklists and pushes result to BQ.
+    """
+
+    bq_client = bigquery.Client(location="europe-west3")
+    tournament_standing_table = get_or_create_table(TournamentStanding, client=bq_client)
+    card_table = get_or_create_table(Card, client=bq_client)
+    card_price_table = get_or_create_table(CardPrice, client=bq_client)
+
+    already_crawled_card_ids: list[str] = []
+    for card_row in bq_client.query(
+            f"SELECT id FROM `{card_table.full_table_id.replace(':', '.')}`").result():
+        already_crawled_card_ids.append(card_row["id"])
+
+    decklist_card_ids = []
+    for decklist_row in bq_client.query(f"SELECT decklist FROM `{tournament_standing_table.full_table_id.replace(':', '.')}` where decklist is not null").result():
+        decklist_card_ids.extend(list(eval(decklist_row["decklist"]).keys()))
+
+    new_unique_card_ids = set(decklist_card_ids) - set(already_crawled_card_ids)
+
+    for card_id in tqdm(new_unique_card_ids):
+        # Crawl data from limitless
+        try:
+            card_data: LimitlessCardData = crawl_limitless_card(card_id)
+        except Exception as e:
+            logging.warning("Card data could not be extracted", str(e))
+            continue
+        # Upload to big query
+        bq_insert_rows([json.loads(bq_card.model_dump_json()) for bq_card in card_data.cards], table=card_table,
+                       client=bq_client)
+        bq_insert_rows([json.loads(bq_card_price.model_dump_json()) for bq_card_price in card_data.card_prices],
+                       table=card_price_table, client=bq_client)
 
 
 if __name__ == "__main__":

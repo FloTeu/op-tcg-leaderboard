@@ -55,3 +55,13 @@ The app is running in Google cloud and can be initialized by terraform.
 * Activate Cloud Build API 
 * Activate Cloud Scheduler API 
 * Setup IAM service account with BigQuery read/write access
+
+## Cloud Deployment
+If not already done, update package version
+```shell
+poetry version patch/minor/major/prepatch/preminor/premajor/prerelease
+```
+```shell
+cd terraform
+sh terraform_apply.sh
+```

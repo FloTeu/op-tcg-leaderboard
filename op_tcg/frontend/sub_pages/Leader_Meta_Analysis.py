@@ -4,7 +4,8 @@ import streamlit as st
 
 from op_tcg.backend.utils.leader_fns import df_win_rate_data2lid_dicts
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.leader import Leader, OPTcgColor, LeaderElo
+from op_tcg.backend.models.leader import Leader, LeaderElo
+from op_tcg.backend.models.cards import OPTcgColor
 from op_tcg.backend.models.matches import LeaderWinRate
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_leader_win_rate
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select, display_only_official_toggle

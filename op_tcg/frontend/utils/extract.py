@@ -1,5 +1,6 @@
 import streamlit as st
 from op_tcg.backend.models.bq_enums import BQDataset
+from op_tcg.backend.models.cards import LatestCardPrice
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader, TournamentWinner, LeaderElo
 from op_tcg.backend.models.matches import Match, LeaderWinRate
@@ -38,7 +39,7 @@ def get_leader_win_rate(meta_formats: list[MetaFormat], leader_ids: list[str] | 
     else:
         return bq_win_rates
 
-def get_tournament_standing_data(meta_formats: list[MetaFormat], leader_id: list[str]) -> list[TournamentStandingExtended]:
+def get_tournament_standing_data(meta_formats: list[MetaFormat], leader_id: str) -> list[TournamentStandingExtended]:
     bq_tournament_standings: list[TournamentStandingExtended] = []
     for meta_format in meta_formats:
         # cached for each session
@@ -65,6 +66,7 @@ def get_leader_elo_data(meta_formats: list[MetaFormat] | None=None) -> list[Lead
         leader_elo_rows = run_bq_query(
             f"""SELECT * FROM `{st.secrets["gcp_service_account"]["project_id"]}.{LeaderElo.get_dataset_id()}.{LeaderElo.__tablename__}` order by elo desc""")
         bq_leader_elos.extend([LeaderElo(**d) for d in leader_elo_rows])
+    bq_leader_elos.sort(key=lambda x: x.elo, reverse=True)
     return bq_leader_elos
 
 
@@ -82,3 +84,8 @@ def get_leader_tournament_wins(meta_formats: list[MetaFormat] | None=None) -> li
             f"""SELECT * FROM `{st.secrets["gcp_service_account"]["project_id"]}.{TournamentWinner.get_dataset_id()}.{TournamentWinner.__tablename__}`""")
         bq_leader_tournament_wins.extend([TournamentWinner(**d) for d in leader_wins_rows])
     return bq_leader_tournament_wins
+
+def get_card_data() -> list[LatestCardPrice]:
+    latest_card_rows = run_bq_query(
+            f"""SELECT * FROM `{st.secrets["gcp_service_account"]["project_id"]}.{LatestCardPrice.get_dataset_id()}.{LatestCardPrice.__tablename__}`""")
+    return [LatestCardPrice(**d) for d in latest_card_rows]

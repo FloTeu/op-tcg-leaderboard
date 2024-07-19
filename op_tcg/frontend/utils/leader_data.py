@@ -1,6 +1,7 @@
 import streamlit as st
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.leader import Leader, OPTcgColor, OPTcgAttribute, OPTcgLanguage
+from op_tcg.backend.models.leader import Leader
+from op_tcg.backend.models.cards import OPTcgColor, OPTcgAttribute, OPTcgLanguage
 from op_tcg.frontend.utils.extract import get_leader_data
 
 

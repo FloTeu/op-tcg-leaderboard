@@ -13,9 +13,6 @@ from op_tcg.backend.utils.annotations import create_pandera_schema_from_pydantic
 
 
 class BQTableBaseModel(SQLTableBaseModel, ABC):
-    class Config:
-        underscore_attrs_are_private = True
-
     _dataset_id: str
     create_timestamp: datetime = Field(default_factory=datetime.now, description="Creation timestamp when the insert in BQ happened")
 

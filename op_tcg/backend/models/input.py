@@ -32,6 +32,9 @@ class MetaFormat(EnumBase, StrEnum):
                 return_meta_formats.append(meta_format)
         return return_meta_formats
 
+    @classmethod
+    def latest_meta_format(cls, only_after_release: bool = True) -> "MetaFormat":
+        return cls.to_list(only_after_release=only_after_release)[-1]
 
 class LimitlessMatch(BaseModel):
     leader_name: str = Field(description="The op tcg leader name")
