@@ -3,7 +3,6 @@ from datetime import datetime, date, timedelta
 import streamlit as st
 from statistics import mean
 
-from pydantic import BaseModel
 from pathlib import Path
 
 from op_tcg.frontend import styles, html, scripts
@@ -12,23 +11,14 @@ from op_tcg.backend.models.leader import LeaderElo
 from op_tcg.backend.models.cards import OPTcgLanguage, LatestCardPrice, CardCurrency
 from op_tcg.backend.models.tournaments import TournamentStanding, TournamentStandingExtended
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select
-from op_tcg.frontend.utils.extract import get_match_data, get_leader_elo_data, get_tournament_standing_data, \
-    get_card_data
+from op_tcg.frontend.utils.decklist import tournament_standings2decklist_data, DecklistData, \
+    get_card_id_card_data_lookup
+from op_tcg.frontend.utils.extract import get_leader_elo_data, get_tournament_standing_data
 from op_tcg.frontend.utils.js import is_mobile
-from op_tcg.frontend.utils.leader_data import lid2ldata_fn
+from op_tcg.frontend.utils.query_params import add_query_param, get_default_leader_name
+from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid
 import streamlit.components.v1 as components
-from streamlit_elements import elements, mui, nivo, dashboard, html as element_html
-
-
-class DecklistData(BaseModel):
-    num_decklists: int
-    avg_price_eur: float | None = None
-    avg_price_usd: float | None = None
-    card_id2occurrences: dict[str, int]
-    card_id2occurrence_proportion: dict[str, float]
-    card_id2total_count: dict[str, int]
-    card_id2avg_count_card: dict[str, float]
-    card_id2card_data: dict[str, LatestCardPrice]
+from streamlit_elements import elements, mui, dashboard, html as element_html
 
 
 def get_decklist_price(decklist: dict[str, int], card_id2card_data: dict[str, LatestCardPrice],
@@ -43,40 +33,6 @@ def get_decklist_price(decklist: dict[str, int], card_id2card_data: dict[str, La
         else:
             raise NotImplementedError
     return deck_price
-
-
-def get_card_id_card_data_lookup() -> dict[str, LatestCardPrice]:
-    card_data = get_card_data()
-    card_data = [cdata for cdata in card_data if cdata.aa_version == 0]
-    return {card.id: card for card in card_data}
-
-
-def tournament_standings2decklist_data(tournament_standings: list[TournamentStandingExtended]) -> DecklistData:
-    num_decklists = len(tournament_standings)
-    card_id2card_data = get_card_id_card_data_lookup()
-    card_id2occurrences: dict[str, int] = {}
-    card_id2occurrence_proportion: dict[str, float] = {}
-    card_id2total_count: dict[str, int] = {}
-    card_id2avg_count_card: dict[str, float] = {}
-    for tournament_standing in tournament_standings:
-        for card_id, count in tournament_standing.decklist.items():
-            if card_id not in card_id2occurrences:
-                card_id2occurrences[card_id] = 1
-                card_id2total_count[card_id] = count
-            else:
-                card_id2occurrences[card_id] += 1
-                card_id2total_count[card_id] += count
-
-    for card_id, total_count in card_id2total_count.items():
-        card_id2avg_count_card[card_id] = float("%.2f" % (total_count / card_id2occurrences[card_id]))
-        card_id2occurrence_proportion[card_id] = card_id2occurrences[card_id] / num_decklists
-
-    return DecklistData(num_decklists=num_decklists,
-                        card_id2occurrences=card_id2occurrences,
-                        card_id2occurrence_proportion=card_id2occurrence_proportion,
-                        card_id2total_count=card_id2total_count,
-                        card_id2avg_count_card=card_id2avg_count_card,
-                        card_id2card_data=card_id2card_data)
 
 
 def get_best_matching_decklist(tournament_standings: list[TournamentStandingExtended], decklist_data: DecklistData) -> \
@@ -199,11 +155,6 @@ def display_decklist(decklist: dict[str, int], is_mobile: bool):
                         )], key=f"item_{card_id}"
                 )
 
-def add_query_param(kwargs: dict[str, str]):
-    for qparam, session_key in kwargs.items():
-        st.query_params[qparam] = st.session_state[session_key].split("(")[1].strip(")")
-
-
 def main_leader_detail_analysis_decklists():
     st.header("Leader Decklist")
 
@@ -215,19 +166,11 @@ def main_leader_detail_analysis_decklists():
     else:
 
         selected_leader_elo_data: list[LeaderElo] = get_leader_elo_data(meta_formats=selected_meta_formats)
-        available_leader_ids = list(dict.fromkeys(
-            [
-                f"{lid2ldata_fn(l.leader_id).name} ({l.leader_id})"
-                for l
-                in selected_leader_elo_data]))
-
-        qp_lid = st.query_params.get('lid', None)
-        default_leader_name = f"{lid2ldata_fn(qp_lid).name} ({qp_lid})" if qp_lid else available_leader_ids[0]
-        if default_leader_name not in available_leader_ids:
-            st.warning(f"Leader {default_leader_name} is not available")
-            default_leader_name = None
+        available_leader_ids = list(dict.fromkeys([l.leader_id for l in selected_leader_elo_data]))
+        available_leader_names = [lid_to_name_and_lid(lid) for lid in available_leader_ids]
+        default_leader_name = get_default_leader_name(available_leader_ids)
         with st.sidebar:
-            selected_leader_name: str = display_leader_select(available_leader_ids=available_leader_ids, key="select_lid",
+            selected_leader_name: str = display_leader_select(available_leader_ids=available_leader_names, key="select_lid",
                                                               multiselect=False, default=default_leader_name, on_change=add_query_param, kwargs={"lid": "select_lid"})
             oldest_release_data: date = datetime.now().date()
             oldest_release_datetime: datetime = datetime.now()
@@ -336,3 +279,5 @@ def main_leader_detail_analysis_decklists():
                     display_decklist(selected_matching_decklist, is_mobile())
                 else:
                     st.warning("No decklists available. Please change the 'Start Date'")
+
+
