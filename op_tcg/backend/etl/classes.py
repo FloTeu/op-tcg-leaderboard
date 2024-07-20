@@ -1,17 +1,20 @@
 import json
 import logging
 import sys
+import tempfile
 
 import pandas as pd
+import requests
 
 from op_tcg.backend.elo import EloCreator
 from op_tcg.backend.etl.base import AbstractETLJob, E, T
-from op_tcg.backend.etl.load import get_or_create_table, bq_insert_rows
+from op_tcg.backend.etl.load import get_or_create_table, bq_insert_rows, upload2gcp_storage
 from op_tcg.backend.etl.transform import BQMatchCreator
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.input import AllLeaderMetaDocs, MetaFormat, LimitlessLeaderMetaDoc
 from op_tcg.backend.models.matches import BQMatches, Match
 from op_tcg.backend.models.leader import LeaderElo
+from op_tcg.backend.models.cards import Card
 from op_tcg.backend.etl.extract import read_json_files
 from pathlib import Path
 from google.cloud import bigquery
@@ -119,3 +122,45 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, list[LeaderElo]]):
         rows_to_insert = [json.loads(bq_leader_elo.model_dump_json()) for bq_leader_elo in transformed_data]
         bq_insert_rows(rows_to_insert, table=table, client=self.bq_client)
         _logger.info(f"Loading {len(transformed_data)} rows with meta {self.meta_formats} succeeded")
+
+
+class CardImageUpdateToGCPEtlJob(AbstractETLJob[list[Card], list[Card]]):
+    def __init__(self, meta_formats: list[MetaFormat] | None = None):
+        self.bq_client = bigquery.Client(location="europe-west3")
+        self.bucket = f"{self.bq_client.project}-public"
+        self.meta_formats = meta_formats or []
+        self.in_meta_format_where_statement = "release_meta in ('" + "','".join(self.meta_formats) + "')"
+
+    def validate(self, extracted_data: AllLeaderMetaDocs) -> bool:
+        return True
+
+    def extract(self) -> list[Card]:
+        query = f'SELECT * FROM {BQDataset.CARDS}.{Card.__tablename__} WHERE image_url NOT LIKE "%googleapis%" '
+        if self.meta_formats:
+            query += f"and {self.in_meta_format_where_statement}"
+        _logger.info(f"Query BQ with '{query}'")
+        df = self.bq_client.query_and_wait(query).to_dataframe()
+        _logger.info(f"Extracted {len(df)} rows from bq {BQDataset.CARDS}.{Card.__tablename__}")
+        cards: list[Card] = []
+        for i, df_row in df.iterrows():
+            cards.append(Card(**df_row.to_dict()))
+        return cards
+
+
+    def transform(self, cards: list[Card]) -> list[Card]:
+        for card in cards:
+            with tempfile.NamedTemporaryFile() as tmp:
+                img_data = requests.get(card.image_url).content
+                tmp.write(img_data)
+                file_type = card.image_url.split('.')[-1]
+                image_url_path = f"card/images/{card.language.upper()}/{card.aa_version}/{card.id}.{file_type}"
+                upload2gcp_storage(path_to_file=tmp.name,
+                                   blob_name=image_url_path,
+                                   content_type=f"image/{file_type}")
+                card.image_url = f"https://storage.googleapis.com/{self.bucket}/{image_url_path}"
+        return cards
+
+    def load(self, cards: list[Card]) -> None:
+        # ensure bq table exists
+        for card in cards:
+            card.upsert_to_bq()

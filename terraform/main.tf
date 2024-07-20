@@ -82,6 +82,38 @@ resource "google_storage_bucket_object" "object" {
   source = "cloud_functions/function-source.zip" # Add path to the zipped function source code
 }
 
+# storage
+resource "google_storage_bucket" "public" {
+  name          = "${var.project}-public"
+  location      = var.region
+  uniform_bucket_level_access = true
+
+  website {
+    main_page_suffix = "index.html"
+    not_found_page   = "404.html"
+  }
+  cors {
+    origin          = ["http://image-store.com"]
+    method          = ["GET", "HEAD", "PUT", "POST", "DELETE"]
+    response_header = ["*"]
+    max_age_seconds = 3600
+  }
+}
+
+## make bucket public accessible
+data "google_iam_policy" "storage_viewer" {
+  binding {
+    role = "roles/storage.objectViewer"
+    members = [
+      "allUsers",
+    ]
+  }
+}
+
+resource "google_storage_bucket_iam_policy" "policy" {
+  bucket = google_storage_bucket.public.name
+  policy_data = data.google_iam_policy.storage_viewer.policy_data
+}
 
 # cloud function
 resource "google_cloudfunctions2_function" "default" {

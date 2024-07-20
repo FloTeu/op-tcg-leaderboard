@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from pydantic import ValidationError
 
 from op_tcg.backend.etl.extract import limitless2bq_leader
-from op_tcg.backend.etl.load import get_or_create_table
+from op_tcg.backend.etl.load import get_or_create_table, upload2gcp_storage
 from op_tcg.backend.etl.load_update import update_bq_leader_row
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.leader import Leader
@@ -21,7 +21,7 @@ from op_tcg.frontend.sidebar import display_meta_select, display_release_meta_se
 from op_tcg.frontend.utils.extract import get_leader_win_rate
 from op_tcg.frontend.utils.leader_data import get_lid2ldata_dict_cached, lids_to_name_and_lids, lid_to_name_and_lid, \
     lname_and_lid_to_lid
-from op_tcg.frontend.utils.utils import upload2gcp_storage, bq_client, run_bq_query
+from op_tcg.frontend.utils.utils import bq_client, run_bq_query
 
 load_dotenv()
 

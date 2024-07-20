@@ -1,7 +1,8 @@
 from pathlib import Path
 
 import click
-from op_tcg.backend.etl.classes import LocalMatchesToBigQueryEtlJob, EloUpdateToBigQueryEtlJob
+from op_tcg.backend.etl.classes import LocalMatchesToBigQueryEtlJob, EloUpdateToBigQueryEtlJob, \
+    CardImageUpdateToGCPEtlJob
 from op_tcg.backend.models.input import MetaFormat
 
 
@@ -50,6 +51,25 @@ def calculate_leader_elo(
     meta_formats = meta_formats or MetaFormat.to_list()
     etl_job = EloUpdateToBigQueryEtlJob(meta_formats=meta_formats, matches_csv_file_path=file_path)
     etl_job.run()
+
+@etl_group.command()
+@click.option("--meta-formats", "-m", multiple=True)
+@click.option("--file-path", "-f", type=click.Path(), default=None)
+def update_card_images(
+        meta_formats: tuple[MetaFormat],
+        file_path: Path=None
+) -> None:
+    """
+    Starts a job which downloads all card images which do no exist yet in gcp storage.
+
+    """
+
+    assert not (file_path is None and meta_formats is None), "Content of file is not filtered by meta format. Either provide a file only or select some meta formats"
+    meta_formats = list(meta_formats)
+    etl_job = CardImageUpdateToGCPEtlJob(meta_formats=meta_formats)
+    etl_job.run()
+
+
 
 if __name__ == "__main__":
     upload_matches()
