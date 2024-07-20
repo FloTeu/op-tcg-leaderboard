@@ -163,30 +163,31 @@ class CardImageUpdateToGCPEtlJob(AbstractETLJob[list[Card], list[Card]]):
         return cards
 
     def load(self, cards: list[Card]) -> None:
-        # create tmp table
-        card_table = get_or_create_table(Card, table_id=Card.__tablename__)
-        card_tmp_table = get_or_create_table(Card, table_id=f"{Card.__tablename__}_tmp")
-        time.sleep(2) # ensure table exist
-        # ensure table is empty
-        self.bq_client.query(
-            f"DELETE FROM `{card_tmp_table.full_table_id.replace(':', '.')}` WHERE TRUE;").result()
+        if len(cards) > 0:
+            # create tmp table
+            card_table = get_or_create_table(Card, table_id=Card.__tablename__)
+            card_tmp_table = get_or_create_table(Card, table_id=f"{Card.__tablename__}_tmp")
+            time.sleep(2) # ensure table exist
+            # ensure table is empty
+            self.bq_client.query(
+                f"DELETE FROM `{card_tmp_table.full_table_id.replace(':', '.')}` WHERE TRUE;").result()
 
-        rows_to_insert = []
-        for card in cards:
-            rows_to_insert.append(json.loads(card.model_dump_json()))
-        bq_insert_rows(rows_to_insert, table=card_tmp_table, client=self.bq_client)
+            rows_to_insert = []
+            for card in cards:
+                rows_to_insert.append(json.loads(card.model_dump_json()))
+            bq_insert_rows(rows_to_insert, table=card_tmp_table, client=self.bq_client)
 
-        # update rows
-        self.bq_client.query(f"""
-        MERGE `{card_table.full_table_id.replace(':', '.')}` AS target
-        USING `{card_tmp_table.full_table_id.replace(':', '.')}` AS source
-        ON target.id = source.id 
-        AND target.language = source.language 
-        AND target.aa_version = source.aa_version
-        WHEN MATCHED THEN
-          UPDATE SET
-            target.image_url = source.image_url
-        """)
+            # update rows
+            self.bq_client.query(f"""
+            MERGE `{card_table.full_table_id.replace(':', '.')}` AS target
+            USING `{card_tmp_table.full_table_id.replace(':', '.')}` AS source
+            ON target.id = source.id 
+            AND target.language = source.language 
+            AND target.aa_version = source.aa_version
+            WHEN MATCHED THEN
+              UPDATE SET
+                target.image_url = source.image_url
+            """)
 
-        # delete tmp table
-        self.bq_client.delete_table(f"{card_tmp_table.full_table_id.replace(':', '.')}", not_found_ok=True)
+            # delete tmp table
+            self.bq_client.delete_table(f"{card_tmp_table.full_table_id.replace(':', '.')}", not_found_ok=True)
