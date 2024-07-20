@@ -2,6 +2,7 @@ import json
 import logging
 import sys
 import tempfile
+import time
 
 import pandas as pd
 import requests
@@ -148,19 +149,44 @@ class CardImageUpdateToGCPEtlJob(AbstractETLJob[list[Card], list[Card]]):
 
 
     def transform(self, cards: list[Card]) -> list[Card]:
-        for card in cards:
+        for i, card in enumerate(cards):
             with tempfile.NamedTemporaryFile() as tmp:
                 img_data = requests.get(card.image_url).content
                 tmp.write(img_data)
                 file_type = card.image_url.split('.')[-1]
                 image_url_path = f"card/images/{card.language.upper()}/{card.aa_version}/{card.id}.{file_type}"
                 upload2gcp_storage(path_to_file=tmp.name,
+                                   bucket=self.bucket,
                                    blob_name=image_url_path,
                                    content_type=f"image/{file_type}")
                 card.image_url = f"https://storage.googleapis.com/{self.bucket}/{image_url_path}"
         return cards
 
     def load(self, cards: list[Card]) -> None:
-        # ensure bq table exists
+        # create tmp table
+        card_table = get_or_create_table(Card, table_id=Card.__tablename__)
+        card_tmp_table = get_or_create_table(Card, table_id=f"{Card.__tablename__}_tmp")
+        time.sleep(2) # ensure table exist
+        # ensure table is empty
+        self.bq_client.query(
+            f"DELETE FROM `{card_tmp_table.full_table_id.replace(':', '.')}` WHERE TRUE;").result()
+
+        rows_to_insert = []
         for card in cards:
-            card.upsert_to_bq()
+            rows_to_insert.append(json.loads(card.model_dump_json()))
+        bq_insert_rows(rows_to_insert, table=card_tmp_table, client=self.bq_client)
+
+        # update rows
+        self.bq_client.query(f"""
+        MERGE `{card_table.full_table_id.replace(':', '.')}` AS target
+        USING `{card_tmp_table.full_table_id.replace(':', '.')}` AS source
+        ON target.id = source.id 
+        AND target.language = source.language 
+        AND target.aa_version = source.aa_version
+        WHEN MATCHED THEN
+          UPDATE SET
+            target.image_url = source.image_url
+        """)
+
+        # delete tmp table
+        self.bq_client.delete_table(f"{card_tmp_table.full_table_id.replace(':', '.')}", not_found_ok=True)
