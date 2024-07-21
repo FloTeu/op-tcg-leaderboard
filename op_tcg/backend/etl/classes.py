@@ -18,7 +18,7 @@ from op_tcg.backend.models.leader import LeaderElo
 from op_tcg.backend.models.cards import Card
 from op_tcg.backend.etl.extract import read_json_files
 from pathlib import Path
-from google.cloud import bigquery
+from google.cloud import bigquery, storage
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -128,6 +128,7 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, list[LeaderElo]]):
 class CardImageUpdateToGCPEtlJob(AbstractETLJob[list[Card], list[Card]]):
     def __init__(self, meta_formats: list[MetaFormat] | None = None):
         self.bq_client = bigquery.Client(location="europe-west3")
+        self.storage_client = storage.Client()
         self.bucket = f"{self.bq_client.project}-public"
         self.meta_formats = meta_formats or []
         self.in_meta_format_where_statement = "release_meta in ('" + "','".join(self.meta_formats) + "')"
@@ -158,7 +159,8 @@ class CardImageUpdateToGCPEtlJob(AbstractETLJob[list[Card], list[Card]]):
                 upload2gcp_storage(path_to_file=tmp.name,
                                    bucket=self.bucket,
                                    blob_name=image_url_path,
-                                   content_type=f"image/{file_type}")
+                                   content_type=f"image/{file_type}",
+                                   client=self.storage_client)
                 card.image_url = f"https://storage.googleapis.com/{self.bucket}/{image_url_path}"
         return cards
 

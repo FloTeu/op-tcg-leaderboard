@@ -6,13 +6,13 @@ from datetime import datetime, date
 from typing import Any
 
 from google.cloud import bigquery
+from google.cloud import storage
 from google.cloud.exceptions import NotFound
 from google.cloud.bigquery import QueryJobConfig
 
 from op_tcg.backend.models.base import SQLTableBaseModel
 from op_tcg.backend.models.storage import StorageBucket
 from op_tcg.backend.utils.annotations import pydantic_model_to_bq_types, pydantic_model_to_bq_schema
-from op_tcg.frontend.utils.utils import storage_client
 
 _logger = logging.getLogger("load")
 
@@ -167,7 +167,8 @@ def bq_upsert_row(bq_model: SQLTableBaseModel, client: bigquery.Client | None = 
         _logger.exception(f"An error occurred: {e}")
 
 
-def upload2gcp_storage(path_to_file: str, blob_name: str, bucket: str = StorageBucket.PUBLIC_BUCKET, content_type: str | None = None):
-    bucket = storage_client.get_bucket(bucket)
+def upload2gcp_storage(path_to_file: str, blob_name: str, bucket: str = StorageBucket.PUBLIC_BUCKET, content_type: str | None = None, client: storage.Client | None = None):
+    client = client or storage.Client()
+    bucket = client.get_bucket(bucket)
     blob = bucket.blob(blob_name)
     blob.upload_from_filename(path_to_file, content_type=content_type)

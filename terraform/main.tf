@@ -38,7 +38,7 @@ resource "google_project_iam_member" "storage_object_admin" {
   member  = "serviceAccount:${google_service_account.cloud_function_sa.email}"
 }
 
-resource "google_project_iam_member" "storage_object_admin" {
+resource "google_project_iam_member" "storage_object_creator" {
   project = var.project
   role    = "roles/storage.objectCreator"
   member  = "serviceAccount:${google_service_account.cloud_function_sa.email}"
