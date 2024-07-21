@@ -44,6 +44,12 @@ resource "google_project_iam_member" "storage_object_creator" {
   member  = "serviceAccount:${google_service_account.cloud_function_sa.email}"
 }
 
+resource "google_project_iam_member" "storage_bucket_viewer" {
+  project = var.project
+  role    = "roles/storage.insightsCollectorService"
+  member  = "serviceAccount:${google_service_account.cloud_function_sa.email}"
+}
+
 resource "google_project_iam_member" "run_invoker" {
   project = var.project
   role    = "roles/run.invoker"
@@ -273,7 +279,7 @@ resource "google_cloudfunctions2_function" "card_image_update" {
   service_config {
     max_instance_count = 10
     available_memory   = "512M"
-    timeout_seconds    = 540
+    timeout_seconds    = 1800
     service_account_email = google_service_account.cloud_function_sa.email
   }
 }
