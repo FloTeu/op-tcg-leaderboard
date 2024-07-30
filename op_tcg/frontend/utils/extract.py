@@ -39,15 +39,18 @@ def get_leader_win_rate(meta_formats: list[MetaFormat], leader_ids: list[str] | 
     else:
         return bq_win_rates
 
-def get_tournament_standing_data(meta_formats: list[MetaFormat], leader_id: str) -> list[TournamentStandingExtended]:
+def get_tournament_standing_data(meta_formats: list[MetaFormat], leader_id: str | None = None) -> list[TournamentStandingExtended]:
     bq_tournament_standings: list[TournamentStandingExtended] = []
+    leader_condition = ""
+    if leader_id:
+        leader_condition = f"and t1.leader_id = '{leader_id}'"
     for meta_format in meta_formats:
         # cached for each session
         tournament_standing_rows = run_bq_query(f"""
 SELECT t1.*, t2.* EXCEPT (create_timestamp, name) FROM `{st.secrets["gcp_service_account"]["project_id"]}.matches.{TournamentStanding.__tablename__}` t1
 left join `{st.secrets["gcp_service_account"]["project_id"]}.matches.{Tournament.__tablename__}` t2
 on t1.tournament_id = t2.id
-where t2.meta_format = '{meta_format}' and t1.leader_id = '{leader_id}'
+where t2.meta_format = '{meta_format}' {leader_condition}
 """)
         bq_tournament_standings.extend([TournamentStandingExtended(**d) for d in tournament_standing_rows])
 

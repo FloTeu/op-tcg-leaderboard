@@ -36,6 +36,10 @@ def display_leader_color_multiselect(default: list[OPTcgColor] | None = None) ->
     all_colors = OPTcgColor.to_list()
     return st.multiselect("Leader Color", all_colors, default=default)
 
+def display_card_color_multiselect(default: list[OPTcgColor] | None = None) -> list[OPTcgColor] | None:
+    all_colors = OPTcgColor.to_list()
+    return st.multiselect("Card Color", all_colors, default=default)
+
 
 def display_match_count_slider_slider(min=0, max=20000):
     return st.slider('Leader Match Count', min, max, (min, max))

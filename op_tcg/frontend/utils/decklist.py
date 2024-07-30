@@ -44,7 +44,7 @@ def tournament_standings2decklist_data(tournament_standings: list[TournamentStan
                         card_id2card_data=card_id2card_data)
 
 
-def get_card_id_card_data_lookup() -> dict[str, LatestCardPrice]:
+def get_card_id_card_data_lookup(aa_version: int = 0) -> dict[str, LatestCardPrice]:
     card_data = get_card_data()
-    card_data = [cdata for cdata in card_data if cdata.aa_version == 0]
+    card_data = [cdata for cdata in card_data if cdata.aa_version == aa_version]
     return {card.id: card for card in card_data}
