@@ -64,6 +64,14 @@ class OPTcgCardRarity(StrEnum):
     LEADER="Leader"
     PROMO="Promo"
 
+
+class OPTcgAbility(EnumBase, StrEnum):
+    RUSH = "Rush"
+    BLOCKER = "Blocker"
+    BANISH = "Banish"
+    TRIGGER = "Trigger"
+
+
 class CardCurrency(EnumBase, StrEnum):
     EURO="eur"
     US_DOLLAR="usd"

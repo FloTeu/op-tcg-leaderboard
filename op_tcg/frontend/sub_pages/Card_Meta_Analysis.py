@@ -3,7 +3,7 @@ import streamlit as st
 from pydantic import Field, BaseModel
 from streamlit_elements import elements, mui, dashboard, html as element_html
 
-from op_tcg.backend.models.cards import OPTcgColor, OPTcgLanguage, LatestCardPrice, OPTcgCardCatagory
+from op_tcg.backend.models.cards import OPTcgColor, OPTcgLanguage, LatestCardPrice, OPTcgCardCatagory, OPTcgAbility
 from op_tcg.backend.models.tournaments import TournamentStandingExtended
 from op_tcg.backend.utils.leader_fns import df_win_rate_data2lid_dicts
 from op_tcg.backend.models.input import MetaFormat
@@ -14,7 +14,7 @@ from op_tcg.frontend.utils.decklist import tournament_standings2decklist_data, D
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_leader_win_rate, get_tournament_standing_data, \
     get_card_data
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select, display_only_official_toggle, \
-    display_leader_color_multiselect, display_card_color_multiselect
+    display_leader_color_multiselect, display_card_color_multiselect, display_card_ability_multiselect
 from op_tcg.frontend.utils.js import is_mobile
 from op_tcg.frontend.utils.leader_data import lid2ldata_fn, lids_to_name_and_lids, lname_and_lid_to_lid
 
@@ -90,6 +90,7 @@ def main_card_meta_analysis():
     with st.sidebar:
         selected_meta_formats: list[MetaFormat] = display_meta_select()
         selected_card_colors: list[OPTcgColor] | None = display_card_color_multiselect(default=[OPTcgColor.RED])
+        selected_card_abilities: list[OPTcgAbility] | None = display_card_ability_multiselect()
     if len(selected_meta_formats) == 0:
         st.warning("Please select at least one meta format")
     if len(selected_card_colors) == 0:
@@ -109,6 +110,8 @@ def main_card_meta_analysis():
             extended_card_data_list: list[ExtendedCardData] = []
             for cid, cdata in card_data_lookup.items():
                 if cdata.card_category == OPTcgCardCatagory.LEADER:
+                    continue
+                if (selected_card_abilities is not None and not any([ability in cdata.ability for ability in selected_card_abilities])):
                     continue
 
                 # keep only tournament standings with decklist and color equal to card

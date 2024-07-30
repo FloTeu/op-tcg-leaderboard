@@ -5,7 +5,7 @@ import streamlit as st
 
 from op_tcg.backend.models.base import EnumBase
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.cards import OPTcgColor
+from op_tcg.backend.models.cards import OPTcgColor, OPTcgAbility
 
 
 class LeaderboardSortBy(EnumBase, StrEnum):
@@ -40,6 +40,10 @@ def display_card_color_multiselect(default: list[OPTcgColor] | None = None) -> l
     all_colors = OPTcgColor.to_list()
     return st.multiselect("Card Color", all_colors, default=default)
 
+def display_card_ability_multiselect(default: list[OPTcgAbility] | None = None) -> list[OPTcgAbility] | None:
+    all_abilities = OPTcgAbility.to_list()
+    card_abilities = st.multiselect("Card Ability", all_abilities, default=default)
+    return card_abilities if len(card_abilities) > 0 else None
 
 def display_match_count_slider_slider(min=0, max=20000):
     return st.slider('Leader Match Count', min, max, (min, max))
