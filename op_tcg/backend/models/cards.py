@@ -84,7 +84,7 @@ class BaseCard(BaseModel):
     name: str = Field(description="The op tcg name e.g. Charlotte Katakuri")
     release_meta: MetaFormat | None = Field(None, description="The meta format in which the Leader was released")
     image_url: str = Field(description="Public accessible url to standard image of the card")
-    colors: list[OPTcgColor] = Field(description="Colors of the leader")
+    colors: list[OPTcgColor] = Field(description="Colors of the card")
     ability: str = Field(description="Ability of the leader")
     tournament_status: OPTcgTournamentStatus | None = Field(description="Whether the card is banned for tournaments")
     fractions: list[str] = Field(description="List of fractions of the leader, e.g. Straw Hat Crew")
@@ -127,3 +127,11 @@ class LatestCardPrice(Card):
 class LimitlessCardData(BaseModel):
     cards: list[Card]
     card_prices: list[CardPrice]
+
+
+class CardPopularity(BQTableBaseModel):
+    _dataset_id: str = BQDataset.CARDS
+    card_id: str = Field(description="The op tcg card id e.g. OP03-099", primary_key=True)
+    meta_format: MetaFormat | str = Field(description="Meta in which tournament happened, e.g. OP06")
+    color: OPTcgColor = Field(description="Color of the card")
+    popularity: float = Field(description="Value between 0 and 1. Its 0 if the card was not played in any decklist and 1 if the card was played in 100% of decklists with an equal color type")

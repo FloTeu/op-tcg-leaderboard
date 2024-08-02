@@ -1,6 +1,6 @@
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_leader_tournament_wins, get_leader_win_rate, \
-    get_card_data
+    get_card_data, get_card_popularity_data
 
 
 def init_load_data():
@@ -11,6 +11,7 @@ def init_load_data():
     get_leader_tournament_wins(meta_formats=[latest_meta])
     get_leader_win_rate(meta_formats=[latest_meta])
     get_card_data()
+    get_card_popularity_data()
 
 
 

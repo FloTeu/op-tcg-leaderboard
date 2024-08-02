@@ -3,7 +3,8 @@ import streamlit as st
 from pydantic import Field, BaseModel
 from streamlit_elements import elements, mui, dashboard, html as element_html
 
-from op_tcg.backend.models.cards import OPTcgColor, OPTcgLanguage, LatestCardPrice, OPTcgCardCatagory, OPTcgAbility
+from op_tcg.backend.models.cards import OPTcgColor, OPTcgLanguage, LatestCardPrice, OPTcgCardCatagory, OPTcgAbility, \
+    CardPopularity
 from op_tcg.backend.models.tournaments import TournamentStandingExtended
 from op_tcg.backend.utils.leader_fns import df_win_rate_data2lid_dicts
 from op_tcg.backend.models.input import MetaFormat
@@ -12,7 +13,7 @@ from op_tcg.backend.models.matches import LeaderWinRate
 from op_tcg.frontend.utils.decklist import tournament_standings2decklist_data, DecklistData, \
     get_card_id_card_data_lookup
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_leader_win_rate, get_tournament_standing_data, \
-    get_card_data
+    get_card_data, get_card_popularity_data
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select, display_only_official_toggle, \
     display_leader_color_multiselect, display_card_color_multiselect, display_card_ability_multiselect
 from op_tcg.frontend.utils.js import is_mobile
@@ -30,23 +31,6 @@ class ExtendedCardData(BaseModel):
     image_url: str | None
 
 
-@st.cache_data(ttl=60 * 60 * 24)  # 1 day
-def get_extended_card_data(card_id: str, decklists: list[dict[str, int]],
-                           image_url: str | None = None) -> ExtendedCardData:
-    """
-    card_id: Id of card, e.g. OP01-001
-    tournament_standings: list of tournament standings with decklist/leader in same color as card_id
-    """
-    count_in_decklist = 0
-    for decklist in decklists:
-        if card_id in decklist:
-            count_in_decklist += 1
-
-    return ExtendedCardData(
-        card_id=card_id,
-        occurrence_in_decklists=0.0 if len(decklists) == 0 else count_in_decklist / len(decklists),
-        image_url=image_url
-    )
 
 
 def display_cards(cards_data: list[ExtendedCardData], is_mobile: bool):
@@ -88,11 +72,9 @@ def main_card_meta_analysis():
     st.header("Card Meta Analysis")
 
     with st.sidebar:
-        selected_meta_formats: list[MetaFormat] = display_meta_select()
+        selected_meta_format: MetaFormat = display_meta_select(multiselect=False)[0]
         selected_card_colors: list[OPTcgColor] | None = display_card_color_multiselect(default=[OPTcgColor.RED])
         selected_card_abilities: list[OPTcgAbility] | None = display_card_ability_multiselect()
-    if len(selected_meta_formats) == 0:
-        st.warning("Please select at least one meta format")
     if len(selected_card_colors) == 0:
         st.warning("Please select at least one color")
     else:
@@ -100,11 +82,13 @@ def main_card_meta_analysis():
         card_data_lookup = {cid: cd for cid, cd in card_data_lookup.items() if (
                 any(color in selected_card_colors for color in cd.colors)
         )}
-        tournament_standings: list[TournamentStandingExtended] = get_tournament_standing_data(
-            meta_formats=selected_meta_formats)
-        if len(tournament_standings) == 0:
-            st.warning("No decklists available")
-        elif len(card_data_lookup) == 0:
+        card_popularity: list[CardPopularity] = get_card_popularity_data()
+        card_popularity_dict = {cp.card_id: cp.popularity for cp in card_popularity if (
+            cp.card_id in card_data_lookup and
+            selected_meta_format == cp.meta_format and
+            any(cp.color == card_color for card_color in card_data_lookup[cp.card_id].colors)
+        )}
+        if len(card_data_lookup) == 0:
             st.warning("No cards available")
         else:
             extended_card_data_list: list[ExtendedCardData] = []
@@ -113,15 +97,14 @@ def main_card_meta_analysis():
                     continue
                 if (selected_card_abilities is not None and not any([ability in cdata.ability for ability in selected_card_abilities])):
                     continue
-
-                # keep only tournament standings with decklist and color equal to card
-                tournament_standings_filtered = [ts for ts in tournament_standings if (
-                        ts.decklist and
-                        ts.leader_id in card_data_lookup and
-                        any(ccolor in card_data_lookup[ts.leader_id].colors for ccolor in cdata.colors)
-                )]
-                extended_card_data_list.append(get_extended_card_data(cid, [ts.decklist for ts in tournament_standings_filtered],
-                                                                      image_url=cdata.image_url))
+                if cid not in card_popularity_dict:
+                    continue
+                extended_card = ExtendedCardData(
+                    card_id=cid,
+                    occurrence_in_decklists=card_popularity_dict[cid],
+                    image_url=cdata.image_url
+                )
+                extended_card_data_list.append(extended_card)
 
             extended_card_data_list.sort(key=lambda x: x.occurrence_in_decklists, reverse=True)
 
