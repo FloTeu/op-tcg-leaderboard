@@ -74,15 +74,22 @@ def main_card_meta_analysis():
     with st.sidebar:
         selected_meta_format: MetaFormat = display_meta_select(multiselect=False)[0]
         selected_card_colors: list[OPTcgColor] | None = display_card_color_multiselect(default=[OPTcgColor.RED])
+        card_counter: int | None = st.selectbox("Counter", [0, 1000, 2000], index=None)
         selected_card_abilities: list[OPTcgAbility] | None = display_card_ability_multiselect()
         card_ability_text: str = st.text_input("Card Ability Text")
         filter_operator: str = st.selectbox("Filter Operator", ["OR", "AND"])
     if len(selected_card_colors) == 0:
         st.warning("Please select at least one color")
     else:
+        not_selected_counter = False
+        if card_counter is None:
+            not_selected_counter = True
+        elif card_counter == 0:
+            card_counter = None
         card_data_lookup: dict[str, LatestCardPrice] = get_card_id_card_data_lookup(aa_version=0)
         card_data_lookup = {cid: cd for cid, cd in card_data_lookup.items() if (
-                any(color in selected_card_colors for color in cd.colors)
+                any(color in selected_card_colors for color in cd.colors) and
+                (True if not_selected_counter else card_counter == cd.counter)
         )}
         card_popularity: list[CardPopularity] = get_card_popularity_data()
         card_popularity_dict = {cp.card_id: cp.popularity for cp in card_popularity if (
