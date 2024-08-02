@@ -75,6 +75,8 @@ def main_card_meta_analysis():
         selected_meta_format: MetaFormat = display_meta_select(multiselect=False)[0]
         selected_card_colors: list[OPTcgColor] | None = display_card_color_multiselect(default=[OPTcgColor.RED])
         selected_card_abilities: list[OPTcgAbility] | None = display_card_ability_multiselect()
+        card_ability_text: str = st.text_input("Card Ability Text")
+        filter_operator: str = st.selectbox("Filter Operator", ["OR", "AND"])
     if len(selected_card_colors) == 0:
         st.warning("Please select at least one color")
     else:
@@ -95,8 +97,13 @@ def main_card_meta_analysis():
             for cid, cdata in card_data_lookup.items():
                 if cdata.card_category == OPTcgCardCatagory.LEADER:
                     continue
-                if (selected_card_abilities is not None and not any([ability in cdata.ability for ability in selected_card_abilities])):
-                    continue
+                if selected_card_abilities is not None:
+                    card_has_any_ability = any([ability in cdata.ability for ability in selected_card_abilities]) or (card_ability_text and card_ability_text.lower() in cdata.ability.lower())
+                    card_has_all_ability = all([ability in cdata.ability for ability in selected_card_abilities]) and (True if not card_ability_text else card_ability_text.lower() in cdata.ability.lower())
+                    if filter_operator == "OR" and not card_has_any_ability:
+                        continue
+                    elif filter_operator == "AND" and not card_has_all_ability:
+                        continue
                 if cid not in card_popularity_dict:
                     continue
                 extended_card = ExtendedCardData(
