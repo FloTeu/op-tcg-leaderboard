@@ -4,12 +4,12 @@ import op_tcg
 import json
 from pathlib import Path
 
-from op_tcg.backend.etl.extract import limitless2bq_leader, crawl_limitless_card
-from op_tcg.backend.etl.load import bq_insert_rows, get_or_create_table
-from op_tcg.backend.models.cards import Card, LimitlessCardData
+from op_tcg.backend.etl.extract import crawl_limitless_card
+from op_tcg.backend.etl.load import bq_insert_rows
+from op_tcg.backend.models.cards import LimitlessCardData, CardPrice, CardCurrency
 from op_tcg.backend.models.input import LimitlessLeaderMetaDoc
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
-from op_tcg.backend.crawling.items import TournamentItem
+from op_tcg.backend.crawling.items import TournamentItem, LimitlessPriceRow
 from op_tcg.backend.models.matches import Match
 from op_tcg.backend.models.tournaments import Tournament, TournamentStanding
 
@@ -82,4 +82,37 @@ class CardPipeline:
                 # mark card id as crawled
                 spider.already_crawled_card_ids.append(card_id)
 
+        return item
+
+
+
+class CardPricePipeline:
+
+    def process_item(self, item: LimitlessPriceRow, spider):
+        """
+        Loads card price data to BigQuery
+        """
+        def get_card_price(item: LimitlessPriceRow, currency: CardCurrency):
+            return CardPrice(
+                card_id=item.card_id,
+                language=item.language,
+                aa_version=item.aa_version,
+                price=item.price_usd if currency == CardCurrency.US_DOLLAR else item.price_eur,
+                currency=currency
+            )
+
+        if isinstance(item, LimitlessPriceRow):
+            card_price_usd = get_card_price(item, CardCurrency.US_DOLLAR)
+            card_price_eur = get_card_price(item, CardCurrency.EURO)
+
+            upload_data = [json.loads(card_price_usd.model_dump_json()), json.loads(card_price_eur.model_dump_json())]
+
+            # update price count
+            if item.card_id not in spider.price_count:
+                spider.price_count[item.card_id] = {}
+            if item.aa_version in spider.price_count[item.card_id]:
+                logging.warning(f"Price information of {item.card_id} {item.aa_version} was already uploaded")
+            else:
+                spider.price_count[item.card_id][item.aa_version] = 1
+            bq_insert_rows(upload_data, table=spider.price_table, client=spider.bq_client)
         return item

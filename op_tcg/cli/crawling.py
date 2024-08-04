@@ -10,6 +10,7 @@ from scrapy.crawler import CrawlerProcess
 from tqdm import tqdm
 
 from op_tcg.backend.crawling.spiders.limitless_matches import LimitlessMatchSpider
+from op_tcg.backend.crawling.spiders.limitless_prices import LimitlessPricesSpider
 from op_tcg.backend.crawling.spiders.limitless_tournaments import LimitlessTournamentSpider
 from op_tcg.backend.etl.extract import get_leader_ids, crawl_limitless_card
 from op_tcg.backend.etl.load import get_or_create_table, bq_insert_rows
@@ -92,6 +93,19 @@ def tournaments(
         # ensure enum format
         meta_formats = [MetaFormat(meta_format) for meta_format in meta_formats]
     process.crawl(LimitlessTournamentSpider, meta_formats=meta_formats, api_token=os.environ.get("LIMITLESS_API_TOKEN"), num_tournament_limit=num_tournament_limit)
+    process.start() # the script will block here until the crawling is finished
+
+
+@limitless_group.command()
+def crawl_prices(
+) -> None:
+    """
+    Starts a limitless crawler for tournament data
+    """
+    process = CrawlerProcess({
+        'ITEM_PIPELINES': {'op_tcg.backend.crawling.pipelines.CardPricePipeline': 1}
+    })
+    process.crawl(LimitlessPricesSpider)
     process.start() # the script will block here until the crawling is finished
 
 
