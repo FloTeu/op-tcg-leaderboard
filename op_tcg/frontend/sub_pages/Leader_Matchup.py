@@ -234,7 +234,7 @@ def get_leader2avg_win_rate_dict(df_Leader_vs_leader_match_count, df_Leader_vs_l
 
 
 def main_meta_analysis():
-    st.header("Leader Meta Analysis")
+    st.header("Leader Matchup")
 
     with st.sidebar:
         selected_meta_formats: list[MetaFormat] = display_meta_select()
@@ -245,7 +245,7 @@ def main_meta_analysis():
         selected_meta_win_rate_data: list[LeaderWinRate] = get_leader_win_rate(meta_formats=selected_meta_formats)
         df_meta_win_rate_data = pd.DataFrame([lwr.dict() for lwr in selected_meta_win_rate_data if lwr.only_official == only_official])
         lid2win_rate, lid2match_count = df_win_rate_data2lid_dicts(df_meta_win_rate_data)
-        min_match_count = min(int(max(lid2match_count.values()) * 0.1), 50)
+        min_match_count = min(int(max(lid2match_count.values()) * 0.1), 30)
 
         # first element is leader with best win rate
         sorted_leader_ids_by_win_rate = sorted([lid for lid, count in lid2match_count.items() if count > min_match_count], key= lambda lid: lid2win_rate[lid], reverse=True)

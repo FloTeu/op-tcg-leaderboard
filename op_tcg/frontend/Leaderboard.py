@@ -281,10 +281,10 @@ def main():
 # main_meta_analysis, main_leader_detail_analysis_decklists, main_leader_detail_anylsis, main_admin_leader_upload
 pages = [
     st.Page(main, title="Leaderboard", default=True),
-    st.Page(main_meta_analysis, title='Leader_Meta_Analysis', url_path="Leader_Meta_Analysis"),
-    st.Page(main_leader_detail_analysis_decklists, title='Leader_Detail_Analysis_Decklists', url_path="Leader_Detail_Analysis_Decklists"),
+    st.Page(main_meta_analysis, title='Leader_Matchup', url_path="Leader_Matchup"),
+    st.Page(main_leader_detail_analysis_decklists, title='Leader_Decklist', url_path="Leader_Decklist"),
     st.Page(main_leader_decklist_movement, title='Leader_Decklist_Movement', url_path="Leader_Decklist_Movement"),
-    st.Page(main_card_meta_analysis, title='Card_Meta_Analysis', url_path="Card_Meta_Analysis"),
+    st.Page(main_card_meta_analysis, title='Card_Popularity', url_path="Card_Popularity"),
 ]
 
 # admin_password = st.sidebar.text_input("Show Admin Page")

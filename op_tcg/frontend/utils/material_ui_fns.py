@@ -4,6 +4,9 @@ from typing import Any
 
 from streamlit_elements import mui, html, core
 
+from op_tcg.frontend.utils.styles import GREEN_RGB, RED_RGB
+
+
 def display_table(table_cells,
                   index_cells: list[list[Any]]=None,
                   header_cells: list[Any]=None,
@@ -67,11 +70,11 @@ def value2color_table_cell(value: float | int, max: float | int, color_switch_th
     if value < color_switch_threshold:
         # expected to be between 0 (0.5 in best case) and 1
         transparency = 1 - (value / half_max / 2)
-        background_color = f"rgba(255, 107, 129, {transparency})"
+        background_color = f"rgba({RED_RGB[0]},{RED_RGB[1]},{RED_RGB[2]}, {transparency})"
     if value > color_switch_threshold:
         # expected to be between 0 (0.5 in best case) and 1
         transparency = 0.5 + (value / half_max - 1) / 2
-        background_color = f"rgba(123, 237, 159, {transparency})"
+        background_color = f"rgba({GREEN_RGB[0]},{GREEN_RGB[1]},{GREEN_RGB[2]}, {transparency})"
     cell = mui.TableCell(cell_input, sx={"background": background_color,
                              "text-align": "center",
                             'fontSize': '1.35rem',  # Adjust font size as needed

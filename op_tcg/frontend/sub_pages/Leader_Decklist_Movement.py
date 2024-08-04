@@ -9,7 +9,7 @@ from op_tcg.backend.models.leader import LeaderElo
 from op_tcg.backend.models.cards import OPTcgLanguage, CardCurrency
 from op_tcg.backend.models.tournaments import TournamentStanding, TournamentStandingExtended
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select
-from op_tcg.frontend.sub_pages.Leader_Detail_Analysis_Decklists import get_decklist_price
+from op_tcg.frontend.sub_pages.Leader_Decklists import get_decklist_price
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_tournament_standing_data
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid, lname_and_lid_to_lid, \
     get_lid2ldata_dict_cached
