@@ -49,7 +49,7 @@ class OPTcgLanguage(StrEnum):
     EN="en"
     JP="jp"
 
-class OPTcgCardCatagory(StrEnum):
+class OPTcgCardCatagory(EnumBase, StrEnum):
     LEADER="Leader"
     CHARACTER="Character"
     EVENT="Event"

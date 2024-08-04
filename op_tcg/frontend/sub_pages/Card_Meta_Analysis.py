@@ -4,20 +4,12 @@ from pydantic import Field, BaseModel
 from streamlit_elements import elements, mui, dashboard, html as element_html
 
 from op_tcg.backend.models.cards import OPTcgColor, OPTcgLanguage, LatestCardPrice, OPTcgCardCatagory, OPTcgAbility, \
-    CardPopularity
-from op_tcg.backend.models.tournaments import TournamentStandingExtended
-from op_tcg.backend.utils.leader_fns import df_win_rate_data2lid_dicts
+    CardPopularity, CardCurrency
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.leader import Leader
-from op_tcg.backend.models.matches import LeaderWinRate
-from op_tcg.frontend.utils.decklist import tournament_standings2decklist_data, DecklistData, \
-    get_card_id_card_data_lookup
-from op_tcg.frontend.utils.extract import get_leader_elo_data, get_leader_win_rate, get_tournament_standing_data, \
-    get_card_data, get_card_popularity_data
-from op_tcg.frontend.sidebar import display_meta_select, display_leader_select, display_only_official_toggle, \
-    display_leader_color_multiselect, display_card_color_multiselect, display_card_ability_multiselect
+from op_tcg.frontend.utils.decklist import get_card_id_card_data_lookup
+from op_tcg.frontend.utils.extract import get_card_popularity_data
+from op_tcg.frontend.sidebar import display_meta_select, display_card_color_multiselect, display_card_ability_multiselect
 from op_tcg.frontend.utils.js import is_mobile
-from op_tcg.frontend.utils.leader_data import lid2ldata_fn, lids_to_name_and_lids, lname_and_lid_to_lid
 
 from streamlit_theme import st_theme
 
@@ -40,7 +32,7 @@ def display_cards(cards_data: list[ExtendedCardData], is_mobile: bool):
         layout = [
             # Parameters: element_identifier, x_pos, y_pos, width, height, [item properties...]
             dashboard.Item(f"item_{extended_card_data.card_id}", ((i * 2) % (num_cols * 2)), 0, 2, 3, isResizable=False,
-                           isDraggable=not is_mobile, preventCollision=True)
+                           isDraggable=False, preventCollision=True)
             for i, extended_card_data in enumerate(cards_data)
         ]
 
@@ -74,7 +66,11 @@ def main_card_meta_analysis():
     with st.sidebar:
         selected_meta_format: MetaFormat = display_meta_select(multiselect=False)[0]
         selected_card_colors: list[OPTcgColor] | None = display_card_color_multiselect(default=[OPTcgColor.RED])
-        card_counter: int | None = st.selectbox("Counter", [0, 1000, 2000], index=None)
+        selected_card_counter: int | None = st.selectbox("Counter", [0, 1000, 2000], index=None)
+        selected_card_category: OPTcgCardCatagory | None = st.selectbox("Card Type", OPTcgCardCatagory.to_list(), index=None)
+        filter_currency = st.selectbox("Currency", [CardCurrency.EURO, CardCurrency.US_DOLLAR])
+        selected_card_cost_min, selected_card_cost_max = st.slider("Card Cost Range", 0, 10, (0,10))
+        selected_min_price, selected_max_price = st.slider("Decklist Price Range", 0, 80, (0,80))
         selected_card_abilities: list[OPTcgAbility] | None = display_card_ability_multiselect()
         card_ability_text: str = st.text_input("Card Ability Text")
         filter_operator: str = st.selectbox("Filter Operator", ["OR", "AND"])
@@ -82,14 +78,17 @@ def main_card_meta_analysis():
         st.warning("Please select at least one color")
     else:
         not_selected_counter = False
-        if card_counter is None:
+        if selected_card_counter is None:
             not_selected_counter = True
-        elif card_counter == 0:
-            card_counter = None
+        elif selected_card_counter == 0:
+            selected_card_counter = None
         card_data_lookup: dict[str, LatestCardPrice] = get_card_id_card_data_lookup(aa_version=0)
         card_data_lookup = {cid: cd for cid, cd in card_data_lookup.items() if (
                 any(color in selected_card_colors for color in cd.colors) and
-                (True if not_selected_counter else card_counter == cd.counter)
+                (True if not_selected_counter else selected_card_counter == cd.counter) and
+                (True if not selected_card_category else selected_card_category == cd.card_category) and
+                (True if cd.cost is None else selected_card_cost_min <= cd.cost <= selected_card_cost_max) and
+                (selected_min_price <= (cd.latest_eur_price if filter_currency == CardCurrency.EURO else cd.latest_usd_price) <= selected_max_price)
         )}
         card_popularity: list[CardPopularity] = get_card_popularity_data()
         card_popularity_dict = {cp.card_id: cp.popularity for cp in card_popularity if (
@@ -102,7 +101,7 @@ def main_card_meta_analysis():
         else:
             extended_card_data_list: list[ExtendedCardData] = []
             for cid, cdata in card_data_lookup.items():
-                if cdata.card_category == OPTcgCardCatagory.LEADER:
+                if not selected_card_category and cdata.card_category == OPTcgCardCatagory.LEADER:
                     continue
                 if selected_card_abilities is not None:
                     card_has_any_ability = any([ability in cdata.ability for ability in selected_card_abilities]) or (card_ability_text and card_ability_text.lower() in cdata.ability.lower())

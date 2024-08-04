@@ -198,7 +198,7 @@ def main_leader_detail_analysis_decklists():
                 max_price = max(decklist_id2price_eur.values()) if filter_currency == CardCurrency.EURO else max(
                     decklist_id2price_usd.values())
                 if min_price < max_price:
-                    selected_min_price, selected_max_price = st.slider("Decklist Cost Range", min_price, max_price,
+                    selected_min_price, selected_max_price = st.slider("Decklist Price Range", min_price, max_price,
                                                                        (min_price, max_price))
                 else:
                     selected_min_price, selected_max_price = min_price, max_price
