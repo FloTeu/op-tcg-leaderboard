@@ -65,7 +65,8 @@ def display_cards(cards_data: list[ExtendedCardData], is_mobile: bool):
                         # Image at the top
                         element_html.Img(src=image_url, style={"width": "100%", "height": "auto"}),
                         # Text block below the image
-                        mui_progress_container], key=f"item_{extended_card_data.card_id}"
+                        mui_progress_container], key=f"item_{extended_card_data.card_id}",
+                    sx={"margin-top": "10px" if is_mobile else "0px"}
                 )
 
 
@@ -79,7 +80,8 @@ def main_card_meta_analysis():
         selected_card_counter: int | None = st.selectbox("Counter", [0, 1000, 2000], index=None)
         selected_card_category: OPTcgCardCatagory | None = st.selectbox("Card Type", OPTcgCardCatagory.to_list(), index=None)
         filter_currency = st.selectbox("Currency", [CardCurrency.EURO, CardCurrency.US_DOLLAR])
-        selected_min_price, selected_max_price = st.slider("Card Price Range", 0, 80, (0,80))
+        price_min, price_max = 0, 80
+        selected_min_price, selected_max_price = st.slider("Card Price Range", price_min, price_max, (price_min, price_max))
         selected_card_cost_min, selected_card_cost_max = st.slider("Card Cost Range", 0, 10, (0,10))
         selected_card_abilities: list[OPTcgAbility] | None = display_card_ability_multiselect()
         card_ability_text: str = st.text_input("Card Ability Text")
@@ -93,12 +95,16 @@ def main_card_meta_analysis():
         elif selected_card_counter == 0:
             selected_card_counter = None
         card_data_lookup: dict[str, LatestCardPrice] = get_card_id_card_data_lookup(aa_version=0)
+        price_filter_activated = selected_min_price != price_min or selected_max_price != price_max
+        if price_filter_activated:
+            # filter cards without price information
+            card_data_lookup = {cid: cd for cid, cd in card_data_lookup.items() if cd.latest_eur_price and cd.latest_usd_price}
         card_data_lookup = {cid: cd for cid, cd in card_data_lookup.items() if (
                 any(color in selected_card_colors for color in cd.colors) and
                 (True if not_selected_counter else selected_card_counter == cd.counter) and
                 (True if not selected_card_category else selected_card_category == cd.card_category) and
                 (True if cd.cost is None else selected_card_cost_min <= cd.cost <= selected_card_cost_max) and
-                (selected_min_price <= (cd.latest_eur_price if filter_currency == CardCurrency.EURO else cd.latest_usd_price) <= selected_max_price)
+                (True if not price_filter_activated else (selected_min_price <= (cd.latest_eur_price if filter_currency == CardCurrency.EURO else cd.latest_usd_price) <= selected_max_price))
         )}
         card_popularity_list: list[CardPopularity] = get_card_popularity_data()
         card_popularity_dict = {cp.card_id: cp.popularity for cp in card_popularity_list if (
