@@ -2,6 +2,10 @@ import os
 
 import pandas as pd
 import streamlit as st
+
+from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER_MATCHUP, SUB_PAGE_LEADER_DECKLIST, \
+    SUB_PAGE_LEADER_DECKLIST_MOVEMENT, SUB_PAGE_CARD_POPULARITY
+
 st.set_page_config(layout="wide")
 
 from datetime import datetime, date
@@ -155,7 +159,7 @@ def display_leaderboard_table(meta_format: MetaFormat, df_all_leader_elos: pd.Da
                     max_elo = df_leader_elos_display[col].max()
                     df_leader_elos_display[col] = df_leader_elos_display[col].apply(lambda elo: value2color_table_cell(elo, max=max_elo, color_switch_threshold=1000 if 1000 < max_elo else (max_elo*(7/8))))
                 elif col == "Name":
-                    df_leader_elos_display[col] = df_leader_elos_display[col].apply(lambda x: mui.TableCell(mui.Link(str(lid2ldata_dict.get(x, get_template_leader()).name.replace('"', " ").replace('.', " ")), href=f"/Leader_Detail_Analysis_Decklists?lid={x}", target="_blank")))
+                    df_leader_elos_display[col] = df_leader_elos_display[col].apply(lambda x: mui.TableCell(mui.Link(str(lid2ldata_dict.get(x, get_template_leader()).name.replace('"', " ").replace('.', " ")), href=f"/{SUB_PAGE_LEADER_DECKLIST}?lid={x}", target="_blank")))
                 else:
                     df_leader_elos_display[col] = df_leader_elos_display[col].apply(lambda x: mui.TableCell(str(x)))
             df_leader_elos_display["Elo Chart"] = df_leader_elos["leader_id"].apply(
@@ -281,10 +285,10 @@ def main():
 # main_meta_analysis, main_leader_detail_analysis_decklists, main_leader_detail_anylsis, main_admin_leader_upload
 pages = [
     st.Page(main, title="Leaderboard", default=True),
-    st.Page(main_meta_analysis, title='Leader_Matchup', url_path="Leader_Matchup"),
-    st.Page(main_leader_detail_analysis_decklists, title='Leader_Decklist', url_path="Leader_Decklist"),
-    st.Page(main_leader_decklist_movement, title='Leader_Decklist_Movement', url_path="Leader_Decklist_Movement"),
-    st.Page(main_card_meta_analysis, title='Card_Popularity', url_path="Card_Popularity"),
+    st.Page(main_meta_analysis, title=SUB_PAGE_LEADER_MATCHUP, url_path=SUB_PAGE_LEADER_MATCHUP),
+    st.Page(main_leader_detail_analysis_decklists, title=SUB_PAGE_LEADER_DECKLIST, url_path=SUB_PAGE_LEADER_DECKLIST),
+    st.Page(main_leader_decklist_movement, title=SUB_PAGE_LEADER_DECKLIST_MOVEMENT, url_path=SUB_PAGE_LEADER_DECKLIST_MOVEMENT),
+    st.Page(main_card_meta_analysis, title=SUB_PAGE_CARD_POPULARITY, url_path=SUB_PAGE_CARD_POPULARITY),
 ]
 
 # admin_password = st.sidebar.text_input("Show Admin Page")

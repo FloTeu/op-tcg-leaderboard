@@ -1,0 +1,4 @@
+SUB_PAGE_LEADER_MATCHUP = "Leader_Matchup"
+SUB_PAGE_LEADER_DECKLIST = "Leader_Decklist"
+SUB_PAGE_LEADER_DECKLIST_MOVEMENT = "Leader_Decklist_Movement"
+SUB_PAGE_CARD_POPULARITY = "Card_Popularity"
