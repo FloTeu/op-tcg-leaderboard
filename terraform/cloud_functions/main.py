@@ -5,6 +5,7 @@ import json
 from google.cloud import pubsub_v1
 from scrapy.crawler import CrawlerProcess
 
+from op_tcg.backend.crawling.spiders.limitless_prices import LimitlessPricesSpider
 from op_tcg.backend.crawling.spiders.limitless_tournaments import LimitlessTournamentSpider
 from op_tcg.backend.etl.classes import EloUpdateToBigQueryEtlJob, CardImageUpdateToGCPEtlJob
 from op_tcg.backend.models.input import MetaFormat
@@ -34,7 +35,6 @@ def run_all_etl_elo_update(event, context):
 def run_etl_elo_update(event, context):
     """
     Background Cloud Function to be triggered by Pub/Sub.
-    This function is triggered by messages published to a Pub/Sub topic.
 
     Args:
         event (dict): The dictionary with data specific to this type of event.
@@ -96,7 +96,6 @@ def run_crawl_tournament(event, context):
 def run_etl_card_image_update(event, context):
     """
     Background Cloud Function to be triggered by Pub/Sub.
-    This function is triggered by messages published to a Pub/Sub topic.
 
     Args:
         event (dict): The dictionary with data specific to this type of event.
@@ -118,3 +117,21 @@ def run_etl_card_image_update(event, context):
     etl_job = CardImageUpdateToGCPEtlJob(meta_formats=meta_formats)
     etl_job.run()
     return f"Success with meta formats {meta_formats}!"
+
+
+def run_crawl_prices(event, context):
+    """
+    Background Cloud Function to be triggered by Pub/Sub.
+
+    Args:
+        event (dict): The dictionary with data specific to this type of event.
+                      The `data` field contains the Pub/Sub message data.
+        context (google.cloud.functions.Context): Metadata for the event.
+    """
+    process = CrawlerProcess({
+        'ITEM_PIPELINES': {'op_tcg.backend.crawling.pipelines.CardPricePipeline': 1}
+    })
+    process.crawl(LimitlessPricesSpider)
+    process.start() # the script will block here until the crawling is finished
+
+    return f"Success!"
