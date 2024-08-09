@@ -6,10 +6,10 @@ from pathlib import Path
 
 from op_tcg.backend.etl.extract import crawl_limitless_card
 from op_tcg.backend.etl.load import bq_insert_rows
-from op_tcg.backend.models.cards import LimitlessCardData, CardPrice, CardCurrency
+from op_tcg.backend.models.cards import LimitlessCardData, CardPrice, CardCurrency, CardReleaseSet
 from op_tcg.backend.models.input import LimitlessLeaderMetaDoc
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
-from op_tcg.backend.crawling.items import TournamentItem, LimitlessPriceRow
+from op_tcg.backend.crawling.items import TournamentItem, LimitlessPriceRow, ReleaseSetItem
 from op_tcg.backend.models.matches import Match
 from op_tcg.backend.models.tournaments import Tournament, TournamentStanding
 
@@ -115,4 +115,15 @@ class CardPricePipeline:
             else:
                 spider.price_count[item.card_id][item.aa_version] = 1
             bq_insert_rows(upload_data, table=spider.price_table, client=spider.bq_client)
+        return item
+
+class CardReleaseSetPipeline:
+
+    def process_item(self, item: ReleaseSetItem, spider):
+        """
+        Loads card release_set data to BigQuery
+        """
+
+        if isinstance(item, ReleaseSetItem):
+            bq_insert_rows([json.loads(item.release_set.model_dump_json())], table=spider.release_set_table, client=spider.bq_client)
         return item

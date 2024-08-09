@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from op_tcg.backend.models.cards import OPTcgLanguage
+from op_tcg.backend.models.cards import OPTcgLanguage, CardReleaseSet
 from op_tcg.backend.models.tournaments import Tournament, TournamentStanding
 from op_tcg.backend.models.matches import Match
 
@@ -13,10 +13,9 @@ class TournamentItem:
 
 
 @dataclass
-class TournamentItem:
-    tournament: Tournament
-    tournament_standings: list[TournamentStanding]
-    matches: list[Match]
+class ReleaseSetItem:
+    release_set: CardReleaseSet
+
 
 @dataclass
 class LimitlessPriceRow:

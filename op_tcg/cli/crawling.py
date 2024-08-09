@@ -103,7 +103,10 @@ def crawl_prices(
     Starts a limitless crawler for tournament data
     """
     process = CrawlerProcess({
-        'ITEM_PIPELINES': {'op_tcg.backend.crawling.pipelines.CardPricePipeline': 1}
+        'ITEM_PIPELINES': {
+                'op_tcg.backend.crawling.pipelines.CardReleaseSetPipeline': 1,
+                'op_tcg.backend.crawling.pipelines.CardPricePipeline': 2
+        }
     })
     process.crawl(LimitlessPricesSpider)
     process.start() # the script will block here until the crawling is finished

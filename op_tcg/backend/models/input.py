@@ -74,5 +74,19 @@ def meta_format2release_datetime(meta_format: MetaFormat) -> datetime | None:
         return datetime(2024, 3, 8)
     if meta_format == MetaFormat.OP07:
         return datetime(2024, 6, 28)
+    if meta_format == MetaFormat.OP08:
+        return datetime(2024, 9, 13)
+    if meta_format == MetaFormat.OP09:
+        return datetime(2024, 12, 14)
     else:
         return None
+
+def get_meta_format_by_datetime(dt: datetime) -> MetaFormat:
+    """
+    returns: matching meta format to given datetime
+    """
+    # starts with latest (released) meta format
+    for meta_format in sorted(MetaFormat.to_list(only_after_release=True), reverse=True):
+        if dt >= meta_format2release_datetime(meta_format):
+            return meta_format
+    raise ValueError(f"Could not match meta format to datetime: {dt}")
