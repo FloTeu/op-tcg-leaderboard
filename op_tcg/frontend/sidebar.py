@@ -6,6 +6,7 @@ import streamlit as st
 from op_tcg.backend.models.base import EnumBase
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.cards import OPTcgColor, OPTcgAbility
+from op_tcg.frontend.utils.extract import get_card_fractions
 
 
 class LeaderboardSortBy(EnumBase, StrEnum):
@@ -75,6 +76,11 @@ def display_leader_select(available_leader_ids: list[str] | None = None,
         index = available_leader_ids.index(default) if default else None
         leader: str | None = st.selectbox(label, available_leader_ids, index=index, key=key, on_change=on_change, kwargs=kwargs)
         return leader
+
+
+def display_card_fraction_multiselect(default: list[str] | None = None) -> list[str] | None:
+    all_fractions = get_card_fractions()
+    return st.multiselect("Card Fraction", all_fractions, default=default)
 
 
 def display_match_result_toggle() -> bool:
