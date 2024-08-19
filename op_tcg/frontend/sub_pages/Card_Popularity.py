@@ -81,7 +81,7 @@ def main_card_meta_analysis():
         selected_card_colors: list[OPTcgColor] | None = display_card_color_multiselect(default=[OPTcgColor.RED])
         selected_card_counter: int | None = st.selectbox("Counter", [0, 1000, 2000], index=None)
         selected_card_category: OPTcgCardCatagory | None = st.selectbox("Card Type", OPTcgCardCatagory.to_list(), index=None)
-        selected_card_fraction: list[str] = display_card_fraction_multiselect()
+        selected_types: list[str] = display_card_fraction_multiselect()
         filter_currency = st.selectbox("Currency", [CardCurrency.EURO, CardCurrency.US_DOLLAR])
         price_min, price_max = 0, 80
         selected_min_price, selected_max_price = st.slider("Card Price Range", price_min, price_max, (price_min, price_max))
@@ -108,7 +108,7 @@ def main_card_meta_analysis():
                 (True if not_selected_counter else selected_card_counter == cd.counter) and
                 (True if len(selected_release_meta_formats) == 0 else any(meta == cd.meta_format for meta in selected_release_meta_formats)) and
                 (True if not selected_card_category else selected_card_category == cd.card_category) and
-                (True if not selected_card_fraction else any(fraction in selected_card_fraction for fraction in cd.fractions)) and
+                (True if not selected_types else any(type in selected_types for type in cd.types)) and
                 (True if cd.cost is None else selected_card_cost_min <= cd.cost <= selected_card_cost_max) and
                 (True if not price_filter_activated else (selected_min_price <= (cd.latest_eur_price if filter_currency == CardCurrency.EURO else cd.latest_usd_price) <= selected_max_price))
         )}
