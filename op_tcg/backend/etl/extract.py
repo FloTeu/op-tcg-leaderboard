@@ -46,8 +46,13 @@ def get_leader_ids(data_dir: Path) -> list[str]:
     leader_ids = list(set(leader_ids))
     return leader_ids
 
+def get_card_image_url(card_id: str, language: OPTcgLanguage, aa_version: int=0):
+    if aa_version == 0:
+        return f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{card_id.split('-')[0]}/{card_id}_{language.upper()}.webp"
+    else:
+        return f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{card_id.split('-')[0]}/{card_id}_p{aa_version}_{language.upper()}.webp"
 
-def limitless_soup2base_cards(card_id: str, language: OPTcgLanguage, soup: BeautifulSoup, base_url: str, num_aa_designs: int=0) -> list[BaseCard]:
+def limitless_soup2base_card(card_id: str, language: OPTcgLanguage, soup: BeautifulSoup, aa_version: int=0) -> BaseCard:
     # extract text data
     card_name = soup.find('span', {'class': 'card-text-name'}).text
     card_category = OPTcgCardCatagory(
@@ -64,42 +69,36 @@ def limitless_soup2base_cards(card_id: str, language: OPTcgLanguage, soup: Beaut
     tournament_status = OPTcgTournamentStatus(
         soup.find("div", {'class': 'card-legality-badge'}).findAll("div")[1].text.strip())
     release_set_details = soup.find("div", {'class': 'card-prints-current'})
-    release_set_url = f"{base_url}%s" % release_set_details.find("a").get("href")
-    release_set = " (".join([set_detail.strip() for set_detail in release_set_details.findAll("span")[0].text.split("(")])
     if card_id[0] == "P":
         rarity = OPTcgCardRarity.PROMO
     else:
         rarity = OPTcgCardRarity(release_set_details.findAll("span")[1].text.strip())
 
     # create image urls
-    image_url = f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{card_id.split('-')[0]}/{card_id}_{language.upper()}.webp"
-    aa_image_urls = []
-    for i in range(num_aa_designs):
-        aa_image_urls.append(
-            f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{card_id.split('-')[0]}/{card_id}_p{i + 1}_{language.upper()}.webp")
+    image_url = get_card_image_url(card_id, language, aa_version=aa_version)
 
-    try:
-        release_meta = MetaFormat(card_id.split("-")[0])
-    except ValueError:
-        # Some release_meta can not be extracted from id directly e.g. from preconstructed decks
-        release_meta = None
-
-    return [BaseCard(
+    return BaseCard(
         id=card_id,
         name=card_name,
-        release_meta=release_meta,
-        image_url=img_url,
-        aa_version=i,
+        image_url=image_url,
+        aa_version=aa_version,
         colors=parsed_colors,
         ability=ability,
         tournament_status=tournament_status,
-        fractions=fractions,
+        types=fractions,
         rarity=rarity,
-        release_set=release_set,
-        release_set_url=release_set_url,
         language=language,
         card_category=card_category,
-    ) for i, img_url in enumerate([image_url] + aa_image_urls)]
+        release_set_id=""
+    )
+
+
+
+def limitless_soup2base_cards(card_id: str, language: OPTcgLanguage, soup: BeautifulSoup, num_aa_designs: int=0) -> list[BaseCard]:
+    base_cards: list[BaseCard] = []
+    for i in range(num_aa_designs + 1):
+        base_cards.append(limitless_soup2base_card(card_id, language, soup, aa_version=i))
+    return base_cards
 
 
 def parse_price(column: str, table_cell: Tag) -> tuple[CardCurrency, float] | tuple[str, str]:
@@ -183,7 +182,7 @@ def crawl_limitless_card(card_id, language: OPTcgLanguage = OPTcgLanguage.EN) ->
     # extract text data
     card_prices = extract_card_prices(card_id, language, soup)
     num_aa_designs=len(set([card_price.aa_version for card_price in card_prices if card_price.aa_version != 0]))
-    base_cards: list[BaseCard] = limitless_soup2base_cards(card_id, language, soup, base_url, num_aa_designs=num_aa_designs)
+    base_cards: list[BaseCard] = limitless_soup2base_cards(card_id, language, soup, num_aa_designs=num_aa_designs)
     return LimitlessCardData(
         cards=[base_card2bq_card(base_card, soup) for base_card in base_cards],
         card_prices=card_prices
@@ -218,6 +217,6 @@ def limitless2bq_leader(card_id, language: OPTcgLanguage = OPTcgLanguage.EN) -> 
         colors=base_card.colors,
         attributes=leader_attributes,
         ability=base_card.ability,
-        fractions=base_card.fractions,
+        fractions=base_card.types,
         language=base_card.language
     )

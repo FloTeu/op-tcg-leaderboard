@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from op_tcg.backend.models.cards import OPTcgLanguage, CardReleaseSet
+from op_tcg.backend.models.cards import OPTcgLanguage, CardReleaseSet, Card
 from op_tcg.backend.models.tournaments import Tournament, TournamentStanding
 from op_tcg.backend.models.matches import Match
 
@@ -14,7 +14,11 @@ class TournamentItem:
 
 @dataclass
 class ReleaseSetItem:
-    release_set: CardReleaseSet
+    release_set: CardReleaseSet\
+
+@dataclass
+class CardsItem:
+    cards: list[Card]
 
 
 @dataclass
@@ -25,5 +29,5 @@ class LimitlessPriceRow:
     name: str
     card_category: str
     rarity: str
-    price_usd: float
-    price_eur: float
+    price_usd: float | None
+    price_eur: float | None

@@ -129,7 +129,11 @@ def run_crawl_prices(event, context):
         context (google.cloud.functions.Context): Metadata for the event.
     """
     process = CrawlerProcess({
-        'ITEM_PIPELINES': {'op_tcg.backend.crawling.pipelines.CardPricePipeline': 1}
+        'ITEM_PIPELINES': {
+                           'op_tcg.backend.crawling.pipelines.CardReleaseSetPipeline': 1,
+                           'op_tcg.backend.crawling.pipelines.CardPricePipeline': 2,
+                           'op_tcg.backend.crawling.pipelines.CardPipeline': 3,
+                           }
     })
     process.crawl(LimitlessPricesSpider)
     process.start() # the script will block here until the crawling is finished

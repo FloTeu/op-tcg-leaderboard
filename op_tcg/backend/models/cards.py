@@ -89,16 +89,14 @@ class BaseCard(BaseModel):
     language: OPTcgLanguage = Field(default=OPTcgLanguage.EN, description="Language of the text data in this instance", primary_key=True)
     aa_version: int = Field(description="Alt art version of design, 0 is the original design, 1 the first alt art etc.", primary_key=True)
     name: str = Field(description="The op tcg name e.g. Charlotte Katakuri")
-    release_meta: MetaFormat | None = Field(None, description="The meta format in which the Leader was released")
     image_url: str = Field(description="Public accessible url to standard image of the card")
     colors: list[OPTcgColor] = Field(description="Colors of the card")
     ability: str = Field(description="Ability of the leader")
     tournament_status: OPTcgTournamentStatus | None = Field(description="Whether the card is banned for tournaments")
-    fractions: list[str] = Field(description="List of fractions of the leader, e.g. Straw Hat Crew")
+    types: list[str] = Field(description="List of fractions of the card, e.g. Straw Hat Crew")
     rarity: OPTcgCardRarity = Field(description="Rarity of the card, e.g. Common")
-    release_set: str = Field(description="Set in which the card was released, e.g. 'Memorial Collection (EB01)'")
-    release_set_url: str = Field(description="Data source web url in which all cards of release set are listed, e.g. 'https://onepiece.limitlesstcg.com/cards/en/eb01-memorial-collection'")
     card_category: OPTcgCardCatagory = Field(description="Category of card e.g. 'character'")
+    release_set_id: str = Field(description="Id of the release set e.g. 'OP07_24'")
 
 
     def to_hex_color(self) -> str:

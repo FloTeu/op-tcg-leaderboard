@@ -105,7 +105,8 @@ def crawl_prices(
     process = CrawlerProcess({
         'ITEM_PIPELINES': {
                 'op_tcg.backend.crawling.pipelines.CardReleaseSetPipeline': 1,
-                'op_tcg.backend.crawling.pipelines.CardPricePipeline': 2
+                'op_tcg.backend.crawling.pipelines.CardPricePipeline': 2,
+                'op_tcg.backend.crawling.pipelines.CardPipeline': 3,
         }
     })
     process.crawl(LimitlessPricesSpider)

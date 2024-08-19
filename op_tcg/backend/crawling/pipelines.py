@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 import op_tcg
 import json
@@ -9,7 +10,7 @@ from op_tcg.backend.etl.load import bq_insert_rows
 from op_tcg.backend.models.cards import LimitlessCardData, CardPrice, CardCurrency, CardReleaseSet
 from op_tcg.backend.models.input import LimitlessLeaderMetaDoc
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
-from op_tcg.backend.crawling.items import TournamentItem, LimitlessPriceRow, ReleaseSetItem
+from op_tcg.backend.crawling.items import TournamentItem, LimitlessPriceRow, ReleaseSetItem, CardsItem
 from op_tcg.backend.models.matches import Match
 from op_tcg.backend.models.tournaments import Tournament, TournamentStanding
 
@@ -59,28 +60,50 @@ class TournamentPipeline:
 
 class CardPipeline:
 
-    def process_item(self, item: TournamentItem, spider):
+    def process_tournament_item(self, item: TournamentItem, spider):
+        decklist_card_ids = []
+        for tournament_standing in item.tournament_standings:
+            if tournament_standing.decklist:
+                decklist_card_ids.extend(list(tournament_standing.decklist.keys()))
+        new_unique_card_ids = set(decklist_card_ids) - set(spider.already_crawled_card_ids)
+        for card_id in new_unique_card_ids:
+            # Crawl data from limitless
+            try:
+                card_data: LimitlessCardData = crawl_limitless_card(card_id)
+            except Exception as e:
+                logging.warning("Card data could not be extracted", str(e))
+                continue
+            # Upload to big query
+            bq_insert_rows([json.loads(bq_card.model_dump_json()) for bq_card in card_data.cards],
+                           table=spider.card_table, client=spider.bq_client)
+            bq_insert_rows([json.loads(bq_card_price.model_dump_json()) for bq_card_price in card_data.card_prices],
+                           table=spider.card_price_table, client=spider.bq_client)
+            # mark card id as crawled
+            spider.already_crawled_card_ids.append(card_id)
+
+    def process_cards_item(self, item: CardsItem, spider):
+        rows_to_insert: list[dict[str, Any]] = []
+        for card in item.cards:
+            rows_to_insert.append(json.loads(card.model_dump_json()))
+            if card.id not in spider.card_count:
+                spider.card_count[card.id] = {}
+            if card.aa_version not in spider.card_count[card.id]:
+                spider.card_count[card.id][card.aa_version] = 1
+            else:
+                spider.card_count[card.id][card.aa_version] += 1
+
+        bq_insert_rows(rows_to_insert,
+                       table=spider.card_table, client=spider.bq_client)
+
+
+    def process_item(self, item: TournamentItem | CardsItem, spider):
         """
         Crawls all card data which is not yet available in big query and gcp
         """
         if isinstance(item, TournamentItem):
-            decklist_card_ids = []
-            for tournament_standing in item.tournament_standings:
-                if tournament_standing.decklist:
-                    decklist_card_ids.extend(list(tournament_standing.decklist.keys()))
-            new_unique_card_ids = set(decklist_card_ids) - set(spider.already_crawled_card_ids)
-            for card_id in new_unique_card_ids:
-                # Crawl data from limitless
-                try:
-                    card_data: LimitlessCardData = crawl_limitless_card(card_id)
-                except Exception as e:
-                    logging.warning("Card data could not be extracted", str(e))
-                    continue
-                # Upload to big query
-                bq_insert_rows([json.loads(bq_card.model_dump_json()) for bq_card in card_data.cards], table=spider.card_table, client=spider.bq_client)
-                bq_insert_rows([json.loads(bq_card_price.model_dump_json()) for bq_card_price in card_data.card_prices], table=spider.card_price_table, client=spider.bq_client)
-                # mark card id as crawled
-                spider.already_crawled_card_ids.append(card_id)
+            self.process_tournament_item(item, spider)
+        if isinstance(item, CardsItem):
+            self.process_cards_item(item, spider)
 
         return item
 
@@ -102,10 +125,13 @@ class CardPricePipeline:
             )
 
         if isinstance(item, LimitlessPriceRow):
-            card_price_usd = get_card_price(item, CardCurrency.US_DOLLAR)
-            card_price_eur = get_card_price(item, CardCurrency.EURO)
-
-            upload_data = [json.loads(card_price_usd.model_dump_json()), json.loads(card_price_eur.model_dump_json())]
+            upload_data = []
+            if item.price_usd:
+                card_price_usd = get_card_price(item, CardCurrency.US_DOLLAR)
+                upload_data.append(json.loads(card_price_usd.model_dump_json()))
+            if item.price_eur:
+                card_price_eur = get_card_price(item, CardCurrency.EURO)
+                upload_data.append(json.loads(card_price_eur.model_dump_json()))
 
             # update price count
             if item.card_id not in spider.price_count:
