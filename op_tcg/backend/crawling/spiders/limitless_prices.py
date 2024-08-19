@@ -69,6 +69,7 @@ class LimitlessPricesSpider(scrapy.Spider):
         start_url = "https://onepiece.limitlesstcg.com/cards/en"
         yield scrapy.Request(url=f"{start_url}",
                              callback=self.parse_set_url,
+                             errback=self.errback_httpbin,
                              meta={"language": OPTcgLanguage.EN})
 
     def parse_set_url(self, response):
@@ -92,6 +93,7 @@ class LimitlessPricesSpider(scrapy.Spider):
         for release_set in (bq_release_sets + release_sets_not_yet_crawled):
             yield scrapy.Request(url=f"{release_set.url}?display=list&sort=id&show=all&unique=prints",
                                  callback=self.parse_price_page,
+                                 errback=self.errback_httpbin,
                                  meta={
                                      # 'dont_redirect': True,
                                      # 'handle_httpstatus_list': [302],
@@ -285,9 +287,9 @@ class LimitlessPricesSpider(scrapy.Spider):
         except Exception as e:
             logging.error(f"Could not extract card price row {str(e)}")
 
-        # TODO Include again
-        # for row in rows:
-        #     yield row
+        # price information to big query
+        for row in rows:
+            yield row
 
         total_cards_to_crawl = sum(len(aa_versions) for aa_versions in card_ids_not_yet_crawled.values())
         self.release_set_it_to_cards_info[release_set.id] = ReleaseSetCardsInfo(total_cards_to_crawl=total_cards_to_crawl, cards=[])
@@ -295,6 +297,7 @@ class LimitlessPricesSpider(scrapy.Spider):
             limitless_url = f"https://onepiece.limitlesstcg.com/cards/{language}/{card_id}?v=0"
             yield scrapy.Request(url=limitless_url,
                                  callback=self.parse_card_page,
+                                 errback=self.errback_httpbin,
                                  dont_filter=True, # enforce callback be called, even if same url ist requested multiple times
                                  meta={
                                      'release_set': release_set,
@@ -329,7 +332,9 @@ class LimitlessPricesSpider(scrapy.Spider):
                 cards=self.release_set_it_to_cards_info[release_set.id].cards,
             )
 
-
+    def errback_httpbin(self, failure):
+        # log all failures
+        self.logger.error(repr(failure))
 
     def closed(self, reason):
         sum_price_updates = sum(count for card in self.price_count.values() for count in card.values())
