@@ -95,7 +95,7 @@ def main_leader_decklist_movement():
 
     selected_leader_elo_data: list[LeaderElo] = get_leader_elo_data(meta_formats=[selected_meta_format])
     leader_id2leader_data = get_lid2ldata_dict_cached()
-    available_leader_ids = list(dict.fromkeys([l.leader_id for l in selected_leader_elo_data if l.leader_id in leader_id2leader_data and leader_id2leader_data[l.leader_id].release_meta != selected_meta_format]))
+    available_leader_ids = list(dict.fromkeys([l.leader_id for l in selected_leader_elo_data if l.leader_id in leader_id2leader_data and leader_id2leader_data[l.leader_id].meta_format != selected_meta_format]))
     available_leader_names = [lid_to_name_and_lid(lid) for lid in available_leader_ids]
     default_leader_name = get_default_leader_name(available_leader_ids)
     with st.sidebar:

@@ -113,7 +113,7 @@ def display_elements(selected_leader_ids,
             pass
 
         with dashboard.Grid(layout):
-            children = [mui.Avatar(src=l.avatar_icon_url) for l in selected_bq_leaders]
+            children = [mui.Avatar(src=l.aa_image_url) for l in selected_bq_leaders]
             mui.AvatarGroup(children=children, key="lmeta_avatar_group_item")
 
             # leader win rate

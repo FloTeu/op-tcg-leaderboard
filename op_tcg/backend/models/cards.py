@@ -145,7 +145,7 @@ class CardReleaseSet(BQTableBaseModel):
     id: str = Field(description="release_set id, can be either code or some other unique id", primary_key=True)
     language: OPTcgLanguage = Field(description="Language of the set", primary_key=True)
     name: str = Field(description="Name of the release set, e.g. '500 Years in the Future'")
-    meta_format: MetaFormat | None = Field(description="Meta in which set was released. None if release date is not known, e.g. OP06")
+    meta_format: MetaFormat | None = Field(description="Meta in which set was released. None if release date is not known, e.g. Prize Cards")
     release_date: date | None = Field(description="Date when the set as published in the language marked")
     card_count: int = Field(description="Number of card in set")
     code: str | None = Field(description="Identifier code of the set, e.g. 'OP07")
