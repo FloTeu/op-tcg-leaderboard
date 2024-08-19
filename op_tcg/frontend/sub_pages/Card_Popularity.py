@@ -9,7 +9,7 @@ from op_tcg.backend.models.input import MetaFormat
 from op_tcg.frontend.utils.decklist import get_card_id_card_data_lookup
 from op_tcg.frontend.utils.extract import get_card_popularity_data
 from op_tcg.frontend.sidebar import display_meta_select, display_card_color_multiselect, \
-    display_card_ability_multiselect, display_card_fraction_multiselect
+    display_card_ability_multiselect, display_card_fraction_multiselect, display_release_meta_select
 from op_tcg.frontend.utils.js import is_mobile
 
 from streamlit_theme import st_theme
@@ -76,7 +76,8 @@ def main_card_meta_analysis():
     st.write("A list of cards ordered by popularity. A popularity of 100% stands for 100% occurrence in tournament decks of the same card color.")
 
     with st.sidebar:
-        selected_meta_format: MetaFormat = display_meta_select(multiselect=False)[0]
+        selected_meta_format: MetaFormat = display_meta_select(multiselect=False, label="Meta")[0]
+        selected_release_meta_formats: list[MetaFormat] = display_release_meta_select(multiselect=True, label="Release Meta", default=None)
         selected_card_colors: list[OPTcgColor] | None = display_card_color_multiselect(default=[OPTcgColor.RED])
         selected_card_counter: int | None = st.selectbox("Counter", [0, 1000, 2000], index=None)
         selected_card_category: OPTcgCardCatagory | None = st.selectbox("Card Type", OPTcgCardCatagory.to_list(), index=None)
@@ -97,7 +98,7 @@ def main_card_meta_analysis():
             not_selected_counter = True
         elif selected_card_counter == 0:
             selected_card_counter = None
-        card_data_lookup: dict[str, LatestCardPrice] = get_card_id_card_data_lookup(aa_version=0)
+        card_data_lookup: dict[str, ExtendedCardData] = get_card_id_card_data_lookup(aa_version=0)
         price_filter_activated = selected_min_price != price_min or selected_max_price != price_max
         if price_filter_activated:
             # filter cards without price information
@@ -105,6 +106,7 @@ def main_card_meta_analysis():
         card_data_lookup = {cid: cd for cid, cd in card_data_lookup.items() if (
                 any(color in selected_card_colors for color in cd.colors) and
                 (True if not_selected_counter else selected_card_counter == cd.counter) and
+                (True if len(selected_release_meta_formats) == 0 else any(meta == cd.meta_format for meta in selected_release_meta_formats)) and
                 (True if not selected_card_category else selected_card_category == cd.card_category) and
                 (True if not selected_card_fraction else any(fraction in selected_card_fraction for fraction in cd.fractions)) and
                 (True if cd.cost is None else selected_card_cost_min <= cd.cost <= selected_card_cost_max) and
@@ -119,9 +121,9 @@ def main_card_meta_analysis():
         meta_format_list = MetaFormat.to_list()
         meta_format_list_selected_index = meta_format_list.index(selected_meta_format)
         for card_popularity in card_popularity_list:
-            if card_popularity.card_id not in card_popularity_dict and card_popularity.card_id in card_data_lookup and card_data_lookup[card_popularity.card_id].release_meta:
+            if card_popularity.card_id not in card_popularity_dict and card_popularity.card_id in card_data_lookup and card_data_lookup[card_popularity.card_id].meta_format:
                 # if card is older than selected meta we, include it in card_popularity_dict with popularity 0
-                if meta_format_list.index(card_data_lookup[card_popularity.card_id].release_meta) < meta_format_list_selected_index:
+                if meta_format_list.index(card_data_lookup[card_popularity.card_id].meta_format) < meta_format_list_selected_index:
                     card_popularity_dict[card_popularity.card_id] = 0.0
 
 

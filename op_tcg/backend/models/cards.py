@@ -125,7 +125,6 @@ class CardPrice(BQTableBaseModel):
     create_timestamp: datetime = Field(default_factory=datetime.now, description="Creation timestamp when the insert in BQ happened", primary_key=True)
 
 class LatestCardPrice(Card):
-    release_set_url: str | None = Field(None, description="Data source web url in which all cards of release set are listed, e.g. 'https://onepiece.limitlesstcg.com/cards/en/eb01-memorial-collection'")
     latest_eur_price: float | None = Field(description="Latest price of the card in euro")
     latest_usd_price: float | None = Field(description="Latest price of the card in us dollar")
 
@@ -154,3 +153,5 @@ class CardReleaseSet(BQTableBaseModel):
     url: str = Field(description="Url with all card and price information")
     source: DataSource = Field(description="Source of url")
 
+class ExtendedCardData(LatestCardPrice, CardReleaseSet):
+    pass

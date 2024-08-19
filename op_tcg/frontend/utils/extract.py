@@ -1,6 +1,6 @@
 import streamlit as st
 from op_tcg.backend.models.bq_enums import BQDataset
-from op_tcg.backend.models.cards import LatestCardPrice, CardPopularity, Card
+from op_tcg.backend.models.cards import LatestCardPrice, CardPopularity, Card, CardReleaseSet, ExtendedCardData
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader, TournamentWinner, LeaderElo
 from op_tcg.backend.models.matches import Match, LeaderWinRate
@@ -90,15 +90,18 @@ def get_leader_tournament_wins(meta_formats: list[MetaFormat] | None=None) -> li
 
 def get_card_data() -> list[LatestCardPrice]:
     latest_card_rows = run_bq_query(
-            f"""SELECT * FROM `{st.secrets["gcp_service_account"]["project_id"]}.{LatestCardPrice.get_dataset_id()}.{LatestCardPrice.__tablename__}`""")
-    return [LatestCardPrice(**d) for d in latest_card_rows]
+            f"""SELECT t0.*, t1.* except(id, name, language, create_timestamp) 
+            FROM `{st.secrets["gcp_service_account"]["project_id"]}.{LatestCardPrice.get_dataset_id()}.{LatestCardPrice.__tablename__}` t0
+            LEFT JOIN `{st.secrets["gcp_service_account"]["project_id"]}.{LatestCardPrice.get_dataset_id()}.{CardReleaseSet.__tablename__}` t1 on t0.release_set_id = t1.id
+    """)
+    return [ExtendedCardData(**d) for d in latest_card_rows]
 
 def get_card_popularity_data() -> list[CardPopularity]:
     latest_card_rows = run_bq_query(
             f"""SELECT * FROM `{st.secrets["gcp_service_account"]["project_id"]}.{CardPopularity.get_dataset_id()}.{CardPopularity.__tablename__}`""")
     return [CardPopularity(**d) for d in latest_card_rows]
 
-def get_card_fractions() -> list[str]:
+def get_card_types() -> list[str]:
     latest_card_rows = run_bq_query(
-            f"""SELECT DISTINCT(fractions) FROM `{st.secrets["gcp_service_account"]["project_id"]}.{Card.get_dataset_id()}.{Card.__tablename__}` c, UNNEST(c.fractions) AS fractions """)
-    return [d["fractions"] for d in latest_card_rows]
+            f"""SELECT DISTINCT(types) FROM `{st.secrets["gcp_service_account"]["project_id"]}.{Card.get_dataset_id()}.{Card.__tablename__}` c, UNNEST(c.types) AS types """)
+    return [d["types"] for d in latest_card_rows]

@@ -6,7 +6,7 @@ import streamlit as st
 from op_tcg.backend.models.base import EnumBase
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.cards import OPTcgColor, OPTcgAbility
-from op_tcg.frontend.utils.extract import get_card_fractions
+from op_tcg.frontend.utils.extract import get_card_types
 
 
 class LeaderboardSortBy(EnumBase, StrEnum):
@@ -15,22 +15,22 @@ class LeaderboardSortBy(EnumBase, StrEnum):
     ELO = "elo"
 
 
-def display_meta_select(multiselect: bool = True, key: str | None = None) -> list[MetaFormat]:
+def display_meta_select(multiselect: bool = True, key: str | None = None, label: str="Meta") -> list[MetaFormat]:
     all_metas = MetaFormat.to_list()
     last_meta = all_metas[-1]
     if multiselect:
-        return st.multiselect("Meta", all_metas, default=last_meta, key=key)
+        return st.multiselect(label, all_metas, default=last_meta, key=key)
     else:
-        return [st.selectbox("Meta", sorted(all_metas, reverse=True), key=key)]
+        return [st.selectbox(label, sorted(all_metas, reverse=True), key=key)]
 
 
-def display_release_meta_select(multiselect: bool = True, default: list[MetaFormat] | None = None) -> list[
+def display_release_meta_select(multiselect: bool = True, default: list[MetaFormat] | None = None, label: str="Leader Release Meta") -> list[
                                                                                                           MetaFormat] | None:
     all_metas = MetaFormat.to_list()
     if multiselect:
-        return st.multiselect("Leader Release Meta", all_metas, default=default)
+        return st.multiselect(label, all_metas, default=default)
     else:
-        return [st.selectbox("Leader Release Meta", sorted(all_metas, reverse=True))]
+        return [st.selectbox(label, sorted(all_metas, reverse=True))]
 
 
 def display_leader_color_multiselect(default: list[OPTcgColor] | None = None) -> list[OPTcgColor] | None:
@@ -79,7 +79,7 @@ def display_leader_select(available_leader_ids: list[str] | None = None,
 
 
 def display_card_fraction_multiselect(default: list[str] | None = None) -> list[str] | None:
-    all_fractions = get_card_fractions()
+    all_fractions = get_card_types()
     return st.multiselect("Card Fraction", all_fractions, default=default)
 
 

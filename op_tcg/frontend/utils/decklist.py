@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from op_tcg.backend.models.cards import LatestCardPrice
+from op_tcg.backend.models.cards import LatestCardPrice, ExtendedCardData
 from op_tcg.backend.models.tournaments import TournamentStandingExtended
 from op_tcg.frontend.utils.extract import get_card_data
 
@@ -44,7 +44,7 @@ def tournament_standings2decklist_data(tournament_standings: list[TournamentStan
                         card_id2card_data=card_id2card_data)
 
 
-def get_card_id_card_data_lookup(aa_version: int = 0) -> dict[str, LatestCardPrice]:
+def get_card_id_card_data_lookup(aa_version: int = 0) -> dict[str, ExtendedCardData]:
     card_data = get_card_data()
     card_data = [cdata for cdata in card_data if cdata.aa_version == aa_version]
     return {card.id: card for card in card_data}
