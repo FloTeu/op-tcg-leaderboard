@@ -8,7 +8,8 @@ from op_tcg.backend.models.cards import OPTcgColor, OPTcgLanguage, LatestCardPri
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.frontend.utils.decklist import get_card_id_card_data_lookup
 from op_tcg.frontend.utils.extract import get_card_popularity_data
-from op_tcg.frontend.sidebar import display_meta_select, display_card_color_multiselect, display_card_ability_multiselect
+from op_tcg.frontend.sidebar import display_meta_select, display_card_color_multiselect, \
+    display_card_ability_multiselect, display_card_fraction_multiselect
 from op_tcg.frontend.utils.js import is_mobile
 
 from streamlit_theme import st_theme
@@ -79,10 +80,12 @@ def main_card_meta_analysis():
         selected_card_colors: list[OPTcgColor] | None = display_card_color_multiselect(default=[OPTcgColor.RED])
         selected_card_counter: int | None = st.selectbox("Counter", [0, 1000, 2000], index=None)
         selected_card_category: OPTcgCardCatagory | None = st.selectbox("Card Type", OPTcgCardCatagory.to_list(), index=None)
+        selected_card_fraction: list[str] = display_card_fraction_multiselect()
         filter_currency = st.selectbox("Currency", [CardCurrency.EURO, CardCurrency.US_DOLLAR])
         price_min, price_max = 0, 80
         selected_min_price, selected_max_price = st.slider("Card Price Range", price_min, price_max, (price_min, price_max))
         selected_card_cost_min, selected_card_cost_max = st.slider("Card Cost Range", 0, 10, (0,10))
+        st.markdown("""---""")
         selected_card_abilities: list[OPTcgAbility] | None = display_card_ability_multiselect()
         card_ability_text: str = st.text_input("Card Ability Text")
         filter_operator: str = st.selectbox("Filter Operator", ["OR", "AND"])
@@ -103,6 +106,7 @@ def main_card_meta_analysis():
                 any(color in selected_card_colors for color in cd.colors) and
                 (True if not_selected_counter else selected_card_counter == cd.counter) and
                 (True if not selected_card_category else selected_card_category == cd.card_category) and
+                (True if not selected_card_fraction else any(fraction in selected_card_fraction for fraction in cd.fractions)) and
                 (True if cd.cost is None else selected_card_cost_min <= cd.cost <= selected_card_cost_max) and
                 (True if not price_filter_activated else (selected_min_price <= (cd.latest_eur_price if filter_currency == CardCurrency.EURO else cd.latest_usd_price) <= selected_max_price))
         )}

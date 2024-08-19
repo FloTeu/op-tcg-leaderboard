@@ -1,6 +1,6 @@
 import streamlit as st
 from op_tcg.backend.models.bq_enums import BQDataset
-from op_tcg.backend.models.cards import LatestCardPrice, CardPopularity
+from op_tcg.backend.models.cards import LatestCardPrice, CardPopularity, Card
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader, TournamentWinner, LeaderElo
 from op_tcg.backend.models.matches import Match, LeaderWinRate
@@ -97,3 +97,8 @@ def get_card_popularity_data() -> list[CardPopularity]:
     latest_card_rows = run_bq_query(
             f"""SELECT * FROM `{st.secrets["gcp_service_account"]["project_id"]}.{CardPopularity.get_dataset_id()}.{CardPopularity.__tablename__}`""")
     return [CardPopularity(**d) for d in latest_card_rows]
+
+def get_card_fractions() -> list[str]:
+    latest_card_rows = run_bq_query(
+            f"""SELECT DISTINCT(fractions) FROM `{st.secrets["gcp_service_account"]["project_id"]}.{Card.get_dataset_id()}.{Card.__tablename__}` c, UNNEST(c.fractions) AS fractions """)
+    return [d["fractions"] for d in latest_card_rows]
