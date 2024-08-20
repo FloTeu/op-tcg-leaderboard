@@ -10,6 +10,7 @@ from op_tcg.frontend.utils.extract import get_card_types
 
 
 class LeaderboardSortBy(EnumBase, StrEnum):
+    DOMINANCE_SCORE = "Dominance Score"
     TOURNAMENT_WINS = "Tournament Wins"
     WIN_RATE = "Win Rate"
     ELO = "Elo"

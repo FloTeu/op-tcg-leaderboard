@@ -77,3 +77,7 @@ def lname_and_lid_to_lid(lname_and_lid: str) -> str:
     Expects a string format like "<name> (<id>)"
     """
     return lname_and_lid.split("(")[1].strip(")")
+
+def calculate_dominance_score(win_rate_norm: float, total_matches_norm: float, elo_rating_norm: float, tournament_wins_norm: float) -> float:
+    return win_rate_norm * 0.1 + total_matches_norm * 0.3 + elo_rating_norm * 0.2 + tournament_wins_norm * 0.4
+
