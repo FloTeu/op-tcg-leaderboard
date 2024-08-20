@@ -12,7 +12,7 @@ from op_tcg.frontend.utils.extract import get_card_types
 class LeaderboardSortBy(EnumBase, StrEnum):
     TOURNAMENT_WINS = "Tournament Wins"
     WIN_RATE = "Win Rate"
-    ELO = "elo"
+    ELO = "Elo"
 
 
 def display_meta_select(multiselect: bool = True, key: str | None = None, label: str="Meta") -> list[MetaFormat]:

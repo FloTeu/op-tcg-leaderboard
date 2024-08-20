@@ -2,7 +2,7 @@ import streamlit as st
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.cards import LatestCardPrice, CardPopularity, Card, CardReleaseSet, ExtendedCardData
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.leader import Leader, TournamentWinner, LeaderElo
+from op_tcg.backend.models.leader import Leader, TournamentWinner, LeaderElo, LeaderExtended
 from op_tcg.backend.models.matches import Match, LeaderWinRate
 from op_tcg.backend.models.tournaments import TournamentStanding, Tournament, TournamentStandingExtended
 from op_tcg.frontend.utils.utils import run_bq_query
@@ -38,6 +38,23 @@ def get_leader_win_rate(meta_formats: list[MetaFormat], leader_ids: list[str] | 
         return [bqwr for bqwr in bq_win_rates if (bqwr.leader_id in leader_ids)]
     else:
         return bq_win_rates
+
+def get_leader_extended(meta_formats: list[MetaFormat] | None = None, leader_ids: list[str] | None = None) -> list[LeaderExtended]:
+    bq_leader_data: list[LeaderExtended] = []
+    if meta_formats:
+        for meta_format in meta_formats:
+            # cached for each session
+            leader_data_rows = run_bq_query(f"""SELECT * FROM `{st.secrets["gcp_service_account"]["project_id"]}.{LeaderExtended.get_dataset_id()}.{LeaderExtended.__tablename__}` where meta_format = '{meta_format}'""")
+            bq_leader_data.extend([LeaderExtended(**d) for d in leader_data_rows])
+    else:
+        leader_data_rows = run_bq_query(
+            f"""SELECT * FROM `{st.secrets["gcp_service_account"]["project_id"]}.{LeaderExtended.get_dataset_id()}.{LeaderExtended.__tablename__}`""")
+        bq_leader_data.extend([LeaderExtended(**d) for d in leader_data_rows])
+
+    if leader_ids:
+        return [bql for bql in bq_leader_data if (bql.id in leader_ids)]
+    else:
+        return bq_leader_data
 
 def get_tournament_standing_data(meta_formats: list[MetaFormat], leader_id: str | None = None) -> list[TournamentStandingExtended]:
     bq_tournament_standings: list[TournamentStandingExtended] = []
