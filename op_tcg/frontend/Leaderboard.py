@@ -25,7 +25,7 @@ from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_ce
 from op_tcg.frontend.utils.leader_data import get_lid2ldata_dict_cached, lids_to_name_and_lids, lname_and_lid_to_lid, calculate_dominance_score
 from op_tcg.frontend.utils.utils import bq_client
 from op_tcg.frontend.sub_pages import main_meta_analysis, main_leader_detail_analysis_decklists, \
-    main_leader_detail_anylsis, main_admin_leader_upload, main_leader_decklist_movement, main_card_meta_analysis
+    main_leader_detail_analysis, main_admin_leader_upload, main_leader_decklist_movement, main_card_meta_analysis
 
 from streamlit_elements import elements, dashboard, mui, nivo
 from streamlit_theme import st_theme
@@ -345,7 +345,7 @@ pages = [
 #     pages.append(st.Page(main_admin_leader_upload, title='Admin_Leader_Upload', url_path="Admin_Leader_Upload"))
 
 if booleanize(os.environ.get("DEBUG", "")):
-    pages.append(st.Page(main_leader_detail_anylsis, title='Leader_Detail_Analysis', url_path="Leader_Detail_Analysis"))
+    pages.append(st.Page(main_leader_detail_analysis, title='Leader_Detail_Analysis', url_path="Leader_Detail_Analysis"))
     # if not admin_password in st.secrets["admin"]["emails"]:
     pages.append(st.Page(main_admin_leader_upload, title='Admin_Leader_Upload', url_path="Admin_Leader_Upload"))
 

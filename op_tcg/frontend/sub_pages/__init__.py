@@ -1,5 +1,5 @@
 from .Admin_Leader_Upload import main_admin_leader_upload
-from .Leader_Detail_Analysis import main_leader_detail_anylsis
+from .Leader_Detail_Analysis import main_leader_detail_analysis
 from .Leader_Decklists import main_leader_detail_analysis_decklists
 from .Leader_Matchup import main_meta_analysis
 from .Leader_Decklist_Movement import main_leader_decklist_movement

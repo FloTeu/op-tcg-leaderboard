@@ -16,7 +16,7 @@ from op_tcg.frontend.utils.decklist import tournament_standings2decklist_data, D
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_tournament_standing_data
 from op_tcg.frontend.utils.js import is_mobile
 from op_tcg.frontend.utils.query_params import add_query_param, get_default_leader_name
-from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid
+from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid, lname_and_lid_to_lid
 import streamlit.components.v1 as components
 from streamlit_elements import elements, mui, dashboard, html as element_html
 
@@ -181,7 +181,7 @@ def main_leader_detail_analysis_decklists():
                     oldest_release_datetime = release_date
 
         if selected_leader_name:
-            leader_id: str = selected_leader_name.split("(")[1].strip(")")
+            leader_id: str = lname_and_lid_to_lid(selected_leader_name)
             tournament_standings: list[TournamentStandingExtended] = get_tournament_standing_data(
                 meta_formats=selected_meta_formats, leader_id=leader_id)
             card_id2card_data = get_card_id_card_data_lookup()
