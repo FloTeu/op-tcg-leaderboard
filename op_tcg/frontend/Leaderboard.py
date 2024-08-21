@@ -1,16 +1,13 @@
-import os
-
-import pandas as pd
 import streamlit as st
-
-from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER_MATCHUP, SUB_PAGE_LEADER_DECKLIST, \
-    SUB_PAGE_LEADER_DECKLIST_MOVEMENT, SUB_PAGE_CARD_POPULARITY
-
 st.set_page_config(layout="wide")
 
+import os
+import pandas as pd
 from datetime import datetime, date
 from uuid import uuid4
 
+from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER_MATCHUP, SUB_PAGE_LEADER_DECKLIST, \
+    SUB_PAGE_LEADER_DECKLIST_MOVEMENT, SUB_PAGE_CARD_POPULARITY
 from op_tcg.backend.utils.utils import booleanize
 from op_tcg.frontend.utils.launch import init_load_data
 from op_tcg.backend.etl.load import bq_insert_rows, get_or_create_table
@@ -23,11 +20,9 @@ from op_tcg.frontend.utils.session import get_session_id
 from op_tcg.frontend.sidebar import display_meta_select, display_only_official_toggle, display_release_meta_select, \
     display_match_count_slider_slider, display_leader_color_multiselect, display_leader_select, LeaderboardSortBy, \
     display_sortby_select
-from op_tcg.frontend.utils.extract import get_leader_elo_data, get_match_data, \
-    get_leader_tournament_wins, get_leader_win_rate, get_leader_extended
+from op_tcg.frontend.utils.extract import get_leader_extended
 from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_cell, value2color_table_cell
-from op_tcg.frontend.utils.leader_data import leader_id2aa_image_url, lid2ldata_fn, get_lid2ldata_dict_cached, \
-    get_template_leader, lids_to_name_and_lids, lname_and_lid_to_lid, calculate_dominance_score
+from op_tcg.frontend.utils.leader_data import get_lid2ldata_dict_cached, lids_to_name_and_lids, lname_and_lid_to_lid, calculate_dominance_score
 from op_tcg.frontend.utils.utils import bq_client
 from op_tcg.frontend.sub_pages import main_meta_analysis, main_leader_detail_analysis_decklists, \
     main_leader_detail_anylsis, main_admin_leader_upload, main_leader_decklist_movement, main_card_meta_analysis
@@ -327,7 +322,10 @@ def main():
         df_leader_extended = pd.DataFrame(
             [{**r.dict(), "color_hex_code": r.to_hex_color()} for r in leader_extended_data])
 
-        df_leader_extended = df_leader_extended.groupby(["meta_format"]).apply(add_dominance_score, include_groups=True)
+        df_leader_extended_with_dominance_score = df_leader_extended.groupby(["meta_format"]).apply(add_dominance_score, include_groups=False)
+        map_series = pd.Series(df_leader_extended_with_dominance_score[LeaderboardSortBy.DOMINANCE_SCORE.value].to_list(), index=df_leader_extended_with_dominance_score.index.get_level_values(None))
+        df_leader_extended[LeaderboardSortBy.DOMINANCE_SCORE.value] = map_series
+
         df_leader_extended.reset_index(drop=True, inplace=True)
         df_leader_extended = sort_table_df(df_leader_extended, sort_by=sort_by,
                                            display_name2df_col_name=display_name2df_col_name)
