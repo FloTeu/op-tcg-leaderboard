@@ -98,12 +98,12 @@ def add_dominance_score(df_meta_group: pd.DataFrame) -> pd.DataFrame:
         "elo": df_meta_group["elo"].max(),
         "tournament_wins": df_meta_group["tournament_wins"].max()
     }
-    df_meta_group[LeaderboardSortBy.DOMINANCE_SCORE.value] = df_meta_group.apply(lambda x: round(calculate_dominance_score(
+    df_meta_group[LeaderboardSortBy.DOMINANCE_SCORE.value] = df_meta_group.apply(lambda x: f"""{int(round(calculate_dominance_score(
         win_rate_norm=(x.win_rate / max_values["win_rate"]),
         total_matches_norm=(x.total_matches / max_values["total_matches"]),
         elo_rating_norm=(x.elo / max_values["elo"]),
         tournament_wins_norm=(x.tournament_wins / max_values["tournament_wins"]),
-    ), 2), axis=1)
+    ), 2)*100)}%""", axis=1)
     return df_meta_group
 
 
@@ -117,9 +117,9 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
     relevant_meta_formats = all_meta_formats[:all_meta_formats.index(meta_format) + 1]
     df_leader_extended = df_leader_extended.query("meta_format in @relevant_meta_formats")
     df_leader_extended_selected_meta = df_leader_extended.query(f"meta_format == '{meta_format}'").copy()
-    display_columns = ["Name", "Release Set", LeaderboardSortBy.TOURNAMENT_WINS, "Match Count",
+    display_columns = ["Name", "Set", LeaderboardSortBy.TOURNAMENT_WINS, "Match Count",
                        LeaderboardSortBy.WIN_RATE, LeaderboardSortBy.DOMINANCE_SCORE.value, "Elo"]
-    df_leader_extended_selected_meta["Release Set"] = df_leader_extended_selected_meta["id"].apply(
+    df_leader_extended_selected_meta["Set"] = df_leader_extended_selected_meta["id"].apply(
         lambda lid: lid.split("-")[0])
     # df_leader_extended_selected_meta["Name"] = df_leader_extended_selected_meta["id"]  # .apply(lambda lid: lid2ldata(lid).name.replace('"', " ").replace('.', " "))
     for display_name, df_col_name in display_name2df_col_name.items():
@@ -148,6 +148,7 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
             df_leader_elos_filtered = df_leader_extended_selected_meta.drop(
                 columns=[c for c in df_leader_extended_selected_meta.columns if c not in (display_columns + ["id"])])[
                 display_columns + ["id"]]
+
             header_cells = [mui.TableCell(children="Leader", sx={"width": "200px"})] + [mui.TableCell(col) for col in
                                                                                         (display_columns + [
                                                                                             "Win Rate Chart"])]
@@ -178,6 +179,8 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
                           header_cells=header_cells,
                           title=None,
                           key="lboard_table_item")
+
+    st.markdown("*D-Score: Composite score from multiple metrics defining the dominance a leader has in the selected meta (Formula: $win\_rate * 0.1 + matches * 0.3 + elo * 0.2 + tournament\_wins * 0.4$ )")
 
 
 def sort_table_df(df: LeaderExtended.paSchema(), sort_by: LeaderboardSortBy,
