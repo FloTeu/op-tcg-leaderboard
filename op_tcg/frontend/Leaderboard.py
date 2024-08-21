@@ -106,6 +106,7 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
                               display_name2df_col_name: dict[str, str]):
     # Add new cols
     df_leader_extended['win_rate_decimal'] = df_leader_extended['win_rate'].apply(lambda x: f"{x * 100:.2f}%")
+    df_leader_extended['d_score'] = df_leader_extended['d_score'].apply(lambda x: f"{int(x * 100)}%")
 
     # data preprocessing
     all_meta_formats = MetaFormat.to_list()
@@ -284,6 +285,7 @@ def main():
 
     display_name2df_col_name = {
         "Name": "name",
+        LeaderboardSortBy.DOMINANCE_SCORE.value: "d_score",
         LeaderboardSortBy.TOURNAMENT_WINS.value: "tournament_wins",
         "Match Count": "total_matches",
         LeaderboardSortBy.WIN_RATE.value: "win_rate",
@@ -321,12 +323,6 @@ def main():
         # display table.
         df_leader_extended = pd.DataFrame(
             [{**r.dict(), "color_hex_code": r.to_hex_color()} for r in leader_extended_data])
-
-        df_leader_extended_with_dominance_score = df_leader_extended.groupby(["meta_format"]).apply(add_dominance_score, include_groups=False)
-        map_series = pd.Series(df_leader_extended_with_dominance_score[LeaderboardSortBy.DOMINANCE_SCORE.value].to_list(), index=df_leader_extended_with_dominance_score.index.get_level_values(None))
-        df_leader_extended[LeaderboardSortBy.DOMINANCE_SCORE.value] = map_series
-
-        df_leader_extended.reset_index(drop=True, inplace=True)
         df_leader_extended = sort_table_df(df_leader_extended, sort_by=sort_by,
                                            display_name2df_col_name=display_name2df_col_name)
         display_leaderboard_table(df_leader_extended, meta_format, display_name2df_col_name)

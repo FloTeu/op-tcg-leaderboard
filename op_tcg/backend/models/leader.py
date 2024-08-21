@@ -41,4 +41,5 @@ class LeaderExtended(Leader):
     win_rate: float | None = Field(description="Win rate as float value between 0 and 1, where 1 is 100% win rate. If not matches happened win_rate is NULL")
     total_matches: int | None = Field(description="Number of matches between leader and opponent. If not matches happened win_rate is NULL")
     elo: int | None = Field(description="Elo rating of leader until a certain time/ meta format. None if no elo is calculated")
+    d_score: float | None = Field(description="Composite score from multiple metrics defining the dominance a leader has in the selected meta")
     only_official: bool | None = Field(default=False, description="Whether the matches are only originated from official tournaments. None, if no data si available", primary_key=True)

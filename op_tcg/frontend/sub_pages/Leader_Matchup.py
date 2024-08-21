@@ -4,10 +4,10 @@ import streamlit as st
 
 from op_tcg.backend.utils.leader_fns import df_win_rate_data2lid_dicts
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.leader import Leader, LeaderElo
+from op_tcg.backend.models.leader import Leader, LeaderElo, LeaderExtended
 from op_tcg.backend.models.cards import OPTcgColor
 from op_tcg.backend.models.matches import LeaderWinRate
-from op_tcg.frontend.utils.extract import get_leader_elo_data, get_leader_win_rate
+from op_tcg.frontend.utils.extract import get_leader_elo_data, get_leader_win_rate, get_leader_extended
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select, display_only_official_toggle
 from op_tcg.frontend.utils.material_ui_fns import create_image_cell, display_table, value2color_table_cell, \
     add_tooltip
@@ -242,14 +242,19 @@ def main_meta_analysis():
     if len(selected_meta_formats) == 0:
         st.warning("Please select at least one meta format")
     else:
+        leader_extended_data: list[LeaderExtended] = get_leader_extended()
         selected_meta_win_rate_data: list[LeaderWinRate] = get_leader_win_rate(meta_formats=selected_meta_formats)
         df_meta_win_rate_data = pd.DataFrame([lwr.dict() for lwr in selected_meta_win_rate_data if lwr.only_official == only_official])
         lid2win_rate, lid2match_count = df_win_rate_data2lid_dicts(df_meta_win_rate_data)
         min_match_count = min(int(max(lid2match_count.values()) * 0.1), 30)
 
-        # first element is leader with best win rate
-        sorted_leader_ids_by_win_rate = sorted([lid for lid, count in lid2match_count.items() if count > min_match_count], key= lambda lid: lid2win_rate[lid], reverse=True)
-        available_leader_ids = lids_to_name_and_lids(list(dict.fromkeys(sorted_leader_ids_by_win_rate)))
+        # first element is leader with best d_score
+        leader_extended_data = list(filter(lambda x: x.meta_format in selected_meta_formats and x.total_matches > min_match_count, leader_extended_data))
+        leader_extended_data.sort(key=lambda x: x.d_score, reverse=True)
+        available_leader_ids = lids_to_name_and_lids(list(dict.fromkeys([le.id for le in leader_extended_data])))
+
+        # sorted_leader_ids_by_win_rate = sorted([lid for lid, count in lid2match_count.items() if count > min_match_count], key= lambda lid: lid2win_rate[lid], reverse=True)
+        # available_leader_ids = lids_to_name_and_lids(list(dict.fromkeys(sorted_leader_ids_by_win_rate)))
 
         with st.sidebar:
             selected_leader_names: list[str] = display_leader_select(available_leader_ids=available_leader_ids, multiselect=True, default=available_leader_ids[0:5])
