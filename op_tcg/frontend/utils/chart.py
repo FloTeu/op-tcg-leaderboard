@@ -13,6 +13,7 @@ ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 class LineChartYValue(StrEnum):
     ELO = "elo"
     WIN_RATE = "win_rate"
+    WIN_RATE_DECIMAL = "win_rate_decimal"
 
 
 def create_leader_line_chart(leader_id: str,

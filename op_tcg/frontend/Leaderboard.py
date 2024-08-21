@@ -1,4 +1,7 @@
 import streamlit as st
+
+from op_tcg.frontend.utils.chart import LineChartYValue, create_leader_line_chart
+
 st.set_page_config(layout="wide")
 
 import os
@@ -32,56 +35,10 @@ from streamlit_theme import st_theme
 
 ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 
-from timer import timer
-
-
-def leader_id2line_chart(leader_id: str, df_leader_extended, y_value: str = "elo"):
+def leader_id2line_chart(leader_id: str, df_leader_extended, y_value: LineChartYValue = LineChartYValue.WIN_RATE):
     # Streamlit Elements includes 45 dataviz components powered by Nivo.
-    data_lines = df_leader_extended.query(f"id == '{leader_id}'").sort_values("meta_format")[
-        ["meta_format", y_value]].rename(columns={"meta_format": "x", y_value: "y"}).to_dict(orient="records")
-    colors = [
-        "rgb(255, 107, 129)" if data_lines[-1]["y"] < data_lines[0]["y"] else "rgb(123, 237, 159)"
-    ]
-    for meta_format in sorted(MetaFormat.to_list(), reverse=True):
-        # exclude OP01 since we have no official matches yet
-        if meta_format not in data_lines and meta_format != MetaFormat.OP01:
-            data_lines.insert(0, {"x": meta_format, "y": None})
-
-    DATA = [
-        {
-            "id": "Elo" if y_value == "elo" else "WR",
-            "data": data_lines
-        }
-    ]
-
-    radar_plot = nivo.Line(
-        data=DATA,
-        margin={"top": 10, "right": 20, "bottom": 10, "left": 10},
-        enableGridX=False,
-        enableGridY=False,
-        yScale={
-            "type": "linear",
-            "min": "auto"
-        },
-        pointSize=10,
-        pointBorderWidth=0,
-        axisBottom=None,
-        axisLeft=None,
-        enableSlices="x",
-        motionConfig="slow",
-        colors=colors,
-        theme={
-            "background": "#2C3A47" if ST_THEME["base"] == "dark" else "#ffffff",
-            "textColor": "#ffffff" if ST_THEME["base"] == "dark" else "#31333F",
-            "tooltip": {
-                "container": {
-                    "background": "#FFFFFF",
-                    "color": "#31333F",
-                }
-            }
-        }
-    )
-
+    leader_extended_list: list[LeaderExtended] = df_leader_extended.query(f"id == '{leader_id}'").apply(lambda row: LeaderExtended(**row), axis=1).tolist()
+    radar_plot = create_leader_line_chart(leader_id, leader_extended_list, y_value=LineChartYValue.WIN_RATE)
     return mui.TableCell(mui.Box(radar_plot, sx={"height": 120, "width": 190}), sx={"padding": "0px"})
 
 
@@ -106,7 +63,6 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
                               display_name2df_col_name: dict[str, str]):
     # Add new cols
     df_leader_extended['win_rate_decimal'] = df_leader_extended['win_rate'].apply(lambda x: f"{x * 100:.2f}%")
-    df_leader_extended['d_score'] = df_leader_extended['d_score'].apply(lambda x: f"{int(x * 100)}%")
 
     # data preprocessing
     all_meta_formats = MetaFormat.to_list()
@@ -117,6 +73,7 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
                        LeaderboardSortBy.WIN_RATE, LeaderboardSortBy.DOMINANCE_SCORE.value, "Elo"]
     df_leader_extended_selected_meta["Set"] = df_leader_extended_selected_meta["id"].apply(
         lambda lid: lid.split("-")[0])
+    df_leader_extended_selected_meta['d_score'] = df_leader_extended_selected_meta['d_score'].apply(lambda x: f"{int(x * 100)}%")
     # df_leader_extended_selected_meta["Name"] = df_leader_extended_selected_meta["id"]  # .apply(lambda lid: lid2ldata(lid).name.replace('"', " ").replace('.', " "))
     for display_name, df_col_name in display_name2df_col_name.items():
         if display_name == LeaderboardSortBy.WIN_RATE:
@@ -168,7 +125,7 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
 
             df_leader_elos_display = df_leader_elos_display.drop(columns=["id"])
             df_leader_elos_display["Elo Chart"] = df_leader_extended_selected_meta["id"].apply(
-                lambda lid: leader_id2line_chart(lid, df_leader_extended, y_value="win_rate_decimal"))
+                lambda lid: leader_id2line_chart(lid, df_leader_extended, y_value=LineChartYValue.WIN_RATE_DECIMAL))
 
             display_table(df_leader_elos_display,
                           index_cells=index_cells,

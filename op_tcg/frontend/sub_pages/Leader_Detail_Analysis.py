@@ -32,7 +32,15 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
                 ],
                 key="leader_image"
             )
-            mui.Box(key="leader_win_rate", children=create_leader_line_chart(leader_id=leader_data.id, leader_extended=leader_extended_data, enable_x_axis=True, enable_y_axis=False, y_value=LineChartYValue.WIN_RATE))
+            mui.Box(key="leader_win_rate",
+                    children=[mui.Typography(
+                            variant="h5",
+                            component="h2",
+                            children=f"Win Rate Chart",
+                            gutterBottom=True
+                        ),
+                        create_leader_line_chart(leader_id=leader_data.id, leader_extended=leader_extended_data, enable_x_axis=True, enable_y_axis=False, y_value=LineChartYValue.WIN_RATE)],
+                    sx={"border-radius": "10px;"})
 
 
 def main_leader_detail_analysis():
