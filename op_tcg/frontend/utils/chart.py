@@ -1,11 +1,14 @@
 from enum import StrEnum
 
+import pandas as pd
 from streamlit_elements import nivo
 
+from op_tcg.backend.models.cards import OPTcgColor
 from op_tcg.backend.models.input import MetaFormat
 from streamlit_theme import st_theme
 
 from op_tcg.backend.models.leader import LeaderExtended
+from op_tcg.frontend.utils.leader_data import lid2ldata_fn
 
 ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 
@@ -91,4 +94,71 @@ def create_leader_line_chart(leader_id: str,
                 }
             }
         }
+    )
+
+
+def get_radar_chart_data(df_color_win_rates) -> list[dict[str, str | float]]:
+    """
+    df_color_win_rates: index: leader_id column: color cell: win rate
+    """
+    # create color chart data
+    radar_chart_data: list[dict[str, str | float]] = []
+    for color in OPTcgColor.to_list():
+        if color in df_color_win_rates.columns.values:
+            win_against_color = {lid2ldata_fn(lid).name: win_rate
+                                 for lid, win_rate in df_color_win_rates[color].to_dict().items()}
+            win_against_color = {k: v if not pd.isna(v) else 50 for k, v in win_against_color.items()}
+        else:
+            win_against_color = {lid2ldata_fn(lid).name: 50.0 for lid in df_color_win_rates.index.values}
+        radar_chart_data.append({
+            "color": color,
+            **win_against_color
+        })
+    return radar_chart_data
+
+def create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, colors):
+    return nivo.Radar(
+        data=radar_chart_data,
+        keys=selected_leader_names,
+        indexBy="color",
+        valueFormat=">-.2f",
+        margin={"top": 70, "right": 80, "bottom": 70, "left": 80},
+        borderColor={"from": "color"},
+        gridLabelOffset=36,
+        dotSize=10,
+        dotColor={"theme": "background"},
+        dotBorderWidth=2,
+        motionConfig="wobbly",
+        legends=[
+            {
+                "anchor": "top-left",
+                "direction": "column",
+                "translateX": -50,
+                "translateY": -40,
+                "itemWidth": 80,
+                "itemHeight": 20,
+                "itemTextColor": "#ffffff" if ST_THEME["base"] == "dark" else "#999",
+                "symbolSize": 12,
+                "symbolShape": "circle",
+                "effects": [
+                    {
+                        "on": "hover",
+                        "style": {
+                            "itemTextColor": "#000"
+                        }
+                    }
+                ]
+            }
+        ],
+        theme={
+            "background": "#2C3A47" if ST_THEME["base"] == "dark" else "#ffffff",
+            "textColor": "#ffffff" if ST_THEME["base"] == "dark" else "#31333F",
+            "tooltip": {
+                "container": {
+                    "background": "#FFFFFF",
+                    "color": "#31333F",
+                }
+            }
+        },
+        colors=colors
     )

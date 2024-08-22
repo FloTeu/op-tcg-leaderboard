@@ -1,7 +1,4 @@
 import streamlit as st
-
-from op_tcg.frontend.utils.chart import LineChartYValue, create_leader_line_chart
-
 st.set_page_config(layout="wide")
 
 import os
@@ -9,6 +6,7 @@ import pandas as pd
 from datetime import datetime, date
 from uuid import uuid4
 
+from op_tcg.frontend.utils.chart import LineChartYValue, create_leader_line_chart
 from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER_MATCHUP, SUB_PAGE_LEADER_DECKLIST, \
     SUB_PAGE_LEADER_DECKLIST_MOVEMENT, SUB_PAGE_CARD_POPULARITY
 from op_tcg.backend.utils.utils import booleanize
