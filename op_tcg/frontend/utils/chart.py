@@ -38,7 +38,10 @@ def create_leader_line_chart(leader_id: str,
         }
         for le in leader_extended_filtered
     ]
-    colors = ["rgb(255, 107, 129)" if data_lines[-1]["y"] < data_lines[0]["y"] else "rgb(123, 237, 159)"]
+    if len(data_lines) == 1:
+        colors = "rgb(123, 237, 159)"
+    else:
+        colors = ["rgb(255, 107, 129)" if data_lines[-1]["y"] < data_lines[-2]["y"] else "rgb(123, 237, 159)"]
     for meta_format in sorted(MetaFormat.to_list(), reverse=True):
         # exclude OP01 since we have no official matches yet
         if meta_format not in data_lines and meta_format != MetaFormat.OP01:
