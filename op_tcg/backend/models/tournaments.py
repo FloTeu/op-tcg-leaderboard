@@ -82,6 +82,7 @@ class TournamentStandingExtended(TournamentStanding, Tournament):
 class TournamentDecklist(BQTableBaseModel):
     leader_id: str | None = Field(description="The op tcg leader id e.g. OP03-099")
     decklist: dict[str, int] | None = Field(description="Used decklist in this tournament. The key is the card id e.g. OP01-006 and the value is the number of cards in the deck")
+    meta_format: MetaFormat | str = Field(description="Meta in which tournament happened, e.g. OP06")
 
     @field_validator('decklist', mode="before")
     def parse_dicts(cls, value):

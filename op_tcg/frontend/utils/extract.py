@@ -72,20 +72,24 @@ where t2.meta_format = '{meta_format}'""")
     return bq_tournament_standings
 
 
-def get_tournament_decklist_data(meta_formats: list[MetaFormat], leader_id: str | None = None) -> list[TournamentDecklist]:
-    bq_decklists: list[TournamentDecklist] = []
-    for meta_format in meta_formats:
-        # cached for each session
-        tournament_standing_rows = run_bq_query(f"""
-SELECT t1.leader_id, t1.decklist FROM `{st.secrets["gcp_service_account"]["project_id"]}.matches.{TournamentStanding.__tablename__}` t1
+def get_tournament_decklist_data(meta_formats: list[MetaFormat], leader_ids: list[str] | None = None) -> list[TournamentDecklist]:
+    leader_ids = leader_ids or []
+    bq_decklists = get_all_tournament_decklist_data()
+    if leader_ids:
+        bq_decklists = [ts for ts in bq_decklists if ts.leader_id in leader_ids]
+    if meta_formats:
+        bq_decklists = [ts for ts in bq_decklists if ts.meta_format in meta_formats]
+    return bq_decklists
+
+@st.cache_data
+def get_all_tournament_decklist_data() -> list[TournamentDecklist]:
+    # cached for each session
+    tournament_standing_rows = run_bq_query(f"""
+SELECT t1.leader_id, t1.decklist, t2.meta_format FROM `{st.secrets["gcp_service_account"]["project_id"]}.matches.{TournamentStanding.__tablename__}` t1
 left join `{st.secrets["gcp_service_account"]["project_id"]}.matches.{Tournament.__tablename__}` t2
 on t1.tournament_id = t2.id
-where t2.meta_format = '{meta_format}'
-and t1.decklist IS NOT NULL""")
-        bq_decklists.extend([TournamentDecklist(**d) for d in tournament_standing_rows])
-    if leader_id:
-        bq_decklists = [ts for ts in bq_decklists if ts.leader_id == leader_id]
-    return bq_decklists
+where t1.decklist IS NOT NULL""")
+    return [TournamentDecklist(**d) for d in tournament_standing_rows]
 
 def get_leader_elo_data(meta_formats: list[MetaFormat] | None=None) -> list[LeaderElo]:
     """First element is leader with best elo.

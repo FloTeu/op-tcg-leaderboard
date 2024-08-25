@@ -1,5 +1,4 @@
-import base64
-import os
+import time
 from functools import partial
 
 import pandas as pd
@@ -16,7 +15,7 @@ from op_tcg.frontend.sidebar import display_leader_select, display_meta_select, 
 from op_tcg.frontend.utils.chart import create_leader_line_chart, LineChartYValue, create_leader_win_rate_radar_chart, \
     get_radar_chart_data, create_line_chart
 from op_tcg.frontend.utils.decklist import DecklistData, tournament_standings2decklist_data, \
-    get_leader_decklist_card_ids, decklist_data_to_card_ids, get_most_similar_leader_ids
+    get_leader_decklist_card_ids, decklist_data_to_card_ids, get_most_similar_leader_ids, get_card_id_card_data_lookup
 from op_tcg.frontend.utils.extract import get_leader_extended, get_leader_win_rate, get_tournament_standing_data, \
     get_tournament_decklist_data
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid, lname_and_lid_to_lid, get_win_rate_dataframes, \
@@ -237,13 +236,21 @@ def main_leader_detail_analysis():
 
     st.header(f"Leader: {selected_leader_name}")
     if leader_extended:
+
+        # get most similar leader ids
+        t1 = time.time()
+        lid2similarity_score: dict[str, float] = get_most_similar_leader_ids(leader_extended.id, selected_meta_formats)
+        print("elapsed time %.2f" % (time.time() - t1))
+
+
         selected_meta_win_rate_data: list[LeaderWinRate] = get_leader_win_rate(meta_formats=MetaFormat.to_list())
         df_meta_win_rate_data = pd.DataFrame(
             [lwr.dict() for lwr in selected_meta_win_rate_data if lwr.only_official == only_official])
 
         # Get decklist data
+        card_id2card_data = get_card_id_card_data_lookup()
         decklist_data: DecklistData = tournament_standings2decklist_data(get_tournament_decklist_data(
-            meta_formats=selected_meta_formats, leader_id=leader_extended.id))
+            meta_formats=selected_meta_formats, leader_ids=[leader_extended.id]), card_id2card_data)
         opponent_matchups = get_best_and_worst_opponent(df_meta_win_rate_data.query(f"leader_id == '{leader_extended.id}'"), meta_formats=selected_meta_formats, exclude_leader_ids=[leader_extended.id])
 
         # Get color matchup radar plot data
@@ -252,8 +259,6 @@ def main_leader_detail_analysis():
             df_meta_win_rate_data.query("meta_format in @selected_meta_formats"), leader_ids)
         radar_chart_data: list[dict[str, str | float]] = get_radar_chart_data(df_color_win_rates)
 
-        # get most similar leader ids
-        lid2similarity_score: dict[str, float] = get_most_similar_leader_ids(leader_extended.id, selected_meta_formats)
 
         display_leader_dashboard(leader_extended, leader_extended_data, radar_chart_data, decklist_data, opponent_matchups, lid2similarity_score)
     else:
