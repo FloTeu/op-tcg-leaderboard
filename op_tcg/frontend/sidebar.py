@@ -16,13 +16,14 @@ class LeaderboardSortBy(EnumBase, StrEnum):
     ELO = "Elo"
 
 
-def display_meta_select(multiselect: bool = True, key: str | None = None, label: str="Meta") -> list[MetaFormat]:
+def display_meta_select(multiselect: bool = True, key: str | None = None, label: str="Meta", reverse=True) -> list[MetaFormat]:
     all_metas = MetaFormat.to_list()
-    last_meta = all_metas[-1]
+    if reverse:
+        all_metas = sorted(all_metas, reverse=reverse)
     if multiselect:
-        return st.multiselect(label, all_metas, default=last_meta, key=key)
+        return st.multiselect(label, all_metas, default=MetaFormat.latest_meta_format(), key=key)
     else:
-        return [st.selectbox(label, sorted(all_metas, reverse=True), key=key)]
+        return [st.selectbox(label, all_metas, key=key)]
 
 
 def display_release_meta_select(multiselect: bool = True, default: list[MetaFormat] | None = None, label: str="Leader Release Meta") -> list[

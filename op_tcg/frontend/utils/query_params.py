@@ -16,7 +16,7 @@ def get_default_leader_name(available_leader_ids: list[str], query_param: str = 
         default_leader_name = lid_to_name_and_lid(qp_lid)
         if qp_lid not in available_leader_ids:
             st.warning(f"Leader {default_leader_name} is not available")
-            default_leader_name = None
+            default_leader_name = lid_to_name_and_lid(available_leader_ids[0])
         return default_leader_name
     else:
         # of no query param provided pick first of available_leader_ids

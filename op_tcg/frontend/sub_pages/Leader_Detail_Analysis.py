@@ -12,24 +12,27 @@ from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.matches import LeaderWinRate
 from op_tcg.backend.models.tournaments import TournamentStandingExtended
-from op_tcg.frontend.sidebar import display_leader_select
+from op_tcg.frontend.sidebar import display_leader_select, display_meta_select
 from op_tcg.frontend.utils.chart import create_leader_line_chart, LineChartYValue, create_leader_win_rate_radar_chart, \
-    get_radar_chart_data
+    get_radar_chart_data, create_line_chart
 from op_tcg.frontend.utils.decklist import DecklistData, tournament_standings2decklist_data
 from op_tcg.frontend.utils.extract import get_leader_extended, get_leader_win_rate, get_tournament_standing_data
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid, lname_and_lid_to_lid, get_win_rate_dataframes
 from op_tcg.frontend.utils.query_params import get_default_leader_name, add_query_param, delete_query_param
+from op_tcg.frontend.utils.utils import sort_df_by_meta_format
 from op_tcg.frontend.views.decklist import display_list_view
 
 
-Q_PARAM_BEST_OPPONENT = "best_opponent_lid"
-Q_PARAM_WORST_OPPONENT = "worst_opponent_lid"
+Q_PARAM_EASIEST_OPPONENT = "easiest_opponent_lid"
+Q_PARAM_HARDEST_OPPONENT = "hardest_opponent_lid"
 
 class Matchup(BaseModel):
-    id: str
+    leader_id: str
     win_rate: float
-    meta_format: MetaFormat
     total_matches: int
+    meta_formats: list[MetaFormat]
+    win_rate_chart_data: dict[MetaFormat, float]
+
 
 class OpponentMatchups(BaseModel):
     best_matchups: list[Matchup]
@@ -37,29 +40,34 @@ class OpponentMatchups(BaseModel):
 
 def get_img_with_href(img_url, target_url):
     html_code = f'''
-        <a href="{target_url}">
+        <a href="{target_url}" target="_self" >
             <img src="{img_url}" />
         </a>'''
     return html_code
 
+
+
 def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: list[LeaderExtended], radar_chart_data, decklist_data: DecklistData, decklist_card_ids: list[str], opponent_matchups: OpponentMatchups):
     # TODO simplify first 6 lines
-    selected_best_opponent_id = lname_and_lid_to_lid(get_default_leader_name([m.id for m in opponent_matchups.best_matchups], query_param=Q_PARAM_BEST_OPPONENT))
-    selected_worst_opponent_id = lname_and_lid_to_lid(get_default_leader_name([m.id for m in opponent_matchups.worst_matchups], query_param=Q_PARAM_WORST_OPPONENT))
+    default_best_opponent: str = get_default_leader_name([m.leader_id for m in opponent_matchups.best_matchups], query_param=Q_PARAM_EASIEST_OPPONENT)
+    default_worst_opponent: str = get_default_leader_name([m.leader_id for m in opponent_matchups.worst_matchups], query_param=Q_PARAM_HARDEST_OPPONENT)
+    selected_best_opponent_id = None if default_best_opponent is None else lname_and_lid_to_lid(default_best_opponent)
+    selected_worst_opponent_id = None if default_worst_opponent is None else lname_and_lid_to_lid(default_worst_opponent)
     if selected_best_opponent_id == selected_worst_opponent_id:
         st.error("Selected best and worst opponent cannot be the same")
         return None
-    opponent_matchups.worst_matchups = [m for m in opponent_matchups.worst_matchups if m.id != selected_best_opponent_id]
-    opponent_matchups.best_matchups = [m for m in opponent_matchups.best_matchups if m.id != selected_worst_opponent_id]
+    opponent_matchups.worst_matchups = [m for m in opponent_matchups.worst_matchups if m.leader_id != selected_best_opponent_id]
+    opponent_matchups.best_matchups = [m for m in opponent_matchups.best_matchups if m.leader_id != selected_worst_opponent_id]
     best_opponent_data: LeaderExtended | None = None
     worst_opponent_data: LeaderExtended | None = None
     with suppress(Exception):
-        best_opponent_data = [le for le in leader_extended_data if le.id == selected_best_opponent_id][0]
+        best_opponent_data = [le for le in leader_extended_data if True if selected_best_opponent_id is None or le.id == selected_best_opponent_id][0]
     with suppress(Exception):
-        worst_opponent_data = [le for le in leader_extended_data if le.id == selected_worst_opponent_id][0]
+        worst_opponent_data = [le for le in leader_extended_data if True if selected_worst_opponent_id is None or le.id == selected_worst_opponent_id][0]
 
 
     col1, col2, col3 = st.columns([0.25, 0.05, 0.5])
+    col1.markdown("")
     col1.image(leader_data.aa_image_url)
     with col3:
         with elements("nivo_chart_line"):
@@ -99,42 +107,63 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
 
 
 def display_opponent_view(selected_opponent_id: str, matchups: list[Matchup], leader_extended_data: list[LeaderExtended], best_matchup: bool):
-    opponent_index = next(i for i, obj in enumerate(matchups) if obj.id == selected_opponent_id)
+    if not any(m.leader_id == selected_opponent_id for m in matchups):
+        st.warning(f"Selected opponent {selected_opponent_id} has no matchup data")
+        return None
+    opponent_index = next(i for i, obj in enumerate(matchups) if obj.leader_id == selected_opponent_id)
     opponent_matchup = matchups[opponent_index]
-    opponent_leader_data = [le for le in leader_extended_data if le.id == opponent_matchup.id][0]
-    opponent_leader_names = [lid_to_name_and_lid(m.id) for m in matchups]
+    opponent_leader_data = [le for le in leader_extended_data if le.id == opponent_matchup.leader_id][0]
+    opponent_leader_names = [lid_to_name_and_lid(m.leader_id) for m in matchups]
     st.subheader(("Easiest" if best_matchup else "Hardest") + " Matchup")
     display_leader_select(available_leader_ids=opponent_leader_names,
-                                                      key=f"select_opp_lid_{selected_opponent_id}",
-                                                      multiselect=False,
-                                                      default=opponent_leader_names[opponent_index],
-                                                      on_change=add_query_param,
-                                                      kwargs={Q_PARAM_BEST_OPPONENT if best_matchup else Q_PARAM_WORST_OPPONENT: f"select_opp_lid_{selected_opponent_id}"})
+                          key=f"select_opp_lid_{selected_opponent_id}",
+                          multiselect=False,
+                          default=opponent_leader_names[opponent_index],
+                          on_change=add_query_param,
+                          kwargs={Q_PARAM_EASIEST_OPPONENT if best_matchup else Q_PARAM_HARDEST_OPPONENT: f"select_opp_lid_{selected_opponent_id}"})
     img_with_href = get_img_with_href(opponent_leader_data.aa_image_url, f'/Leader_Detail_Analysis?lid={opponent_leader_data.id}')
     st.markdown(img_with_href, unsafe_allow_html=True)
     st.markdown(f"""  
 \
 \
     **Win Rate**: {int(round(opponent_matchup.win_rate, 2) * 100)}%  
-    **Number Matches**: {opponent_matchup.total_matches}
+    **Number Matches**: {opponent_matchup.total_matches}  
+    **Meta Formats**: {','.join(opponent_matchup.meta_formats)}
     """)
 
+    with elements(f"nivo_chart_line_opponent_{best_matchup}"):
+        st.subheader("Win Rate Change")
+        with mui.Box(sx={"height": 150}):
+            create_line_chart(opponent_matchup.win_rate_chart_data, data_id="WR", enable_x_axis=True, enable_y_axis=False)
 
-def get_best_and_worst_opponent(df_meta_win_rate_data) -> OpponentMatchups:
-    def create_matchup(df_row) -> Matchup:
+
+def get_best_and_worst_opponent(df_meta_win_rate_data, meta_formats: list[MetaFormat], exclude_leader_ids: list[str] | None = None) -> OpponentMatchups:
+    def create_matchup(df_group, win_rate_chart_data) -> Matchup:
         return Matchup(
-            id=df_row["opponent_id"],
-            win_rate=df_row["win_rate"],
-            meta_format=df_row["meta_format"],
-            total_matches=df_row["total_matches"],
+            leader_id=df_group.iloc[0]["opponent_id"],
+            win_rate=df_group["win_rate"].mean(),
+            meta_formats=df_group["meta_format"].to_list(),
+            total_matches=df_group["total_matches"].sum(),
+            win_rate_chart_data={meta: round(wr,2) for meta, wr in win_rate_chart_data.items()},
         )
+    exclude_leader_ids = exclude_leader_ids or []
+
+    # sort dataframe
+    df_meta_win_rate_data = sort_df_by_meta_format(df_meta_win_rate_data)
+    leader_id2win_rate_chart_data: dict[str, dict[MetaFormat, float]] = df_meta_win_rate_data.groupby("opponent_id").apply(lambda df_group: df_group[["meta_format", "win_rate"]].set_index("meta_format")["win_rate"].to_dict()).to_dict()
+    # drop data not in selected meta format
+    df_meta_win_rate_data = df_meta_win_rate_data.query("meta_format in @meta_formats")
 
     max_total_matches = df_meta_win_rate_data["total_matches"].max()
-    threshold = int(max_total_matches/10)
-    df_sorted = df_meta_win_rate_data.query("total_matches > " + str(threshold)).sort_values("win_rate")
-    worst_matchups = [create_matchup(df_row) for i, df_row in df_sorted.iterrows()]
-    best_matchups = worst_matchups.copy()
-    best_matchups.reverse()
+    # min 10 or 10% of the max total matches
+    threshold = min(int(max_total_matches/10), 10)
+    df_sorted = df_meta_win_rate_data.query(f"total_matches > {threshold}").sort_values("win_rate")
+
+    matchups: list[Matchup] = df_sorted.query("opponent_id not in @exclude_leader_ids").groupby("opponent_id").apply(lambda df_group: create_matchup(df_group, leader_id2win_rate_chart_data[df_group.iloc[0]["opponent_id"]])).to_list()
+    matchups.sort(key= lambda m: m.win_rate)
+    worst_matchups = matchups.copy()
+    matchups.sort(key= lambda m: m.win_rate, reverse=True)
+    best_matchups = matchups.copy()
     return OpponentMatchups(best_matchups=best_matchups,
                             worst_matchups=worst_matchups)
 
@@ -145,27 +174,27 @@ def main_leader_detail_analysis():
     available_leader_names = [lid_to_name_and_lid(lid) for lid in available_leader_ids]
     default_leader_name = get_default_leader_name(available_leader_ids, query_param="lid")
     only_official = True
-    selected_meta_formats = [MetaFormat.latest_meta_format()]
 
     with st.sidebar:
         def on_change_fn(qparam2session_key: dict[str, str]):
             add_query_param(qparam2session_key)
-            delete_query_param(Q_PARAM_BEST_OPPONENT)
-            delete_query_param(Q_PARAM_WORST_OPPONENT)
+            delete_query_param(Q_PARAM_EASIEST_OPPONENT)
+            delete_query_param(Q_PARAM_HARDEST_OPPONENT)
         selected_leader_name: str = display_leader_select(available_leader_ids=available_leader_names, key="select_lid",
                                                               multiselect=False, default=default_leader_name, on_change=partial(on_change_fn, qparam2session_key={"lid": "select_lid"}))
+        selected_meta_formats: list[MetaFormat] = display_meta_select(multiselect=True)
+
     leader_extended = None
     if selected_leader_name:
         leader_id: str = lname_and_lid_to_lid(selected_leader_name)
-        meta_format = MetaFormat.latest_meta_format()
-        leader_extended_filtered = [le for le in leader_extended_data if le.meta_format == meta_format and le.id == leader_id]
+        leader_extended_filtered = [le for le in leader_extended_data if le.meta_format in selected_meta_formats and le.id == leader_id and le.only_official == only_official]
         if len(leader_extended_filtered) > 0:
             leader_extended = leader_extended_filtered[0]
 
 
     st.header(f"Leader: {selected_leader_name}")
     if leader_extended:
-        selected_meta_win_rate_data: list[LeaderWinRate] = get_leader_win_rate(meta_formats=selected_meta_formats)
+        selected_meta_win_rate_data: list[LeaderWinRate] = get_leader_win_rate(meta_formats=MetaFormat.to_list())
         df_meta_win_rate_data = pd.DataFrame(
             [lwr.dict() for lwr in selected_meta_win_rate_data if lwr.only_official == only_official])
 
@@ -177,11 +206,11 @@ def main_leader_detail_analysis():
                                  key=lambda d: decklist_data.card_id2occurrences[d], reverse=True)
         card_ids_filtered = [card_id for card_id in card_ids_sorted if
                              card_id != leader_extended.id and decklist_data.card_id2occurrence_proportion[card_id] >= 0.02]
-        opponent_matchups = get_best_and_worst_opponent(df_meta_win_rate_data.query(f"leader_id == '{leader_extended.id}'"))
+        opponent_matchups = get_best_and_worst_opponent(df_meta_win_rate_data.query(f"leader_id == '{leader_extended.id}'"), meta_formats=selected_meta_formats, exclude_leader_ids=[leader_extended.id])
 
-        leader_ids = list(set([leader_extended.id, *[matchup.id for matchup in opponent_matchups.worst_matchups], *[matchup.id for matchup in opponent_matchups.best_matchups]]))
+        leader_ids = list(set([leader_extended.id, *[matchup.leader_id for matchup in opponent_matchups.worst_matchups], *[matchup.leader_id for matchup in opponent_matchups.best_matchups]]))
         _, _, df_color_win_rates = get_win_rate_dataframes(
-            df_meta_win_rate_data, leader_ids)
+            df_meta_win_rate_data.query("meta_format in @selected_meta_formats"), leader_ids)
         radar_chart_data: list[dict[str, str | float]] = get_radar_chart_data(df_color_win_rates)
 
         display_leader_dashboard(leader_extended, leader_extended_data, radar_chart_data, decklist_data, card_ids_filtered, opponent_matchups)

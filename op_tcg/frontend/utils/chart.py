@@ -1,4 +1,5 @@
 from enum import StrEnum
+from typing import Any
 
 import pandas as pd
 from streamlit_elements import nivo
@@ -31,25 +32,53 @@ def create_leader_line_chart(leader_id: str,
         filter(lambda x: x.id == leader_id and x.only_official == only_official, leader_extended))
     # sort values
     leader_extended_filtered.sort(key=lambda x: x.meta_format)
-    data_lines = [
-        {
-            "x": le.meta_format,
-            "y": getattr(le, str(y_value))
+
+    data_dict = {
+            le.meta_format: getattr(le, str(y_value)) for le in leader_extended_filtered
         }
-        for le in leader_extended_filtered
-    ]
-    if len(data_lines) == 1:
-        colors = "rgb(123, 237, 159)"
-    else:
-        colors = ["rgb(255, 107, 129)" if data_lines[-1]["y"] < data_lines[-2]["y"] else "rgb(123, 237, 159)"]
+    return create_line_chart(data_dict,
+                             data_id="Elo" if y_value == "elo" else "WR",
+                             y_format=" >-.2f" if y_value == LineChartYValue.WIN_RATE else "",
+                             enable_x_axis=enable_x_axis,
+                             enable_y_axis=enable_y_axis,
+                             y_axis_label=str(y_value))
+
+def dict_to_data_lines(data_dict: dict[Any, Any]) -> list[dict[Any, Any]]:
+    data_lines = []
+    for x, y in data_dict.items():
+        data_lines.append({"x": x, "y": y})
+    return data_lines
+
+
+def create_line_chart(data_dict: dict[MetaFormat, str | None],
+                      data_id: str,
+                      y_format: str | None = None,
+                      enable_x_axis: bool = False,
+                      enable_y_axis: bool = False,
+                      y_axis_label: str = ""):
+
+
+    # fillup missing meta_format data
     for meta_format in sorted(MetaFormat.to_list(), reverse=True):
         # exclude OP01 since we have no official matches yet
-        if meta_format not in data_lines and meta_format != MetaFormat.OP01:
-            data_lines.insert(0, {"x": meta_format, "y": None})
+        if meta_format not in data_dict and meta_format != MetaFormat.OP01:
+            data_dict[meta_format] = None
+
+    order_mapping = {meta: idx for idx, meta in enumerate(MetaFormat.to_list())}
+    data_dict_sorted = dict(sorted(data_dict.items(), key=lambda item: order_mapping[item[0]]))
+
+    data_lines = dict_to_data_lines(data_dict_sorted)
+    data_lines_not_none = [dl for dl in data_lines if dl["y"] is not None]
+
+    if len(data_lines_not_none) == 1:
+        colors = "rgb(123, 237, 159)"
+    else:
+        colors = ["rgb(255, 107, 129)" if data_lines_not_none[-1]["y"] < data_lines_not_none[-2]["y"] else "rgb(123, 237, 159)"]
+
 
     DATA = [
         {
-            "id": "Elo" if y_value == "elo" else "WR",
+            "id": data_id,
             "data": data_lines
         }
     ]
@@ -65,7 +94,7 @@ def create_leader_line_chart(leader_id: str,
         },
         pointSize=10,
         pointBorderWidth=0,
-        yFormat=" >-.2f" if y_value == LineChartYValue.WIN_RATE else "",
+        yFormat=y_format,
         axisBottom={
             "tickSize": 5,
             "tickPadding": 5,
@@ -79,7 +108,7 @@ def create_leader_line_chart(leader_id: str,
             "tickSize": 5,
             "tickPadding": 5,
             "tickRotation": 0,
-            "legend": str(y_value),
+            "legend": y_axis_label,
             "legendOffset": -40,
             "legendPosition": 'middle',
             "truncateTickAt": 0
@@ -98,7 +127,6 @@ def create_leader_line_chart(leader_id: str,
             }
         }
     )
-
 
 def get_radar_chart_data(df_color_win_rates) -> list[dict[str, str | float]]:
     """
