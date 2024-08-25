@@ -1,8 +1,12 @@
+import streamlit as st
 from pydantic import BaseModel
 
 from op_tcg.backend.models.cards import LatestCardPrice, ExtendedCardData
-from op_tcg.backend.models.tournaments import TournamentStandingExtended
-from op_tcg.frontend.utils.extract import get_card_data
+from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.leader import LeaderExtended
+from op_tcg.backend.models.tournaments import TournamentStandingExtended, TournamentDecklist
+from op_tcg.frontend.utils.extract import get_card_data, get_tournament_standing_data, get_leader_extended, \
+    get_tournament_decklist_data
 
 
 class DecklistData(BaseModel):
@@ -16,7 +20,7 @@ class DecklistData(BaseModel):
     card_id2card_data: dict[str, LatestCardPrice]
 
 
-def tournament_standings2decklist_data(tournament_standings: list[TournamentStandingExtended]) -> DecklistData:
+def tournament_standings2decklist_data(tournament_standings: list[TournamentStandingExtended] | list[TournamentDecklist]) -> DecklistData:
     num_decklists = len(tournament_standings)
     card_id2card_data = get_card_id_card_data_lookup()
     card_id2occurrences: dict[str, int] = {}
@@ -48,3 +52,50 @@ def get_card_id_card_data_lookup(aa_version: int = 0) -> dict[str, ExtendedCardD
     card_data = get_card_data()
     card_data = [cdata for cdata in card_data if cdata.aa_version == aa_version]
     return {card.id: card for card in card_data}
+
+
+@st.cache_data
+def get_leader_decklist_card_ids(leader_id: str, selected_meta_formats: list[MetaFormat], occurrence_threshold: float = 0.02) -> list[str]:
+    tournament_decklists: list[TournamentDecklist] = get_tournament_decklist_data(
+        meta_formats=selected_meta_formats, leader_id=leader_id)
+    decklist_data: DecklistData = tournament_standings2decklist_data(tournament_decklists)
+    return decklist_data_to_card_ids(decklist_data, occurrence_threshold=occurrence_threshold)
+
+def decklist_data_to_card_ids(decklist_data: DecklistData, occurrence_threshold: float = 0.0, exclude_card_ids: list[str] | None = None) -> list[str]:
+    exclude_card_ids = exclude_card_ids or []
+    card_ids_sorted = sorted(decklist_data.card_id2occurrence_proportion.keys(),
+                             key=lambda d: decklist_data.card_id2occurrences[d], reverse=True)
+    def filter_fn(card_id) -> bool:
+        conditions = []
+        if exclude_card_ids:
+            conditions.append(card_id not in exclude_card_ids)
+        if occurrence_threshold:
+            conditions.append(decklist_data.card_id2occurrence_proportion[card_id] >= occurrence_threshold)
+        return all(conditions)
+
+    return list(filter(lambda x: filter_fn(x), card_ids_sorted))
+
+def get_most_similar_leader_ids(leader_id: str, meta_formats: list[MetaFormat]) -> dict[str, float]:
+    """
+    Calculates the similarity score for each leader combination of the same color.
+    The higher the score the more cards are in common.
+    returns: dict where the key is a leader_id and the value is a similarity score between 0 and 1
+    """
+    def lid2decklist_data(lid: str) -> DecklistData:
+        return tournament_standings2decklist_data(get_tournament_decklist_data(
+        meta_formats=meta_formats, leader_id=lid))
+    def calculate_similarity_score(decklist_data: DecklistData, compare_decklist_data: DecklistData) -> float:
+        intersection = set(decklist_data.card_id2occurrence_proportion.keys()).intersection(set(compare_decklist_data.card_id2occurrence_proportion.keys()))
+        return len(intersection) / len(decklist_data.card_id2occurrence_proportion)
+
+    decklist_data: DecklistData = lid2decklist_data(leader_id)
+
+    leader_extended_data: list[LeaderExtended] = get_leader_extended()
+    leader_colors = list(filter(lambda x: x.id == leader_id, leader_extended_data))[0].colors
+    # drop selected leader_id and all leaders with different color
+    other_leader_ids = list(dict.fromkeys([l.id for l in leader_extended_data if (any(c in l.colors for c in leader_colors)) and (l.id != leader_id)]))
+    lid2similarity_score: dict[str, float] = {}
+    for lid in other_leader_ids:
+        compare_decklist_data = lid2decklist_data(lid)
+        lid2similarity_score[lid] = calculate_similarity_score(decklist_data, compare_decklist_data)
+    return lid2similarity_score

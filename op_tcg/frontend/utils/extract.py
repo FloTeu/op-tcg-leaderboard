@@ -4,7 +4,8 @@ from op_tcg.backend.models.cards import LatestCardPrice, CardPopularity, Card, C
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader, TournamentWinner, LeaderElo, LeaderExtended
 from op_tcg.backend.models.matches import Match, LeaderWinRate
-from op_tcg.backend.models.tournaments import TournamentStanding, Tournament, TournamentStandingExtended
+from op_tcg.backend.models.tournaments import TournamentStanding, Tournament, TournamentStandingExtended, \
+    TournamentDecklist
 from op_tcg.frontend.utils.utils import run_bq_query
 
 
@@ -58,20 +59,33 @@ def get_leader_extended(meta_formats: list[MetaFormat] | None = None, leader_ids
 
 def get_tournament_standing_data(meta_formats: list[MetaFormat], leader_id: str | None = None) -> list[TournamentStandingExtended]:
     bq_tournament_standings: list[TournamentStandingExtended] = []
-    leader_condition = ""
-    if leader_id:
-        leader_condition = f"and t1.leader_id = '{leader_id}'"
     for meta_format in meta_formats:
         # cached for each session
         tournament_standing_rows = run_bq_query(f"""
 SELECT t1.*, t2.* EXCEPT (create_timestamp, name) FROM `{st.secrets["gcp_service_account"]["project_id"]}.matches.{TournamentStanding.__tablename__}` t1
 left join `{st.secrets["gcp_service_account"]["project_id"]}.matches.{Tournament.__tablename__}` t2
 on t1.tournament_id = t2.id
-where t2.meta_format = '{meta_format}' {leader_condition}
-""")
+where t2.meta_format = '{meta_format}'""")
         bq_tournament_standings.extend([TournamentStandingExtended(**d) for d in tournament_standing_rows])
-
+    if leader_id:
+        bq_tournament_standings = [ts for ts in bq_tournament_standings if ts.leader_id == leader_id]
     return bq_tournament_standings
+
+
+def get_tournament_decklist_data(meta_formats: list[MetaFormat], leader_id: str | None = None) -> list[TournamentDecklist]:
+    bq_decklists: list[TournamentDecklist] = []
+    for meta_format in meta_formats:
+        # cached for each session
+        tournament_standing_rows = run_bq_query(f"""
+SELECT t1.leader_id, t1.decklist FROM `{st.secrets["gcp_service_account"]["project_id"]}.matches.{TournamentStanding.__tablename__}` t1
+left join `{st.secrets["gcp_service_account"]["project_id"]}.matches.{Tournament.__tablename__}` t2
+on t1.tournament_id = t2.id
+where t2.meta_format = '{meta_format}'
+and t1.decklist IS NOT NULL""")
+        bq_decklists.extend([TournamentDecklist(**d) for d in tournament_standing_rows])
+    if leader_id:
+        bq_decklists = [ts for ts in bq_decklists if ts.leader_id == leader_id]
+    return bq_decklists
 
 def get_leader_elo_data(meta_formats: list[MetaFormat] | None=None) -> list[LeaderElo]:
     """First element is leader with best elo.
@@ -122,3 +136,4 @@ def get_card_types() -> list[str]:
     latest_card_rows = run_bq_query(
             f"""SELECT DISTINCT(types) FROM `{st.secrets["gcp_service_account"]["project_id"]}.{Card.get_dataset_id()}.{Card.__tablename__}` c, UNNEST(c.types) AS types """)
     return [d["types"] for d in latest_card_rows]
+
