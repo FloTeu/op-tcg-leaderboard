@@ -1,11 +1,16 @@
 import cssutils
+import streamlit as st
 from pathlib import Path
+
+from streamlit_theme import st_theme
+
 from op_tcg.frontend import styles
 from cssutils.css import CSSStyleSheet, CSSStyleRule
 
 # RGB colors
 GREEN_RGB = (123, 237, 159)
 RED_RGB = (255, 107, 129)
+PRIMARY_COLOR_RGB = (41, 128, 185)
 
 
 def read_style_sheet(file_name: str, selector: str | None = None) -> CSSStyleSheet | CSSStyleRule:
