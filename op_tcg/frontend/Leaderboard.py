@@ -33,10 +33,10 @@ from streamlit_theme import st_theme
 
 ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 
-def leader_id2line_chart(leader_id: str, df_leader_extended, y_value: LineChartYValue = LineChartYValue.WIN_RATE):
+def leader_id2line_chart(leader_id: str, df_leader_extended, y_value: LineChartYValue = LineChartYValue.WIN_RATE, only_official: bool = True):
     # Streamlit Elements includes 45 dataviz components powered by Nivo.
     leader_extended_list: list[LeaderExtended] = df_leader_extended.query(f"id == '{leader_id}'").apply(lambda row: LeaderExtended(**row), axis=1).tolist()
-    radar_plot = create_leader_line_chart(leader_id, leader_extended_list, y_value=LineChartYValue.WIN_RATE)
+    radar_plot = create_leader_line_chart(leader_id, leader_extended_list, y_value=y_value, only_official=only_official)
     return mui.TableCell(mui.Box(radar_plot, sx={"height": 120, "width": 190}), sx={"padding": "0px"})
 
 
@@ -58,7 +58,7 @@ def add_dominance_score(df_meta_group: pd.DataFrame) -> pd.DataFrame:
 
 
 def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), meta_format: MetaFormat,
-                              display_name2df_col_name: dict[str, str]):
+                              display_name2df_col_name: dict[str, str], only_official: bool = True):
     # Add new cols
     df_leader_extended['win_rate_decimal'] = df_leader_extended['win_rate'].apply(lambda x: f"{x * 100:.2f}%")
 
@@ -123,7 +123,7 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
 
             df_leader_elos_display = df_leader_elos_display.drop(columns=["id"])
             df_leader_elos_display["Elo Chart"] = df_leader_extended_selected_meta["id"].apply(
-                lambda lid: leader_id2line_chart(lid, df_leader_extended, y_value=LineChartYValue.WIN_RATE_DECIMAL))
+                lambda lid: leader_id2line_chart(lid, df_leader_extended, y_value=LineChartYValue.WIN_RATE, only_official=only_official))
 
             display_table(df_leader_elos_display,
                           index_cells=index_cells,
@@ -152,7 +152,7 @@ def sort_table_df(df: LeaderExtended.paSchema(), sort_by: LeaderboardSortBy,
     return df
 
 
-@st.experimental_dialog("Upload Match")
+@st.dialog("Upload Match")
 def upload_match_dialog():
     leader_id2leader_data = get_lid2ldata_dict_cached()
     meta_format = display_meta_select(multiselect=False, key="upload_form_meta_format")[0]
@@ -280,7 +280,7 @@ def main():
             [{**r.dict(), "color_hex_code": r.to_hex_color()} for r in leader_extended_data])
         df_leader_extended = sort_table_df(df_leader_extended, sort_by=sort_by,
                                            display_name2df_col_name=display_name2df_col_name)
-        display_leaderboard_table(df_leader_extended, meta_format, display_name2df_col_name)
+        display_leaderboard_table(df_leader_extended, meta_format, display_name2df_col_name, only_official=only_official)
     else:
         st.warning("Seems like the selected meta does not contain any matches")
 
