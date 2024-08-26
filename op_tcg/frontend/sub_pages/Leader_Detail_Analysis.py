@@ -175,12 +175,12 @@ def display_cards_view(card_ids: list[str], cid2cdata_dict: dict[str, ExtendedCa
     st.write(title)
     n_st_cols = st.columns([1 / n_cols for i in range(n_cols)])
     for i, card_id in enumerate(card_ids[:n_cols]):
-        with n_st_cols[i % 4]:
+        with n_st_cols[i % n_cols]:
             st.image(cid2cdata_dict[card_id].image_url)
     with st.expander("show all cards"):
         n_st_cols = st.columns([1 / n_cols for i in range(n_cols)])
         for i, card_id in enumerate(card_ids[n_cols:]):
-            with n_st_cols[i % 4]:
+            with n_st_cols[i % n_cols]:
                 st.image(cid2cdata_dict[card_id].image_url)
 
 def display_opponent_view(selected_opponent_id: str, matchups: list[Matchup], leader_extended_data: list[LeaderExtended], best_matchup: bool):
