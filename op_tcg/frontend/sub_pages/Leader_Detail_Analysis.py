@@ -15,6 +15,7 @@ from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.matches import LeaderWinRate
 from op_tcg.backend.models.tournaments import TournamentStandingExtended, TournamentDecklist
 from op_tcg.frontend.sidebar import display_leader_select, display_meta_select, display_only_official_toggle
+from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER
 from op_tcg.frontend.utils.chart import create_leader_line_chart, LineChartYValue, create_leader_win_rate_radar_chart, \
     get_radar_chart_data, create_line_chart
 from op_tcg.frontend.utils.decklist import DecklistData, tournament_standings2decklist_data, \
@@ -147,7 +148,7 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
             col2_1, col2_2 = st.columns([0.4, 0.5])
             with col2_1:
                 img_with_href = get_img_with_href(lid2data_dict[selected_most_similar_lid].aa_image_url,
-                                                  f'/Leader_Detail_Analysis?lid={selected_most_similar_lid}')
+                                                  f'/{SUB_PAGE_LEADER}?lid={selected_most_similar_lid}')
                 st.markdown(img_with_href, unsafe_allow_html=True)
             with col2_2:
                 cards_missing_over_50_occ = [cid for cid in similar_leader_data.cards_missing if similar_leader_data.card_id2occurrence_proportion[cid] >= 0.5]
@@ -197,7 +198,7 @@ def display_opponent_view(selected_opponent_id: str, matchups: list[Matchup], le
                           default=opponent_leader_names[opponent_index],
                           on_change=add_query_param,
                           kwargs={Q_PARAM_EASIEST_OPPONENT if best_matchup else Q_PARAM_HARDEST_OPPONENT: f"select_opp_lid_{selected_opponent_id}"})
-    img_with_href = get_img_with_href(opponent_leader_data.aa_image_url, f'/Leader_Detail_Analysis?lid={opponent_leader_data.id}')
+    img_with_href = get_img_with_href(opponent_leader_data.aa_image_url, f'/{SUB_PAGE_LEADER}?lid={opponent_leader_data.id}')
     st.markdown(img_with_href, unsafe_allow_html=True)
     st.markdown(f"""  
 \

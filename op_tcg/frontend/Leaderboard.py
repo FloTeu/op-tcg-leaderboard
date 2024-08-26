@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from op_tcg.frontend.utils.chart import LineChartYValue, create_leader_line_chart
 from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER_MATCHUP, SUB_PAGE_LEADER_DECKLIST, \
-    SUB_PAGE_LEADER_DECKLIST_MOVEMENT, SUB_PAGE_CARD_POPULARITY
+    SUB_PAGE_LEADER_DECKLIST_MOVEMENT, SUB_PAGE_CARD_POPULARITY, SUB_PAGE_LEADER
 from op_tcg.backend.utils.utils import booleanize
 from op_tcg.frontend.utils.launch import init_load_data
 from op_tcg.backend.etl.load import bq_insert_rows, get_or_create_table
@@ -117,7 +117,7 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
                     df_leader_elos_display[col] = df_leader_elos_display[[col, "id"]].apply(
                         lambda x: mui.TableCell(mui.Link(
                             str(x.Name.replace('"', " ").replace('.', " ")),
-                            href=f"/{SUB_PAGE_LEADER_DECKLIST}?lid={x.id}", target="_blank")), axis=1)
+                            href=f"/{SUB_PAGE_LEADER}?lid={x.id}", target="_blank")), axis=1)
                 else:
                     df_leader_elos_display[col] = df_leader_elos_display[col].apply(lambda x: mui.TableCell(str(x)))
 
@@ -288,6 +288,7 @@ def main():
 # main_meta_analysis, main_leader_detail_analysis_decklists, main_leader_detail_anylsis, main_admin_leader_upload
 pages = [
     st.Page(main, title="Leaderboard", default=True),
+    st.Page(main_leader_detail_analysis, title=SUB_PAGE_LEADER, url_path=SUB_PAGE_LEADER),
     st.Page(main_meta_analysis, title=SUB_PAGE_LEADER_MATCHUP, url_path=SUB_PAGE_LEADER_MATCHUP),
     st.Page(main_leader_detail_analysis_decklists, title=SUB_PAGE_LEADER_DECKLIST, url_path=SUB_PAGE_LEADER_DECKLIST),
     st.Page(main_leader_decklist_movement, title=SUB_PAGE_LEADER_DECKLIST_MOVEMENT,
@@ -300,7 +301,6 @@ pages = [
 #     pages.append(st.Page(main_admin_leader_upload, title='Admin_Leader_Upload', url_path="Admin_Leader_Upload"))
 
 if booleanize(os.environ.get("DEBUG", "")):
-    pages.append(st.Page(main_leader_detail_analysis, title='Leader_Detail_Analysis', url_path="Leader_Detail_Analysis"))
     # if not admin_password in st.secrets["admin"]["emails"]:
     pages.append(st.Page(main_admin_leader_upload, title='Admin_Leader_Upload', url_path="Admin_Leader_Upload"))
 
