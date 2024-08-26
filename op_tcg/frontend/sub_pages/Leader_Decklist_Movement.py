@@ -9,13 +9,12 @@ from op_tcg.backend.models.leader import LeaderElo
 from op_tcg.backend.models.cards import OPTcgLanguage, CardCurrency
 from op_tcg.backend.models.tournaments import TournamentStanding, TournamentStandingExtended
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select
-from op_tcg.frontend.sub_pages.Leader_Decklists import get_decklist_price
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_tournament_standing_data
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid, lname_and_lid_to_lid, \
     get_lid2ldata_dict_cached
 from op_tcg.frontend.utils.query_params import add_query_param, get_default_leader_name
 from op_tcg.frontend.utils.decklist import tournament_standings2decklist_data, DecklistData, \
-    get_card_id_card_data_lookup
+    get_card_id_card_data_lookup, get_decklist_price
 
 
 def display_decklist(decklist: dict[str, int], is_mobile: bool):
@@ -106,6 +105,7 @@ def main_leader_decklist_movement():
 
     if selected_leader_name:
         leader_id: str = lname_and_lid_to_lid(selected_leader_name)
+        # TODO: Try using get_tournament_decklist_data instead
         tournament_standings_previous_meta: list[TournamentStandingExtended] = get_tournament_standing_data(
             meta_formats=[previous_meta_format], leader_id=leader_id)
         tournament_standings_selected_meta: list[TournamentStandingExtended] = get_tournament_standing_data(
@@ -114,10 +114,11 @@ def main_leader_decklist_movement():
         if len(tournament_standings_selected_meta) == 0 or len(tournament_standings_previous_meta) == 0:
             st.warning("No decklists available")
         else:
+            card_id2card_data = get_card_id_card_data_lookup()
             decklist_data_previous_meta: DecklistData = tournament_standings2decklist_data(
-                tournament_standings_previous_meta)
+                tournament_standings_previous_meta, card_id2card_data)
             decklist_data_selected_meta: DecklistData = tournament_standings2decklist_data(
-                tournament_standings_selected_meta)
+                tournament_standings_selected_meta, card_id2card_data)
             card_movement = get_card_movement(decklist_data_previous_meta, decklist_data_selected_meta)
             avg_price_eur_previous_meta = get_avg_price(tournament_standings_previous_meta, currency=CardCurrency.EURO)
             avg_price_eur_selected_meta = get_avg_price(tournament_standings_selected_meta, currency=CardCurrency.EURO)

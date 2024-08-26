@@ -5,11 +5,11 @@ from statistics import mean
 
 from op_tcg.backend.models.input import MetaFormat, meta_format2release_datetime
 from op_tcg.backend.models.leader import LeaderElo
-from op_tcg.backend.models.cards import OPTcgLanguage, LatestCardPrice, CardCurrency
+from op_tcg.backend.models.cards import OPTcgLanguage, CardCurrency
 from op_tcg.backend.models.tournaments import TournamentStanding, TournamentStandingExtended
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select
 from op_tcg.frontend.utils.decklist import tournament_standings2decklist_data, DecklistData, \
-    get_card_id_card_data_lookup
+    get_card_id_card_data_lookup, get_decklist_price
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_tournament_standing_data
 from op_tcg.frontend.utils.js import is_mobile
 from op_tcg.frontend.utils.query_params import add_query_param, get_default_leader_name
@@ -17,20 +17,6 @@ from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid, lname_and_lid
 from streamlit_elements import elements, mui, dashboard, html as element_html
 
 from op_tcg.frontend.views.decklist import display_list_view
-
-
-def get_decklist_price(decklist: dict[str, int], card_id2card_data: dict[str, LatestCardPrice],
-                       currency: CardCurrency = CardCurrency.EURO) -> float:
-    deck_price = 0.0
-    for card_id, count in decklist.items():
-        card_data = card_id2card_data.get(card_id, None)
-        if currency == CardCurrency.EURO:
-            deck_price += card_data.latest_eur_price * count if card_data else 0.0
-        elif currency == CardCurrency.US_DOLLAR:
-            deck_price += card_data.latest_usd_price * count if card_data else 0.0
-        else:
-            raise NotImplementedError
-    return deck_price
 
 
 def get_best_matching_decklist(tournament_standings: list[TournamentStandingExtended], decklist_data: DecklistData) -> \
@@ -115,6 +101,7 @@ def main_leader_detail_analysis_decklists():
 
         if selected_leader_name:
             leader_id: str = lname_and_lid_to_lid(selected_leader_name)
+            # TODO: Try using get_tournament_decklist_data instead
             tournament_standings: list[TournamentStandingExtended] = get_tournament_standing_data(
                 meta_formats=selected_meta_formats, leader_id=leader_id)
             card_id2card_data = get_card_id_card_data_lookup()
@@ -181,7 +168,8 @@ def main_leader_detail_analysis_decklists():
             if len(tournament_standings) == 0:
                 st.warning("No decklists available")
             else:
-                decklist_data: DecklistData = tournament_standings2decklist_data(tournament_standings)
+                card_id2card_data = get_card_id_card_data_lookup()
+                decklist_data: DecklistData = tournament_standings2decklist_data(tournament_standings, card_id2card_data)
                 decklist_data.avg_price_eur = mean(decklist_id2price_eur.values())
                 decklist_data.avg_price_usd = mean(decklist_id2price_usd.values())
 
