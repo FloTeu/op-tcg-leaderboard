@@ -125,6 +125,17 @@ def display_card_details_dialog(card_id: str):
 
         return chart_data
 
+    def get_most_occurring_leader_ids(chart_data: list[dict[str, int]]) -> list[str]:
+        leader_id_to_highest_value = {}
+        for chart_data_i in chart_data:
+            for lid, occurrence in chart_data_i.items():
+                if lid not in leader_id_to_highest_value:
+                    leader_id_to_highest_value[lid] = occurrence
+                elif leader_id_to_highest_value[lid] < occurrence:
+                    leader_id_to_highest_value[lid] = occurrence
+        return [k for k, v in sorted(leader_id_to_highest_value.items(), key=lambda item: item[1], reverse=True)]
+
+
     with st.spinner():
         # load data
         cid2card_data = get_card_id_card_data_lookup(aa_version=0)
@@ -143,6 +154,9 @@ def display_card_details_dialog(card_id: str):
                 meta_leader_id2card_occurrence_count[ddata.meta_format][ddata.leader_id] += 1
         chart_data_meta_formats = list(meta_leader_id2card_occurrence_count.keys())
         chart_data = [{lid_to_name_lid_lookup[lid]: card_occ for lid, card_occ in lid2card_occ_dict.items() if card_occ > 0} for _, lid2card_occ_dict in meta_leader_id2card_occurrence_count.items()]
+        # filter top n most occurring leaders
+        most_occurring_leader_ids = get_most_occurring_leader_ids(chart_data)[:5]
+        chart_data = [{lid: occ for lid, occ in cd.items() if lid in most_occurring_leader_ids} for cd in chart_data]
 
         # display data
         st.header(lid_to_name_and_lid(card_id, leader_name=card_data.name))
