@@ -1,3 +1,6 @@
+import functools
+import inspect
+from typing import Callable
 
 import streamlit as st
 from pydantic import Field, BaseModel
@@ -29,6 +32,11 @@ class ExtendedCardData(BaseModel):
         description="Value between 0 and 1 indicating occurrence of card in decklist with same color")
     image_url: str | None
 
+def dialog_unique_fragment_id_factory(function: Callable, dialog_name: str, new_function_name: str):
+    function_code = inspect.getsource(function)
+    new_function_code = function_code.replace('def', f'@st.dialog(f"{dialog_name}")\ndef', 1)
+    new_function_code = new_function_code.replace(function.__name__, new_function_name)
+    return new_function_code
 
 def display_cards(cards_data: list[ExtendedCardData], is_mobile: bool):
     css_class_card = read_style_sheet("grid_view", selector=".card")
@@ -47,6 +55,7 @@ def display_cards(cards_data: list[ExtendedCardData], is_mobile: bool):
     </style></html>"""
     st.markdown(card_html, unsafe_allow_html=True)
 
+
     for i, card_data in enumerate(cards_data):
         with n_st_cols[i % n_cols]:
             width = f"{int(max(card_data.occurrence_in_decklists, 0.1) * 100)}%"
@@ -61,12 +70,11 @@ def display_cards(cards_data: list[ExtendedCardData], is_mobile: bool):
             if len(card_name) > 20:
                 header_hashtags = "######"
 
-            _, col1, col3, _ = st.columns([0.05, 0.8, 0.1, 0.1])
+            _, col1, col3, _ = st.columns([0.05, 0.8, 0.1, 0.15])
             # col1, col3 = st.columns([1,1])
             col1.markdown(f"""{header_hashtags} {card_name}""")
-            if col3.button(":bar_chart:", key=f"card_modal_button_{card_data.card_id}"):
-                display_card_details_dialog(card_id=card_data.card_id)
-
+            with col3:
+                display_dialog_button(card_data.card_id)
             card_html = f"""
             <html>
             <div class="card">
@@ -80,44 +88,23 @@ def display_cards(cards_data: list[ExtendedCardData], is_mobile: bool):
             """
             st.markdown(card_html, unsafe_allow_html=True)
 
-    with elements("dashboard"):
-        # First, build a default layout for every element you want to include in your dashboard
-        layout = [
-            # Parameters: element_identifier, x_pos, y_pos, width, height, [item properties...]
-            dashboard.Item(f"item_{extended_card_data.card_id}", ((i * 2) % (n_cols * 2)), 0, 2, 3, isResizable=False,
-                           isDraggable=False, preventCollision=True)
-            for i, extended_card_data in enumerate(cards_data)
-        ]
-        #
-        # css_class_progress_bar = css_rule_to_dict(css_class_progress_bar)
-        # with dashboard.Grid(layout):
-        #     for extended_card_data in cards_data:
-        #         op_set = extended_card_data.card_id.split("-")[0]
-        #         image_url = extended_card_data.image_url
-        #         if image_url is None:
-        #             image_url = f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{op_set}/{extended_card_data.card_id}_{OPTcgLanguage.EN.upper()}.webp"
-        #
-        #         css_class_progress_bar["width"] = f"{int(max(extended_card_data.occurrence_in_decklists, 0.1) * 100)}%"
-        #         mui_progress_bar = mui.Typography(f"{int(extended_card_data.occurrence_in_decklists * 100)}%", sx=css_class_progress_bar)
-        #         mui_progress_container = mui.Typography([mui_progress_bar],sx=css_rule_to_dict(css_class_progress_container))
-        #         #st.button("Test", on_click=display_card_details_dialog, key=f"card_modal_button_{extended_card_data.card_id}")
-        #         mui.Container(
-        #             children=[
-        #                 mui.Typography(
-        #                     variant="h5",
-        #                     component="h2",
-        #                     children=f"{extended_card_data.card_name}",
-        #                     gutterBottom=True
-        #                 ),
-        #                 # Image at the top
-        #                 element_html.Img(src=image_url, style={"width": "100%", "height": "auto"}),
-        #                 # Text block below the image
-        #                 mui_progress_container], key=f"item_{extended_card_data.card_id}",
-        #             sx={"margin-top": "10px" if is_mobile else "0px"}
-        #         )
+
+@st.fragment
+def display_dialog_button(card_id: str):
+    dialog_function_name = f"display_card_details_dialog_{card_id.replace('-', '_')}"
+    exec(dialog_unique_fragment_id_factory(display_card_details_dialog, "Card Detail",
+                                           dialog_function_name))
+    if st.button(":bar_chart:", key=f"card_modal_button_{card_id}"):
+        if dialog_function_name in globals().keys():
+            globals()[dialog_function_name](card_id=card_id)
+        elif dialog_function_name in locals().keys():
+            locals()[dialog_function_name](card_id=card_id)
+        else:
+            pass
 
 
-@st.dialog("Card Detail", width="large")
+
+#@st.dialog("Card Detail", width="large")
 def display_card_details_dialog(card_id: str):
     def normalize_data(chart_data: list[dict[str, int]]) -> dict[str, float]:
         def normalize_dict_values(input_dict):
@@ -178,10 +165,6 @@ def main_card_meta_analysis():
     st.header("Card Popularity")
     st.write(
         "A list of cards ordered by popularity. A popularity of 100% stands for 100% occurrence in tournament decks of the same card color.")
-
-    # with elements("nivo_chart_stream"):
-    #     with mui.Box(sx={"height": 250}):
-    #         create_card_leader_occurrence_stream_chart(None, None)
 
 
     with st.sidebar:
