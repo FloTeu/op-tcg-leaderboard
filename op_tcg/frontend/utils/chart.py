@@ -227,6 +227,12 @@ def create_card_leader_occurrence_stream_chart(data, data_keys: list[str] | None
     layout = {
         "keys": data_keys,
         "margin": {"top": 50, "right": 40, "bottom": 150, "left": 60},
+        # "axis": {
+        #     "ticks": {
+        #         "line": {"stroke": "#fff", "strokeWidth": 1},
+        #         "text": {"fill": "#fff", "fontSize": 11}
+        #     }
+        # },
         "axisTop": None,
         "axisRight": None,
         "axisBottom": {
@@ -295,7 +301,10 @@ def create_card_leader_occurrence_stream_chart(data, data_keys: list[str] | None
                     "background": "#FFFFFF",
                     "color": "#31333F",
                 }
-            }
+            },
+            "text": {
+                "fill": "#ffffff"
+            },
         }
     }
     nivo_charts(data, layout=layout, layout_callables=layout_callables, styles={"height": "400px"})

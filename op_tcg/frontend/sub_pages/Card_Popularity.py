@@ -89,7 +89,7 @@ def display_cards(cards_data: list[ExtendedCardData], is_mobile: bool):
             st.markdown(card_html, unsafe_allow_html=True)
 
 
-@st.fragment
+#@st.fragment
 def display_dialog_button(card_id: str):
     dialog_function_name = f"display_card_details_dialog_{card_id.replace('-', '_')}"
     exec(dialog_unique_fragment_id_factory(display_card_details_dialog, "Card Detail",
@@ -150,7 +150,8 @@ def display_card_details_dialog(card_id: str):
         col1, col2 = st.columns([0.5, 1])
         col1.image(card_data.image_url)
         with col2:
-            st.warning(f"Test {card_id}")
+            pass
+            #st.warning(f"Test {card_id}")
 
         show_normalized = st.toggle("Show normalized data", False)
         if show_normalized:
