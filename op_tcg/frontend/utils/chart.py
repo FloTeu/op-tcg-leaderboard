@@ -9,6 +9,7 @@ from op_tcg.backend.models.input import MetaFormat
 from streamlit_theme import st_theme
 
 from op_tcg.backend.models.leader import LeaderExtended
+from op_tcg.frontend.utils.components import nivo_charts
 from op_tcg.frontend.utils.leader_data import lid2ldata_fn
 
 ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
@@ -197,7 +198,110 @@ def create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, 
     )
 
 
-def create_card_leader_occurrence_stream_chart(data, data_keys: list[str] | None = None, x_tick_values: list[str] | None = None):
+def create_card_leader_occurrence_stream_chart(data, data_keys: list[str] | None = None, x_tick_labels: list[str] | None = None):
+    def extract_data_keys() -> list[str]:
+        data_keys = []
+        for data_point in data:
+            for key in data_point.keys():
+                if key not in data_keys:
+                    data_keys.append(key)
+        return data_keys
+
+    def ensure_data_keys_exist(data: list[dict[str, int | float]], data_keys: list[str]) -> list[dict[str, int | float]]:
+        for data_i in data:
+            for data_key in data_keys:
+                if data_key not in data_i:
+                    data_i[data_key] = 0
+        return data
+
+    layout_callables = []
+    axis_bottom_dict = {}
+    data_keys = data_keys or extract_data_keys()
+    data = ensure_data_keys_exist(data, data_keys)
+    if x_tick_labels:
+        assert len(x_tick_labels) >= len(data), "x_tick_labels is not allowed to contain less elements than data"
+        x_tick_labels = {i: x_tick_labels[i] for i in range(len(data))}
+        layout_callables.append("axisBottom.format")
+        axis_bottom_dict = {"format": x_tick_labels}
+
+    layout = {
+        "keys": data_keys,
+        "margin": {"top": 50, "right": 40, "bottom": 150, "left": 60},
+        "axisTop": None,
+        "axisRight": None,
+        "axisBottom": {
+            "orient": 'bottom',
+            "tickSize": 5,
+            "tickPadding": 5,
+            "tickRotation": 0,
+            "legend": 'Meta Format',
+            "legendPosition": 'middle',
+            "legendOffset": 36,
+            "tickValues": list([i for i in range(len(data))]),
+            **axis_bottom_dict,
+        },
+        "axisLeft": {
+            "orient": 'left',
+            "tickSize": 5,
+            "tickPadding": 5,
+            "tickRotation": 0,
+            "legend": '',
+            "legendOffset": -40,
+            "truncateTickAt": 0
+        },
+        "enableGridX": True,
+        "enableGridY": False,
+        "offsetType": "silhouette",
+        #"colors": {"scheme": 'nivo'},
+        "borderColor": {"theme": 'background'},
+        "dotSize": 8,
+        "dotBorderWidth": 2,
+        # TODO: fix issues with many data keys which are breaking into multiple lines atm
+        "legends": [
+            {
+                "dataFrom": 'keys',
+                "anchor": 'bottom',
+                "direction": 'row',
+                "justify": False,
+                "translateX": 0,
+                "translateY": 70,
+                "itemsSpacing": 10,
+                "itemWidth": 80,
+                "itemHeight": 20,
+                "itemDirection": 'left-to-right',
+                "itemOpacity": 0.85,
+                "symbolSize": 20,
+                "effects": [
+                    {
+                        "on": 'hover',
+                        "style": {
+                            "itemOpacity": 1
+                        }
+                    }
+                ],
+                # Ensure the legend breaks into multiple lines
+                # Adjust the `itemWidth` and `itemsSpacing` to control the layout
+                "itemTextColor": '#777',
+                "symbolShape": 'circle',
+                "containerWidth": '100%',
+            }
+        ],
+        "theme": {
+            "background": "#2C3A47" if ST_THEME["base"] == "dark" else "#ffffff",
+            # "background": "#ffffff",
+            "textColor": "#ffffff" if ST_THEME["base"] == "dark" else "#31333F",
+            "tooltip": {
+                "container": {
+                    "background": "#FFFFFF",
+                    "color": "#31333F",
+                }
+            }
+        }
+    }
+    nivo_charts(data, layout=layout, layout_callables=layout_callables, styles={"height": "400px"})
+
+
+def create_card_leader_occurrence_stream_chart_old(data, data_keys: list[str] | None = None, x_tick_values: list[str] | None = None):
     data = data or [
         {
             "Raoul": 48,

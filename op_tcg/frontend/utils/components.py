@@ -46,7 +46,11 @@ else:
 # `declare_component` and call it done. The wrapper allows us to customize
 # our component's API: we can pre-process its input args, post-process its
 # output value, and add a docstring for users.
-def nivo_charts(name, key=None):
+def nivo_charts(data: list[dict[str, int | float]],
+                layout: dict,
+                layout_callables: list[str] | None = None,
+                styles: dict | None = None,
+                key=None):
     """Create a new instance of "nivo_charts".
 
     Parameters
@@ -67,13 +71,15 @@ def nivo_charts(name, key=None):
         frontend.)
 
     """
+    layout_callables = layout_callables or []
+    styles = styles or {"height": "360px"}
     # Call through to our private component function. Arguments we pass here
     # will be sent to the frontend, where they'll be available in an "args"
     # dictionary.
     #
     # "default" is a special argument that specifies the initial return
     # value of the component before the user has interacted with it.
-    component_value = _component_func(name=name, key=key, default=0)
+    component_value = _component_func(data=data, layout=layout, layoutCallables=layout_callables, styles=styles, key=key)
 
     # We could modify the value returned from the component if we wanted.
     # There's no need to do this in our simple example - but it's an option.

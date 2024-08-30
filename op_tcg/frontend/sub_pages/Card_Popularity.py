@@ -160,7 +160,7 @@ def display_card_details_dialog(card_id: str):
                 st.error("Sorry something went wrong with the data normalization")
         with elements(f"nivo_chart_stream_{card_id}"):
             with mui.Box(sx={"height": 450}):
-                create_card_leader_occurrence_stream_chart(chart_data, x_tick_values=chart_data_meta_formats)
+                create_card_leader_occurrence_stream_chart(chart_data, x_tick_labels=chart_data_meta_formats)
 
 
 def get_stream_leader_occurrence_data(cid2card_data: dict[str, ExtendedCardData], card_id: str):
