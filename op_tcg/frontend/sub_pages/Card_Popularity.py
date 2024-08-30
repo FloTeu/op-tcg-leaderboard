@@ -137,23 +137,10 @@ def display_card_details_dialog(card_id: str):
 
 
     with st.spinner():
-        # load data
         cid2card_data = get_card_id_card_data_lookup(aa_version=0)
         card_data = cid2card_data[card_id]
-        meta_formats = MetaFormat.to_list()[MetaFormat.to_list().index(card_data.meta_format):]
-        leaders_of_same_color = {cid: cdata for cid, cdata in cid2card_data.items() if
-                                 cdata.card_category == OPTcgCardCatagory.LEADER and any(
-                                     c in cdata.colors for c in card_data.colors)}
-        lid_to_name_lid_lookup = {lid: lid_to_name_and_lid(lid, leader_name=cid2card_data[lid].name) for lid in leaders_of_same_color.keys()}
-        decklist_data: list[TournamentDecklist] = get_tournament_decklist_data(meta_formats, leader_ids=list(
-            leaders_of_same_color.keys()))
-        init_lid2card_occ_dict = {lid: 0 for lid in leaders_of_same_color.keys()}
-        meta_leader_id2card_occurrence_count: dict[MetaFormat, dict[str, int]] = {mf: init_lid2card_occ_dict.copy() for mf in meta_formats}
-        for ddata in decklist_data:
-            if ddata.meta_format in meta_leader_id2card_occurrence_count and card_id in ddata.decklist:
-                meta_leader_id2card_occurrence_count[ddata.meta_format][ddata.leader_id] += 1
-        chart_data_meta_formats = list(meta_leader_id2card_occurrence_count.keys())
-        chart_data = [{lid_to_name_lid_lookup[lid]: card_occ for lid, card_occ in lid2card_occ_dict.items() if card_occ > 0} for _, lid2card_occ_dict in meta_leader_id2card_occurrence_count.items()]
+        chart_data, chart_data_meta_formats = get_stream_leader_occurrence_data(cid2card_data, card_id)
+
         # filter top n most occurring leaders
         most_occurring_leader_ids = get_most_occurring_leader_ids(chart_data)[:5]
         chart_data = [{lid: occ for lid, occ in cd.items() if lid in most_occurring_leader_ids} for cd in chart_data]
@@ -174,6 +161,30 @@ def display_card_details_dialog(card_id: str):
         with elements(f"nivo_chart_stream_{card_id}"):
             with mui.Box(sx={"height": 450}):
                 create_card_leader_occurrence_stream_chart(chart_data, x_tick_values=chart_data_meta_formats)
+
+
+def get_stream_leader_occurrence_data(cid2card_data: dict[str, ExtendedCardData], card_id: str):
+    # load data
+    card_data = cid2card_data[card_id]
+    meta_formats = MetaFormat.to_list()[MetaFormat.to_list().index(card_data.meta_format):]
+    leaders_of_same_color = {cid: cdata for cid, cdata in cid2card_data.items() if
+                             cdata.card_category == OPTcgCardCatagory.LEADER and any(
+                                 c in cdata.colors for c in card_data.colors)}
+    lid_to_name_lid_lookup = {lid: lid_to_name_and_lid(lid, leader_name=cid2card_data[lid].name) for lid in
+                              leaders_of_same_color.keys()}
+    decklist_data: list[TournamentDecklist] = get_tournament_decklist_data(meta_formats, leader_ids=list(
+        leaders_of_same_color.keys()))
+    init_lid2card_occ_dict = {lid: 0 for lid in leaders_of_same_color.keys()}
+    meta_leader_id2card_occurrence_count: dict[MetaFormat, dict[str, int]] = {mf: init_lid2card_occ_dict.copy() for mf
+                                                                              in meta_formats}
+    for ddata in decklist_data:
+        if ddata.meta_format in meta_leader_id2card_occurrence_count and card_id in ddata.decklist:
+            meta_leader_id2card_occurrence_count[ddata.meta_format][ddata.leader_id] += 1
+    chart_data_meta_formats = list(meta_leader_id2card_occurrence_count.keys())
+    chart_data = [{lid_to_name_lid_lookup[lid]: card_occ for lid, card_occ in lid2card_occ_dict.items() if card_occ > 0}
+                  for _, lid2card_occ_dict in meta_leader_id2card_occurrence_count.items()]
+    return chart_data, chart_data_meta_formats
+
 
 def main_card_meta_analysis():
     st.header("Card Popularity")
