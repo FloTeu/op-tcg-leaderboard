@@ -1,14 +1,14 @@
 import os
 import streamlit.components.v1 as components
 
-def booleanize(s):
-    return s.lower() in ['true', '1', "y", "yes"]
+from pathlib import Path
+from op_tcg.backend.utils.utils import booleanize
 
 # Create a _RELEASE constant. We'll set this to False while we're developing
 # the component, and True when we're ready to package and distribute it.
 # (This is, of course, optional - there are innumerable ways to manage your
 # release process.)
-_RELEASE = booleanize(os.environ.get("DEBUG", ""))
+_DEBUG = booleanize(os.environ.get("DEBUG", ""))
 
 # Declare a Streamlit component. `declare_component` returns a function
 # that is used to create instances of the component. We're naming this
@@ -21,7 +21,7 @@ _RELEASE = booleanize(os.environ.get("DEBUG", ""))
 # your component frontend. Everything else we do in this file is simply a
 # best practice.
 
-if not _RELEASE:
+if _DEBUG:
     _component_func = components.declare_component(
         # We give the component a simple, descriptive name ("my_component"
         # does not fit this bill, so please choose something better for your
@@ -36,9 +36,9 @@ else:
     # When we're distributing a production version of the component, we'll
     # replace the `url` param with `path`, and point it to the component's
     # build directory:
-    parent_dir = os.path.dirname(os.path.abspath(__file__))
-    build_dir = os.path.join(parent_dir, "frontend/build")
-    _component_func = components.declare_component("nivo_charts", path=build_dir)
+    root_dir = Path(os.path.abspath(__file__)).parent.parent.parent.parent
+    build_dir = root_dir / "components/nivo_charts/nivo_charts/frontend/build"
+    _component_func = components.declare_component("nivo_charts", path=str(build_dir))
 
 
 # Create a wrapper function for the component. This is an optional

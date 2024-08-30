@@ -26,6 +26,15 @@ Access environment in your shell
 poetry shell
 ```
 
+## Local development
+For local development it's recommended to set the `DEBUG` environment file to true. 
+If `DEBUG` is true you also need to start the frontend code via localhost at port 3001.
+```
+cd components/nivo_charts/nivo_charts/frontend
+npm install    # Install npm dependencies
+npm run start  # Start the Webpack dev server
+```
+
 ## Crawling
 Get tournament data from limitless
 ```
@@ -60,6 +69,10 @@ The app is running in Google cloud and can be initialized by terraform.
 If not already done, update package version
 ```shell
 poetry version patch/minor/major/prepatch/preminor/premajor/prerelease
+```
+Ensure the frontend components are up-to-date
+```shell
+npm run --prefix components/nivo_charts/nivo_charts/frontend build
 ```
 ```shell
 cd terraform
