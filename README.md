@@ -72,7 +72,8 @@ poetry version patch/minor/major/prepatch/preminor/premajor/prerelease
 ```
 Ensure the frontend components are up-to-date
 ```shell
-npm run --prefix components/nivo_charts/nivo_charts/frontend build
+cd components/nivo_charts/nivo_charts/frontend
+sh build.sh
 ```
 ```shell
 cd terraform
