@@ -5,6 +5,7 @@ import {
 } from "streamlit-component-lib"
 import React, { ReactNode } from "react"
 import { ResponsiveStream } from '@nivo/stream';
+import DOMPurify from 'dompurify';
 
 interface State {
   numClicks: number
@@ -31,6 +32,8 @@ class NivoChart extends StreamlitComponentBase<State> {
     // streamlit app.
     const { data, layout, layoutCallables, key } = this.props.args
     const styles: React.CSSProperties = this.props.args["styles"];
+    // ensure title is of type string and sanitized
+    const cleanCustomHtml = (this.props.args["customHtml"] === undefined || this.props.args["customHtml"] === null) ? '' : DOMPurify.sanitize(String(this.props.args["customHtml"]));
 
     // Transform layout values specified in layoutCallables into callables
     layoutCallables.forEach((path: string) => {
@@ -55,15 +58,15 @@ class NivoChart extends StreamlitComponentBase<State> {
     });
 
     // Display nivo chart
-
     return (
       <div>
           <div style={styles} key={key}>
-          <ResponsiveStream
-            data={data}
-            {...layout}
-          />
-        </div>
+          <div dangerouslySetInnerHTML={{ __html: cleanCustomHtml }} />
+              <ResponsiveStream
+                data={data}
+                {...layout}
+              />
+          </div>
       </div>
     )
   }

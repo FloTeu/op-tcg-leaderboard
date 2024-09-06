@@ -127,7 +127,8 @@ def display_card_details_dialog(card_id: str):
         chart_data, chart_data_meta_formats = get_stream_leader_occurrence_data(cid2card_data, card_id)
 
         # filter top n most occurring leaders
-        most_occurring_leader_ids = get_most_occurring_leader_ids(chart_data)[:5]
+        top_n_leaders = 5
+        most_occurring_leader_ids = get_most_occurring_leader_ids(chart_data)[:top_n_leaders]
         chart_data = [{lid: occ for lid, occ in cd.items() if lid in most_occurring_leader_ids} for cd in chart_data]
 
         # display data
@@ -146,13 +147,16 @@ def display_card_details_dialog(card_id: str):
                 st.error("Sorry something went wrong with the data normalization")
         with elements(f"nivo_chart_stream_{card_id}"):
             with mui.Box(sx={"height": 450}):
-                create_card_leader_occurrence_stream_chart(chart_data, x_tick_labels=chart_data_meta_formats)
+                create_card_leader_occurrence_stream_chart(chart_data, x_tick_labels=chart_data_meta_formats, title=f"Occurrence in Top {top_n_leaders} Leader Decks")
 
 
 def get_stream_leader_occurrence_data(cid2card_data: dict[str, ExtendedCardData], card_id: str):
     # load data
     card_data = cid2card_data[card_id]
-    meta_formats = MetaFormat.to_list()[MetaFormat.to_list().index(card_data.meta_format):]
+    release_meta = card_data.meta_format
+    # start at least with OP02, since OP01 has no match data
+    start_meta = release_meta if release_meta != MetaFormat.OP01 else MetaFormat.OP02
+    meta_formats = MetaFormat.to_list()[MetaFormat.to_list().index(start_meta):]
     # display only the last n meta formats
     meta_formats = meta_formats[-10:]
     leaders_of_same_color = {cid: cdata for cid, cdata in cid2card_data.items() if

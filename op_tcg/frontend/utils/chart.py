@@ -198,7 +198,7 @@ def create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, 
     )
 
 
-def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]], data_keys: list[str] | None = None, x_tick_labels: list[str] | None = None):
+def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]], data_keys: list[str] | None = None, x_tick_labels: list[str] | None = None, title: str | None = None):
     def extract_data_keys() -> list[str]:
         data_keys = []
         for data_point in data:
@@ -229,7 +229,7 @@ def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]
     round_decimals = "0" if max_value > 1 else "1"
     layout = {
         "keys": data_keys,
-        "margin": {"top": 50, "right": 40, "bottom": 200, "left": 60},
+        "margin": {"top": 70 if title else 20, "right": 40, "bottom": 200, "left": 60},
         "axisTop": None,
         "axisRight": None,
         "axisBottom": {
@@ -301,7 +301,24 @@ def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]
             },
         }
     }
-    nivo_charts(data, layout=layout, layout_callables=layout_callables, styles={"height": "400px"})
+    custom_html = None
+    if title:
+        custom_html=f"""
+        <h3 style="
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1;
+            pointer-events: none;
+            font-weight: bold;
+            white-space: nowrap;
+            color: {text_color};
+          ">
+            {title}
+        </h3>
+        """
+    nivo_charts(data, layout=layout, layout_callables=layout_callables, styles={"height": "400px"}, custom_html=custom_html)
 
 
 def create_card_leader_occurrence_stream_chart_old(data, data_keys: list[str] | None = None, x_tick_values: list[str] | None = None):

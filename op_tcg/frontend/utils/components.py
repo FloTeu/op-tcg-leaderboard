@@ -50,6 +50,7 @@ def nivo_charts(data: list[dict[str, int | float]],
                 layout: dict,
                 layout_callables: list[str] | None = None,
                 styles: dict | None = None,
+                custom_html: str | None = None,
                 key=None):
     """Create a new instance of "nivo_charts".
 
@@ -79,7 +80,12 @@ def nivo_charts(data: list[dict[str, int | float]],
     #
     # "default" is a special argument that specifies the initial return
     # value of the component before the user has interacted with it.
-    component_value = _component_func(data=data, layout=layout, layoutCallables=layout_callables, styles=styles, key=key)
+    component_value = _component_func(data=data,
+                                      layout=layout,
+                                      layoutCallables=layout_callables,
+                                      styles=styles,
+                                      customHtml=custom_html,
+                                      key=key)
 
     # We could modify the value returned from the component if we wanted.
     # There's no need to do this in our simple example - but it's an option.
