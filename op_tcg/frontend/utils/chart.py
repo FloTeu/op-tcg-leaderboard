@@ -9,7 +9,9 @@ from op_tcg.backend.models.input import MetaFormat
 from streamlit_theme import st_theme
 
 from op_tcg.backend.models.leader import LeaderExtended
+from op_tcg.frontend.utils.components import nivo_chart, NivoChartType
 from op_tcg.frontend.utils.leader_data import lid2ldata_fn
+from op_tcg.frontend.utils.styles import css_rule_to_dict, read_style_sheet, PRIMARY_COLOR_RGB
 
 ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 
@@ -197,7 +199,140 @@ def create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, 
     )
 
 
-def create_card_leader_occurrence_stream_chart(data, data_keys: list[str] | None = None, x_tick_values: list[str] | None = None):
+def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]], data_keys: list[str] | None = None,
+                                               x_tick_labels: list[str] | None = None, title: str | None = None):
+    def extract_data_keys() -> list[str]:
+        data_keys = []
+        for data_point in data:
+            for key in data_point.keys():
+                if key not in data_keys:
+                    data_keys.append(key)
+        return data_keys
+
+    def ensure_data_keys_exist(data: list[dict[str, int | float]], data_keys: list[str]) -> list[
+        dict[str, int | float]]:
+        for data_i in data:
+            for data_key in data_keys:
+                if data_key not in data_i:
+                    data_i[data_key] = 0
+        return data
+
+    rounder_corners_css = css_rule_to_dict(read_style_sheet("chart", selector=".rounded-corners"))
+    text_color = "#ffffff" if ST_THEME["base"] == "dark" else "#31333F"
+    layout_callables = ["axisLeft.format"]
+    axis_bottom_dict = {}
+    data_keys = data_keys or extract_data_keys()
+    data = ensure_data_keys_exist(data, data_keys)
+    if x_tick_labels:
+        assert len(x_tick_labels) >= len(data), "x_tick_labels is not allowed to contain less elements than data"
+        x_tick_labels = {i: x_tick_labels[i] for i in range(len(data))}
+        layout_callables.append("axisBottom.format")
+        axis_bottom_dict = {"format": x_tick_labels}
+
+    max_value = max(round(sum(d.values())) for d in data)
+    round_decimals = "0" if max_value > 1 else "1"
+    layout = {
+        "keys": data_keys,
+        "margin": {"top": 70 if title else 20, "right": 40, "bottom": 200, "left": 60},
+        "axisTop": None,
+        "axisRight": None,
+        "axisBottom": {
+            "orient": 'bottom',
+            "tickSize": 5,
+            "tickPadding": 5,
+            "tickRotation": 0,
+            "legend": 'Meta Format',
+            "legendPosition": 'middle',
+            "legendOffset": 36,
+            "tickValues": list([i for i in range(len(data))]),
+            **axis_bottom_dict,
+        },
+        "axisLeft": {
+            "orient": 'left',
+            "tickSize": 5,
+            "tickPadding": 5,
+            "tickRotation": 0,
+            "legend": '',
+            "legendOffset": -40,
+            "truncateTickAt": 0,
+            "tickValues": 5,  # number of ticks
+            "format": f"function(x) {{ return (x + ({max_value} / 2)).toFixed({round_decimals}); }}"
+            # {((i*0.1)-0.5): (i*0.1) for i in range(10)}
+        },
+        "enableGridX": True,
+        "enableGridY": False,
+        "offsetType": "silhouette",
+        # "colors": {"scheme": 'nivo'},
+        "borderColor": {"theme": 'background'},
+        "dotSize": 8,
+        "dotBorderWidth": 2,
+        "legends": [
+            {
+                "dataFrom": 'keys',
+                "anchor": 'bottom',
+                "direction": 'column',
+                "justify": False,
+                "translateX": 120,
+                "translateY": 190,
+                "itemsSpacing": 10,
+                "itemWidth": 100,
+                "itemHeight": 20,
+                "itemDirection": 'left-to-right',
+                "itemOpacity": 0.85,
+                "symbolSize": 20,
+                # Ensure the legend breaks into multiple lines
+                # Adjust the `itemWidth` and `itemsSpacing` to control the layout
+                "itemTextColor": text_color,
+                "symbolShape": 'circle',
+                "containerWidth": '100%',
+            }
+        ],
+        "theme": {
+            "background": "#2C3A47" if ST_THEME["base"] == "dark" else "#ffffff",
+            "tooltip": {
+                "container": {
+                    "background": "#FFFFFF",
+                    "color": "#31333F",
+                }
+            },
+            "text": {
+                "fill": text_color
+            },
+            "legends": {
+                "text": {
+                    "fontSize": 16
+                },
+            },
+        }
+    }
+    custom_html = None
+    if title:
+        custom_html = f"""
+        <h3 style="
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1;
+            pointer-events: none;
+            font-weight: bold;
+            white-space: nowrap;
+            color: {text_color};
+          ">
+            {title}
+        </h3>
+        """
+    styles = {
+        "height": "400px",
+        **rounder_corners_css,
+        "background": f"rgb{PRIMARY_COLOR_RGB}"
+    }
+    nivo_chart(data, chart_type=NivoChartType.STREAM, layout=layout, layout_callables=layout_callables, styles=styles,
+               custom_html=custom_html)
+
+
+def create_card_leader_occurrence_stream_chart_old(data, data_keys: list[str] | None = None,
+                                                   x_tick_values: list[str] | None = None):
     data = data or [
         {
             "Raoul": 48,
@@ -272,6 +407,7 @@ def create_card_leader_occurrence_stream_chart(data, data_keys: list[str] | None
             "Jacques": 110
         }
     ]
+
     def extract_data_keys() -> list[str]:
         data_keys = []
         for data_point in data:
@@ -314,8 +450,8 @@ def create_card_leader_occurrence_stream_chart(data, data_keys: list[str] | None
             "legendOffset": 36,
             "tickValues": list(range(len(x_tick_values))) if x_tick_values else None,
             "format": lambda value: x_tick_values[value] if x_tick_values else lambda value: value,
-            #"tickValues": [str(v) for v in x_tick_values] if x_tick_values else None, # Positions of the ticks"
-            #"truncateTickAt": 0,
+            # "tickValues": [str(v) for v in x_tick_values] if x_tick_values else None, # Positions of the ticks"
+            # "truncateTickAt": 0,
         },
         axisLeft={
             "orient": 'left',

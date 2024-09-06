@@ -1,20 +1,16 @@
-import functools
-import inspect
-from typing import Callable
-
 import streamlit as st
 from pydantic import Field, BaseModel
-from streamlit_elements import elements, mui, dashboard, html as element_html, nivo
 
 from op_tcg.backend.models.cards import OPTcgColor, OPTcgLanguage, LatestCardPrice, OPTcgCardCatagory, OPTcgAbility, \
-    CardPopularity, CardCurrency
+    CardPopularity, CardCurrency, OPTcgAttribute, ExtendedCardData
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.tournaments import TournamentDecklist
 from op_tcg.frontend.utils.chart import create_card_leader_occurrence_stream_chart
 from op_tcg.frontend.utils.decklist import get_card_id_card_data_lookup
 from op_tcg.frontend.utils.extract import get_card_popularity_data, get_tournament_decklist_data
 from op_tcg.frontend.sidebar import display_meta_select, display_card_color_multiselect, \
-    display_card_ability_multiselect, display_card_fraction_multiselect, display_release_meta_select
+    display_card_ability_multiselect, display_card_fraction_multiselect, display_release_meta_select, \
+    display_card_attribute_multiselect
 from op_tcg.frontend.utils.js import is_mobile
 
 from streamlit_theme import st_theme
@@ -25,20 +21,14 @@ from op_tcg.frontend.utils.styles import GREEN_RGB, read_style_sheet, css_rule_t
 ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 
 
-class ExtendedCardData(BaseModel):
+class DisplayCardData(BaseModel):
     card_id: str
     card_name: str
     occurrence_in_decklists: float = Field(
         description="Value between 0 and 1 indicating occurrence of card in decklist with same color")
     image_url: str | None
 
-def dialog_unique_fragment_id_factory(function: Callable, dialog_name: str, new_function_name: str):
-    function_code = inspect.getsource(function)
-    new_function_code = function_code.replace('def', f'@st.dialog(f"{dialog_name}")\ndef', 1)
-    new_function_code = new_function_code.replace(function.__name__, new_function_name)
-    return new_function_code
-
-def display_cards(cards_data: list[ExtendedCardData], is_mobile: bool):
+def display_cards(cards_data: list[DisplayCardData], is_mobile: bool):
     css_class_card = read_style_sheet("grid_view", selector=".card")
     css_class_progress_container = read_style_sheet("progress_bar", selector=".progress-container")
     css_class_progress_bar = read_style_sheet("progress_bar", selector=".progress-bar")
@@ -89,22 +79,13 @@ def display_cards(cards_data: list[ExtendedCardData], is_mobile: bool):
             st.markdown(card_html, unsafe_allow_html=True)
 
 
-@st.fragment
 def display_dialog_button(card_id: str):
-    dialog_function_name = f"display_card_details_dialog_{card_id.replace('-', '_')}"
-    exec(dialog_unique_fragment_id_factory(display_card_details_dialog, "Card Detail",
-                                           dialog_function_name))
     if st.button(":bar_chart:", key=f"card_modal_button_{card_id}"):
-        if dialog_function_name in globals().keys():
-            globals()[dialog_function_name](card_id=card_id)
-        elif dialog_function_name in locals().keys():
-            locals()[dialog_function_name](card_id=card_id)
-        else:
-            pass
+        display_card_details_dialog(card_id=card_id)
 
 
 
-#@st.dialog("Card Detail", width="large")
+@st.dialog("Card Detail", width="large")
 def display_card_details_dialog(card_id: str):
     def normalize_data(chart_data: list[dict[str, int]]) -> dict[str, float]:
         def normalize_dict_values(input_dict):
@@ -142,7 +123,8 @@ def display_card_details_dialog(card_id: str):
         chart_data, chart_data_meta_formats = get_stream_leader_occurrence_data(cid2card_data, card_id)
 
         # filter top n most occurring leaders
-        most_occurring_leader_ids = get_most_occurring_leader_ids(chart_data)[:5]
+        top_n_leaders = 5
+        most_occurring_leader_ids = get_most_occurring_leader_ids(chart_data)[:top_n_leaders]
         chart_data = [{lid: occ for lid, occ in cd.items() if lid in most_occurring_leader_ids} for cd in chart_data]
 
         # display data
@@ -150,23 +132,28 @@ def display_card_details_dialog(card_id: str):
         col1, col2 = st.columns([0.5, 1])
         col1.image(card_data.image_url)
         with col2:
-            st.warning(f"Test {card_id}")
+            pass
+            #st.warning(f"Test {card_id}")
 
-        show_normalized = st.toggle("Show normalized data", False)
+        show_normalized = st.toggle("Show normalized data", True)
         if show_normalized:
             try:
                 chart_data = normalize_data(chart_data)
             except Exception as e:
                 st.error("Sorry something went wrong with the data normalization")
-        with elements(f"nivo_chart_stream_{card_id}"):
-            with mui.Box(sx={"height": 450}):
-                create_card_leader_occurrence_stream_chart(chart_data, x_tick_values=chart_data_meta_formats)
+
+        create_card_leader_occurrence_stream_chart(chart_data, x_tick_labels=chart_data_meta_formats, title=f"Occurrence in Top {top_n_leaders} Leader Decks")
 
 
-def get_stream_leader_occurrence_data(cid2card_data: dict[str, ExtendedCardData], card_id: str):
+def get_stream_leader_occurrence_data(cid2card_data: dict[str, DisplayCardData], card_id: str):
     # load data
     card_data = cid2card_data[card_id]
-    meta_formats = MetaFormat.to_list()[MetaFormat.to_list().index(card_data.meta_format):]
+    release_meta = card_data.meta_format
+    # start at least with OP02, since OP01 has no match data
+    start_meta = release_meta if release_meta != MetaFormat.OP01 else MetaFormat.OP02
+    meta_formats = MetaFormat.to_list()[MetaFormat.to_list().index(start_meta):]
+    # display only the last n meta formats
+    meta_formats = meta_formats[-10:]
     leaders_of_same_color = {cid: cdata for cid, cdata in cid2card_data.items() if
                              cdata.card_category == OPTcgCardCatagory.LEADER and any(
                                  c in cdata.colors for c in card_data.colors)}
@@ -191,13 +178,14 @@ def main_card_meta_analysis():
     st.write(
         "A list of cards ordered by popularity. A popularity of 100% stands for 100% occurrence in tournament decks of the same card color.")
 
-
+    search_term = st.text_input("Search term (e.g. Name, type, release meta etc.)", help="Helpful shortcut: Split search term by ';' in order to combine search conditions with AND logic")
     with st.sidebar:
         selected_meta_format: MetaFormat = display_meta_select(multiselect=False, label="Meta")[0]
         selected_release_meta_formats: list[MetaFormat] = display_release_meta_select(multiselect=True,
                                                                                       label="Release Meta",
                                                                                       default=None)
-        selected_card_colors: list[OPTcgColor] | None = display_card_color_multiselect(default=[OPTcgColor.RED])
+        selected_card_colors: list[OPTcgColor] | None = display_card_color_multiselect(default=OPTcgColor.to_list())
+        selected_card_attributes: list[OPTcgAttribute] | None = display_card_attribute_multiselect(default=OPTcgAttribute.to_list())
         selected_card_counter: int | None = st.selectbox("Counter", [0, 1000, 2000], index=None)
         selected_card_category: OPTcgCardCatagory | None = st.selectbox("Card Type", OPTcgCardCatagory.to_list(),
                                                                         index=None)
@@ -226,7 +214,9 @@ def main_card_meta_analysis():
             card_data_lookup = {cid: cd for cid, cd in card_data_lookup.items() if
                                 cd.latest_eur_price and cd.latest_usd_price}
         card_data_lookup = {cid: cd for cid, cd in card_data_lookup.items() if (
+                (True if not search_term else all(term.strip().lower() in cd.get_searchable_string().lower() for term in search_term.split(";"))) and
                 any(color in selected_card_colors for color in cd.colors) and
+                any(attribute in selected_card_attributes for attribute in cd.attributes) and
                 (True if not_selected_counter else selected_card_counter == cd.counter) and
                 (True if len(selected_release_meta_formats) == 0 else any(
                     meta == cd.meta_format for meta in selected_release_meta_formats)) and
@@ -255,7 +245,7 @@ def main_card_meta_analysis():
         if len(card_data_lookup) == 0:
             st.warning("No cards available")
         else:
-            extended_card_data_list: list[ExtendedCardData] = []
+            extended_card_data_list: list[DisplayCardData] = []
             for cid, cdata in card_data_lookup.items():
                 if not selected_card_category and cdata.card_category == OPTcgCardCatagory.LEADER:
                     continue
@@ -272,7 +262,7 @@ def main_card_meta_analysis():
                         continue
                 if cid not in card_popularity_dict:
                     continue
-                extended_card = ExtendedCardData(
+                extended_card = DisplayCardData(
                     card_id=cid,
                     card_name=cdata.name,
                     occurrence_in_decklists=card_popularity_dict[cid],

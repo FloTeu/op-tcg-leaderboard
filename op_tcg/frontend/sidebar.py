@@ -5,7 +5,7 @@ import streamlit as st
 
 from op_tcg.backend.models.base import EnumBase
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.cards import OPTcgColor, OPTcgAbility
+from op_tcg.backend.models.cards import OPTcgColor, OPTcgAbility, OPTcgAttribute
 from op_tcg.frontend.utils.extract import get_card_types
 
 
@@ -42,6 +42,10 @@ def display_leader_color_multiselect(default: list[OPTcgColor] | None = None) ->
 def display_card_color_multiselect(default: list[OPTcgColor] | None = None) -> list[OPTcgColor] | None:
     all_colors = OPTcgColor.to_list()
     return st.multiselect("Card Color", all_colors, default=default)
+
+def display_card_attribute_multiselect(default: list[OPTcgAttribute] | None = None) -> list[OPTcgAttribute] | None:
+    all_attributes = OPTcgAttribute.to_list()
+    return st.multiselect("Card Attribute", all_attributes, default=default)
 
 def display_card_ability_multiselect(default: list[OPTcgAbility] | None = None) -> list[OPTcgAbility] | None:
     all_abilities = OPTcgAbility.to_list()

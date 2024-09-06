@@ -7,6 +7,7 @@
 .tool-versions
 .venv
 .coverage*
+node_modules
 __pycache__
 data
 dist
