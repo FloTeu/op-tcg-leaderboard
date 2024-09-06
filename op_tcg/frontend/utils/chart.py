@@ -272,7 +272,7 @@ def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]
                 "anchor": 'bottom',
                 "direction": 'column',
                 "justify": False,
-                "translateX": 140,
+                "translateX": 120,
                 "translateY": 190,
                 "itemsSpacing": 10,
                 "itemWidth": 100,
@@ -310,7 +310,7 @@ def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]
         custom_html = f"""
         <h3 style="
             position: absolute;
-            top: 14px;
+            top: 20px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 1;

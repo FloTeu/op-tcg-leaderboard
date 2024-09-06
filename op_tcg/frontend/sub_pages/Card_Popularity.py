@@ -2,14 +2,15 @@ import streamlit as st
 from pydantic import Field, BaseModel
 
 from op_tcg.backend.models.cards import OPTcgColor, OPTcgLanguage, LatestCardPrice, OPTcgCardCatagory, OPTcgAbility, \
-    CardPopularity, CardCurrency
+    CardPopularity, CardCurrency, OPTcgAttribute, ExtendedCardData
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.tournaments import TournamentDecklist
 from op_tcg.frontend.utils.chart import create_card_leader_occurrence_stream_chart
 from op_tcg.frontend.utils.decklist import get_card_id_card_data_lookup
 from op_tcg.frontend.utils.extract import get_card_popularity_data, get_tournament_decklist_data
 from op_tcg.frontend.sidebar import display_meta_select, display_card_color_multiselect, \
-    display_card_ability_multiselect, display_card_fraction_multiselect, display_release_meta_select
+    display_card_ability_multiselect, display_card_fraction_multiselect, display_release_meta_select, \
+    display_card_attribute_multiselect
 from op_tcg.frontend.utils.js import is_mobile
 
 from streamlit_theme import st_theme
@@ -20,14 +21,14 @@ from op_tcg.frontend.utils.styles import GREEN_RGB, read_style_sheet, css_rule_t
 ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 
 
-class ExtendedCardData(BaseModel):
+class DisplayCardData(BaseModel):
     card_id: str
     card_name: str
     occurrence_in_decklists: float = Field(
         description="Value between 0 and 1 indicating occurrence of card in decklist with same color")
     image_url: str | None
 
-def display_cards(cards_data: list[ExtendedCardData], is_mobile: bool):
+def display_cards(cards_data: list[DisplayCardData], is_mobile: bool):
     css_class_card = read_style_sheet("grid_view", selector=".card")
     css_class_progress_container = read_style_sheet("progress_bar", selector=".progress-container")
     css_class_progress_bar = read_style_sheet("progress_bar", selector=".progress-bar")
@@ -144,7 +145,7 @@ def display_card_details_dialog(card_id: str):
         create_card_leader_occurrence_stream_chart(chart_data, x_tick_labels=chart_data_meta_formats, title=f"Occurrence in Top {top_n_leaders} Leader Decks")
 
 
-def get_stream_leader_occurrence_data(cid2card_data: dict[str, ExtendedCardData], card_id: str):
+def get_stream_leader_occurrence_data(cid2card_data: dict[str, DisplayCardData], card_id: str):
     # load data
     card_data = cid2card_data[card_id]
     release_meta = card_data.meta_format
@@ -183,7 +184,8 @@ def main_card_meta_analysis():
         selected_release_meta_formats: list[MetaFormat] = display_release_meta_select(multiselect=True,
                                                                                       label="Release Meta",
                                                                                       default=None)
-        selected_card_colors: list[OPTcgColor] | None = display_card_color_multiselect(default=[OPTcgColor.RED])
+        selected_card_colors: list[OPTcgColor] | None = display_card_color_multiselect(default=OPTcgColor.to_list())
+        selected_card_attributes: list[OPTcgAttribute] | None = display_card_attribute_multiselect(default=OPTcgAttribute.to_list())
         selected_card_counter: int | None = st.selectbox("Counter", [0, 1000, 2000], index=None)
         selected_card_category: OPTcgCardCatagory | None = st.selectbox("Card Type", OPTcgCardCatagory.to_list(),
                                                                         index=None)
@@ -213,6 +215,7 @@ def main_card_meta_analysis():
                                 cd.latest_eur_price and cd.latest_usd_price}
         card_data_lookup = {cid: cd for cid, cd in card_data_lookup.items() if (
                 any(color in selected_card_colors for color in cd.colors) and
+                any(attribute in selected_card_attributes for attribute in cd.attributes) and
                 (True if not_selected_counter else selected_card_counter == cd.counter) and
                 (True if len(selected_release_meta_formats) == 0 else any(
                     meta == cd.meta_format for meta in selected_release_meta_formats)) and
@@ -241,7 +244,7 @@ def main_card_meta_analysis():
         if len(card_data_lookup) == 0:
             st.warning("No cards available")
         else:
-            extended_card_data_list: list[ExtendedCardData] = []
+            extended_card_data_list: list[DisplayCardData] = []
             for cid, cdata in card_data_lookup.items():
                 if not selected_card_category and cdata.card_category == OPTcgCardCatagory.LEADER:
                     continue
@@ -258,7 +261,7 @@ def main_card_meta_analysis():
                         continue
                 if cid not in card_popularity_dict:
                     continue
-                extended_card = ExtendedCardData(
+                extended_card = DisplayCardData(
                     card_id=cid,
                     card_name=cdata.name,
                     occurrence_in_decklists=card_popularity_dict[cid],
