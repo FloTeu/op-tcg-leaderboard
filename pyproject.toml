@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "op-tcg"
-version = "0.1.5"
+version = "0.1.6"
 description = ""
 authors = ["fteutsch <florianteutsch@yahoo.de>"]
 license = "MIT"
