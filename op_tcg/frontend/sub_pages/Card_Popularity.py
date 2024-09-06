@@ -32,12 +32,6 @@ class ExtendedCardData(BaseModel):
         description="Value between 0 and 1 indicating occurrence of card in decklist with same color")
     image_url: str | None
 
-def dialog_unique_fragment_id_factory(function: Callable, dialog_name: str, new_function_name: str):
-    function_code = inspect.getsource(function)
-    new_function_code = function_code.replace('def', f'@st.dialog(f"{dialog_name}")\ndef', 1)
-    new_function_code = new_function_code.replace(function.__name__, new_function_name)
-    return new_function_code
-
 def display_cards(cards_data: list[ExtendedCardData], is_mobile: bool):
     css_class_card = read_style_sheet("grid_view", selector=".card")
     css_class_progress_container = read_style_sheet("progress_bar", selector=".progress-container")
@@ -89,22 +83,13 @@ def display_cards(cards_data: list[ExtendedCardData], is_mobile: bool):
             st.markdown(card_html, unsafe_allow_html=True)
 
 
-#@st.fragment
 def display_dialog_button(card_id: str):
-    dialog_function_name = f"display_card_details_dialog_{card_id.replace('-', '_')}"
-    exec(dialog_unique_fragment_id_factory(display_card_details_dialog, "Card Detail",
-                                           dialog_function_name))
     if st.button(":bar_chart:", key=f"card_modal_button_{card_id}"):
-        if dialog_function_name in globals().keys():
-            globals()[dialog_function_name](card_id=card_id)
-        elif dialog_function_name in locals().keys():
-            locals()[dialog_function_name](card_id=card_id)
-        else:
-            pass
+        display_card_details_dialog(card_id=card_id)
 
 
 
-#@st.dialog("Card Detail", width="large")
+@st.dialog("Card Detail", width="large")
 def display_card_details_dialog(card_id: str):
     def normalize_data(chart_data: list[dict[str, int]]) -> dict[str, float]:
         def normalize_dict_values(input_dict):
@@ -153,7 +138,7 @@ def display_card_details_dialog(card_id: str):
             pass
             #st.warning(f"Test {card_id}")
 
-        show_normalized = st.toggle("Show normalized data", False)
+        show_normalized = st.toggle("Show normalized data", True)
         if show_normalized:
             try:
                 chart_data = normalize_data(chart_data)

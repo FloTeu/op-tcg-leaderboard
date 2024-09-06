@@ -226,7 +226,7 @@ def create_card_leader_occurrence_stream_chart(data, data_keys: list[str] | None
 
     layout = {
         "keys": data_keys,
-        "margin": {"top": 50, "right": 40, "bottom": 150, "left": 60},
+        "margin": {"top": 50, "right": 40, "bottom": 200, "left": 60},
         # "axis": {
         #     "ticks": {
         #         "line": {"stroke": "#fff", "strokeWidth": 1},
@@ -267,24 +267,24 @@ def create_card_leader_occurrence_stream_chart(data, data_keys: list[str] | None
             {
                 "dataFrom": 'keys',
                 "anchor": 'bottom',
-                "direction": 'row',
+                "direction": 'column',
                 "justify": False,
-                "translateX": 0,
-                "translateY": 70,
+                "translateX": 140,
+                "translateY": 190,
                 "itemsSpacing": 10,
-                "itemWidth": 80,
+                "itemWidth": 100,
                 "itemHeight": 20,
                 "itemDirection": 'left-to-right',
                 "itemOpacity": 0.85,
                 "symbolSize": 20,
-                "effects": [
-                    {
-                        "on": 'hover',
-                        "style": {
-                            "itemOpacity": 1
-                        }
-                    }
-                ],
+                # "effects": [
+                #     {
+                #         "on": 'hover',
+                #         "style": {
+                #             "itemOpacity": 1
+                #         }
+                #     }
+                # ],
                 # Ensure the legend breaks into multiple lines
                 # Adjust the `itemWidth` and `itemsSpacing` to control the layout
                 "itemTextColor": '#777',
@@ -304,6 +304,11 @@ def create_card_leader_occurrence_stream_chart(data, data_keys: list[str] | None
             },
             "text": {
                 "fill": "#ffffff"
+            },
+            "legends": {
+                "text": {
+                    "fontSize": 16
+                },
             },
         }
     }
