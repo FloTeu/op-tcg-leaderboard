@@ -8,7 +8,6 @@
 .venv
 .coverage*
 node_modules
-build
 __pycache__
 data
 dist
