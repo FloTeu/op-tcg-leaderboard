@@ -34,15 +34,23 @@ class NivoChart extends StreamlitComponentBase<State> {
 
     // Transform layout values specified in layoutCallables into callables
     layoutCallables.forEach((path: string) => {
+      // For example path could be "axisLeft.format"
+      // e.g. keys = ["axisLeft", "format"]
       const keys = path.split('.');
       let current = layout;
       for (let i = 0; i < keys.length - 1; i++) {
         current = current[keys[i]];
         if (!current) return;
       }
+      // e.g. current = {"orient": 'left', "tickSize": 5, "format": {1: "OP01"}}
+      // e.g. lastKey = "format"
       const lastKey = keys[keys.length - 1];
       if (typeof current[lastKey] === 'object') {
         current[lastKey] = createCallable(current[lastKey]);
+      }
+      // e.g. current = {"orient": 'left', "tickSize": 5, "format": 'function(x) { return x + (1.0 / 2); }'}
+      if (typeof current[lastKey] === 'string') {
+        current[lastKey] = eval(`(${current[lastKey]})`);
       }
     });
 
@@ -50,7 +58,7 @@ class NivoChart extends StreamlitComponentBase<State> {
 
     return (
       <div>
-        <div style={styles} key={key}>
+          <div style={styles} key={key}>
           <ResponsiveStream
             data={data}
             {...layout}

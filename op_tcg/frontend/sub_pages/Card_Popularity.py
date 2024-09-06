@@ -153,6 +153,8 @@ def get_stream_leader_occurrence_data(cid2card_data: dict[str, ExtendedCardData]
     # load data
     card_data = cid2card_data[card_id]
     meta_formats = MetaFormat.to_list()[MetaFormat.to_list().index(card_data.meta_format):]
+    # display only the last n meta formats
+    meta_formats = meta_formats[-10:]
     leaders_of_same_color = {cid: cdata for cid, cdata in cid2card_data.items() if
                              cdata.card_category == OPTcgCardCatagory.LEADER and any(
                                  c in cdata.colors for c in card_data.colors)}

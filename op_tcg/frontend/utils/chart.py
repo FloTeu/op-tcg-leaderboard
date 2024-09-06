@@ -198,7 +198,7 @@ def create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, 
     )
 
 
-def create_card_leader_occurrence_stream_chart(data, data_keys: list[str] | None = None, x_tick_labels: list[str] | None = None):
+def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]], data_keys: list[str] | None = None, x_tick_labels: list[str] | None = None):
     def extract_data_keys() -> list[str]:
         data_keys = []
         for data_point in data:
@@ -214,7 +214,8 @@ def create_card_leader_occurrence_stream_chart(data, data_keys: list[str] | None
                     data_i[data_key] = 0
         return data
 
-    layout_callables = []
+    text_color = "#ffffff" if ST_THEME["base"] == "dark" else "#31333F"
+    layout_callables = ["axisLeft.format"]
     axis_bottom_dict = {}
     data_keys = data_keys or extract_data_keys()
     data = ensure_data_keys_exist(data, data_keys)
@@ -224,15 +225,11 @@ def create_card_leader_occurrence_stream_chart(data, data_keys: list[str] | None
         layout_callables.append("axisBottom.format")
         axis_bottom_dict = {"format": x_tick_labels}
 
+    max_value = max(round(sum(d.values())) for d in data)
+    round_decimals = "0" if max_value > 1 else "1"
     layout = {
         "keys": data_keys,
         "margin": {"top": 50, "right": 40, "bottom": 200, "left": 60},
-        # "axis": {
-        #     "ticks": {
-        #         "line": {"stroke": "#fff", "strokeWidth": 1},
-        #         "text": {"fill": "#fff", "fontSize": 11}
-        #     }
-        # },
         "axisTop": None,
         "axisRight": None,
         "axisBottom": {
@@ -253,7 +250,9 @@ def create_card_leader_occurrence_stream_chart(data, data_keys: list[str] | None
             "tickRotation": 0,
             "legend": '',
             "legendOffset": -40,
-            "truncateTickAt": 0
+            "truncateTickAt": 0,
+            "tickValues": 5, # number of ticks
+            "format": f"function(x) {{ return (x + ({max_value} / 2)).toFixed({round_decimals}); }}" #{((i*0.1)-0.5): (i*0.1) for i in range(10)}
         },
         "enableGridX": True,
         "enableGridY": False,
@@ -277,25 +276,15 @@ def create_card_leader_occurrence_stream_chart(data, data_keys: list[str] | None
                 "itemDirection": 'left-to-right',
                 "itemOpacity": 0.85,
                 "symbolSize": 20,
-                # "effects": [
-                #     {
-                #         "on": 'hover',
-                #         "style": {
-                #             "itemOpacity": 1
-                #         }
-                #     }
-                # ],
                 # Ensure the legend breaks into multiple lines
                 # Adjust the `itemWidth` and `itemsSpacing` to control the layout
-                "itemTextColor": '#777',
+                "itemTextColor": text_color,
                 "symbolShape": 'circle',
                 "containerWidth": '100%',
             }
         ],
         "theme": {
             "background": "#2C3A47" if ST_THEME["base"] == "dark" else "#ffffff",
-            # "background": "#ffffff",
-            "textColor": "#ffffff" if ST_THEME["base"] == "dark" else "#31333F",
             "tooltip": {
                 "container": {
                     "background": "#FFFFFF",
@@ -303,7 +292,7 @@ def create_card_leader_occurrence_stream_chart(data, data_keys: list[str] | None
                 }
             },
             "text": {
-                "fill": "#ffffff"
+                "fill": text_color
             },
             "legends": {
                 "text": {
