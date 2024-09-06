@@ -155,3 +155,7 @@ class CardReleaseSet(BQTableBaseModel):
 
 class ExtendedCardData(LatestCardPrice, CardReleaseSet):
     pass
+
+    def get_searchable_string(self):
+        return ' '.join(str(value) for value in self.model_dump().values())
+

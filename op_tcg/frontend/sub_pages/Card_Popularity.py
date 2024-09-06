@@ -178,7 +178,7 @@ def main_card_meta_analysis():
     st.write(
         "A list of cards ordered by popularity. A popularity of 100% stands for 100% occurrence in tournament decks of the same card color.")
 
-
+    search_term = st.text_input("Search term (e.g. Name, type, release meta etc.)", help="Helpful shortcut: Split search term by ';' in order to combine search conditions with AND logic")
     with st.sidebar:
         selected_meta_format: MetaFormat = display_meta_select(multiselect=False, label="Meta")[0]
         selected_release_meta_formats: list[MetaFormat] = display_release_meta_select(multiselect=True,
@@ -214,6 +214,7 @@ def main_card_meta_analysis():
             card_data_lookup = {cid: cd for cid, cd in card_data_lookup.items() if
                                 cd.latest_eur_price and cd.latest_usd_price}
         card_data_lookup = {cid: cd for cid, cd in card_data_lookup.items() if (
+                (True if not search_term else all(term.strip().lower() in cd.get_searchable_string().lower() for term in search_term.split(";"))) and
                 any(color in selected_card_colors for color in cd.colors) and
                 any(attribute in selected_card_attributes for attribute in cd.attributes) and
                 (True if not_selected_counter else selected_card_counter == cd.counter) and
