@@ -9,7 +9,7 @@ from op_tcg.backend.models.input import MetaFormat
 from streamlit_theme import st_theme
 
 from op_tcg.backend.models.leader import LeaderExtended
-from op_tcg.frontend.utils.components import nivo_charts
+from op_tcg.frontend.utils.components import nivo_chart, NivoChartType
 from op_tcg.frontend.utils.leader_data import lid2ldata_fn
 
 ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
@@ -261,7 +261,6 @@ def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]
         "borderColor": {"theme": 'background'},
         "dotSize": 8,
         "dotBorderWidth": 2,
-        # TODO: fix issues with many data keys which are breaking into multiple lines atm
         "legends": [
             {
                 "dataFrom": 'keys',
@@ -318,7 +317,7 @@ def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]
             {title}
         </h3>
         """
-    nivo_charts(data, layout=layout, layout_callables=layout_callables, styles={"height": "400px"}, custom_html=custom_html)
+    nivo_chart(data, chart_type=NivoChartType.STREAM, layout=layout, layout_callables=layout_callables, styles={"height": "400px"}, custom_html=custom_html)
 
 
 def create_card_leader_occurrence_stream_chart_old(data, data_keys: list[str] | None = None, x_tick_values: list[str] | None = None):

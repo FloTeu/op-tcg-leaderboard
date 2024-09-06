@@ -1,8 +1,16 @@
 import os
+from enum import StrEnum
+from typing import Any
+
 import streamlit.components.v1 as components
 
 from pathlib import Path
 from op_tcg.backend.utils.utils import booleanize
+
+class NivoChartType(StrEnum):
+    STREAM = "ResponsiveStream"
+    BAR = "ResponsiveBar"
+
 
 # Create a _RELEASE constant. We'll set this to False while we're developing
 # the component, and True when we're ready to package and distribute it.
@@ -46,19 +54,31 @@ else:
 # `declare_component` and call it done. The wrapper allows us to customize
 # our component's API: we can pre-process its input args, post-process its
 # output value, and add a docstring for users.
-def nivo_charts(data: list[dict[str, int | float]],
-                layout: dict,
-                layout_callables: list[str] | None = None,
-                styles: dict | None = None,
-                custom_html: str | None = None,
-                key=None):
+def nivo_chart(data: Any,
+               chart_type: NivoChartType,
+               layout: dict,
+               layout_callables: list[str] | None = None,
+               styles: dict | None = None,
+               custom_html: str | None = None,
+               key=None):
     """Create a new instance of "nivo_charts".
 
     Parameters
     ----------
-    name: str
-        The name of the thing we're saying hello to. The component will display
-        the text "Hello, {name}!"
+    data: Any
+        The data to render a ivo chart. Format depends on the chart_type
+    chart_type: NivoChartType
+        String/Enum of nivo chart class name which should be rendered
+    layout: dict
+        Layout configurations, which can be used to customize the chart
+    layout_callables: list[str]
+        Optional list of paths inside of layout which should be transformed to callables inside of js code.
+        A callable can be either a lookup dict or a string which containing valid js code
+        E.g. "axisLeft.format" with layout = {"axisLeft": {"format": "function(x) { return (x * 2); }"}}
+    styles: dict
+        css stylings for outer div container of nivo chart
+    custom_html: str
+        Optional custom html string which can be used to extend the chart. E.g. for a chart title
     key: str or None
         An optional key that uniquely identifies this component. If this is
         None, and the component's arguments are changed, the component will
@@ -81,6 +101,7 @@ def nivo_charts(data: list[dict[str, int | float]],
     # "default" is a special argument that specifies the initial return
     # value of the component before the user has interacted with it.
     component_value = _component_func(data=data,
+                                      chartClassName=chart_type,
                                       layout=layout,
                                       layoutCallables=layout_callables,
                                       styles=styles,

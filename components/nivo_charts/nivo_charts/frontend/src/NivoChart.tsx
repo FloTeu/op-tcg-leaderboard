@@ -5,7 +5,21 @@ import {
 } from "streamlit-component-lib"
 import React, { ReactNode } from "react"
 import { ResponsiveStream } from '@nivo/stream';
+import { ResponsiveBar } from '@nivo/bar';
 import DOMPurify from 'dompurify';
+
+// Define a type for the chart components
+type NivoChartComponents = {
+  ResponsiveStream: typeof ResponsiveStream;
+  ResponsiveBar: typeof ResponsiveBar;
+  // Add more components as needed
+};
+
+// Assign components to a typed object
+const NivoCharts: NivoChartComponents = {
+  ResponsiveStream,
+  ResponsiveBar,
+};
 
 interface State {
   numClicks: number
@@ -30,7 +44,7 @@ class NivoChart extends StreamlitComponentBase<State> {
     // Streamlit sends us a theme object via props that we can use to ensure
     // that our component has visuals that match the active theme in a
     // streamlit app.
-    const { data, layout, layoutCallables, key } = this.props.args
+    const { data, chartClassName, layout, layoutCallables, key} = this.props.args
     const styles: React.CSSProperties = this.props.args["styles"];
     // ensure title is of type string and sanitized
     const cleanCustomHtml = (this.props.args["customHtml"] === undefined || this.props.args["customHtml"] === null) ? '' : DOMPurify.sanitize(String(this.props.args["customHtml"]));
@@ -57,12 +71,20 @@ class NivoChart extends StreamlitComponentBase<State> {
       }
     });
 
+
+    // Access the component dynamically
+    const ChartComponent = NivoCharts[chartClassName as keyof NivoChartComponents];
+
+    if (!ChartComponent) {
+      return <div>Invalid chart class name: {chartClassName}</div>;
+    }
+
     // Display nivo chart
     return (
       <div>
           <div style={styles} key={key}>
           <div dangerouslySetInnerHTML={{ __html: cleanCustomHtml }} />
-              <ResponsiveStream
+              <ChartComponent
                 data={data}
                 {...layout}
               />

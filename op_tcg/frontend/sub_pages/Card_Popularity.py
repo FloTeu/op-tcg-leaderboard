@@ -1,10 +1,5 @@
-import functools
-import inspect
-from typing import Callable
-
 import streamlit as st
 from pydantic import Field, BaseModel
-from streamlit_elements import elements, mui, dashboard, html as element_html, nivo
 
 from op_tcg.backend.models.cards import OPTcgColor, OPTcgLanguage, LatestCardPrice, OPTcgCardCatagory, OPTcgAbility, \
     CardPopularity, CardCurrency
@@ -145,9 +140,8 @@ def display_card_details_dialog(card_id: str):
                 chart_data = normalize_data(chart_data)
             except Exception as e:
                 st.error("Sorry something went wrong with the data normalization")
-        with elements(f"nivo_chart_stream_{card_id}"):
-            with mui.Box(sx={"height": 450}):
-                create_card_leader_occurrence_stream_chart(chart_data, x_tick_labels=chart_data_meta_formats, title=f"Occurrence in Top {top_n_leaders} Leader Decks")
+
+        create_card_leader_occurrence_stream_chart(chart_data, x_tick_labels=chart_data_meta_formats, title=f"Occurrence in Top {top_n_leaders} Leader Decks")
 
 
 def get_stream_leader_occurrence_data(cid2card_data: dict[str, ExtendedCardData], card_id: str):
