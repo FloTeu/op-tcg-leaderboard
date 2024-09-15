@@ -130,6 +130,9 @@ def main_meta_analysis():
     else:
         leader_extended_data: list[LeaderExtended] = get_leader_extended()
         selected_meta_win_rate_data: list[LeaderWinRate] = get_leader_win_rate(meta_formats=selected_meta_formats)
+        if len(selected_meta_win_rate_data) == 0:
+            st.warning("No leader data available for the selected meta")
+            return None
         df_meta_win_rate_data = pd.DataFrame([lwr.dict() for lwr in selected_meta_win_rate_data if lwr.only_official == only_official])
         lid2win_rate, lid2match_count = df_win_rate_data2lid_dicts(df_meta_win_rate_data)
         min_match_count = min(int(max(lid2match_count.values()) * 0.1), 30)

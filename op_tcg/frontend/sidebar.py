@@ -7,6 +7,7 @@ from op_tcg.backend.models.base import EnumBase
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.cards import OPTcgColor, OPTcgAbility, OPTcgAttribute
 from op_tcg.frontend.utils.extract import get_card_types
+from op_tcg.frontend.utils.meta_format import get_latest_released_meta_format_with_data
 
 
 class LeaderboardSortBy(EnumBase, StrEnum):
@@ -16,14 +17,16 @@ class LeaderboardSortBy(EnumBase, StrEnum):
     ELO = "Elo"
 
 
-def display_meta_select(multiselect: bool = True, key: str | None = None, label: str="Meta", reverse=True) -> list[MetaFormat]:
+def display_meta_select(multiselect: bool = True, key: str | None = None, label: str="Meta", reverse=True, default: MetaFormat | None = None) -> list[MetaFormat]:
     all_metas = MetaFormat.to_list()
+    default = default or get_latest_released_meta_format_with_data()
     if reverse:
         all_metas = sorted(all_metas, reverse=reverse)
     if multiselect:
-        return st.multiselect(label, all_metas, default=MetaFormat.latest_meta_format(), key=key)
+        return st.multiselect(label, all_metas, default=default, key=key)
     else:
-        return [st.selectbox(label, all_metas, key=key)]
+        index = all_metas.index(default) if default else None
+        return [st.selectbox(label, all_metas, index=index, key=key)]
 
 
 def display_release_meta_select(multiselect: bool = True, default: list[MetaFormat] | None = None, label: str="Leader Release Meta") -> list[

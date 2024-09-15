@@ -86,6 +86,9 @@ def main_leader_detail_analysis_decklists():
 
         selected_leader_elo_data: list[LeaderElo] = get_leader_elo_data(meta_formats=selected_meta_formats)
         available_leader_ids = list(dict.fromkeys([l.leader_id for l in selected_leader_elo_data]))
+        if len(available_leader_ids) == 0:
+            st.warning("No leader data available for the selected meta")
+            return None
         available_leader_names = [lid_to_name_and_lid(lid) for lid in available_leader_ids]
         default_leader_name = get_default_leader_name(available_leader_ids)
         with st.sidebar:

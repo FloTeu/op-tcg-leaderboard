@@ -1,4 +1,7 @@
 import streamlit as st
+
+from op_tcg.frontend.utils.meta_format import get_latest_released_meta_format_with_data
+
 st.set_page_config(layout="wide")
 
 import os
@@ -67,6 +70,10 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
     relevant_meta_formats = all_meta_formats[:all_meta_formats.index(meta_format) + 1]
     df_leader_extended = df_leader_extended.query("meta_format in @relevant_meta_formats")
     df_leader_extended_selected_meta = df_leader_extended.query(f"meta_format == '{meta_format}'").copy()
+    if len(df_leader_extended_selected_meta) == 0:
+        st.warning("No leader data available for the selected meta")
+        return None
+
     display_columns = ["Name", "Set", LeaderboardSortBy.TOURNAMENT_WINS, "Match Count",
                        LeaderboardSortBy.WIN_RATE, LeaderboardSortBy.DOMINANCE_SCORE.value, "Elo"]
     df_leader_extended_selected_meta["Set"] = df_leader_extended_selected_meta["id"].apply(
@@ -104,28 +111,28 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
                                                                                         (display_columns + [
                                                                                             "Win Rate Chart"])]
 
-            df_leader_elos_display = df_leader_elos_filtered.copy()
+            df_leaderboard_display = df_leader_elos_filtered.copy()
             for col in display_columns:
                 # df_leader_elos_display = df_leader_elos_display.map(lambda x: mui.TableCell(str(x)))
                 if col == "Elo":
-                    max_elo = df_leader_elos_display[col].max()
-                    df_leader_elos_display[col] = df_leader_elos_display[col].apply(
+                    max_elo = df_leaderboard_display[col].max()
+                    df_leaderboard_display[col] = df_leaderboard_display[col].apply(
                         lambda elo: value2color_table_cell(elo, max=max_elo,
                                                            color_switch_threshold=1000 if 1000 < max_elo else (
                                                                    max_elo * (7 / 8))))
                 elif col == "Name":
-                    df_leader_elos_display[col] = df_leader_elos_display[[col, "id"]].apply(
+                    df_leaderboard_display[col] = df_leaderboard_display[[col, "id"]].apply(
                         lambda x: mui.TableCell(mui.Link(
-                            str(x.Name.replace('"', " ").replace('.', " ")),
+                            str(x.Name.replace('"', " ").replace('.', " ")) if x.Name else "NaN",
                             href=f"/{SUB_PAGE_LEADER}?lid={x.id}", target="_blank")), axis=1)
                 else:
-                    df_leader_elos_display[col] = df_leader_elos_display[col].apply(lambda x: mui.TableCell(str(x)))
+                    df_leaderboard_display[col] = df_leaderboard_display[col].apply(lambda x: mui.TableCell(str(x)))
 
-            df_leader_elos_display = df_leader_elos_display.drop(columns=["id"])
-            df_leader_elos_display["Elo Chart"] = df_leader_extended_selected_meta["id"].apply(
+            df_leaderboard_display = df_leaderboard_display.drop(columns=["id"])
+            df_leaderboard_display["Elo Chart"] = df_leader_extended_selected_meta["id"].apply(
                 lambda lid: leader_id2line_chart(lid, df_leader_extended, y_value=LineChartYValue.WIN_RATE, only_official=only_official))
 
-            display_table(df_leader_elos_display,
+            display_table(df_leaderboard_display,
                           index_cells=index_cells,
                           header_cells=header_cells,
                           title=None,

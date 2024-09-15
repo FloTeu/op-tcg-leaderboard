@@ -260,6 +260,9 @@ def main_leader_detail_analysis():
 
     leader_extended_data: list[LeaderExtended] = get_leader_extended()
     available_leader_ids = list(dict.fromkeys([l.id for l in leader_extended_data if l.meta_format in selected_meta_formats]))
+    if len(available_leader_ids) == 0:
+        st.warning("No leader data available for the selected meta")
+        return None
     available_leader_names = [lid_to_name_and_lid(lid) for lid in available_leader_ids]
     default_leader_name = get_default_leader_name(available_leader_ids, query_param="lid")
 

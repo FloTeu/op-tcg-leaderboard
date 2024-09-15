@@ -185,7 +185,7 @@ def main_card_meta_analysis():
                                                                                       label="Release Meta",
                                                                                       default=None)
         selected_card_colors: list[OPTcgColor] | None = display_card_color_multiselect(default=OPTcgColor.to_list())
-        selected_card_attributes: list[OPTcgAttribute] | None = display_card_attribute_multiselect(default=OPTcgAttribute.to_list())
+        selected_card_attributes: list[OPTcgAttribute] | None = display_card_attribute_multiselect(default=None)
         selected_card_counter: int | None = st.selectbox("Counter", [0, 1000, 2000], index=None)
         selected_card_category: OPTcgCardCatagory | None = st.selectbox("Card Type", OPTcgCardCatagory.to_list(),
                                                                         index=None)
@@ -216,7 +216,7 @@ def main_card_meta_analysis():
         card_data_lookup = {cid: cd for cid, cd in card_data_lookup.items() if (
                 (True if not search_term else all(term.strip().lower() in cd.get_searchable_string().lower() for term in search_term.split(";"))) and
                 any(color in selected_card_colors for color in cd.colors) and
-                any(attribute in selected_card_attributes for attribute in cd.attributes) and
+                (True if not selected_card_attributes else any(attribute in selected_card_attributes for attribute in cd.attributes)) and
                 (True if not_selected_counter else selected_card_counter == cd.counter) and
                 (True if len(selected_release_meta_formats) == 0 else any(
                     meta == cd.meta_format for meta in selected_release_meta_formats)) and
