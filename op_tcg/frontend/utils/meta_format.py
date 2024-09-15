@@ -1,7 +1,10 @@
+import streamlit as st
+
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.frontend.utils.extract import get_leader_win_rate
 
 
+@st.cache_data
 def get_latest_released_meta_format_with_data() -> MetaFormat:
     # iterate over all released meta formate and return the first with match data
     meta_format: MetaFormat = MetaFormat.latest_meta_format()
