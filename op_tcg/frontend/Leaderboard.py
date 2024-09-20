@@ -39,8 +39,8 @@ ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 def leader_id2line_chart(leader_id: str, df_leader_extended, y_value: LineChartYValue = LineChartYValue.WIN_RATE, only_official: bool = True):
     # Streamlit Elements includes 45 dataviz components powered by Nivo.
     leader_extended_list: list[LeaderExtended] = df_leader_extended.query(f"id == '{leader_id}'").apply(lambda row: LeaderExtended(**row), axis=1).tolist()
-    radar_plot = create_leader_line_chart(leader_id, leader_extended_list, y_value=y_value, only_official=only_official)
-    return mui.TableCell(mui.Box(radar_plot, sx={"height": 120, "width": 190}), sx={"padding": "0px"})
+    line_plot = create_leader_line_chart(leader_id, leader_extended_list, y_value=y_value, only_official=only_official, use_custom_component=False)
+    return mui.TableCell(mui.Box(line_plot, sx={"height": 120, "width": 190}), sx={"padding": "0px"})
 
 
 def add_dominance_score(df_meta_group: pd.DataFrame) -> pd.DataFrame:

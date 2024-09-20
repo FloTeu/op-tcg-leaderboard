@@ -10,6 +10,9 @@ from op_tcg.backend.utils.utils import booleanize
 class NivoChartType(StrEnum):
     STREAM = "ResponsiveStream"
     BAR = "ResponsiveBar"
+    LINE = "ResponsiveLine"
+    HEAT_MAP = "ResponsiveHeatMap"
+    RADAR = "ResponsiveRadar"
 
 
 # Create a _RELEASE constant. We'll set this to False while we're developing

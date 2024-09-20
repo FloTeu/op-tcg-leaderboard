@@ -6,12 +6,18 @@ import {
 import React, { ReactNode } from "react"
 import { ResponsiveStream } from '@nivo/stream';
 import { ResponsiveBar } from '@nivo/bar';
+import { ResponsiveRadar } from '@nivo/radar'
+import { ResponsiveLine } from '@nivo/line'
+import { ResponsiveHeatMap } from '@nivo/heatmap'
 import DOMPurify from 'dompurify';
 
 // Define a type for the chart components
 type NivoChartComponents = {
   ResponsiveStream: typeof ResponsiveStream;
   ResponsiveBar: typeof ResponsiveBar;
+  ResponsiveRadar: typeof ResponsiveRadar;
+  ResponsiveLine: typeof ResponsiveLine;
+  ResponsiveHeatMap: typeof ResponsiveHeatMap;
   // Add more components as needed
 };
 
@@ -19,6 +25,9 @@ type NivoChartComponents = {
 const NivoCharts: NivoChartComponents = {
   ResponsiveStream,
   ResponsiveBar,
+  ResponsiveRadar,
+  ResponsiveLine,
+  ResponsiveHeatMap,
 };
 
 interface State {
@@ -73,7 +82,8 @@ class NivoChart extends StreamlitComponentBase<State> {
 
 
     // Access the component dynamically
-    const ChartComponent = NivoCharts[chartClassName as keyof NivoChartComponents];
+    //const ChartComponent = NivoCharts[chartClassName as keyof NivoChartComponents];
+    const ChartComponent = NivoCharts[chartClassName as keyof NivoChartComponents] as React.ComponentType<any>;
 
     if (!ChartComponent) {
       return <div>Invalid chart class name: {chartClassName}</div>;

@@ -5,6 +5,9 @@
   "dependencies": {
     "@nivo/bar": "^0.87.0",
     "@nivo/core": "^0.87.0",
+    "@nivo/heatmap": "^0.87.0",
+    "@nivo/line": "^0.87.0",
+    "@nivo/radar": "^0.87.0",
     "@nivo/stream": "^0.87.0",
     "dompurify": "^3.1.6",
     "react": "^16.13.1",
