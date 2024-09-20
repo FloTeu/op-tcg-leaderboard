@@ -100,10 +100,14 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, list[LeaderElo]]):
             meta_format = df_matches.meta_format.unique().tolist()
             for only_official in [True, False]:
                 _logger.info(f"Calculate Elo for meta {meta_format} and only_official {only_official}")
-                if only_official:
-                    elo_creator = EloCreator(df_matches.query("official"), only_official=True)
-                else:
-                    elo_creator = EloCreator(df_matches, only_official=False)
+                try:
+                    if only_official:
+                        elo_creator = EloCreator(df_matches.query("official"), only_official=True)
+                    else:
+                        elo_creator = EloCreator(df_matches, only_official=False)
+                except IndexError as e:
+                    logging.error(f"Elo creation failed for {self.meta_formats} and only_official {only_official}")
+                    continue
                 elo_creator.calculate_elo_ratings()
                 elo_ratings.extend(elo_creator.to_bq_leader_elos())
         if len(df_all_matches) > 0:
