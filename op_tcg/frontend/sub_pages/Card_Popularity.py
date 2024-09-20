@@ -261,7 +261,8 @@ def main_card_meta_analysis():
                     elif filter_operator == "AND" and not card_has_all_ability:
                         continue
                 if cid not in card_popularity_dict:
-                    continue
+                    # if popularity is not available, we expect 0
+                    card_popularity_dict[cid] = 0.0
                 extended_card = DisplayCardData(
                     card_id=cid,
                     card_name=cdata.name,

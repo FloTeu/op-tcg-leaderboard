@@ -89,7 +89,7 @@ def display_leader_select(available_leader_ids: list[str] | None = None,
 
 def display_card_fraction_multiselect(default: list[str] | None = None) -> list[str] | None:
     all_fractions = get_card_types()
-    return st.multiselect("Type", all_fractions, default=default)
+    return st.multiselect("Subtype(s)", all_fractions, default=default)
 
 
 def display_match_result_toggle() -> bool:
