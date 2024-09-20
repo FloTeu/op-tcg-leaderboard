@@ -4,13 +4,13 @@ import streamlit as st
 from statistics import mean
 
 from op_tcg.backend.models.input import MetaFormat, meta_format2release_datetime
-from op_tcg.backend.models.leader import LeaderElo
+from op_tcg.backend.models.leader import LeaderElo, LeaderExtended
 from op_tcg.backend.models.cards import OPTcgLanguage, CardCurrency
 from op_tcg.backend.models.tournaments import TournamentStanding, TournamentStandingExtended
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select
 from op_tcg.frontend.utils.decklist import tournament_standings2decklist_data, DecklistData, \
     get_card_id_card_data_lookup, get_decklist_price
-from op_tcg.frontend.utils.extract import get_leader_elo_data, get_tournament_standing_data
+from op_tcg.frontend.utils.extract import get_leader_elo_data, get_tournament_standing_data, get_leader_extended
 from op_tcg.frontend.utils.js import is_mobile
 from op_tcg.frontend.utils.query_params import add_query_param, get_default_leader_name
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid, lname_and_lid_to_lid
@@ -84,8 +84,9 @@ def main_leader_detail_analysis_decklists():
         st.warning("Please select at least one meta format")
     else:
 
-        selected_leader_elo_data: list[LeaderElo] = get_leader_elo_data(meta_formats=selected_meta_formats)
-        available_leader_ids = list(dict.fromkeys([l.leader_id for l in selected_leader_elo_data]))
+        leader_extended_data: list[LeaderExtended] = get_leader_extended()
+        available_leader_ids = list(
+            dict.fromkeys([l.id for l in leader_extended_data if l.meta_format in selected_meta_formats]))
         if len(available_leader_ids) == 0:
             st.warning("No leader data available for the selected meta")
             return None
@@ -107,6 +108,9 @@ def main_leader_detail_analysis_decklists():
             # TODO: Try using get_tournament_decklist_data instead
             tournament_standings: list[TournamentStandingExtended] = get_tournament_standing_data(
                 meta_formats=selected_meta_formats, leader_id=leader_id)
+            if len(tournament_standings) == 0:
+                st.warning("No decklist data available for the selected meta and leader")
+                return None
             card_id2card_data = get_card_id_card_data_lookup()
             decklist_id2price_eur = {
                 (ts.id, ts.player_id): get_decklist_price(ts.decklist, card_id2card_data, currency=CardCurrency.EURO)

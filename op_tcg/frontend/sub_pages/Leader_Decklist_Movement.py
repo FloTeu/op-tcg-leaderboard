@@ -5,11 +5,11 @@ from pydantic import BaseModel, field_validator
 from streamlit_elements import elements, mui, dashboard, html as element_html
 
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.leader import LeaderElo
+from op_tcg.backend.models.leader import LeaderElo, LeaderExtended
 from op_tcg.backend.models.cards import OPTcgLanguage, CardCurrency
 from op_tcg.backend.models.tournaments import TournamentStanding, TournamentStandingExtended
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select
-from op_tcg.frontend.utils.extract import get_leader_elo_data, get_tournament_standing_data
+from op_tcg.frontend.utils.extract import get_leader_elo_data, get_tournament_standing_data, get_leader_extended
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid, lname_and_lid_to_lid, \
     get_lid2ldata_dict_cached
 from op_tcg.frontend.utils.query_params import add_query_param, get_default_leader_name
@@ -92,9 +92,22 @@ def main_leader_decklist_movement():
         selected_meta_format: MetaFormat = display_meta_select(multiselect=False)[0]
         previous_meta_format: MetaFormat = MetaFormat.to_list()[MetaFormat.to_list().index(selected_meta_format) - 1]
 
-    selected_leader_elo_data: list[LeaderElo] = get_leader_elo_data(meta_formats=[selected_meta_format])
-    leader_id2leader_data = get_lid2ldata_dict_cached()
-    available_leader_ids = list(dict.fromkeys([l.leader_id for l in selected_leader_elo_data if l.leader_id in leader_id2leader_data and leader_id2leader_data[l.leader_id].meta_format != selected_meta_format]))
+
+    leader_extended_data: list[LeaderExtended] = get_leader_extended()
+    lid2meta_formats = {}
+    for led in leader_extended_data:
+        if led.id not in lid2meta_formats:
+            lid2meta_formats[led.id] = [led.meta_format]
+        else:
+            lid2meta_formats[led.id].append(led.meta_format)
+
+    # first element is leader with best d_score
+    leader_extended_data = list(
+        filter(lambda x: x.meta_format in [selected_meta_format],
+               leader_extended_data))
+    leader_extended_data.sort(key=lambda x: x.d_score, reverse=True)
+    available_leader_ids = list(
+        dict.fromkeys([l.id for l in leader_extended_data if all(mf in lid2meta_formats[l.id] for mf in [previous_meta_format, selected_meta_format])]))
     if len(available_leader_ids) == 0:
         st.warning("No leader data available for the selected meta")
         return None
