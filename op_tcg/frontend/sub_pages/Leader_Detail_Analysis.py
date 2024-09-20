@@ -88,25 +88,23 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
 **Average Price**: {'%.2f' % decklist_data.avg_price_eur}€ | ${'%.2f' % decklist_data.avg_price_usd}
 """)
     with col3:
-        with elements("nivo_chart_line"):
-            st.subheader("Win Rate Chart")
-            rounder_corners_css = css_rule_to_dict(read_style_sheet("chart", selector=".rounded-corners"))
-            styles = {"height": 150,
-                     **rounder_corners_css,
-                     "background": f"rgb{PRIMARY_COLOR_RGB}"
-                     }
-            with mui.Box():
-                create_leader_line_chart(leader_id=leader_data.id, leader_extended=leader_extended_data,
+        st.subheader("Win Rate Chart")
+        rounder_corners_css = css_rule_to_dict(read_style_sheet("chart", selector=".rounded-corners"))
+        styles = {"height": 150,
+                 **rounder_corners_css,
+                 "background": f"rgb{PRIMARY_COLOR_RGB}"
+                 }
+        create_leader_line_chart(leader_id=leader_data.id, leader_extended=leader_extended_data,
                                                  enable_x_axis=True, enable_y_axis=False,
                                                  y_value=LineChartYValue.WIN_RATE, styles=styles)
-        with elements("nivo_chart_radar"):
-            st.subheader("Win Rate Matchup")
-            with mui.Box(sx={"height": 250,
-                             **rounder_corners_css,
-                             "background": f"rgb{PRIMARY_COLOR_RGB}"
-                             }):
-               create_leader_win_rate_radar_chart(radar_chart_data, [leader_data.name],
-                                               colors=[leader_data.to_hex_color()])
+
+        st.subheader("Win Rate Matchup")
+        styles = {"height": 250,
+                  **rounder_corners_css,
+                  "background": f"rgb{PRIMARY_COLOR_RGB}"
+                  }
+        create_leader_win_rate_radar_chart(radar_chart_data, [leader_data.name],
+                                               colors=[leader_data.to_hex_color()], styles=styles)
 
     tab1, tab2 = st.tabs(["Opponents", "Decklist"])
     with tab1:
@@ -114,16 +112,16 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
         with col1:
             display_opponent_view(easiest_opponent_data.id, opponent_matchups.easiest_matchups, leader_extended_data, best_matchup=True)
         with col2:
-            with elements("nivo_chart_radar_with_opponent"):
-                st.subheader("Win Rate Matchup")
-                with mui.Box(sx={"height": 300,
-                                 **rounder_corners_css,
-                                 "background": f"rgb{PRIMARY_COLOR_RGB}"}):
-                    create_leader_win_rate_radar_chart(radar_chart_data, [leader_data.name, hardest_opponent_data.name,
-                                                                          easiest_opponent_data.name],
-                                                       colors=[leader_data.to_hex_color(),
-                                                               hardest_opponent_data.to_hex_color(),
-                                                               easiest_opponent_data.to_hex_color()])
+            st.subheader("Win Rate Matchup")
+            styles = {"height": 300,
+                             **rounder_corners_css,
+                             "background": f"rgb{PRIMARY_COLOR_RGB}"}
+            create_leader_win_rate_radar_chart(radar_chart_data, [leader_data.name, hardest_opponent_data.name,
+                                                                      easiest_opponent_data.name],
+                                                   colors=[leader_data.to_hex_color(),
+                                                           hardest_opponent_data.to_hex_color(),
+                                                           easiest_opponent_data.to_hex_color()],
+                                                   styles=styles)
         with col3:
             display_opponent_view(hardest_opponent_data.id, opponent_matchups.hardest_matchups, leader_extended_data, best_matchup=False)
     with tab2:

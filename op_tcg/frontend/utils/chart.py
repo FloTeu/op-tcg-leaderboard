@@ -169,20 +169,20 @@ def get_radar_chart_data(df_color_win_rates) -> list[dict[str, str | float]]:
     return radar_chart_data
 
 
-def create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, colors):
-    return nivo.Radar(
-        data=radar_chart_data,
-        keys=selected_leader_names,
-        indexBy="color",
-        valueFormat=">-.2f",
-        margin={"top": 70, "right": 80, "bottom": 70, "left": 80},
-        borderColor={"from": "color"},
-        gridLabelOffset=36,
-        dotSize=10,
-        dotColor={"theme": "background"},
-        dotBorderWidth=2,
-        motionConfig="wobbly",
-        legends=[
+def create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, colors, styles: dict | None = None):
+    text_color = "#ffffff" if ST_THEME["base"] == "dark" else "#31333F"
+    layout = {
+        "keys": selected_leader_names,
+        "indexBy": "color",
+        "valueFormat": ">-.2f",
+        "margin": {"top": 70, "right": 80, "bottom": 70, "left": 80},
+        "borderColor": {"from": "color"},
+        "gridLabelOffset": 36,
+        "dotSize": 10,
+        "dotColor": {"theme": "background"},
+        "dotBorderWidth": 2,
+        "motionConfig": "wobbly",
+        "legends": [
             {
                 "anchor": "top-left",
                 "direction": "column",
@@ -203,18 +203,26 @@ def create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, 
                 ]
             }
         ],
-        theme={
+        "theme": {
             "background": "#2C3A47" if ST_THEME["base"] == "dark" else "#ffffff",
-            "textColor": "#ffffff" if ST_THEME["base"] == "dark" else "#31333F",
+            "textColor": text_color,
             "tooltip": {
                 "container": {
                     "background": "#FFFFFF",
                     "color": "#31333F",
                 }
-            }
+            },
+            "text": {
+                "fill": text_color
+            },
         },
-        colors=colors
-    )
+        "colors": colors
+    }
+    return nivo_chart(radar_chart_data, chart_type=NivoChartType.RADAR, layout=layout, styles=styles)
+    # return nivo.Radar(
+    #     data=radar_chart_data,
+    #     **layout
+    # )
 
 
 def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]], data_keys: list[str] | None = None,
