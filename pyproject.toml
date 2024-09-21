@@ -34,7 +34,7 @@ beautifulsoup4 = "^4.12.3"
 
 [tool.poetry.group.frontend.dependencies]
 streamlit = "1.38.0"
-streamlit-elements = { git = "https://github.com/FloTeu/streamlit-elements.git", branch = "feature/setup" }
+streamlit-elements = { git = "https://github.com/FloTeu/streamlit-elements.git", branch = "build-branch" }
 cssutils = "^2.11.1"
 
 [build-system]

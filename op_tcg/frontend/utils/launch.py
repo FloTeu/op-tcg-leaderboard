@@ -19,15 +19,6 @@ def init_load_data():
     get_card_data()
     get_card_popularity_data()
 
-def build_frontend():
-    """Initially ensures frontend is builded
-    Cached in order to be only executed once"""
-    with st.spinner("Build frontend"):
-        dep_path = Path(st.__path__[0]).parent
-        frontend_build = dep_path / "streamlit_elements/frontend/build"
-        if not frontend_build.exists():
-            subprocess.run(['python', 'build_frontend.py', str(dep_path)], check=True)
-
 
 
 

@@ -1,8 +1,7 @@
 import streamlit as st
 
 st.set_page_config(layout="wide")
-from op_tcg.frontend.utils.launch import init_load_data, build_frontend
-build_frontend()
+from op_tcg.frontend.utils.launch import init_load_data
 
 import os
 import pandas as pd
