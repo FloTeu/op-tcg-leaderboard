@@ -2322,8 +2322,8 @@ streamlit = ">=1.4.0"
 [package.source]
 type = "git"
 url = "https://github.com/FloTeu/streamlit-elements.git"
-reference = "feature/setup"
-resolved_reference = "c59e662a3a56c4bb7d28cdfaa1b70c05aacfaef2"
+reference = "build-branch"
+resolved_reference = "61e0f78f7f4a41de12c9c6802daff58cb56b5e79"
 
 [[package]]
 name = "streamlit-js-eval"
@@ -2752,4 +2752,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.13"
-content-hash = "4fed23650b0fb9823ce1c618247713f9bad5e00e305ca3b918806167258e9f2e"
+content-hash = "de0ca5736b82d116ee7d3bc06ef56bcdd740d081eaf8d5e59c080755fcb6d99e"
