@@ -34,12 +34,17 @@ beautifulsoup4 = "^4.12.3"
 
 [tool.poetry.group.frontend.dependencies]
 streamlit = "1.38.0"
-streamlit-elements = "0.1.*"
+streamlit-elements = { git = "https://github.com/FloTeu/streamlit-elements.git", branch = "feature/setup" }
 cssutils = "^2.11.1"
 
+#[build-system]
+#requires = ["poetry-core"]
+#build-backend = "poetry.core.masonry.api"
+
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core", "setuptools"]
+build-backend = "setuptools.build_meta"
 
 [tool.poetry.scripts]
 optcg = 'op_tcg.cli_app:app'
+build-frontend = "build_frontend:build_frontend"
