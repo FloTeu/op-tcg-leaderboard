@@ -1,12 +1,16 @@
 import subprocess
 import os
+import sys
 from pathlib import Path
 
 
-def build_st_elements_frontend():
-    import streamlit as st
+def build_st_elements_frontend(dep_path: Path | str | None = None):
     current_dir = os.getcwd()
-    streamlit_elements_path = Path(st.__path__[0]).parent / "streamlit_elements"
+    if dep_path:
+        streamlit_elements_path = Path(dep_path) / "streamlit_elements"
+    else:
+        import streamlit as st
+        streamlit_elements_path = Path(st.__path__[0]).parent / "streamlit_elements"
 
     # Change to the frontend directory
     os.chdir(f'{streamlit_elements_path}/frontend')
@@ -35,9 +39,11 @@ def build_nivo_chart_frontend():
     # Change dir back to previous one
     os.chdir(current_dir)
 
-def build_frontend():
-    build_st_elements_frontend()
+def build_frontend(dep_path=None):
+    build_st_elements_frontend(dep_path)
     build_nivo_chart_frontend()
 
 if __name__ == "__main__":
-    build_frontend()
+    # Get the dependency path from command-line arguments
+    dep_path = sys.argv[1] if len(sys.argv) > 1 else None
+    build_frontend(dep_path)
