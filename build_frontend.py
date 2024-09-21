@@ -1,10 +1,13 @@
 import subprocess
 import os
+from pathlib import Path
+
 
 def build_st_elements_frontend():
-    import streamlit_elements
+    import streamlit as st
     current_dir = os.getcwd()
-    streamlit_elements_path = streamlit_elements.__path__[0]
+    streamlit_elements_path = Path(st.__path__[0]).parent / "streamlit_elements"
+
     # Change to the frontend directory
     os.chdir(f'{streamlit_elements_path}/frontend')
 
