@@ -35,3 +35,6 @@ def build_nivo_chart_frontend():
 def build_frontend():
     build_st_elements_frontend()
     build_nivo_chart_frontend()
+
+if __name__ == "__main__":
+    build_frontend()

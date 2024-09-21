@@ -1,8 +1,8 @@
 import streamlit as st
 
-from op_tcg.frontend.utils.meta_format import get_latest_released_meta_format_with_data
-
 st.set_page_config(layout="wide")
+from op_tcg.frontend.utils.launch import init_load_data, build_frontend
+build_frontend()
 
 import os
 import pandas as pd
@@ -13,7 +13,6 @@ from op_tcg.frontend.utils.chart import LineChartYValue, create_leader_line_char
 from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER_MATCHUP, SUB_PAGE_LEADER_DECKLIST, \
     SUB_PAGE_LEADER_DECKLIST_MOVEMENT, SUB_PAGE_CARD_POPULARITY, SUB_PAGE_LEADER
 from op_tcg.backend.utils.utils import booleanize
-from op_tcg.frontend.utils.launch import init_load_data
 from op_tcg.backend.etl.load import bq_insert_rows, get_or_create_table
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import TournamentWinner, LeaderElo, LeaderExtended, Leader
@@ -35,6 +34,7 @@ from streamlit_elements import elements, dashboard, mui, nivo
 from streamlit_theme import st_theme
 
 ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
+
 
 def leader_id2line_chart(leader_id: str, df_leader_extended, y_value: LineChartYValue = LineChartYValue.WIN_RATE, only_official: bool = True):
     # Streamlit Elements includes 45 dataviz components powered by Nivo.
