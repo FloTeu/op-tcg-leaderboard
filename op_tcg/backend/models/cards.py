@@ -128,6 +128,13 @@ class LatestCardPrice(Card):
     latest_eur_price: float | None = Field(description="Latest price of the card in euro")
     latest_usd_price: float | None = Field(description="Latest price of the card in us dollar")
 
+    def ensure_latest_price_not_none(self):
+        """If latest price is None, its replaced by 0.0"""
+        if self.latest_eur_price is None:
+            self.latest_eur_price = 0.0
+        if self.latest_usd_price is None:
+            self.latest_usd_price = 0.0
+
 class LimitlessCardData(BaseModel):
     cards: list[Card]
     card_prices: list[CardPrice]
