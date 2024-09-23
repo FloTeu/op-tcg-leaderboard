@@ -2313,23 +2313,19 @@ description = "React Components for Streamlit."
 category = "dev"
 optional = false
 python-versions = ">=3.6"
-files = []
-develop = false
+files = [
+    {file = "streamlit-elements-0.1.0.tar.gz", hash = "sha256:5f9f116f22df3ce4a8636b1dee7c2fd3dc3cb0c66267fd28c3e0314aa1d303a7"},
+    {file = "streamlit_elements-0.1.0-py3-none-any.whl", hash = "sha256:593c4b88c399c55879aa76f7f42970f30106f66acaa4baada6338ae5571790df"},
+]
 
 [package.dependencies]
 streamlit = ">=1.4.0"
-
-[package.source]
-type = "git"
-url = "https://github.com/FloTeu/streamlit-elements.git"
-reference = "build-branch"
-resolved_reference = "61e0f78f7f4a41de12c9c6802daff58cb56b5e79"
 
 [[package]]
 name = "streamlit-js-eval"
 version = "0.1.7"
 description = "A custom Streamlit component to evaluate arbitrary Javascript expressions."
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.8"
 files = [
@@ -2752,4 +2748,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.13"
-content-hash = "de0ca5736b82d116ee7d3bc06ef56bcdd740d081eaf8d5e59c080755fcb6d99e"
+content-hash = "c00cfe9ee8ec4089af4e28982c06aed516efbae8c677188b82eeb53ac1a3b13b"

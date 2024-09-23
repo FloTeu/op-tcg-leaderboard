@@ -23,7 +23,6 @@ st-theme = "^1.2.2"
 pandera = "^0.19.3"
 tqdm = "^4.66.4"
 timer = "^0.3.0"
-streamlit-js-eval = "^0.1.7"
 
 
 [tool.poetry.group.crawler.dependencies]
@@ -34,8 +33,11 @@ beautifulsoup4 = "^4.12.3"
 
 [tool.poetry.group.frontend.dependencies]
 streamlit = "1.38.0"
-streamlit-elements = { git = "https://github.com/FloTeu/streamlit-elements.git", branch = "build-branch" }
+#streamlit-elements = { git = "https://github.com/FloTeu/streamlit-elements.git", branch = "build-branch" }
 cssutils = "^2.11.1"
+streamlit-elements = "^0.1.0"
+streamlit-js-eval = "^0.1.7"
+
 
 [build-system]
 requires = ["poetry-core"]
