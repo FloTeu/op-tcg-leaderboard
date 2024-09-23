@@ -63,9 +63,12 @@ def tournament_standings2decklist_data(
                                            cid in card_id2occurrences})
 
 
-def get_card_id_card_data_lookup(aa_version: int = 0) -> dict[str, ExtendedCardData]:
+def get_card_id_card_data_lookup(aa_version: int = 0, ensure_latest_price_not_null=True) -> dict[str, ExtendedCardData]:
     card_data = get_card_data()
     card_data = [cdata for cdata in card_data if cdata.aa_version == aa_version]
+    if ensure_latest_price_not_null:
+        for cdata in card_data:
+            cdata.ensure_latest_price_not_none()
     return {card.id: card for card in card_data}
 
 
@@ -154,9 +157,9 @@ def get_decklist_price(decklist: dict[str, int], card_id2card_data: dict[str, La
     for card_id, count in decklist.items():
         card_data = card_id2card_data.get(card_id, None)
         if currency == CardCurrency.EURO:
-            deck_price += card_data.latest_eur_price * count if card_data else 0.0
+            deck_price += card_data.latest_eur_price * count if card_data and card_data.latest_eur_price else 0.0
         elif currency == CardCurrency.US_DOLLAR:
-            deck_price += card_data.latest_usd_price * count if card_data else 0.0
+            deck_price += card_data.latest_usd_price * count if card_data and card_data.latest_usd_price else 0.0
         else:
             raise NotImplementedError
     return deck_price
