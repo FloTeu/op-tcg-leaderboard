@@ -142,7 +142,7 @@ resource "google_storage_bucket_iam_policy" "policy" {
 }
 
 # cloud function
-resource "google_cloudfunctions2_function" "default" {
+resource "google_cloudfunctions2_function" "all_elo" {
   name        = "all-elo-update"
   location    = var.region
   description = "Updates the elo of all leaders for all meta formats"
@@ -324,15 +324,15 @@ resource "google_cloudfunctions2_function" "card_image_update" {
 }
 
 resource "google_cloud_run_service_iam_member" "member" {
-  location = google_cloudfunctions2_function.default.location
-  service  = google_cloudfunctions2_function.default.name
+  location = google_cloudfunctions2_function.all_elo.location
+  service  = google_cloudfunctions2_function.all_elo.name
   role     = "roles/run.invoker"
   member   = "serviceAccount:${google_service_account.cloud_function_sa.email}"
 }
 
 # cloud function iam binding
 resource "google_cloudfunctions2_function_iam_binding" "invoke_cloud_function" {
-  cloud_function = google_cloudfunctions2_function.default.name
+  cloud_function = google_cloudfunctions2_function.all_elo.name
   role        = "roles/cloudfunctions.invoker"
 
   members = [
@@ -341,14 +341,14 @@ resource "google_cloudfunctions2_function_iam_binding" "invoke_cloud_function" {
 }
 
 resource "google_cloudfunctions2_function_iam_member" "invoker_permission" {
-  cloud_function = google_cloudfunctions2_function.default.name
+  cloud_function = google_cloudfunctions2_function.all_elo.name
   role           = "roles/cloudfunctions.invoker"
   member         = "serviceAccount:${google_service_account.cloud_function_sa.email}"
 }
 
 
 output "function_uri" {
-  value = google_cloudfunctions2_function.default.service_config[0].uri
+  value = google_cloudfunctions2_function.all_elo.service_config[0].uri
 }
 
 # cloud scheduler
