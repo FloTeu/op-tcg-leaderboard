@@ -1,6 +1,7 @@
 import os
 import base64
 import json
+from datetime import datetime
 
 from google.cloud import pubsub_v1
 from scrapy.crawler import CrawlerProcess
@@ -27,7 +28,7 @@ def run_all_etl_elo_update(event, context):
         future = publisher.publish(
             topic_path, data
         )
-        print(future.result())
+        print(meta_format, future.result(), datetime.now())
 
     return f"Successfully published all messages!"
 
