@@ -81,6 +81,13 @@ jobs:
       run: terraform init
       working-directory: terraform
 
+    # Add a step to create the terraform.tfvars file with secrets
+    - name: Create terraform.tfvars
+      run: |
+        echo "project = \"${{ secrets.production.project }}\"\nlimitless_api_token = \"${{ secrets.production.limitless_api_token }}\""
+        echo "project = \"${{ secrets.production.project }}\"\nlimitless_api_token = \"${{ secrets.production.limitless_api_token }}\"" > terraform.tfvars
+      working-directory: terraform
+
     # Checks that all Terraform configuration files adhere to a canonical format
     - name: Terraform Format
       run: terraform fmt -check
