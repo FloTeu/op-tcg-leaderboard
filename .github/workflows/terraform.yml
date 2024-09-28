@@ -78,9 +78,9 @@ jobs:
         cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
     - name: Set up Google Cloud credentials
-      run: echo "${{ secrets.GCP_CREDENTIALS }}" > ${{ github.workspace }}/gcloud.json
+      run: echo "${{ secrets.GCP_CREDENTIALS }}" | base64 -d > ${{ github.workspace }}/gcloud.json
 
-    # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+      # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       run: terraform init
       working-directory: terraform
