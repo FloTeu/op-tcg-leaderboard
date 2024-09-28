@@ -74,7 +74,7 @@ jobs:
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v1
       with:
-        terraform_version: 1.9.5  # Replace with your version
+        terraform_version: 1.9.5
         cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
@@ -87,7 +87,7 @@ jobs:
       run: |
         echo "limitless_api_token = \"${{ secrets.LIMITLESS_API_TOKEN }}\"" > terraform.tfvars
         echo "project = \"${{ secrets.PROJECT }}\"" >> terraform.tfvars
-        terraform --version
+        terraform fmt
       working-directory: terraform
 
     # Checks that all Terraform configuration files adhere to a canonical format
