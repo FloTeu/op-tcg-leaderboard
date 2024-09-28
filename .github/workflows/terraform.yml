@@ -106,10 +106,10 @@ jobs:
         GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcloud.json
       working-directory: terraform
 
-      # On push to "develop", build or change infrastructure according to Terraform configuration files
-      # Note: It is recommended to set up a required "strict" status check in your repository for "Terraform Cloud". See the documentation on "strict" required status checks for more information: https://help.github.com/en/github/administering-a-repository/types-of-required-status-checks
+    # On push to "develop", build or change infrastructure according to Terraform configuration files
+    # Note: It is recommended to set up a required "strict" status check in your repository for "Terraform Cloud". See the documentation on "strict" required status checks for more information: https://help.github.com/en/github/administering-a-repository/types-of-required-status-checks
     - name: Terraform Apply
-      if: github.ref == 'refs/heads/cicd' || github.ref == 'refs/heads/main' && github.event_name == 'push'
+      if: github.ref == 'refs/heads/feature/cicd' || github.ref == 'refs/heads/main' && github.event_name == 'push'
       run: terraform apply -auto-approve -input=false
       env:
         GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcloud.json
