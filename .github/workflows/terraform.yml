@@ -90,6 +90,7 @@ jobs:
       run: |
         echo "limitless_api_token = \"${{ secrets.LIMITLESS_API_TOKEN }}\"" > terraform.tfvars
         echo "project = \"${{ secrets.PROJECT }}\"" >> terraform.tfvars
+        echo "gcp_credentials = \"${{ github.workspace }}/gcloud.json\"" >> terraform.tfvars
         terraform fmt
       working-directory: terraform
 
