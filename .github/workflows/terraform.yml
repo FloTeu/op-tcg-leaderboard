@@ -87,6 +87,7 @@ jobs:
       run: |
         echo "limitless_api_token = \"${{ secrets.LIMITLESS_API_TOKEN }}\"" > terraform.tfvars
         echo "project = \"${{ secrets.PROJECT }}\"" >> terraform.tfvars
+        terraform --version
       working-directory: terraform
 
     # Checks that all Terraform configuration files adhere to a canonical format
