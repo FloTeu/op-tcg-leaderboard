@@ -78,7 +78,7 @@ jobs:
         cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
     - name: Set up Google Cloud credentials
-      run: echo "${{ secrets.GCP_CREDENTIALS }}" > $HOME/gcloud.json
+      run: echo "${{ secrets.GCP_CREDENTIALS }}" > ${{ github.workspace }}/gcloud.json
 
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
@@ -102,7 +102,7 @@ jobs:
     - name: Terraform Plan
       run: terraform plan -input=false
       env:
-        GOOGLE_APPLICATION_CREDENTIALS: $HOME/gcloud.json
+        GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcloud.json
       working-directory: terraform
 
       # On push to "develop", build or change infrastructure according to Terraform configuration files
@@ -111,5 +111,5 @@ jobs:
       if: github.ref == 'refs/heads/cicd' || github.ref == 'refs/heads/main' && github.event_name == 'push'
       run: terraform apply -auto-approve -input=false
       env:
-        GOOGLE_APPLICATION_CREDENTIALS: $HOME/gcloud.json
+        GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcloud.json
       working-directory: terraform
