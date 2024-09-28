@@ -11,7 +11,7 @@ terraform {
 
 provider "google" {
   project = var.project
-  region = var.region
+  region  = var.region
 }
 
 # iam
@@ -96,8 +96,8 @@ resource "google_pubsub_topic_iam_binding" "all_elo_update_pubsub_invoker" {
 }
 
 resource "google_storage_bucket" "default" {
-  name     = "${var.project}-gcf-source"  # Every bucket name must be globally unique
-  location = var.region
+  name                        = "${var.project}-gcf-source" # Every bucket name must be globally unique
+  location                    = var.region
   uniform_bucket_level_access = true
 }
 
@@ -110,8 +110,8 @@ resource "google_storage_bucket_object" "object" {
 
 # storage
 resource "google_storage_bucket" "public" {
-  name          = "${var.project}-public"
-  location      = var.region
+  name                        = "${var.project}-public"
+  location                    = var.region
   uniform_bucket_level_access = true
 
   website {
@@ -137,7 +137,7 @@ data "google_iam_policy" "storage_viewer" {
 }
 
 resource "google_storage_bucket_iam_policy" "policy" {
-  bucket = google_storage_bucket.public.name
+  bucket      = google_storage_bucket.public.name
   policy_data = data.google_iam_policy.storage_viewer.policy_data
 }
 
@@ -161,19 +161,19 @@ resource "google_cloudfunctions2_function" "all_elo" {
 
   event_trigger {
     trigger_region = var.region
-    event_type = "google.cloud.pubsub.topic.v1.messagePublished"
-    pubsub_topic = google_pubsub_topic.all_elo_update_pubsub_topic.id
-    retry_policy = "RETRY_POLICY_DO_NOT_RETRY"
+    event_type     = "google.cloud.pubsub.topic.v1.messagePublished"
+    pubsub_topic   = google_pubsub_topic.all_elo_update_pubsub_topic.id
+    retry_policy   = "RETRY_POLICY_DO_NOT_RETRY"
   }
 
   service_config {
-    max_instance_count = 1
-    available_memory   = "512M"
-    timeout_seconds    = 60
+    max_instance_count    = 1
+    available_memory      = "512M"
+    timeout_seconds       = 60
     service_account_email = google_service_account.cloud_function_sa.email
     # triggers redeploy
     environment_variables = {
-        GOOGLE_CLOUD_PROJECT = var.project
+      GOOGLE_CLOUD_PROJECT = var.project
     }
   }
 }
@@ -194,21 +194,21 @@ resource "google_cloudfunctions2_function" "single-elo" {
     }
     # triggers redeploy
     environment_variables = {
-    DEPLOYED_AT = timestamp()
+      DEPLOYED_AT = timestamp()
     }
   }
 
   event_trigger {
     trigger_region = var.region
-    event_type = "google.cloud.pubsub.topic.v1.messagePublished"
-    pubsub_topic = google_pubsub_topic.elo_update_pubsub_topic.id
-    retry_policy = "RETRY_POLICY_DO_NOT_RETRY"
+    event_type     = "google.cloud.pubsub.topic.v1.messagePublished"
+    pubsub_topic   = google_pubsub_topic.elo_update_pubsub_topic.id
+    retry_policy   = "RETRY_POLICY_DO_NOT_RETRY"
   }
 
   service_config {
-    max_instance_count = 10
-    available_memory   = "1024M"
-    timeout_seconds    = 540
+    max_instance_count    = 10
+    available_memory      = "1024M"
+    timeout_seconds       = 540
     service_account_email = google_service_account.cloud_function_sa.email
   }
 }
@@ -230,24 +230,24 @@ resource "google_cloudfunctions2_function" "crawl-tournaments" {
     }
     # triggers redeploy
     environment_variables = {
-        DEPLOYED_AT = timestamp()
+      DEPLOYED_AT = timestamp()
     }
   }
 
   event_trigger {
     trigger_region = var.region
-    event_type = "google.cloud.pubsub.topic.v1.messagePublished"
-    pubsub_topic = google_pubsub_topic.crawl_tournaments_pubsub_topic.id
-    retry_policy = "RETRY_POLICY_DO_NOT_RETRY"
+    event_type     = "google.cloud.pubsub.topic.v1.messagePublished"
+    pubsub_topic   = google_pubsub_topic.crawl_tournaments_pubsub_topic.id
+    retry_policy   = "RETRY_POLICY_DO_NOT_RETRY"
   }
 
   service_config {
-    max_instance_count = 10
-    available_memory   = "512M"
-    timeout_seconds    = 540
+    max_instance_count    = 10
+    available_memory      = "512M"
+    timeout_seconds       = 540
     service_account_email = google_service_account.cloud_function_sa.email
     environment_variables = {
-        LIMITLESS_API_TOKEN = var.limitless_api_token
+      LIMITLESS_API_TOKEN = var.limitless_api_token
     }
   }
 }
@@ -268,21 +268,21 @@ resource "google_cloudfunctions2_function" "crawl-prices" {
     }
     # triggers redeploy
     environment_variables = {
-        DEPLOYED_AT = timestamp()
+      DEPLOYED_AT = timestamp()
     }
   }
 
   event_trigger {
     trigger_region = var.region
-    event_type = "google.cloud.pubsub.topic.v1.messagePublished"
-    pubsub_topic = google_pubsub_topic.crawl_prices_pubsub_topic.id
-    retry_policy = "RETRY_POLICY_DO_NOT_RETRY"
+    event_type     = "google.cloud.pubsub.topic.v1.messagePublished"
+    pubsub_topic   = google_pubsub_topic.crawl_prices_pubsub_topic.id
+    retry_policy   = "RETRY_POLICY_DO_NOT_RETRY"
   }
 
   service_config {
-    max_instance_count = 10
-    available_memory   = "512M"
-    timeout_seconds    = 540
+    max_instance_count    = 10
+    available_memory      = "512M"
+    timeout_seconds       = 540
     service_account_email = google_service_account.cloud_function_sa.email
   }
 }
@@ -304,21 +304,21 @@ resource "google_cloudfunctions2_function" "card_image_update" {
     }
     # triggers redeploy
     environment_variables = {
-        DEPLOYED_AT = timestamp()
+      DEPLOYED_AT = timestamp()
     }
   }
 
   event_trigger {
     trigger_region = var.region
-    event_type = "google.cloud.pubsub.topic.v1.messagePublished"
-    pubsub_topic = google_pubsub_topic.card_image_update_pubsub_topic.id
-    retry_policy = "RETRY_POLICY_DO_NOT_RETRY"
+    event_type     = "google.cloud.pubsub.topic.v1.messagePublished"
+    pubsub_topic   = google_pubsub_topic.card_image_update_pubsub_topic.id
+    retry_policy   = "RETRY_POLICY_DO_NOT_RETRY"
   }
 
   service_config {
-    max_instance_count = 10
-    available_memory   = "512M"
-    timeout_seconds    = 1800
+    max_instance_count    = 10
+    available_memory      = "512M"
+    timeout_seconds       = 1800
     service_account_email = google_service_account.cloud_function_sa.email
   }
 }
@@ -333,7 +333,7 @@ resource "google_cloud_run_service_iam_member" "member" {
 # cloud function iam binding
 resource "google_cloudfunctions2_function_iam_binding" "invoke_cloud_function" {
   cloud_function = google_cloudfunctions2_function.all_elo.name
-  role        = "roles/cloudfunctions.invoker"
+  role           = "roles/cloudfunctions.invoker"
 
   members = [
     "serviceAccount:${google_service_account.cloud_function_sa.email}"
