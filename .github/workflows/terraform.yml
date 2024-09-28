@@ -84,8 +84,8 @@ jobs:
     # Add a step to create the terraform.tfvars file with secrets
     - name: Create terraform.tfvars
       run: |
-        echo "project = \"${{ secrets.PROJECT }}\"\nlimitless_api_token = \"${{ secrets.LIMITLESS_API_TOKEN }}\""
-        echo "project = \"${{ secrets.PROJECT }}\"\nlimitless_api_token = \"${{ secrets.LIMITLESS_API_TOKEN }}\"" > terraform.tfvars
+        echo "limitless_api_token = \"${{ secrets.LIMITLESS_API_TOKEN }}\"" > terraform/terraform.tfvars
+        echo "project = \"${{ secrets.PROJECT }}\"" >> terraform/terraform.tfvars
       working-directory: terraform
 
     # Checks that all Terraform configuration files adhere to a canonical format
