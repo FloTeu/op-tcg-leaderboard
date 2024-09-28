@@ -46,7 +46,7 @@ name: 'Terraform'
 
 on:
   push:
-    branches: [ "cicd", "main" ]
+    branches: [ "feature/cicd", "main" ]
   pull_request:
 
 permissions:
