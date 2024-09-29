@@ -16,8 +16,11 @@ provider "google" {
 }
 
 # iam
+data "google_service_account" "existing_cloud_function_sa" {
+  account_id = "cloud-function-sa"
+}
 resource "google_service_account" "cloud_function_sa" {
-  account_id   = "cloud-function-sa"
+  account_id   = data.google_service_account.existing_cloud_function_sa.account_id
   display_name = "Cloud Function Service Account"
 }
 
