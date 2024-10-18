@@ -87,11 +87,11 @@ jobs:
         terraform_version: 1.9.5
         cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
+    - name: Build wheel file
+      run: poetry build
+
     - name: Build Cloud Run/Functions
       run: |
-        ls
-        poetry build
-        cd terraform/cloud_functions
         export version=$(poetry version -s)
         cp ../../dist/op_tcg-$version.tar.gz .
         cat > requirements.txt << EOF
@@ -101,7 +101,8 @@ jobs:
         scrapy
         EOF
         rm -f function-source.zip
-        zip -r function-source.zip main.py requirements.txt op_tcg-$version.tar.gz $new_tmp_file
+        zip -r function-source.zip main.py requirements.txt op_tcg-$version.tar.gz
+      working-directory: terraform/cloud_functions
 
     - name: Set up Google Cloud credentials
       run: echo "${{ secrets.GCP_CREDENTIALS }}" | base64 -d > ${{ github.workspace }}/gcloud.json

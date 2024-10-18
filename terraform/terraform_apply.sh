@@ -9,6 +9,6 @@ google-cloud-pubsub
 scrapy
 EOF
 rm -f function-source.zip
-zip -r function-source.zip main.py requirements.txt op_tcg-$version.tar.gz $new_tmp_file
+zip -r function-source.zip main.py requirements.txt op_tcg-$version.tar.gz
 cd ..
 terraform apply -auto-approve
