@@ -80,6 +80,22 @@ jobs:
     - name: Set up Google Cloud credentials
       run: echo "${{ secrets.GCP_CREDENTIALS }}" | base64 -d > ${{ github.workspace }}/gcloud.json
 
+    - name: Build Cloud Run/Functions
+      run: |
+        cd cloud_functions
+        poetry build
+        export version=$(poetry version -s)
+        cp ../../dist/op_tcg-$version.tar.gz .
+        cat > requirements.txt << EOF
+        op_tcg-$version.tar.gz
+        functions-framework
+        google-cloud-pubsub
+        scrapy
+        EOF
+        rm -f function-source.zip
+        zip -r function-source.zip main.py requirements.txt op_tcg-$version.tar.gz $new_tmp_file
+        cd ..
+
     # Add a step to create the terraform.tfvars file with secrets
     - name: Create terraform.tfvars
       run: |
