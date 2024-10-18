@@ -157,11 +157,11 @@ def get_radar_chart_data(df_color_win_rates) -> list[dict[str, str | float]]:
     radar_chart_data: list[dict[str, str | float]] = []
     for color in OPTcgColor.to_list():
         if color in df_color_win_rates.columns.values:
-            win_against_color = {lid2ldata_fn(lid).name: win_rate
+            win_against_color = {lid2ldata_fn(lid).id: win_rate
                                  for lid, win_rate in df_color_win_rates[color].to_dict().items()}
             win_against_color = {k: v if not pd.isna(v) else 50 for k, v in win_against_color.items()}
         else:
-            win_against_color = {lid2ldata_fn(lid).name: 50.0 for lid in df_color_win_rates.index.values}
+            win_against_color = {lid2ldata_fn(lid).id: 50.0 for lid in df_color_win_rates.index.values}
         radar_chart_data.append({
             "color": color,
             **win_against_color

@@ -103,7 +103,7 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
                   **rounder_corners_css,
                   "background": f"rgb{PRIMARY_COLOR_RGB}"
                   }
-        create_leader_win_rate_radar_chart(radar_chart_data, [leader_data.name],
+        create_leader_win_rate_radar_chart(radar_chart_data, [leader_data.id],
                                                colors=[leader_data.to_hex_color()], styles=styles)
 
     tab1, tab2 = st.tabs(["Opponents", "Decklist"])
@@ -116,8 +116,8 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
             styles = {"height": 300,
                              **rounder_corners_css,
                              "background": f"rgb{PRIMARY_COLOR_RGB}"}
-            create_leader_win_rate_radar_chart(radar_chart_data, [leader_data.name, hardest_opponent_data.name,
-                                                                      easiest_opponent_data.name],
+            create_leader_win_rate_radar_chart(radar_chart_data, [leader_data.id, hardest_opponent_data.id,
+                                                                      easiest_opponent_data.id],
                                                    colors=[leader_data.to_hex_color(),
                                                            hardest_opponent_data.to_hex_color(),
                                                            easiest_opponent_data.to_hex_color()],

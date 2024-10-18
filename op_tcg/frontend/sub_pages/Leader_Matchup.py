@@ -26,10 +26,15 @@ def display_elements(selected_leader_ids,
                      df_Leader_vs_leader_win_rates,
                      df_Leader_vs_leader_match_count,
                      radar_chart_data):
-
     lid2ldata_dict = get_lid2ldata_dict_cached()
-    selected_leader_names = [lid2ldata_dict.get(lid, get_template_leader()).name for lid in selected_leader_ids]
+    def get_leader_name(leader_id: str) -> str:
+        return f"{lid2ldata_dict.get(leader_id, get_template_leader()).name} ({lid2ldata_dict.get(leader_id, get_template_leader()).get_color_short_name()})"
+
+    selected_leader_names = [get_leader_name(lid) for lid in selected_leader_ids]
     colors = [lid2ldata_dict.get(lid, get_template_leader()).to_hex_color() for lid in selected_leader_ids]
+    # change radar ids to name
+    for j, r_data in enumerate(radar_chart_data):
+        radar_chart_data[j] = {k if i == 0 else get_leader_name(k): v for i, (k, v) in enumerate(r_data.items())}
 
     col1, col2 = st.columns([1,1])
     col1.subheader("Leader Color Win Rates")

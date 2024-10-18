@@ -105,6 +105,8 @@ class BaseCard(BaseModel):
             hex_colors.append(color.to_hex_color())
         return average_hex_colors(hex_colors)
 
+    def get_color_short_name(self):
+        return ("").join([c[0].upper() for c in self.colors])
 
 class Card(BaseCard, BQTableBaseModel):
     _dataset_id: str = BQDataset.CARDS
