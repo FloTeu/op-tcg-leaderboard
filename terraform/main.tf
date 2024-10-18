@@ -6,6 +6,10 @@ terraform {
       version = ">= 4.34.0"
     }
   }
+  backend "gcs" {
+    bucket  = "op-tcg-leaderboard-prod-tf"
+    prefix  = "terraform/state"
+  }
 }
 
 

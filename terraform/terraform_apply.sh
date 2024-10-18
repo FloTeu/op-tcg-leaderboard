@@ -11,4 +11,4 @@ EOF
 rm -f function-source.zip
 zip -r function-source.zip main.py requirements.txt op_tcg-$version.tar.gz $new_tmp_file
 cd ..
-terraform apply
+terraform apply -auto-approve
