@@ -80,11 +80,6 @@ jobs:
     - name: Set up Google Cloud credentials
       run: echo "${{ secrets.GCP_CREDENTIALS }}" | base64 -d > ${{ github.workspace }}/gcloud.json
 
-      # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
-    - name: Terraform Init
-      run: terraform init
-      working-directory: terraform
-
     # Add a step to create the terraform.tfvars file with secrets
     - name: Create terraform.tfvars
       run: |
@@ -92,6 +87,11 @@ jobs:
         echo "project = \"${{ secrets.PROJECT }}\"" >> terraform.tfvars
         echo "gcp_credentials = \"${{ github.workspace }}/gcloud.json\"" >> terraform.tfvars
         terraform fmt
+      working-directory: terraform
+
+      # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+    - name: Terraform Init
+      run: terraform init
       working-directory: terraform
 
     # Checks that all Terraform configuration files adhere to a canonical format
