@@ -1,2 +1,3 @@
 project                  = "<PROJECT_ID>"
 limitless_api_token      = "<LIMITLESS_API_TOKEN>"
+gcp_credentials          = "<GCP_CREDENTIALS_FILE_PATH>"

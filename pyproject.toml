@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "op-tcg"
-version = "0.1.7"
+version = "0.1.8"
 description = ""
 authors = ["fteutsch <florianteutsch@yahoo.de>"]
 license = "MIT"
@@ -23,7 +23,6 @@ st-theme = "^1.2.2"
 pandera = "^0.19.3"
 tqdm = "^4.66.4"
 timer = "^0.3.0"
-streamlit-js-eval = "^0.1.7"
 
 
 [tool.poetry.group.crawler.dependencies]
@@ -34,12 +33,20 @@ beautifulsoup4 = "^4.12.3"
 
 [tool.poetry.group.frontend.dependencies]
 streamlit = "1.38.0"
-streamlit-elements = "0.1.*"
+#streamlit-elements = { git = "https://github.com/FloTeu/streamlit-elements.git", branch = "build-branch" }
 cssutils = "^2.11.1"
+streamlit-elements = "^0.1.0"
+streamlit-js-eval = "^0.1.7"
+
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+#
+#[build-system]
+#requires = ["poetry-core", "setuptools"]
+#build-backend = "setuptools.build_meta"
 
 [tool.poetry.scripts]
 optcg = 'op_tcg.cli_app:app'
+build-frontend = "build_frontend:build_frontend"

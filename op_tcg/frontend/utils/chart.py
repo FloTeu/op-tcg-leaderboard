@@ -28,6 +28,8 @@ def create_leader_line_chart(leader_id: str,
                              only_official: bool = True,
                              enable_x_axis: bool = False,
                              enable_y_axis: bool = False,
+                             styles: dict | None = None,
+                             use_custom_component: bool = True
                              ):
     # filter leader data
     leader_extended_filtered = list(
@@ -43,7 +45,10 @@ def create_leader_line_chart(leader_id: str,
                              y_format=" >-.2f" if y_value == LineChartYValue.WIN_RATE else "",
                              enable_x_axis=enable_x_axis,
                              enable_y_axis=enable_y_axis,
-                             y_axis_label=str(y_value))
+                             y_axis_label=str(y_value),
+                             styles=styles,
+                             use_custom_component=use_custom_component
+                             )
 
 
 def dict_to_data_lines(data_dict: dict[Any, Any]) -> list[dict[Any, Any]]:
@@ -58,7 +63,9 @@ def create_line_chart(data_dict: dict[MetaFormat, str | None],
                       y_format: str | None = None,
                       enable_x_axis: bool = False,
                       enable_y_axis: bool = False,
-                      y_axis_label: str = ""):
+                      y_axis_label: str = "",
+                      styles: dict | None = None,
+                      use_custom_component: bool = True):
     # fillup missing meta_format data
     for meta_format in sorted(MetaFormat.to_list(), reverse=True):
         # exclude OP01 since we have no official matches yet
@@ -84,20 +91,20 @@ def create_line_chart(data_dict: dict[MetaFormat, str | None],
         }
     ]
 
-    return nivo.Line(
-        data=DATA,
-        margin={"top": 10, "right": 20, "bottom": 50 if enable_x_axis else 10,
+    text_color = "#ffffff" if ST_THEME["base"] == "dark" else "#31333F"
+    layout = {
+        "margin": {"top": 10, "right": 20, "bottom": 50 if enable_x_axis else 10,
                 "left": 50 if enable_x_axis or enable_y_axis else 10},
-        enableGridX=False,
-        enableGridY=False,
-        yScale={
+        "enableGridX": False,
+        "enableGridY": False,
+        "yScale": {
             "type": "linear",
             "min": "auto"
         },
-        pointSize=10,
-        pointBorderWidth=0,
-        yFormat=y_format,
-        axisBottom={
+        "pointSize": 10,
+        "pointBorderWidth": 0,
+        "yFormat": y_format,
+        "axisBottom": {
             "tickSize": 5,
             "tickPadding": 5,
             "tickRotation": 0,
@@ -106,7 +113,7 @@ def create_line_chart(data_dict: dict[MetaFormat, str | None],
             "legendPosition": 'middle',
             "truncateTickAt": 0
         } if enable_x_axis else None,
-        axisLeft={
+        "axisLeft": {
             "tickSize": 5,
             "tickPadding": 5,
             "tickRotation": 0,
@@ -115,10 +122,10 @@ def create_line_chart(data_dict: dict[MetaFormat, str | None],
             "legendPosition": 'middle',
             "truncateTickAt": 0
         } if enable_y_axis else None,
-        enableSlices="x",
-        motionConfig="slow",
-        colors=colors,
-        theme={
+        "enableSlices": "x",
+        "motionConfig": "slow",
+        "colors": colors,
+        "theme": {
             "background": "#2C3A47" if ST_THEME["base"] == "dark" else "#ffffff",
             "textColor": "#ffffff" if ST_THEME["base"] == "dark" else "#31333F",
             "tooltip": {
@@ -126,10 +133,21 @@ def create_line_chart(data_dict: dict[MetaFormat, str | None],
                     "background": "#FFFFFF",
                     "color": "#31333F",
                 }
-            }
+            },
+            "text": {
+                "fill": text_color
+            },
         }
-    )
+    }
 
+
+    if use_custom_component:
+        return nivo_chart(DATA, chart_type=NivoChartType.LINE, layout=layout, styles=styles)
+    else:
+        return nivo.Line(
+            data=DATA,
+            **layout
+        )
 
 def get_radar_chart_data(df_color_win_rates) -> list[dict[str, str | float]]:
     """
@@ -151,20 +169,20 @@ def get_radar_chart_data(df_color_win_rates) -> list[dict[str, str | float]]:
     return radar_chart_data
 
 
-def create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, colors):
-    return nivo.Radar(
-        data=radar_chart_data,
-        keys=selected_leader_names,
-        indexBy="color",
-        valueFormat=">-.2f",
-        margin={"top": 70, "right": 80, "bottom": 70, "left": 80},
-        borderColor={"from": "color"},
-        gridLabelOffset=36,
-        dotSize=10,
-        dotColor={"theme": "background"},
-        dotBorderWidth=2,
-        motionConfig="wobbly",
-        legends=[
+def create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, colors, styles: dict | None = None):
+    text_color = "#ffffff" if ST_THEME["base"] == "dark" else "#31333F"
+    layout = {
+        "keys": selected_leader_names,
+        "indexBy": "color",
+        "valueFormat": ">-.2f",
+        "margin": {"top": 70, "right": 80, "bottom": 70, "left": 80},
+        "borderColor": {"from": "color"},
+        "gridLabelOffset": 36,
+        "dotSize": 10,
+        "dotColor": {"theme": "background"},
+        "dotBorderWidth": 2,
+        "motionConfig": "wobbly",
+        "legends": [
             {
                 "anchor": "top-left",
                 "direction": "column",
@@ -185,18 +203,26 @@ def create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, 
                 ]
             }
         ],
-        theme={
+        "theme": {
             "background": "#2C3A47" if ST_THEME["base"] == "dark" else "#ffffff",
-            "textColor": "#ffffff" if ST_THEME["base"] == "dark" else "#31333F",
+            "textColor": text_color,
             "tooltip": {
                 "container": {
                     "background": "#FFFFFF",
                     "color": "#31333F",
                 }
-            }
+            },
+            "text": {
+                "fill": text_color
+            },
         },
-        colors=colors
-    )
+        "colors": colors
+    }
+    return nivo_chart(radar_chart_data, chart_type=NivoChartType.RADAR, layout=layout, styles=styles)
+    # return nivo.Radar(
+    #     data=radar_chart_data,
+    #     **layout
+    # )
 
 
 def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]], data_keys: list[str] | None = None,
