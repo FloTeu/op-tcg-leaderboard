@@ -77,11 +77,16 @@ jobs:
         terraform_version: 1.9.5
         cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
+    - name: Install Poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
+        echo "$HOME/.local/bin" >> $GITHUB_PATH  # Ensure this is added to PATH
+
     - name: Build Cloud Run/Functions
       run: |
         ls
-        cd terraform/cloud_functions
         poetry build
+        cd terraform/cloud_functions
         export version=$(poetry version -s)
         cp ../../dist/op_tcg-$version.tar.gz .
         cat > requirements.txt << EOF
