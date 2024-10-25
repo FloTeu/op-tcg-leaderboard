@@ -1,3 +1,5 @@
+from functools import partial
+
 import pandas as pd
 import streamlit as st
 
@@ -13,9 +15,10 @@ from op_tcg.frontend.utils.material_ui_fns import create_image_cell, display_tab
 from op_tcg.frontend.utils.leader_data import leader_id2aa_image_url, lid2ldata_fn, get_lid2ldata_dict_cached, \
     get_template_leader, lids_to_name_and_lids, lname_and_lid_to_lid, get_win_rate_dataframes
 
-from streamlit_elements import elements, mui, html, dashboard
+from streamlit_elements import elements, mui
 from streamlit_theme import st_theme
 
+from op_tcg.frontend.utils.query_params import add_query_param, get_default_leader_names
 from op_tcg.frontend.utils.styles import css_rule_to_dict, read_style_sheet, PRIMARY_COLOR_RGB
 
 ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
@@ -115,6 +118,14 @@ def get_leader2avg_win_rate_dict(df_Leader_vs_leader_match_count, df_Leader_vs_l
         leader2win_rate[leader_id] = float("%.1f" % avg_leader_win_rate)
     return leader2win_rate
 
+def add_qparam_on_change_fn(qparam2session_key: dict[str, str]):
+    for qparam, session_key in qparam2session_key.items():
+        if session_key == "selected_lids":
+            selected_leader_names: list[str] = st.session_state[session_key]
+            selected_leader_ids = [lname_and_lid_to_lid(lname) for lname in selected_leader_names]
+            add_query_param(qparam, selected_leader_ids)
+        else:
+            raise NotImplementedError
 
 def main_meta_analysis():
     st.header("Leader Matchup")
@@ -137,13 +148,17 @@ def main_meta_analysis():
         # first element is leader with best d_score
         leader_extended_data = list(filter(lambda x: x.meta_format in selected_meta_formats and x.total_matches > min_match_count, leader_extended_data))
         leader_extended_data.sort(key=lambda x: x.d_score, reverse=True)
-        available_leader_ids = lids_to_name_and_lids(list(dict.fromkeys([le.id for le in leader_extended_data])))
+        available_leader_ids = list(dict.fromkeys([le.id for le in leader_extended_data]))
+        available_leader_names = lids_to_name_and_lids(available_leader_ids)
 
         # sorted_leader_ids_by_win_rate = sorted([lid for lid, count in lid2match_count.items() if count > min_match_count], key= lambda lid: lid2win_rate[lid], reverse=True)
         # available_leader_ids = lids_to_name_and_lids(list(dict.fromkeys(sorted_leader_ids_by_win_rate)))
 
         with st.sidebar:
-            selected_leader_names: list[str] = display_leader_select(available_leader_ids=available_leader_ids, multiselect=True, default=available_leader_ids[0:5])
+            default_leader_names = get_default_leader_names(available_leader_ids, query_param="lid")
+            if len(set(available_leader_names) - set(default_leader_names)) == 0:
+                default_leader_names = default_leader_names[0:5]
+            selected_leader_names: list[str] = display_leader_select(available_leader_names=available_leader_names, multiselect=True, default=default_leader_names, key="selected_lids", on_change=partial(add_qparam_on_change_fn, qparam2session_key={"lid": "selected_lids"}))
         if len(selected_leader_names) < 2:
             st.warning("Please select at least two leaders")
         else:

@@ -147,7 +147,7 @@ def main_admin_leader_upload():
             st.warning("No leaders available")
         else:
             available_leader_ids = [lid_to_name_and_lid(lid, ldata.name) for lid, ldata in lid_to_ldata.items()]
-            selected_leader_name: str = display_leader_select(available_leader_ids=available_leader_ids,
+            selected_leader_name: str = display_leader_select(available_leader_names=available_leader_ids,
                                                               multiselect=False, default=available_leader_ids[0])
             selected_leader_id: str = lname_and_lid_to_lid(selected_leader_name)
             bq_leader: Leader = lid_to_ldata[selected_leader_id]
@@ -172,7 +172,7 @@ def main_admin_leader_upload():
             with col2:
                 st.write("Leaders not yet uploaded")
                 selected_leader_id: str | None = display_leader_select(
-                    available_leader_ids=leader_ids_not_yet_uploaded,
+                    available_leader_names=leader_ids_not_yet_uploaded,
                     multiselect=False, default=None)
         id_default_text = col1.text_input("Leader Id", value=selected_leader_id, help="e.g. OP01-001")
         language_default_text = st.selectbox("Language", [OPTcgLanguage.EN, OPTcgLanguage.JP],

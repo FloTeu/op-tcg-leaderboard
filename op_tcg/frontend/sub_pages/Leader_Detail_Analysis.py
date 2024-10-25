@@ -25,7 +25,8 @@ from op_tcg.frontend.utils.extract import get_leader_extended, get_leader_win_ra
     get_tournament_decklist_data
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid, lname_and_lid_to_lid, get_win_rate_dataframes, \
     get_lid2ldata_dict_cached
-from op_tcg.frontend.utils.query_params import get_default_leader_name, add_query_param, delete_query_param
+from op_tcg.frontend.utils.query_params import get_default_leader_name, \
+    delete_query_param, add_query_param
 from op_tcg.frontend.utils.styles import read_style_sheet, css_rule_to_dict, PRIMARY_COLOR_RGB
 from op_tcg.frontend.utils.utils import sort_df_by_meta_format
 from op_tcg.frontend.views.decklist import display_list_view
@@ -49,6 +50,17 @@ class OpponentMatchups(BaseModel):
 class DecklistPrices(BaseModel):
     prices_eur: list[float]
     prices_usd: list[float]
+
+def add_qparam_on_change_fn(qparam2session_key: dict[str, str], reset_query_params: bool=False):
+    for qparam, session_key in qparam2session_key.items():
+        if qparam in ["lid", Q_PARAM_EASIEST_OPPONENT, Q_PARAM_HARDEST_OPPONENT]:
+            qparam_value: str = lname_and_lid_to_lid(st.session_state.get(session_key, ""))
+            add_query_param(qparam, qparam_value)
+        else:
+            add_query_param(qparam, st.session_state.get(session_key, ""))
+    if reset_query_params:
+        delete_query_param(Q_PARAM_EASIEST_OPPONENT)
+        delete_query_param(Q_PARAM_HARDEST_OPPONENT)
 
 def get_img_with_href(img_url, target_url):
     html_code = f'''
@@ -135,11 +147,11 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
             st.subheader("Most similar leader")
 
             opponent_leader_names = [lid_to_name_and_lid(lid) for lid in most_similar_leader_ids]
-            selected_most_similar_lname = display_leader_select(available_leader_ids=opponent_leader_names,
-                                  key=f"select_most_sim_lid",
-                                  multiselect=False,
-                                  default=lid_to_name_and_lid(most_similar_leader_ids[0])
-                                  )
+            selected_most_similar_lname = display_leader_select(available_leader_names=opponent_leader_names,
+                                                                key=f"select_most_sim_lid",
+                                                                multiselect=False,
+                                                                default=lid_to_name_and_lid(most_similar_leader_ids[0])
+                                                                )
             selected_most_similar_lid = lname_and_lid_to_lid(selected_most_similar_lname)
             similar_leader_data = lid2similar_leader_data[selected_most_similar_lid]
 
@@ -191,12 +203,12 @@ def display_opponent_view(selected_opponent_id: str, matchups: list[Matchup], le
     opponent_leader_data = [le for le in leader_extended_data if le.id == opponent_matchup.leader_id][0]
     opponent_leader_names = [lid_to_name_and_lid(m.leader_id) for m in matchups]
     st.subheader(("Easiest" if best_matchup else "Hardest") + " Matchup")
-    display_leader_select(available_leader_ids=opponent_leader_names,
+    display_leader_select(available_leader_names=opponent_leader_names,
                           key=f"select_opp_lid_{selected_opponent_id}",
                           multiselect=False,
                           default=opponent_leader_names[opponent_index],
-                          on_change=add_query_param,
-                          kwargs={Q_PARAM_EASIEST_OPPONENT if best_matchup else Q_PARAM_HARDEST_OPPONENT: f"select_opp_lid_{selected_opponent_id}"})
+                          on_change=partial(add_qparam_on_change_fn, qparam2session_key={Q_PARAM_EASIEST_OPPONENT if best_matchup else Q_PARAM_HARDEST_OPPONENT: f"select_opp_lid_{selected_opponent_id}"}),
+                          )
     img_with_href = get_img_with_href(opponent_leader_data.aa_image_url, f'/{SUB_PAGE_LEADER}?lid={opponent_leader_data.id}')
     st.markdown(img_with_href, unsafe_allow_html=True)
     st.markdown(f"""  
@@ -267,12 +279,8 @@ def main_leader_detail_analysis():
     default_leader_name = get_default_leader_name(available_leader_ids, query_param="lid")
 
     with st.sidebar:
-        def on_change_fn(qparam2session_key: dict[str, str]):
-            add_query_param(qparam2session_key)
-            delete_query_param(Q_PARAM_EASIEST_OPPONENT)
-            delete_query_param(Q_PARAM_HARDEST_OPPONENT)
-        selected_leader_name: str = display_leader_select(available_leader_ids=available_leader_names, key="select_lid",
-                                                              multiselect=False, default=default_leader_name, on_change=partial(on_change_fn, qparam2session_key={"lid": "select_lid"}))
+        selected_leader_name: str = display_leader_select(available_leader_names=available_leader_names, key="selected_lid",
+                                                          multiselect=False, default=default_leader_name, on_change=partial(add_qparam_on_change_fn, qparam2session_key={"lid": "selected_lid"}, reset_query_params=True))
         only_official: bool = display_only_official_toggle()
 
     leader_extended = None

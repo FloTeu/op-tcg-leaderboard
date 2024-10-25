@@ -10,9 +10,9 @@ from op_tcg.backend.models.tournaments import TournamentStanding, TournamentStan
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select
 from op_tcg.frontend.utils.decklist import tournament_standings2decklist_data, DecklistData, \
     get_card_id_card_data_lookup, get_decklist_price
-from op_tcg.frontend.utils.extract import get_leader_elo_data, get_tournament_standing_data, get_leader_extended
+from op_tcg.frontend.utils.extract import get_tournament_standing_data, get_leader_extended
 from op_tcg.frontend.utils.js import is_mobile
-from op_tcg.frontend.utils.query_params import add_query_param, get_default_leader_name
+from op_tcg.frontend.utils.query_params import get_default_leader_name, add_query_param
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid, lname_and_lid_to_lid
 from streamlit_elements import elements, mui, dashboard, html as element_html
 
@@ -93,8 +93,10 @@ def main_leader_detail_analysis_decklists():
         available_leader_names = [lid_to_name_and_lid(lid) for lid in available_leader_ids]
         default_leader_name = get_default_leader_name(available_leader_ids)
         with st.sidebar:
-            selected_leader_name: str = display_leader_select(available_leader_ids=available_leader_names, key="select_lid",
-                                                              multiselect=False, default=default_leader_name, on_change=add_query_param, kwargs={"lid": "select_lid"})
+            selected_leader_name: str = display_leader_select(available_leader_names=available_leader_names, key="select_lid",
+                                                              multiselect=False, default=default_leader_name,
+                                                              on_change=lambda: add_query_param("lid", lname_and_lid_to_lid(st.session_state.get("select_lid", "")))
+                                                              )
             oldest_release_data: date = datetime.now().date()
             oldest_release_datetime: datetime = datetime.now()
             for meta_format in selected_meta_formats:

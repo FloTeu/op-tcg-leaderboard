@@ -67,7 +67,7 @@ def display_sortby_select() -> LeaderboardSortBy:
     return st.selectbox("Sort By", LeaderboardSortBy.to_list())
 
 
-def display_leader_select(available_leader_ids: list[str] | None = None,
+def display_leader_select(available_leader_names: list[str] | None = None,
                           multiselect: bool = True,
                           default: list[str] | str = None,
                           label: str = "Leader",
@@ -75,15 +75,15 @@ def display_leader_select(available_leader_ids: list[str] | None = None,
                           on_change: Callable[..., None] | None = None,
                           **kwargs) -> list[
                                                                                                            str] | str | None:
-    available_leader_ids = available_leader_ids if available_leader_ids else ["OP01-001", "OP05-041", "OP02-001",
+    available_leader_names = available_leader_names if available_leader_names else ["OP01-001", "OP05-041", "OP02-001",
                                                                               "ST01-001", "OP02-093", "OP02-026"]
     if multiselect:
-        return st.multiselect(label, available_leader_ids, default=default, key=key, on_change=on_change, kwargs=kwargs)
+        return st.multiselect(label, available_leader_names, default=default, key=key, on_change=on_change, kwargs=kwargs)
     else:
         if isinstance(default, list):
             default = default[0]
-        index = available_leader_ids.index(default) if default else None
-        leader: str | None = st.selectbox(label, available_leader_ids, index=index, key=key, on_change=on_change, kwargs=kwargs)
+        index = available_leader_names.index(default) if default else None
+        leader: str | None = st.selectbox(label, available_leader_names, index=index, key=key, on_change=on_change, kwargs=kwargs)
         return leader
 
 

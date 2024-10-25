@@ -2,13 +2,10 @@ from contextlib import suppress
 
 import streamlit as st
 
-from op_tcg.frontend.utils.leader_data import lid2ldata_fn, lid_to_name_and_lid
+from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid
 
-
-def add_query_param(kwargs: dict[str, str]):
-    for qparam, session_key in kwargs.items():
-        st.query_params[qparam] = st.session_state[session_key].split("(")[1].strip(")")
-
+def add_query_param(qparam_key: str, qparam_value: str | list[str]):
+    st.query_params[qparam_key] = qparam_value
 
 def get_default_leader_name(available_leader_ids: list[str], query_param: str = "lid") -> str:
     qp_lid = st.query_params.get(query_param, None)
@@ -21,6 +18,14 @@ def get_default_leader_name(available_leader_ids: list[str], query_param: str = 
     else:
         # of no query param provided pick first of available_leader_ids
         return lid_to_name_and_lid(available_leader_ids[0])
+
+def get_default_leader_names(available_leader_ids: list[str], query_param: str = "lid") -> list[str]:
+    qp_lids = st.query_params.get_all(query_param)
+    if qp_lids:
+        return [lid_to_name_and_lid(qp_lid) for qp_lid in qp_lids if qp_lid in available_leader_ids]
+    else:
+        # of no query param provided use all available_leader_ids
+        return [lid_to_name_and_lid(lid) for lid in available_leader_ids]
 
 def delete_query_param(q_param: str):
     with suppress(KeyError):

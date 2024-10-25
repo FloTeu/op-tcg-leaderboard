@@ -12,7 +12,7 @@ from op_tcg.frontend.sidebar import display_meta_select, display_leader_select
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_tournament_standing_data, get_leader_extended
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid, lname_and_lid_to_lid, \
     get_lid2ldata_dict_cached
-from op_tcg.frontend.utils.query_params import add_query_param, get_default_leader_name
+from op_tcg.frontend.utils.query_params import get_default_leader_name, add_query_param
 from op_tcg.frontend.utils.decklist import tournament_standings2decklist_data, DecklistData, \
     get_card_id_card_data_lookup, get_decklist_price
 
@@ -114,9 +114,10 @@ def main_leader_decklist_movement():
     available_leader_names = [lid_to_name_and_lid(lid) for lid in available_leader_ids]
     default_leader_name = get_default_leader_name(available_leader_ids)
     with st.sidebar:
-        selected_leader_name: str = display_leader_select(available_leader_ids=available_leader_names, key="select_lid",
+        selected_leader_name: str = display_leader_select(available_leader_names=available_leader_names, key="select_lid",
                                                           multiselect=False, default=default_leader_name,
-                                                          on_change=add_query_param, kwargs={"lid": "select_lid"})
+                                                          on_change=lambda: add_query_param("lid", lname_and_lid_to_lid(st.session_state.get("select_lid", "")))
+                                                          )
         threshold: int = st.slider("Min Occurrence Change (in %)", min_value=5, max_value=100, value=40)
 
     if selected_leader_name:

@@ -27,7 +27,7 @@ poetry shell
 ```
 
 ## Local development
-For local development it's recommended to set the `DEBUG` environment file to true. 
+For local development it's recommended to set the `DEBUG` value in the environment file to true. 
 If `DEBUG` is true you also need to start the frontend code via localhost at port 3001.
 ```
 cd components/nivo_charts/nivo_charts/frontend
