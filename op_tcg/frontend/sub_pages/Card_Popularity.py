@@ -151,8 +151,25 @@ def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = Non
         col1, col2 = st.columns([0.5, 1])
         col1.image(card_data.image_url)
         with col2:
-            pass
-            #st.warning(f"Test {card_id}")
+            md_string = f"""
+            **Meta**: {card_data.meta_format}  
+            **Card Type**: {card_data.card_category}  
+            **Color**: {", ".join(card_data.colors)}  """
+            if card_data.cost is not None:
+                md_string += f"\n**Cost**: {card_data.cost}  "
+            if card_data.power is not None:
+                md_string += f"\n**Power**: {card_data.power}  "
+            if card_data.counter is not None:
+                md_string += f"\n**Counter**: {card_data.counter}  "
+            if card_data.life is not None:
+                md_string += f"\n**Life**: {card_data.life}  "
+            if card_data.attributes:
+                md_string += f"""\n**Attribute**: {", ".join(card_data.attributes)}  """
+
+            md_string += f"""\n**Types**: {", ".join(card_data.types)}  
+            **Ability**: {card_data.ability}  """
+
+            st.markdown(md_string)
 
         show_normalized = st.toggle("Show normalized data", True)
         if show_normalized:
