@@ -1,5 +1,7 @@
 import streamlit as st
 
+from op_tcg.frontend.utils.js import is_mobile
+
 st.set_page_config(layout="wide")
 from op_tcg.frontend.utils.launch import init_load_data
 
@@ -23,6 +25,7 @@ from op_tcg.frontend.sidebar import display_meta_select, display_only_official_t
     display_match_count_slider_slider, display_leader_color_multiselect, display_leader_select, LeaderboardSortBy, \
     display_sortby_select
 from op_tcg.frontend.utils.extract import get_leader_extended
+from op_tcg.frontend.utils.styles import read_style_sheet
 from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_cell, value2color_table_cell
 from op_tcg.frontend.utils.leader_data import get_lid2ldata_dict_cached, lids_to_name_and_lids, lname_and_lid_to_lid, calculate_dominance_score
 from op_tcg.frontend.utils.utils import bq_client
@@ -34,6 +37,16 @@ from streamlit_theme import st_theme
 
 ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 
+def change_sidebar_collapse_button_style():
+    pass
+    if is_mobile():
+        st.markdown(
+            f"""
+            <style>
+            {read_style_sheet("sidebar").cssText.decode()}
+            </style>
+            """, unsafe_allow_html=True
+        )
 
 def leader_id2line_chart(leader_id: str, df_leader_extended, y_value: LineChartYValue = LineChartYValue.WIN_RATE, only_official: bool = True):
     # Streamlit Elements includes 45 dataviz components powered by Nivo.
@@ -313,5 +326,6 @@ if booleanize(os.environ.get("DEBUG", "")):
     # if not admin_password in st.secrets["admin"]["emails"]:
     pages.append(st.Page(main_admin_leader_upload, title='Admin_Leader_Upload', url_path="Admin_Leader_Upload"))
 
+change_sidebar_collapse_button_style()
 pg = st.navigation(pages)
 pg.run()
