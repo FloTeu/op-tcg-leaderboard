@@ -25,7 +25,7 @@ from op_tcg.frontend.sidebar import display_meta_select, display_only_official_t
     display_match_count_slider_slider, display_leader_color_multiselect, display_leader_select, LeaderboardSortBy, \
     display_sortby_select
 from op_tcg.frontend.utils.extract import get_leader_extended
-from op_tcg.frontend.utils.styles import read_style_sheet
+from op_tcg.frontend.utils.styles import execute_style_sheet
 from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_cell, value2color_table_cell
 from op_tcg.frontend.utils.leader_data import get_lid2ldata_dict_cached, lids_to_name_and_lids, lname_and_lid_to_lid, calculate_dominance_score
 from op_tcg.frontend.utils.utils import bq_client
@@ -39,13 +39,7 @@ ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 
 def change_sidebar_collapse_button_style():
     if is_mobile():
-        st.markdown(
-            f"""
-            <style>
-            {read_style_sheet("sidebar").cssText.decode()}
-            </style>
-            """, unsafe_allow_html=True
-        )
+        execute_style_sheet("sidebar")
 
 
 def leader_id2line_chart(leader_id: str, df_leader_extended, y_value: LineChartYValue = LineChartYValue.WIN_RATE, only_official: bool = True):

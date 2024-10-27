@@ -16,7 +16,7 @@ from op_tcg.frontend.utils.js import is_mobile
 from streamlit_theme import st_theme
 
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid
-from op_tcg.frontend.utils.styles import GREEN_RGB, read_style_sheet, css_rule_to_dict
+from op_tcg.frontend.utils.styles import GREEN_RGB, read_style_sheet, execute_style_sheet
 
 ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 
@@ -45,7 +45,7 @@ def display_cards(cards_data: list[DisplayCardData], is_mobile: bool):
     </style></html>"""
     st.markdown(card_html, unsafe_allow_html=True)
 
-
+    carousel_card_ids = [cd.card_id for cd in cards_data]
     for i, card_data in enumerate(cards_data):
         with n_st_cols[i % n_cols]:
             width = f"{int(max(card_data.occurrence_in_decklists, 0.1) * 100)}%"
@@ -64,7 +64,7 @@ def display_cards(cards_data: list[DisplayCardData], is_mobile: bool):
             # col1, col3 = st.columns([1,1])
             col1.markdown(f"""{header_hashtags} {card_name}""")
             with col3:
-                display_dialog_button(card_data.card_id)
+                display_dialog_button(card_data.card_id, carousel_card_ids=carousel_card_ids)
             card_html = f"""
             <html>
             <div class="card">
@@ -79,14 +79,15 @@ def display_cards(cards_data: list[DisplayCardData], is_mobile: bool):
             st.markdown(card_html, unsafe_allow_html=True)
 
 
-def display_dialog_button(card_id: str):
+def display_dialog_button(card_id: str, carousel_card_ids: list[str] = None):
     if st.button(":bar_chart:", key=f"card_modal_button_{card_id}"):
-        display_card_details_dialog(card_id=card_id)
+        st.session_state["index_offset"] = 0
+        display_card_details_dialog(card_id=card_id, carousel_card_ids=carousel_card_ids)
 
 
 
 @st.dialog("Card Detail", width="large")
-def display_card_details_dialog(card_id: str):
+def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = None):
     def normalize_data(chart_data: list[dict[str, int]]) -> dict[str, float]:
         def normalize_dict_values(input_dict):
             # Calculate the sum of all values in the dictionary
@@ -116,11 +117,29 @@ def display_card_details_dialog(card_id: str):
                     leader_id_to_highest_value[lid] = occurrence
         return [k for k, v in sorted(leader_id_to_highest_value.items(), key=lambda item: item[1], reverse=True)]
 
+    index_offset = st.session_state.get("index_offset", 0)
+    if index_offset != 0 and carousel_card_ids:
+        card_index = carousel_card_ids.index(card_id) + index_offset
+        card_id = carousel_card_ids[card_index]
+
+    selected_card_id = card_id
+    button_left, button_right = st.columns(2)
+    if carousel_card_ids and card_id in carousel_card_ids:
+        card_index = carousel_card_ids.index(card_id)
+        if card_index != 0 and button_left.button(":arrow_left:", key=f"open_prev_modal_button"):
+            selected_card_id = carousel_card_ids[card_index - 1]
+            st.session_state["index_offset"] -= 1
+        if card_index != len(carousel_card_ids) and button_right.button(":arrow_right:", key=f"open_next_modal_button"):
+            selected_card_id = carousel_card_ids[card_index + 1]
+            st.session_state["index_offset"] += 1
+
+    # center buttons (and other columns, which is not intended right now)
+    execute_style_sheet("st_columns/two_cols_centered")
 
     with st.spinner():
         cid2card_data = get_card_id_card_data_lookup(aa_version=0)
-        card_data = cid2card_data[card_id]
-        chart_data, chart_data_meta_formats = get_stream_leader_occurrence_data(cid2card_data, card_id)
+        card_data = cid2card_data[selected_card_id]
+        chart_data, chart_data_meta_formats = get_stream_leader_occurrence_data(cid2card_data, selected_card_id)
 
         # filter top n most occurring leaders
         top_n_leaders = 5
@@ -128,7 +147,7 @@ def display_card_details_dialog(card_id: str):
         chart_data = [{lid: occ for lid, occ in cd.items() if lid in most_occurring_leader_ids} for cd in chart_data]
 
         # display data
-        st.header(lid_to_name_and_lid(card_id, leader_name=card_data.name))
+        st.header(lid_to_name_and_lid(selected_card_id, leader_name=card_data.name))
         col1, col2 = st.columns([0.5, 1])
         col1.image(card_data.image_url)
         with col2:

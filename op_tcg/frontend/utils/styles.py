@@ -36,5 +36,20 @@ def read_style_sheet(file_name: str, selector: str | None = None) -> CSSStyleShe
 
     return return_object
 
+def execute_style_sheet(file_name: str, selector: str | None = None):
+    """Executes css code from a .css file"""
+    if selector:
+        css_text = read_style_sheet(file_name, selector).cssText
+    else:
+        css_text = read_style_sheet(file_name, selector).cssText.decode()
+
+    st.markdown(
+        f"""
+        <style>
+        {css_text}
+        </style>
+        """, unsafe_allow_html=True
+    )
+
 def css_rule_to_dict(rule: CSSStyleRule) -> dict:
     return {style: rule.style[style] for style in rule.style.keys()}
