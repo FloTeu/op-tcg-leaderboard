@@ -7,6 +7,7 @@ from op_tcg.backend.models.leader import Leader, TournamentWinner, LeaderElo, Le
 from op_tcg.backend.models.matches import Match, LeaderWinRate
 from op_tcg.backend.models.tournaments import TournamentStanding, Tournament, TournamentStandingExtended, \
     TournamentDecklist
+from op_tcg.backend.utils.utils import timeit
 from op_tcg.frontend.utils.utils import run_bq_query
 
 # maxsize: Number of elements the cache can hold
@@ -60,6 +61,7 @@ def get_leader_extended(meta_formats: list[MetaFormat] | None = None, leader_ids
     else:
         return bq_leader_data
 
+@timeit
 def get_tournament_standing_data(meta_formats: list[MetaFormat], leader_id: str | None = None) -> list[TournamentStandingExtended]:
     bq_tournament_standings: list[TournamentStandingExtended] = []
     for meta_format in meta_formats:

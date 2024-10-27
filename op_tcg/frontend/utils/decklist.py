@@ -8,6 +8,7 @@ from op_tcg.backend.models.cards import LatestCardPrice, ExtendedCardData, CardC
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.tournaments import TournamentStandingExtended, TournamentDecklist
+from op_tcg.backend.utils.utils import timeit
 from op_tcg.frontend.utils.extract import get_card_data, get_tournament_standing_data, get_leader_extended, \
     get_tournament_decklist_data
 
@@ -125,6 +126,7 @@ def get_similar_leader_data(decklist_data: DecklistData, compare_decklist_data: 
                              card_id2avg_count_card=compare_decklist_data.card_id2avg_count_card
                              )
 
+@timeit
 def get_most_similar_leader_data(leader_id: str, meta_formats: list[MetaFormat]) -> dict[str, SimilarLeaderData]:
     """
     Calculates the similarity score for each leader combination of the same color.

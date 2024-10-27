@@ -13,7 +13,7 @@ from op_tcg.backend.models.cards import ExtendedCardData, CardCurrency
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.matches import LeaderWinRate
-from op_tcg.backend.models.tournaments import TournamentStandingExtended, TournamentDecklist
+from op_tcg.backend.utils.utils import timeit
 from op_tcg.frontend.sidebar import display_leader_select, display_meta_select, display_only_official_toggle
 from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER
 from op_tcg.frontend.utils.chart import create_leader_line_chart, LineChartYValue, create_leader_win_rate_radar_chart, \
@@ -260,7 +260,7 @@ def get_best_and_worst_opponent(df_meta_win_rate_data, meta_formats: list[MetaFo
     return OpponentMatchups(easiest_matchups=best_matchups,
                             hardest_matchups=worst_matchups)
 
-
+@timeit
 def main_leader_detail_analysis():
 
     with st.sidebar:

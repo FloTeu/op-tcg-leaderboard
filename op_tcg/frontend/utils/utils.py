@@ -26,9 +26,12 @@ def run_bq_query(query: str) -> list[dict[str, Any]]:
     return rows
 
 def sort_df_by_meta_format(df, meta_format_col: str = "meta_format", reverse=False):
+    # Create a copy of the DataFrame to avoid SettingWithCopyWarning
+    df = df.copy()
+
     sorted_meta_formats = MetaFormat.to_list()
     if reverse:
         sorted_meta_formats.reverse()
     order_mapping = {meta_format: idx for idx, meta_format in enumerate(sorted_meta_formats)}
-    df['sort_order'] = df[meta_format_col].map(order_mapping)
+    df.loc[:, 'sort_order'] = df[meta_format_col].map(order_mapping)
     return df.sort_values('sort_order').drop(columns='sort_order')

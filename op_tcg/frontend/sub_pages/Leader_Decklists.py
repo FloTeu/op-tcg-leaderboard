@@ -6,11 +6,13 @@ from statistics import mean
 from op_tcg.backend.models.input import MetaFormat, meta_format2release_datetime
 from op_tcg.backend.models.leader import LeaderElo, LeaderExtended
 from op_tcg.backend.models.cards import OPTcgLanguage, CardCurrency
-from op_tcg.backend.models.tournaments import TournamentStanding, TournamentStandingExtended
+from op_tcg.backend.models.tournaments import TournamentStanding, TournamentStandingExtended, TournamentDecklist
+from op_tcg.backend.utils.utils import timeit
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select
 from op_tcg.frontend.utils.decklist import tournament_standings2decklist_data, DecklistData, \
     get_card_id_card_data_lookup, get_decklist_price
-from op_tcg.frontend.utils.extract import get_tournament_standing_data, get_leader_extended
+from op_tcg.frontend.utils.extract import get_tournament_standing_data, get_leader_extended, \
+    get_tournament_decklist_data
 from op_tcg.frontend.utils.js import is_mobile
 from op_tcg.frontend.utils.query_params import get_default_leader_name, add_query_param
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid, lname_and_lid_to_lid
@@ -73,7 +75,7 @@ def display_decklist(decklist: dict[str, int], is_mobile: bool):
                             gutterBottom=True
                         )], key=f"item_{card_id}"
                 )
-
+@timeit
 def main_leader_detail_analysis_decklists():
     st.header("Leader Decklist")
 

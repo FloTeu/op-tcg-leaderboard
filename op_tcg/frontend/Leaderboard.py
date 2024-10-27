@@ -232,8 +232,11 @@ def main():
     # display data
     st.header("One Piece TCG Elo Leaderboard")
 
-    with st.spinner("Launch App"):
-        init_load_data()
+    if not st.session_state.get("launch_succeeded", False):
+        with st.spinner("Launch App"):
+            init_load_data()
+            st.session_state["launch_succeeded"] = True
+
 
     with st.sidebar:
         meta_format: MetaFormat = display_meta_select(multiselect=False)[0]
