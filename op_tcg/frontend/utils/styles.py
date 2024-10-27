@@ -24,9 +24,11 @@ def read_style_sheet(file_name: str, selector: str | None = None) -> CSSStyleShe
     return_object = None
     if selector:
         for rule in sheet:
-            css_selector = rule.selectorText
-            if selector == css_selector:
-                return_object = rule
+            if hasattr(rule, "selectorText"):
+                css_selector = rule.selectorText
+                if selector == css_selector:
+                    return_object = rule
+                    break
         if return_object is None:
             raise ValueError(f"Could not find selector {selector}")
     else:

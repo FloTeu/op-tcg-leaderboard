@@ -1,10 +1,31 @@
 import time
 import random
+from pathlib import Path
+
+import streamlit as st
 
 from streamlit_js_eval import streamlit_js_eval
 from functools import cache
 from uuid import uuid4
 from op_tcg.frontend.utils.session import get_session_id
+from op_tcg.frontend import scripts
+
+
+def read_js_file(file_name: str) -> str:
+    """Returns javascript code from a .js file"""
+    with open(Path(scripts.__path__[0]) / f"{file_name}.js", "r") as fp:
+        js_text = fp.read()
+    return js_text
+
+
+def execute_js_file(file_name: str):
+    """Executes js code from a .js file"""
+    js_text = read_js_file(file_name)
+    st.components.v1.html(f"""
+        <script>
+            eval(`{js_text}`);
+        </script>
+    """, height=0, width=0)
 
 
 @cache

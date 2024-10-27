@@ -1,6 +1,6 @@
 import streamlit as st
 
-from op_tcg.frontend.utils.js import is_mobile
+from op_tcg.frontend.utils.js import is_mobile, execute_js_file
 
 st.set_page_config(layout="wide")
 from op_tcg.frontend.utils.launch import init_load_data
@@ -38,7 +38,6 @@ from streamlit_theme import st_theme
 ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 
 def change_sidebar_collapse_button_style():
-    pass
     if is_mobile():
         st.markdown(
             f"""
@@ -47,6 +46,7 @@ def change_sidebar_collapse_button_style():
             </style>
             """, unsafe_allow_html=True
         )
+
 
 def leader_id2line_chart(leader_id: str, df_leader_extended, y_value: LineChartYValue = LineChartYValue.WIN_RATE, only_official: bool = True):
     # Streamlit Elements includes 45 dataviz components powered by Nivo.
@@ -242,8 +242,12 @@ def upload_match_dialog():
 
 
 def main():
+
     # display data
     st.header("One Piece TCG Elo Leaderboard")
+
+    # Make sidebar button bounce for leaderboard page
+    execute_js_file("add_sidebar_bounce")
 
     if not st.session_state.get("launch_succeeded", False):
         with st.spinner("Launch App"):
@@ -329,3 +333,4 @@ if booleanize(os.environ.get("DEBUG", "")):
 change_sidebar_collapse_button_style()
 pg = st.navigation(pages)
 pg.run()
+
