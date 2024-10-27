@@ -11,7 +11,7 @@ from op_tcg.frontend.utils.extract import get_card_popularity_data, get_tourname
 from op_tcg.frontend.sidebar import display_meta_select, display_card_color_multiselect, \
     display_card_ability_multiselect, display_card_fraction_multiselect, display_release_meta_select, \
     display_card_attribute_multiselect
-from op_tcg.frontend.utils.js import is_mobile
+from op_tcg.frontend.utils.js import is_mobile, execute_js_file
 
 from streamlit_theme import st_theme
 
@@ -78,6 +78,9 @@ def display_cards(cards_data: list[DisplayCardData], is_mobile: bool):
             """
             st.markdown(card_html, unsafe_allow_html=True)
 
+    # TODO: This js file does not work yet
+    execute_js_file("st_columns_prevent_mobile_break")
+
 
 def display_dialog_button(card_id: str, carousel_card_ids: list[str] = None):
     if st.button(":bar_chart:", key=f"card_modal_button_{card_id}"):
@@ -132,6 +135,11 @@ def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = Non
         if card_index != len(carousel_card_ids) and button_right.button(":arrow_right:", key=f"open_next_modal_button"):
             selected_card_id = carousel_card_ids[card_index + 1]
             st.session_state["index_offset"] += 1
+            if card_index == 0 and button_left.button(":arrow_left:", key=f"open_prev_modal_button"):
+                selected_card_id = carousel_card_ids[card_index - 1]
+                st.session_state["index_offset"] -= 1
+
+
 
     # center buttons (and other columns, which is not intended right now)
     execute_style_sheet("st_columns/two_cols_centered")
