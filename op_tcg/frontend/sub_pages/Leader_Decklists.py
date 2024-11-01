@@ -192,10 +192,8 @@ def main_leader_detail_analysis_decklists():
                 st.write(
                     f"Average Price: {'%.2f' % decklist_data.avg_price_eur}€ | ${'%.2f' % decklist_data.avg_price_usd}")
                 col1, col2, col3 = st.columns([0.4, 0.5, 0.1])
-                col1.image(
-                    f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{leader_id.split('-')[0]}/{leader_id}_{OPTcgLanguage.EN.upper()}.webp",
-                    width=400,  # Manually Adjust the width of the image as per requirement
-                    )
+                col1.image(f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{leader_id.split('-')[0]}/{leader_id}_{OPTcgLanguage.EN.upper()}.webp")
+
                 with col2:
                     display_list_view(decklist_data, card_ids_filtered)
 
