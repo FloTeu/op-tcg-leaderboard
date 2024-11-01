@@ -10,7 +10,7 @@ from op_tcg.frontend.utils.decklist import DecklistData
 def display_list_view(decklist_data: DecklistData, card_ids: list[str]):
     lis = ""
 
-    for card_id in card_ids:
+    for i, card_id in enumerate(card_ids):
         card_data: LatestCardPrice | None = decklist_data.card_id2card_data.get(card_id, None)
         op_set = card_id.split("-")[0]
         occurence_percantage = decklist_data.card_id2occurrence_proportion[card_id]
@@ -19,7 +19,7 @@ def display_list_view(decklist_data: DecklistData, card_ids: list[str]):
         price_html = f'<li>Price: {card_data.latest_eur_price}€ | ${card_data.latest_usd_price}</li>' if card_data else ''
         lis += f"""
 <li class="list-item">
-    <div class="item-image" onclick="openModal(this)">
+    <div class="item-image" data-index="{i}" onclick="openModal(this)">
       <img src="{img_src}" alt="Item Image">
     </div>
     <div class="item-details">
