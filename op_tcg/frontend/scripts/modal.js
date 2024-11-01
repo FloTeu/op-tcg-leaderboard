@@ -7,7 +7,6 @@ var images = []; // Array to hold the image sources
 var isSwiping = false; // Flag to prevent skipping images
 
 function openModal(imgElement) {
-  console.log(imgElement);
   var modalImg = document.getElementById("img01");
   modal.style.display = "block";
   modalImg.src = imgElement.querySelector('img').src;
@@ -15,12 +14,10 @@ function openModal(imgElement) {
   // Store current image index and all image sources
   currentIndex = parseInt(imgElement.dataset.index); // Assuming you add data-index to each image
   images = [...document.querySelectorAll('.item-image img')].map(img => img.src);
-  console.log(imgElement, currentIndex, images);
 }
 
 // Get the <span> element that closes the modal
 function closeModal() {
-  console.log("closeModal");
   modal.style.display = "none";
 }
 
@@ -63,14 +60,12 @@ modal.addEventListener('touchmove', function(event) {
 
 // Function to show the next image
 function nextImage() {
-  console.log("nextImage", currentIndex, images.length, document.getElementById("img01"));
   currentIndex = (currentIndex + 1) % images.length; // Loop back to start
   document.getElementById("img01").src = images[currentIndex];
 }
 
 // Function to show the previous image
 function previousImage() {
-  console.log("previousImage");
   currentIndex = (currentIndex - 1 + images.length) % images.length; // Loop back to end
   document.getElementById("img01").src = images[currentIndex];
 }
