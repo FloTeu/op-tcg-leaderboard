@@ -78,9 +78,8 @@ def display_cards(cards_data: list[DisplayCardData], is_mobile: bool):
             """
             st.markdown(card_html, unsafe_allow_html=True)
 
-    # TODO: This js file does not work yet
-    execute_js_file("st_columns_prevent_mobile_break")
 
+    execute_js_file("st_columns_prevent_mobile_break_button")
 
 def display_dialog_button(card_id: str, carousel_card_ids: list[str] = None):
     if st.button(":bar_chart:", key=f"card_modal_button_{card_id}"):
@@ -140,10 +139,6 @@ def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = Non
                 st.session_state["index_offset"] -= 1
 
 
-
-    # center buttons (and other columns, which is not intended right now)
-    execute_style_sheet("st_columns/two_cols_centered")
-
     with st.spinner():
         cid2card_data = get_card_id_card_data_lookup(aa_version=0)
         card_data = cid2card_data[selected_card_id]
@@ -187,6 +182,11 @@ def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = Non
                 st.error("Sorry something went wrong with the data normalization")
 
         create_card_leader_occurrence_stream_chart(chart_data, x_tick_labels=chart_data_meta_formats, title=f"Occurrence in Top {top_n_leaders} Leader Decks")
+
+
+    # center buttons (and other columns, which is not intended right now)
+    execute_style_sheet("st_columns/two_cols_centered")
+    execute_js_file("st_columns_prevent_mobile_break_button")
 
 
 def get_stream_leader_occurrence_data(cid2card_data: dict[str, DisplayCardData], card_id: str):
