@@ -1,4 +1,5 @@
 import time
+from datetime import date, datetime, timedelta
 from functools import partial
 
 import pandas as pd
@@ -10,19 +11,20 @@ from pydantic import BaseModel
 from streamlit_elements import elements, mui, dashboard, nivo, html as element_html
 
 from op_tcg.backend.models.cards import ExtendedCardData, CardCurrency
-from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.input import MetaFormat, meta_format2release_datetime
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.matches import LeaderWinRate
+from op_tcg.backend.models.tournaments import TournamentDecklist
 from op_tcg.backend.utils.utils import timeit
 from op_tcg.frontend.sidebar import display_leader_select, display_meta_select, display_only_official_toggle
 from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER
 from op_tcg.frontend.utils.chart import create_leader_line_chart, LineChartYValue, create_leader_win_rate_radar_chart, \
     get_radar_chart_data, create_line_chart
 from op_tcg.frontend.utils.decklist import DecklistData, tournament_standings2decklist_data, \
-    get_leader_decklist_card_ids, decklist_data_to_card_ids, get_most_similar_leader_data, get_card_id_card_data_lookup, \
-    SimilarLeaderData, get_prices_of_decklists
+    decklist_data_to_card_ids, get_most_similar_leader_data, SimilarLeaderData, \
+    DecklistFilter, filter_tournament_decklists
 from op_tcg.frontend.utils.extract import get_leader_extended, get_leader_win_rate, get_tournament_standing_data, \
-    get_tournament_decklist_data
+    get_tournament_decklist_data, get_card_id_card_data_lookup
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid, lname_and_lid_to_lid, get_win_rate_dataframes, \
     get_lid2ldata_dict_cached
 from op_tcg.frontend.utils.query_params import get_default_leader_name, \
@@ -79,9 +81,14 @@ def get_leader_data(matchups: list[Matchup], leader_extended_data: list[LeaderEx
         opponent_data = list(filter(lambda le: le.id == selected_opponent_id, leader_extended_data))[0]
     return opponent_data
 
-def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: list[LeaderExtended], radar_chart_data, decklist_data: DecklistData, opponent_matchups: OpponentMatchups, lid2similar_leader_data: dict[str, SimilarLeaderData], cid2cdata_dict: dict[str, ExtendedCardData]):
-    decklist_card_ids = decklist_data_to_card_ids(decklist_data, occurrence_threshold=0.02,
-                                                  exclude_card_ids=[leader_data.id])
+def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: list[LeaderExtended], radar_chart_data, tournament_decklists: list[TournamentDecklist], opponent_matchups: OpponentMatchups, lid2similar_leader_data: dict[str, SimilarLeaderData]):
+    cid2cdata_dict = get_card_id_card_data_lookup()
+
+    avg_price_eur = np.mean([td.price_eur for td in tournament_decklists])
+    avg_price_usd = np.mean([td.price_usd for td in tournament_decklists])
+    meta_formats = [td.meta_format for td in tournament_decklists]
+    min_tournament_date = min(td.tournament_timestamp for td in tournament_decklists).date() if len(
+        tournament_decklists) > 0 else None
 
     easiest_opponent_data: LeaderExtended | None = get_leader_data(opponent_matchups.easiest_matchups, leader_extended_data, q_param=Q_PARAM_EASIEST_OPPONENT)
     hardest_opponent_data: LeaderExtended | None = get_leader_data(opponent_matchups.hardest_matchups, leader_extended_data, q_param=Q_PARAM_HARDEST_OPPONENT)
@@ -92,12 +99,13 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
         st.error("Selected best and worst opponent cannot be the same")
         return None
 
+
     col1, col2, col3 = st.columns([0.25, 0.05, 0.5])
     with col1:
         st.markdown("")
         st.image(leader_data.aa_image_url)
         st.markdown(f"""
-**Average Price**: {'%.2f' % decklist_data.avg_price_eur}€ | ${'%.2f' % decklist_data.avg_price_usd}
+**Average Price**: {'%.2f' % avg_price_eur}€ | ${'%.2f' % avg_price_usd}
 """)
     with col3:
         st.subheader("Win Rate Chart")
@@ -141,6 +149,14 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
 
         with col1:
             st.subheader("Decklist")
+            with st.expander("Decklist Filter"):
+                decklist_filter: DecklistFilter = display_decklist_filter(meta_formats, min_tournament_date)
+                tournament_decklists = filter_tournament_decklists(tournament_decklists, decklist_filter)
+                decklist_data: DecklistData = tournament_standings2decklist_data(tournament_decklists,
+                                                                                 cid2cdata_dict)
+            st.write(f"Number of decks: {decklist_data.num_decklists}")
+            decklist_card_ids = decklist_data_to_card_ids(decklist_data, occurrence_threshold=0.02,
+                                                          exclude_card_ids=[leader_data.id])
             display_list_view(decklist_data, decklist_card_ids)
         with col2:
             most_similar_leader_ids = sorted(lid2similar_leader_data, key=lambda k: lid2similar_leader_data[k].similarity_score, reverse=True)
@@ -181,6 +197,35 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
             display_cards_view(similar_leader_data.cards_intersection, cid2cdata_dict, title="Cards in both decks:")
             display_cards_view(similar_leader_data.cards_missing, cid2cdata_dict, title="Missing cards:")
 
+def display_decklist_filter(selected_meta_formats: list[MetaFormat], decklist_min_tournament_date: date | None = None) -> DecklistFilter:
+    oldest_release_date: date = datetime.now().date()
+    for meta_format in selected_meta_formats:
+        release_date = meta_format2release_datetime(meta_format)
+        if release_date.date() < oldest_release_date:
+            oldest_release_date = release_date.date()
+
+    if decklist_min_tournament_date == None:
+        min_date = oldest_release_date
+    else:
+        min_date = min(oldest_release_date, decklist_min_tournament_date)
+    min_datetime = datetime(min_date.year, min_date.month, min_date.day)
+    max_datetime = datetime(datetime.now().year, datetime.now().month, datetime.now().day)
+    start_datetime, end_datetime = st.slider(
+        "Date Range",
+        min_value=min_datetime,
+        max_value=max_datetime,
+        value=(min_datetime, max_datetime),
+        step=timedelta(days=1),
+        format="DD/MM/YY",
+        help="Format: DD/MM/YY")
+
+    min_tournament_placing: int = st.number_input("Min Tournament Placing", value=None, min_value=1)
+
+    return DecklistFilter(
+        start_datetime=start_datetime,
+        end_datetime=end_datetime,
+        min_tournament_placing=min_tournament_placing
+    )
 
 def display_cards_view(card_ids: list[str], cid2cdata_dict: dict[str, ExtendedCardData], title: str, n_cols: int = 4):
     st.write(title)
@@ -303,15 +348,11 @@ def main_leader_detail_analysis():
         df_meta_win_rate_data = pd.DataFrame(
             [lwr.dict() for lwr in selected_meta_win_rate_data if lwr.only_official == only_official])
 
-        # Get decklist data
-        card_id2card_data = get_card_id_card_data_lookup()
-        tournament_standings = get_tournament_decklist_data(
-            meta_formats=selected_meta_formats, leader_ids=[leader_extended.id])
-        decklist_data: DecklistData = tournament_standings2decklist_data(tournament_standings, card_id2card_data)
         opponent_matchups = get_best_and_worst_opponent(df_meta_win_rate_data.query(f"leader_id == '{leader_extended.id}'"), meta_formats=selected_meta_formats, exclude_leader_ids=[leader_extended.id])
-        decklist_data.avg_price_usd = np.mean(get_prices_of_decklists([ts.decklist for ts in tournament_standings if ts.decklist], card_id2card_data, currency=CardCurrency.US_DOLLAR))
-        decklist_data.avg_price_eur = np.mean(get_prices_of_decklists([ts.decklist for ts in tournament_standings if ts.decklist], card_id2card_data, currency=CardCurrency.EURO))
 
+        # Get decklist data
+        tournament_decklists: list[TournamentDecklist] = get_tournament_decklist_data(
+            meta_formats=selected_meta_formats, leader_ids=[leader_extended.id])
         # Get color matchup radar plot data
         leader_ids = list(set([leader_extended.id, *[matchup.leader_id for matchup in opponent_matchups.hardest_matchups], *[matchup.leader_id for matchup in opponent_matchups.easiest_matchups]]))
         _, _, df_color_win_rates = get_win_rate_dataframes(
@@ -319,7 +360,7 @@ def main_leader_detail_analysis():
         radar_chart_data: list[dict[str, str | float]] = get_radar_chart_data(df_color_win_rates)
 
 
-        display_leader_dashboard(leader_extended, leader_extended_data, radar_chart_data, decklist_data, opponent_matchups, lid2similar_leader_data, card_id2card_data)
+        display_leader_dashboard(leader_extended, leader_extended_data, radar_chart_data, tournament_decklists, opponent_matchups, lid2similar_leader_data)
     else:
         st.warning(f"No data available for Leader {leader_id}")
 

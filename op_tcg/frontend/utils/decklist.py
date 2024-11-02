@@ -1,6 +1,7 @@
-import time
 from contextlib import suppress
+from datetime import date, datetime
 
+import numpy as np
 import streamlit as st
 from pydantic import BaseModel, Field
 
@@ -9,8 +10,18 @@ from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.tournaments import TournamentStandingExtended, TournamentDecklist
 from op_tcg.backend.utils.utils import timeit
-from op_tcg.frontend.utils.extract import get_card_data, get_tournament_standing_data, get_leader_extended, \
-    get_tournament_decklist_data
+from op_tcg.frontend.utils.card_price import get_decklist_price
+from op_tcg.frontend.utils.extract import get_leader_extended, \
+    get_tournament_decklist_data, get_card_id_card_data_lookup
+
+
+class DecklistFilter(BaseModel):
+    start_datetime: datetime | None = None
+    end_datetime: datetime | None = None
+    min_tournament_placing: int | None = None
+    filter_currency: CardCurrency | None = None
+    min_price: int | None = None
+    max_price: int | None = None
 
 
 class DecklistData(BaseModel):
@@ -22,6 +33,9 @@ class DecklistData(BaseModel):
     card_id2total_count: dict[str, int]
     card_id2avg_count_card: dict[str, float]
     card_id2card_data: dict[str, LatestCardPrice]
+    meta_formats: list[MetaFormat] | None
+    min_tournament_date: date | None = None
+    max_tournament_date: date | None = None
 
 
 class SimilarLeaderData(BaseModel):
@@ -33,6 +47,7 @@ class SimilarLeaderData(BaseModel):
         description="List of card ids not available but required by similar leader sorted by occurrence")
     card_id2occurrence_proportion: dict[str, float]
     card_id2avg_count_card: dict[str, float]
+
 
 def tournament_standings2decklist_data(
         tournament_standings: list[TournamentStandingExtended] | list[TournamentDecklist],
@@ -55,22 +70,30 @@ def tournament_standings2decklist_data(
         card_id2avg_count_card[card_id] = float("%.2f" % (total_count / card_id2occurrences[card_id]))
         card_id2occurrence_proportion[card_id] = card_id2occurrences[card_id] / num_decklists
 
+    min_tournament_date = min(ts.tournament_timestamp for ts in tournament_standings).date() if len(
+        tournament_standings) > 0 else None
+    max_tournament_date = max(ts.tournament_timestamp for ts in tournament_standings).date() if len(
+        tournament_standings) > 0 else None
+    avg_price_eur = None
+    avg_price_usd = None
+    if len(tournament_standings) > 0 and isinstance(tournament_standings[0], TournamentDecklist):
+        avg_price_eur = np.mean([ts.price_eur for ts in tournament_standings if ts.price_eur])
+        avg_price_usd = np.mean([ts.price_usd for ts in tournament_standings if ts.price_usd])
+
+    meta_formats = list(set([ts.meta_format for ts in tournament_standings]))
     return DecklistData(num_decklists=num_decklists,
+                        avg_price_eur=avg_price_eur,
+                        avg_price_usd=avg_price_usd,
                         card_id2occurrences=card_id2occurrences,
                         card_id2occurrence_proportion=card_id2occurrence_proportion,
                         card_id2total_count=card_id2total_count,
                         card_id2avg_count_card=card_id2avg_count_card,
                         card_id2card_data={cid: cdata for cid, cdata in card_id2card_data.items() if
-                                           cid in card_id2occurrences})
-
-
-def get_card_id_card_data_lookup(aa_version: int = 0, ensure_latest_price_not_null=True) -> dict[str, ExtendedCardData]:
-    card_data = get_card_data()
-    card_data = [cdata for cdata in card_data if cdata.aa_version == aa_version]
-    if ensure_latest_price_not_null:
-        for cdata in card_data:
-            cdata.ensure_latest_price_not_none()
-    return {card.id: card for card in card_data}
+                                           cid in card_id2occurrences},
+                        meta_formats=meta_formats,
+                        min_tournament_date=min_tournament_date,
+                        max_tournament_date=max_tournament_date
+                        )
 
 
 @st.cache_data
@@ -99,8 +122,9 @@ def decklist_data_to_card_ids(decklist_data: DecklistData, occurrence_threshold:
 
     return list(filter(lambda x: filter_fn(x), card_ids_sorted))
 
+
 def get_similar_leader_data(decklist_data: DecklistData, compare_decklist_data: DecklistData, leader_id: str,
-                                compare_leader_id: str) -> SimilarLeaderData:
+                            compare_leader_id: str) -> SimilarLeaderData:
     """similarity score: How much of occurred cards in decklist_data is also available in other deck"""
     occurrence_list = []
     intersection = set(decklist_data.card_id2occurrence_proportion.keys()).intersection(
@@ -113,11 +137,14 @@ def get_similar_leader_data(decklist_data: DecklistData, compare_decklist_data: 
         if card_id in intersection:
             occurrence_list.append(occurrence)
     similarity_score = (sum(occurrence_list) / max_occurrences) if max_occurrences != 0 else 0
-    intersection_sorted = sorted(list(intersection), key=lambda x: compare_decklist_data.card_id2occurrence_proportion[x], reverse=True)
-    cards_missing = set(compare_decklist_data.card_id2occurrence_proportion.keys()) - set(decklist_data.card_id2occurrence_proportion.keys())
+    intersection_sorted = sorted(list(intersection),
+                                 key=lambda x: compare_decklist_data.card_id2occurrence_proportion[x], reverse=True)
+    cards_missing = set(compare_decklist_data.card_id2occurrence_proportion.keys()) - set(
+        decklist_data.card_id2occurrence_proportion.keys())
     with suppress(KeyError):
         cards_missing.remove(compare_leader_id)
-    cards_missing_sorted = sorted(list(cards_missing), key=lambda x: compare_decklist_data.card_id2occurrence_proportion[x], reverse=True)
+    cards_missing_sorted = sorted(list(cards_missing),
+                                  key=lambda x: compare_decklist_data.card_id2occurrence_proportion[x], reverse=True)
     return SimilarLeaderData(leader_id=compare_leader_id,
                              similarity_score=similarity_score,
                              cards_intersection=intersection_sorted,
@@ -125,6 +152,7 @@ def get_similar_leader_data(decklist_data: DecklistData, compare_decklist_data: 
                              card_id2occurrence_proportion=compare_decklist_data.card_id2occurrence_proportion,
                              card_id2avg_count_card=compare_decklist_data.card_id2avg_count_card
                              )
+
 
 @timeit
 def get_most_similar_leader_data(leader_id: str, meta_formats: list[MetaFormat]) -> dict[str, SimilarLeaderData]:
@@ -150,23 +178,41 @@ def get_most_similar_leader_data(leader_id: str, meta_formats: list[MetaFormat])
         tournament_decklist_filtered = [td for td in tournament_decklists if td.leader_id == lid]
         compare_decklist_data = tournament_standings2decklist_data(tournament_decklist_filtered, card_id2card_data)
         lid2sim_leader_data[lid] = get_similar_leader_data(decklist_data, compare_decklist_data,
-                                                            leader_id=leader_id, compare_leader_id=lid)
+                                                           leader_id=leader_id, compare_leader_id=lid)
     return lid2sim_leader_data
 
-def get_decklist_price(decklist: dict[str, int], card_id2card_data: dict[str, LatestCardPrice],
-                       currency: CardCurrency = CardCurrency.EURO) -> float:
-    deck_price = 0.0
-    for card_id, count in decklist.items():
-        card_data = card_id2card_data.get(card_id, None)
-        if currency == CardCurrency.EURO:
-            deck_price += card_data.latest_eur_price * count if card_data and card_data.latest_eur_price else 0.0
-        elif currency == CardCurrency.US_DOLLAR:
-            deck_price += card_data.latest_usd_price * count if card_data and card_data.latest_usd_price else 0.0
-        else:
-            raise NotImplementedError
-    return deck_price
 
-def get_prices_of_decklists(decklists: list[dict[str, int]], card_id2card_data: dict[str, ExtendedCardData], currency: CardCurrency = CardCurrency.EURO) -> list[float]:
+def get_prices_of_decklists(decklists: list[dict[str, int]], card_id2card_data: dict[str, ExtendedCardData],
+                            currency: CardCurrency = CardCurrency.EURO) -> list[float]:
     return [get_decklist_price(d, card_id2card_data, currency=currency)
             for d in decklists if d]
 
+
+def filter_tournament_decklist(tournament_decklist: TournamentDecklist, decklist_filter: DecklistFilter) -> bool:
+    is_in_placing = True
+    if decklist_filter.min_tournament_placing:
+        is_in_placing = (tournament_decklist.placing != None and
+                         tournament_decklist.placing <= decklist_filter.min_tournament_placing)
+    is_in_price = True
+    if tournament_decklist.price_eur and tournament_decklist.price_usd and decklist_filter.max_price and decklist_filter.min_price:
+        if decklist_filter.filter_currency == CardCurrency.EURO:
+            is_in_price = (
+                    tournament_decklist.price_eur >= decklist_filter.min_price and
+                    tournament_decklist.price_eur <= decklist_filter.max_price
+            )
+        else:
+            is_in_price = (
+                    tournament_decklist.price_usd >= decklist_filter.min_price and
+                    tournament_decklist.price_usd <= decklist_filter.max_price
+            )
+    return (
+            tournament_decklist.tournament_timestamp.date() >= decklist_filter.start_datetime.date() and
+            tournament_decklist.tournament_timestamp.date() <= decklist_filter.end_datetime.date() and
+            is_in_placing and
+            is_in_price
+    )
+
+
+def filter_tournament_decklists(tournament_decklists: list[TournamentDecklist], decklist_filter: DecklistFilter) -> \
+        list[TournamentDecklist]:
+    return [td for td in tournament_decklists if filter_tournament_decklist(td, decklist_filter)]

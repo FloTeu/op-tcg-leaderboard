@@ -80,9 +80,15 @@ class TournamentStandingExtended(TournamentStanding, Tournament):
     pass
 
 class TournamentDecklist(BQTableBaseModel):
-    leader_id: str | None = Field(description="The op tcg leader id e.g. OP03-099")
-    decklist: dict[str, int] | None = Field(description="Used decklist in this tournament. The key is the card id e.g. OP01-006 and the value is the number of cards in the deck")
+    """Read only dataclass to extract data from BQ tables"""
+    leader_id: str = Field(description="The op tcg leader id e.g. OP03-099")
+    decklist: dict[str, int] = Field(description="Used decklist in this tournament. The key is the card id e.g. OP01-006 and the value is the number of cards in the deck")
+    placing: int | None = Field(description="The player's final placing in the tournament.")
     meta_format: MetaFormat | str = Field(description="Meta in which tournament happened, e.g. OP06")
+    tournament_timestamp: datetime = Field(description="Scheduled tournament start set by the organizer.")
+    price_eur: float | None = Field(None, description="Sum of all card prices in decklist")
+    price_usd: float | None = Field(None, description="Sum of all card prices in decklist")
+
 
     @field_validator('decklist', mode="before")
     def parse_dicts(cls, value):

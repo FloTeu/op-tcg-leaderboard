@@ -1,17 +1,19 @@
 import streamlit as st
 from cachetools import TTLCache
 from op_tcg.backend.models.bq_enums import BQDataset
-from op_tcg.backend.models.cards import LatestCardPrice, CardPopularity, Card, CardReleaseSet, ExtendedCardData
+from op_tcg.backend.models.cards import LatestCardPrice, CardPopularity, Card, CardReleaseSet, ExtendedCardData, \
+    CardCurrency
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader, TournamentWinner, LeaderElo, LeaderExtended
 from op_tcg.backend.models.matches import Match, LeaderWinRate
 from op_tcg.backend.models.tournaments import TournamentStanding, Tournament, TournamentStandingExtended, \
     TournamentDecklist
 from op_tcg.backend.utils.utils import timeit
+from op_tcg.frontend.utils.card_price import get_decklist_price
 from op_tcg.frontend.utils.utils import run_bq_query
 
 # maxsize: Number of elements the cache can hold
-cache = TTLCache(maxsize=10, ttl=60*60*24)
+CACHE = TTLCache(maxsize=10, ttl=60 * 60 * 24)
 
 def get_leader_data() -> list[Leader]:
     # cached for each session
@@ -87,17 +89,23 @@ def get_tournament_decklist_data(meta_formats: list[MetaFormat], leader_ids: lis
     return bq_decklists
 
 def get_all_tournament_decklist_data() -> list[TournamentDecklist]:
-    if "TOURNAMENT_DECKLISTS" in cache:
-        return cache["TOURNAMENT_DECKLISTS"]
+    if "TOURNAMENT_DECKLISTS" in CACHE:
+        return CACHE["TOURNAMENT_DECKLISTS"]
     else:
+        card_id2card_data = get_card_id_card_data_lookup()
         # cached for each session
         tournament_standing_rows = run_bq_query(f"""
-    SELECT t1.leader_id, t1.decklist, t2.meta_format FROM `{st.secrets["gcp_service_account"]["project_id"]}.matches.{TournamentStanding.__tablename__}` t1
+    SELECT t1.leader_id, t1.decklist, t1.placing, t2.meta_format, t2.tournament_timestamp FROM `{st.secrets["gcp_service_account"]["project_id"]}.matches.{TournamentStanding.__tablename__}` t1
     left join `{st.secrets["gcp_service_account"]["project_id"]}.matches.{Tournament.__tablename__}` t2
     on t1.tournament_id = t2.id
     where t1.decklist IS NOT NULL""")
-        tournament_decklists = [TournamentDecklist(**d) for d in tournament_standing_rows]
-        cache["TOURNAMENT_DECKLISTS"] = tournament_decklists
+        tournament_decklists: list[TournamentDecklist] = []
+        for ts in tournament_standing_rows:
+            tournament_decklist = TournamentDecklist(**ts)
+            tournament_decklist.price_usd = get_decklist_price(tournament_decklist.decklist, card_id2card_data, currency=CardCurrency.US_DOLLAR)
+            tournament_decklist.price_eur = get_decklist_price(tournament_decklist.decklist, card_id2card_data, currency=CardCurrency.EURO)
+            tournament_decklists.append(tournament_decklist)
+        CACHE["TOURNAMENT_DECKLISTS"] = tournament_decklists
         return tournament_decklists
 
 def get_leader_elo_data(meta_formats: list[MetaFormat] | None=None) -> list[LeaderElo]:
@@ -150,3 +158,11 @@ def get_card_types() -> list[str]:
             f"""SELECT DISTINCT(types) FROM `{st.secrets["gcp_service_account"]["project_id"]}.{Card.get_dataset_id()}.{Card.__tablename__}` c, UNNEST(c.types) AS types """)
     return [d["types"] for d in latest_card_rows]
 
+
+def get_card_id_card_data_lookup(aa_version: int = 0, ensure_latest_price_not_null=True) -> dict[str, ExtendedCardData]:
+    card_data = get_card_data()
+    card_data = [cdata for cdata in card_data if cdata.aa_version == aa_version]
+    if ensure_latest_price_not_null:
+        for cdata in card_data:
+            cdata.ensure_latest_price_not_none()
+    return {card.id: card for card in card_data}

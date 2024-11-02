@@ -4,8 +4,7 @@ from pydantic import Field, BaseModel
 from op_tcg.backend.models.cards import OPTcgColor, OPTcgCardCatagory, OPTcgAbility, \
     CardPopularity, CardCurrency, OPTcgAttribute, ExtendedCardData
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.frontend.utils.decklist import get_card_id_card_data_lookup
-from op_tcg.frontend.utils.extract import get_card_popularity_data
+from op_tcg.frontend.utils.extract import get_card_popularity_data, get_card_id_card_data_lookup
 from op_tcg.frontend.sidebar import display_meta_select, display_card_color_multiselect, \
     display_card_ability_multiselect, display_card_fraction_multiselect, display_release_meta_select, \
     display_card_attribute_multiselect

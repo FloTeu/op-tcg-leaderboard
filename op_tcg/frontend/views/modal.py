@@ -5,8 +5,7 @@ from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.tournaments import TournamentDecklist
 
 from op_tcg.frontend.utils.chart import create_card_leader_occurrence_stream_chart
-from op_tcg.frontend.utils.decklist import get_card_id_card_data_lookup
-from op_tcg.frontend.utils.extract import get_tournament_decklist_data
+from op_tcg.frontend.utils.extract import get_tournament_decklist_data, get_card_id_card_data_lookup
 from op_tcg.frontend.utils.js import execute_js_file
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid
 from op_tcg.frontend.utils.styles import execute_style_sheet

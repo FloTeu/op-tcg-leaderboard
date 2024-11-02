@@ -13,12 +13,12 @@ from op_tcg.backend.models.tournaments import TournamentStanding, TournamentStan
 from op_tcg.backend.utils.utils import timeit
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_tournament_standing_data, get_leader_extended, \
-    get_tournament_decklist_data
+    get_tournament_decklist_data, get_card_id_card_data_lookup
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid, lname_and_lid_to_lid, \
     get_lid2ldata_dict_cached
 from op_tcg.frontend.utils.query_params import get_default_leader_name, add_query_param
-from op_tcg.frontend.utils.decklist import tournament_standings2decklist_data, DecklistData, \
-    get_card_id_card_data_lookup, get_decklist_price
+from op_tcg.frontend.utils.decklist import tournament_standings2decklist_data, DecklistData
+from op_tcg.frontend.utils.card_price import get_decklist_price
 
 
 def display_decklist(decklist: dict[str, int], is_mobile: bool):
