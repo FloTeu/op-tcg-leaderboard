@@ -53,8 +53,6 @@ modal.addEventListener('touchmove', function(event) {
     setTimeout(() => {
       isSwiping = false; // Reset flag after a short delay
     }, 500); // Adjust delay as needed (500ms is a good starting point)
-
-    //closeModal(); // Optionally close modal after swipe
   }
 });
 
@@ -69,3 +67,15 @@ function previousImage() {
   currentIndex = (currentIndex - 1 + images.length) % images.length; // Loop back to end
   document.getElementById("img01").src = images[currentIndex];
 }
+
+// Click functionality for navigating images
+document.getElementById("img01").addEventListener('click', function(event) {
+  const imgWidth = this.clientWidth; // Get the width of the image
+  const clickX = event.clientX - this.getBoundingClientRect().left; // Get the click position relative to the image
+
+  if (clickX < imgWidth / 4) {
+    previousImage(); // Clicked on the left 1/4
+  } else if (clickX > (imgWidth * 3) / 4) {
+    nextImage(); // Clicked on the right 1/4
+  }
+});
