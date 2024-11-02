@@ -216,3 +216,26 @@ def filter_tournament_decklist(tournament_decklist: TournamentDecklist, decklist
 def filter_tournament_decklists(tournament_decklists: list[TournamentDecklist], decklist_filter: DecklistFilter) -> \
         list[TournamentDecklist]:
     return [td for td in tournament_decklists if filter_tournament_decklist(td, decklist_filter)]
+
+
+def get_best_matching_decklist(tournament_decklists: list[TournamentDecklist], decklist_data: DecklistData) -> \
+dict[str, int]:
+    decklists: list[dict[str, int]] = [ts.decklist for ts in tournament_decklists]
+    card_ids_sorted: list[str] = sorted(decklist_data.card_id2occurrence_proportion.keys(),
+                                        key=lambda d: decklist_data.card_id2occurrences[d], reverse=True)
+    should_have_card_ids_in_decklist: set[str] = set()
+    card_count: float = 0.0
+    for card_id in card_ids_sorted:
+        if card_count < 51:  # 50 + leader
+            should_have_card_ids_in_decklist.add(card_id)
+            card_count += decklist_data.card_id2avg_count_card[card_id]
+    best_matching_decklist: dict[str, int] = {}
+    best_overlap = 0
+    for decklist in decklists:
+        card_in_decklist = set(decklist.keys())
+        current_overlap = len(card_in_decklist.intersection(should_have_card_ids_in_decklist))
+        if best_overlap < current_overlap:
+            best_matching_decklist = decklist
+            best_overlap = current_overlap
+
+    return best_matching_decklist

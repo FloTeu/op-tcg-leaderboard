@@ -15,24 +15,23 @@ from op_tcg.backend.models.input import MetaFormat, meta_format2release_datetime
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.matches import LeaderWinRate
 from op_tcg.backend.models.tournaments import TournamentDecklist
-from op_tcg.backend.utils.utils import timeit
 from op_tcg.frontend.sidebar import display_leader_select, display_meta_select, display_only_official_toggle
 from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER
 from op_tcg.frontend.utils.chart import create_leader_line_chart, LineChartYValue, create_leader_win_rate_radar_chart, \
     get_radar_chart_data, create_line_chart
 from op_tcg.frontend.utils.decklist import DecklistData, tournament_standings2decklist_data, \
     decklist_data_to_card_ids, get_most_similar_leader_data, SimilarLeaderData, \
-    DecklistFilter, filter_tournament_decklists
+    DecklistFilter, filter_tournament_decklists, get_best_matching_decklist
 from op_tcg.frontend.utils.extract import get_leader_extended, get_leader_win_rate, get_tournament_standing_data, \
     get_tournament_decklist_data, get_card_id_card_data_lookup
+from op_tcg.frontend.utils.js import is_mobile
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid, lname_and_lid_to_lid, get_win_rate_dataframes, \
     get_lid2ldata_dict_cached
 from op_tcg.frontend.utils.query_params import get_default_leader_name, \
     delete_query_param, add_query_param
 from op_tcg.frontend.utils.styles import read_style_sheet, css_rule_to_dict, PRIMARY_COLOR_RGB
 from op_tcg.frontend.utils.utils import sort_df_by_meta_format
-from op_tcg.frontend.views.decklist import display_list_view
-
+from op_tcg.frontend.views.decklist import display_list_view, display_decklist
 
 Q_PARAM_EASIEST_OPPONENT = "easiest_opponent_lid"
 Q_PARAM_HARDEST_OPPONENT = "hardest_opponent_lid"
@@ -202,6 +201,20 @@ def display_decklist_list_view_fragment(tournament_decklists: list[TournamentDec
                                                   exclude_card_ids=[leader_id])
     display_list_view(decklist_data, decklist_card_ids)
 
+    with st.expander("Decklists"):
+        selected_matching_decklist = get_best_matching_decklist(tournament_decklists, decklist_data)
+        if selected_matching_decklist:
+            player_id = st.selectbox("Select Players Decklist", [td.player_id for td in tournament_decklists],
+                                     index=None)
+            if player_id:
+                selected_matching_decklist = \
+                    [td.decklist for td in tournament_decklists if td.player_id == player_id][0]
+            if leader_id in selected_matching_decklist:
+                selected_matching_decklist.pop(leader_id)
+            display_decklist(selected_matching_decklist, is_mobile=is_mobile())
+        else:
+            st.warning("No decklists available. Please change the 'Start Date'")
+
 def display_decklist_filter(tournament_decklists: list[TournamentDecklist], selected_meta_formats: list[MetaFormat], decklist_min_tournament_date: date | None = None) -> DecklistFilter:
     oldest_release_date: date = datetime.now().date()
     for meta_format in selected_meta_formats:
@@ -322,7 +335,6 @@ def get_best_and_worst_opponent(df_meta_win_rate_data, meta_formats: list[MetaFo
     return OpponentMatchups(easiest_matchups=best_matchups,
                             hardest_matchups=worst_matchups)
 
-@timeit
 def main_leader_detail_analysis():
 
     with st.sidebar:

@@ -28,6 +28,6 @@ setTimeout(() => {
             column.style.minWidth = computedStyle.flexBasis; // Set new min-width
         }
     });
-}, 100); // Delay of 100 milliseconds
+}, 10); // Delay of 10 milliseconds
 //});
 

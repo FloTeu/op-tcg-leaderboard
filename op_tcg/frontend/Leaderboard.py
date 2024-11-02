@@ -310,7 +310,7 @@ pages = [
     st.Page(main, title="Leaderboard", default=True),
     st.Page(main_leader_detail_analysis, title=SUB_PAGE_LEADER, url_path=SUB_PAGE_LEADER),
     st.Page(main_meta_analysis, title=SUB_PAGE_LEADER_MATCHUP, url_path=SUB_PAGE_LEADER_MATCHUP),
-    st.Page(main_leader_detail_analysis_decklists, title=SUB_PAGE_LEADER_DECKLIST, url_path=SUB_PAGE_LEADER_DECKLIST),
+    #st.Page(main_leader_detail_analysis_decklists, title=SUB_PAGE_LEADER_DECKLIST, url_path=SUB_PAGE_LEADER_DECKLIST),
     st.Page(main_leader_decklist_movement, title=SUB_PAGE_LEADER_DECKLIST_MOVEMENT,
             url_path=SUB_PAGE_LEADER_DECKLIST_MOVEMENT),
     st.Page(main_card_meta_analysis, title=SUB_PAGE_CARD_POPULARITY, url_path=SUB_PAGE_CARD_POPULARITY),
