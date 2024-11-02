@@ -20,8 +20,8 @@ class DecklistFilter(BaseModel):
     end_datetime: datetime | None = None
     min_tournament_placing: int | None = None
     filter_currency: CardCurrency | None = None
-    min_price: int | None = None
-    max_price: int | None = None
+    min_price: float | None = None
+    max_price: float | None = None
 
 
 class DecklistData(BaseModel):

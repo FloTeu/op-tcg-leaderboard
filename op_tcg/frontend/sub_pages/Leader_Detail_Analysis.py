@@ -148,16 +148,8 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
         col1, col2 = st.columns([0.4, 0.5])
 
         with col1:
-            st.subheader("Decklist")
-            with st.expander("Decklist Filter"):
-                decklist_filter: DecklistFilter = display_decklist_filter(meta_formats, min_tournament_date)
-                tournament_decklists = filter_tournament_decklists(tournament_decklists, decklist_filter)
-                decklist_data: DecklistData = tournament_standings2decklist_data(tournament_decklists,
-                                                                                 cid2cdata_dict)
-            st.write(f"Number of decks: {decklist_data.num_decklists}")
-            decklist_card_ids = decklist_data_to_card_ids(decklist_data, occurrence_threshold=0.02,
-                                                          exclude_card_ids=[leader_data.id])
-            display_list_view(decklist_data, decklist_card_ids)
+            display_decklist_list_view_fragment(tournament_decklists, cid2cdata_dict, meta_formats, leader_data.id, min_tournament_date)
+
         with col2:
             most_similar_leader_ids = sorted(lid2similar_leader_data, key=lambda k: lid2similar_leader_data[k].similarity_score, reverse=True)
             st.subheader("Most similar leader")
@@ -197,7 +189,20 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
             display_cards_view(similar_leader_data.cards_intersection, cid2cdata_dict, title="Cards in both decks:")
             display_cards_view(similar_leader_data.cards_missing, cid2cdata_dict, title="Missing cards:")
 
-def display_decklist_filter(selected_meta_formats: list[MetaFormat], decklist_min_tournament_date: date | None = None) -> DecklistFilter:
+@st.fragment
+def display_decklist_list_view_fragment(tournament_decklists: list[TournamentDecklist], cid2cdata_dict: dict[str, ExtendedCardData], meta_formats: list[MetaFormat], leader_id: str, min_tournament_date: date):
+    st.subheader("Decklist")
+    with st.expander("Decklist Filter"):
+        decklist_filter: DecklistFilter = display_decklist_filter(tournament_decklists, meta_formats, min_tournament_date)
+        tournament_decklists = filter_tournament_decklists(tournament_decklists, decklist_filter)
+        decklist_data: DecklistData = tournament_standings2decklist_data(tournament_decklists,
+                                                                         cid2cdata_dict)
+    st.write(f"Number of decks: {decklist_data.num_decklists}")
+    decklist_card_ids = decklist_data_to_card_ids(decklist_data, occurrence_threshold=0.02,
+                                                  exclude_card_ids=[leader_id])
+    display_list_view(decklist_data, decklist_card_ids)
+
+def display_decklist_filter(tournament_decklists: list[TournamentDecklist], selected_meta_formats: list[MetaFormat], decklist_min_tournament_date: date | None = None) -> DecklistFilter:
     oldest_release_date: date = datetime.now().date()
     for meta_format in selected_meta_formats:
         release_date = meta_format2release_datetime(meta_format)
@@ -210,6 +215,16 @@ def display_decklist_filter(selected_meta_formats: list[MetaFormat], decklist_mi
         min_date = min(oldest_release_date, decklist_min_tournament_date)
     min_datetime = datetime(min_date.year, min_date.month, min_date.day)
     max_datetime = datetime(datetime.now().year, datetime.now().month, datetime.now().day)
+
+    filter_currency = st.selectbox("Currency", [CardCurrency.EURO, CardCurrency.US_DOLLAR])
+    min_price = min(td.price_eur if filter_currency == CardCurrency.EURO else td.price_usd for td in tournament_decklists)
+    max_price = max(td.price_eur if filter_currency == CardCurrency.EURO else td.price_usd for td in tournament_decklists)
+    if min_price < max_price:
+        selected_min_price, selected_max_price = st.slider("Decklist Price Range", min_price, max_price,
+                                                           (min_price, max_price))
+    else:
+        selected_min_price, selected_max_price = min_price, max_price
+
     start_datetime, end_datetime = st.slider(
         "Date Range",
         min_value=min_datetime,
@@ -224,7 +239,9 @@ def display_decklist_filter(selected_meta_formats: list[MetaFormat], decklist_mi
     return DecklistFilter(
         start_datetime=start_datetime,
         end_datetime=end_datetime,
-        min_tournament_placing=min_tournament_placing
+        min_tournament_placing=min_tournament_placing,
+        min_price=selected_min_price,
+        max_price=selected_max_price
     )
 
 def display_cards_view(card_ids: list[str], cid2cdata_dict: dict[str, ExtendedCardData], title: str, n_cols: int = 4):
