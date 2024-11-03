@@ -124,27 +124,24 @@ def decklist_data_to_card_ids(decklist_data: DecklistData, occurrence_threshold:
 
 
 def get_similar_leader_data(decklist_data: DecklistData, compare_decklist_data: DecklistData, leader_id: str,
-                            compare_leader_id: str) -> SimilarLeaderData:
+                            compare_leader_id: str, threshold_occurrence: float | None = None) -> SimilarLeaderData:
     """similarity score: How much of occurred cards in decklist_data is also available in other deck"""
-    occurrence_list = []
-    intersection = set(decklist_data.card_id2occurrence_proportion.keys()).intersection(
-        set(compare_decklist_data.card_id2occurrence_proportion.keys()))
-    max_occurrences = sum([occ for cid, occ in compare_decklist_data.card_id2occurrence_proportion.items() if
-                           cid not in [leader_id, compare_leader_id]])
-    for card_id, occurrence in compare_decklist_data.card_id2occurrence_proportion.items():
-        if card_id in [leader_id, compare_leader_id]:
-            continue
-        if card_id in intersection:
-            occurrence_list.append(occurrence)
+    card_ids = [card_id for card_id, occ in decklist_data.card_id2occurrence_proportion.items() if (occ > threshold_occurrence if threshold_occurrence else True) and card_id != leader_id]
+    compare_card_ids = [card_id for card_id, occ in compare_decklist_data.card_id2occurrence_proportion.items() if (occ > threshold_occurrence if threshold_occurrence else True) and card_id != compare_leader_id]
+
+    intersection = set(card_ids).intersection(
+        set(compare_card_ids))
+    max_occurrences = sum([compare_decklist_data.card_id2occurrence_proportion[cid] for cid in compare_card_ids])
+    occurrence_list = [compare_decklist_data.card_id2occurrence_proportion[cid] for cid in compare_card_ids if cid in intersection]
+
     similarity_score = (sum(occurrence_list) / max_occurrences) if max_occurrences != 0 else 0
     intersection_sorted = sorted(list(intersection),
                                  key=lambda x: compare_decklist_data.card_id2occurrence_proportion[x], reverse=True)
-    cards_missing = set(compare_decklist_data.card_id2occurrence_proportion.keys()) - set(
-        decklist_data.card_id2occurrence_proportion.keys())
-    with suppress(KeyError):
-        cards_missing.remove(compare_leader_id)
+
+    cards_missing = set(compare_card_ids) - set(card_ids)
     cards_missing_sorted = sorted(list(cards_missing),
                                   key=lambda x: compare_decklist_data.card_id2occurrence_proportion[x], reverse=True)
+
     return SimilarLeaderData(leader_id=compare_leader_id,
                              similarity_score=similarity_score,
                              cards_intersection=intersection_sorted,
@@ -155,7 +152,7 @@ def get_similar_leader_data(decklist_data: DecklistData, compare_decklist_data: 
 
 
 @timeit
-def get_most_similar_leader_data(leader_id: str, meta_formats: list[MetaFormat]) -> dict[str, SimilarLeaderData]:
+def get_most_similar_leader_data(leader_id: str, meta_formats: list[MetaFormat], threshold_occurrence: float | None = None) -> dict[str, SimilarLeaderData]:
     """
     Calculates the similarity score for each leader combination of the same color.
     The higher the score the more cards are in common.
@@ -178,7 +175,7 @@ def get_most_similar_leader_data(leader_id: str, meta_formats: list[MetaFormat])
         tournament_decklist_filtered = [td for td in tournament_decklists if td.leader_id == lid]
         compare_decklist_data = tournament_standings2decklist_data(tournament_decklist_filtered, card_id2card_data)
         lid2sim_leader_data[lid] = get_similar_leader_data(decklist_data, compare_decklist_data,
-                                                           leader_id=leader_id, compare_leader_id=lid)
+                                                           leader_id=leader_id, compare_leader_id=lid, threshold_occurrence=threshold_occurrence)
     return lid2sim_leader_data
 
 

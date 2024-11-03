@@ -169,13 +169,11 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
                                                   f'/{SUB_PAGE_LEADER}?lid={selected_most_similar_lid}')
                 st.markdown(img_with_href, unsafe_allow_html=True)
             with col2_2:
-                cards_missing_over_50_occ = [cid for cid in similar_leader_data.cards_missing if similar_leader_data.card_id2occurrence_proportion[cid] >= 0.5]
-                cards_missing_price_eur = sum([cid2cdata_dict[cid].latest_eur_price * similar_leader_data.card_id2avg_count_card[cid] for cid in cards_missing_over_50_occ])
-                cards_missing_price_usd = sum([cid2cdata_dict[cid].latest_usd_price * similar_leader_data.card_id2avg_count_card[cid] for cid in cards_missing_over_50_occ])
+                cards_missing_price_eur = sum([cid2cdata_dict[cid].latest_eur_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_missing])
+                cards_missing_price_usd = sum([cid2cdata_dict[cid].latest_usd_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_missing])
 
-                cards_intersection_over_50_occ = [cid for cid in similar_leader_data.cards_intersection if similar_leader_data.card_id2occurrence_proportion[cid] >= 0.5]
-                cards_intersection_price_eur = sum([cid2cdata_dict[cid].latest_eur_price * similar_leader_data.card_id2avg_count_card[cid] for cid in cards_intersection_over_50_occ])
-                cards_intersection_price_usd = sum([cid2cdata_dict[cid].latest_usd_price * similar_leader_data.card_id2avg_count_card[cid] for cid in cards_intersection_over_50_occ])
+                cards_intersection_price_eur = sum([cid2cdata_dict[cid].latest_eur_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_intersection])
+                cards_intersection_price_usd = sum([cid2cdata_dict[cid].latest_usd_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_intersection])
 
                 st.markdown(f"""  
                 **Deck Similarity**: {int(round(similar_leader_data.similarity_score, 2) * 100)}%
@@ -369,7 +367,7 @@ def main_leader_detail_analysis():
     if leader_extended:
         # get most similar leader ids
         t1 = time.time()
-        lid2similar_leader_data: dict[str, SimilarLeaderData] = get_most_similar_leader_data(leader_extended.id, selected_meta_formats)
+        lid2similar_leader_data: dict[str, SimilarLeaderData] = get_most_similar_leader_data(leader_extended.id, selected_meta_formats, threshold_occurrence=0.4)
         print("elapsed time %.2f" % (time.time() - t1))
 
 
