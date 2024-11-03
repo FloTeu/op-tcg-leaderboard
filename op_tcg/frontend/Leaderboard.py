@@ -169,8 +169,16 @@ def upload_match_dialog():
     leader_id2leader_data = get_lid2ldata_dict_cached()
     meta_format = display_meta_select(multiselect=False, key="upload_form_meta_format")[0]
     allowed_meta_fomats = MetaFormat.to_list()[0:MetaFormat.to_list().index(meta_format) + 1]
+
+    default_winner = None
+    default_loser = None
+    if st.button("Switch Leaders"):
+        if st.session_state.match_leader_id:
+            default_loser = st.session_state.match_leader_id
+        if st.session_state.match_opponent_leader_id:
+            default_winner = st.session_state.match_opponent_leader_id
+
     with st.form("upload_match_form"):
-        # TODO: Ensure right release meta is correctly included for each leader in db
         available_leader_ids = [lid for lid, ldata in leader_id2leader_data.items() if
                                 ldata.meta_format in allowed_meta_fomats]
         available_leader_ids = sorted(available_leader_ids)
@@ -185,12 +193,15 @@ def upload_match_dialog():
 
         selected_winner_leader_name: str | None = display_leader_select(available_leader_names=available_leader_names,
                                                                         multiselect=False, label="Winner Leader",
+                                                                        default=default_winner,
                                                                         key="match_leader_id")
         selected_winner_leader_id: str | None = lname_and_lid_to_lid(
             selected_winner_leader_name) if selected_winner_leader_name is not None else None
+
         selected_loser_leader_name: str | None = display_leader_select(available_leader_names=available_leader_names,
                                                                        multiselect=False, label="Looser Leader",
-                                                                       key="match_opponentleader_id")
+                                                                       default=default_loser,
+                                                                       key="match_opponent_leader_id")
         selected_loser_leader_id: str | None = lname_and_lid_to_lid(
             selected_loser_leader_name) if selected_loser_leader_name is not None else None
         is_draw = st.checkbox("Is draw", value=False)
