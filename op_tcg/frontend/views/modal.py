@@ -1,3 +1,5 @@
+import logging
+
 import streamlit as st
 
 from op_tcg.backend.models.cards import OPTcgCardCatagory, ExtendedCardData
@@ -13,7 +15,7 @@ from op_tcg.frontend.utils.styles import execute_style_sheet
 
 @st.dialog("Card Detail", width="large")
 def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = None):
-    print("Open Card Detail Modal", card_id)
+    logging.info("Open Card Detail Modal", card_id)
     def normalize_data(chart_data: list[dict[str, int]]) -> dict[str, float]:
         def normalize_dict_values(input_dict):
             # Calculate the sum of all values in the dictionary
