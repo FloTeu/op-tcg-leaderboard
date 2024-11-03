@@ -21,7 +21,6 @@ setTimeout(() => {
 
         // If the column has a button or if it has a neighbor with a button, set min-width
         if (hasButton || previousHasButton || nextHasButton) {
-            console.log(column);
             // Get the computed style for the current column
             const computedStyle = window.getComputedStyle(column);
             // Change min width

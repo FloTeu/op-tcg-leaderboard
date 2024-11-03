@@ -1,6 +1,6 @@
 import streamlit as st
 
-from op_tcg.frontend.utils.js import is_mobile, execute_js_file
+from op_tcg.frontend.utils.js import is_mobile, execute_js_file, prevent_js_frame_height
 
 st.set_page_config(layout="wide")
 from op_tcg.frontend.utils.launch import init_load_data
@@ -33,9 +33,8 @@ from op_tcg.frontend.sub_pages import main_meta_analysis, main_leader_detail_ana
     main_leader_detail_analysis, main_admin_leader_upload, main_leader_decklist_movement, main_card_meta_analysis
 
 from streamlit_elements import elements, dashboard, mui, nivo
-from streamlit_theme import st_theme
 
-ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
+prevent_js_frame_height()
 
 def change_sidebar_collapse_button_style():
     if is_mobile():
@@ -241,7 +240,7 @@ def main():
     st.header("One Piece TCG Elo Leaderboard")
 
     # Make sidebar button bounce for leaderboard page
-    execute_js_file("add_sidebar_bounce")
+    execute_js_file("add_sidebar_bounce", display_none=True)
 
     if not st.session_state.get("launch_succeeded", False):
         with st.spinner("Launch App"):

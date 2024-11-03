@@ -2,7 +2,7 @@ import time
 import random
 from pathlib import Path
 
-import streamlit as st
+import streamlit.components.v1 as components
 
 from streamlit_js_eval import streamlit_js_eval
 from functools import cache
@@ -18,15 +18,16 @@ def read_js_file(file_name: str) -> str:
     return js_text
 
 
-def execute_js_file(file_name: str):
+def execute_js_file(file_name: str, display_none: bool = False):
     """Executes js code from a .js file"""
     js_text = read_js_file(file_name)
-    st.components.v1.html(f"""
+    components.html(f"""
         <script>
             eval(`{js_text}`);
         </script>
     """, height=0, width=0)
-
+    if display_none:
+        prevent_js_frame_height()
 
 @cache
 def get_screen_width(session_id: str) -> int | None:
@@ -57,3 +58,9 @@ def is_mobile() -> bool:
         # Thrown if screen width is not know yet
         return False
     return width < 600
+
+def prevent_js_frame_height():
+    """execute_js_file creates a div with height, even though height is set to 0
+    This function includes display None in that case
+    """
+    execute_js_file("iframe_display_none")
