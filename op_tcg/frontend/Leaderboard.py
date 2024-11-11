@@ -1,6 +1,8 @@
+from functools import partial
+
 import streamlit as st
 
-from op_tcg.frontend.utils.js import is_mobile, execute_js_file, prevent_js_frame_height
+from op_tcg.frontend.utils.js import is_mobile, execute_js_file, prevent_js_frame_height, execute_js_code
 
 st.set_page_config(layout="wide")
 from op_tcg.frontend.utils.launch import init_load_data
@@ -32,9 +34,10 @@ from op_tcg.frontend.utils.utils import bq_client
 from op_tcg.frontend.sub_pages import main_meta_analysis, \
     main_leader_detail_analysis, main_admin_leader_upload, main_leader_decklist_movement, main_card_meta_analysis
 
-from streamlit_elements import elements, dashboard, mui, nivo
+from streamlit_elements import elements, dashboard, mui, lazy, sync
 
 prevent_js_frame_height()
+
 
 def change_sidebar_collapse_button_style():
     if is_mobile():
@@ -67,6 +70,13 @@ def add_dominance_score(df_meta_group: pd.DataFrame) -> pd.DataFrame:
 
 def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), meta_format: MetaFormat,
                               display_name2df_col_name: dict[str, str], only_official: bool = True):
+
+    # Define a callback function to handle link click
+    def open_leader_page(leader_id: str):
+        url = f"/{SUB_PAGE_LEADER}?lid={leader_id}"
+        script = f'parent.window.open("{url}", "_self")'
+        execute_js_code(script)
+
     # Add new cols
     df_leader_extended['win_rate_decimal'] = df_leader_extended['win_rate'].apply(lambda x: f"{x * 100:.2f}%")
 
@@ -129,7 +139,10 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
                     df_leaderboard_display[col] = df_leaderboard_display[[col, "id"]].apply(
                         lambda x: mui.TableCell(mui.Link(
                             str(x.Name.replace('"', " ").replace('.', " ")) if x.Name else "NaN",
-                            href=f"/{SUB_PAGE_LEADER}?lid={x.id}", target="_blank")), axis=1)
+                            onClick=partial(open_leader_page, leader_id=x.id),  # Call the function to open the link
+                            style={"cursor": "pointer"}
+                        )
+                    ), axis=1)
                 else:
                     df_leaderboard_display[col] = df_leaderboard_display[col].apply(lambda x: mui.TableCell(str(x)))
 

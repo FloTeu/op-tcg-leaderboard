@@ -1,4 +1,5 @@
 from op_tcg.backend.utils.utils import timeit
+from op_tcg.frontend.fix_streamlit_elements import patch_streamlit_elements
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_leader_tournament_wins, get_leader_win_rate, \
     get_card_data, get_card_popularity_data, get_leader_extended, get_tournament_standing_data, \
     get_tournament_decklist_data, get_all_tournament_decklist_data
@@ -19,6 +20,8 @@ def init_load_data():
     get_card_data()
     get_card_popularity_data()
 
+    # fix streamlit elements issue
+    patch_streamlit_elements()
 
 
 

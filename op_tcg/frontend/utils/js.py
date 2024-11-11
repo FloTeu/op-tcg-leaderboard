@@ -21,13 +21,17 @@ def read_js_file(file_name: str) -> str:
 def execute_js_file(file_name: str, display_none: bool = False):
     """Executes js code from a .js file"""
     js_text = read_js_file(file_name)
-    components.html(f"""
-        <script>
-            eval(`{js_text}`);
-        </script>
-    """, height=0, width=0)
+    execute_js_code(js_text)
     if display_none:
         prevent_js_frame_height()
+
+def execute_js_code(js_code: str):
+    """Executes js code from a .js file"""
+    components.html(f"""
+        <script>
+            eval(`{js_code}`);
+        </script>
+    """, height=0, width=0)
 
 @cache
 def get_screen_width(session_id: str) -> int | None:
