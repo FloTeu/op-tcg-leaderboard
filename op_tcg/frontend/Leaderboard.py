@@ -38,7 +38,7 @@ prevent_js_frame_height()
 
 def change_sidebar_collapse_button_style():
     if is_mobile():
-        execute_style_sheet("sidebar")
+        execute_style_sheet("sidebar_button")
 
 
 def leader_id2line_chart(leader_id: str, df_leader_extended, y_value: LineChartYValue = LineChartYValue.WIN_RATE, only_official: bool = True):
@@ -246,6 +246,7 @@ def upload_match_dialog():
 
 
 def main():
+    change_sidebar_collapse_button_style()
 
     # display data
     st.header("One Piece TCG Elo Leaderboard")
@@ -334,7 +335,6 @@ if booleanize(os.environ.get("DEBUG", "")):
     # if not admin_password in st.secrets["admin"]["emails"]:
     pages.append(st.Page(main_admin_leader_upload, title='Admin_Leader_Upload', url_path="Admin_Leader_Upload"))
 
-change_sidebar_collapse_button_style()
 pg = st.navigation(pages)
 pg.run()
 
