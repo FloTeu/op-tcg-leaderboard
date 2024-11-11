@@ -29,7 +29,7 @@ from op_tcg.frontend.utils.styles import execute_style_sheet
 from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_cell, value2color_table_cell
 from op_tcg.frontend.utils.leader_data import get_lid2ldata_dict_cached, lids_to_name_and_lids, lname_and_lid_to_lid, calculate_dominance_score
 from op_tcg.frontend.utils.utils import bq_client
-from op_tcg.frontend.sub_pages import main_meta_analysis, main_leader_detail_analysis_decklists, \
+from op_tcg.frontend.sub_pages import main_meta_analysis, \
     main_leader_detail_analysis, main_admin_leader_upload, main_leader_decklist_movement, main_card_meta_analysis
 
 from streamlit_elements import elements, dashboard, mui, nivo
@@ -254,6 +254,7 @@ def main():
     # Make sidebar button bounce for leaderboard page
     execute_js_file("add_sidebar_bounce", display_none=True)
 
+
     if not st.session_state.get("launch_succeeded", False):
         with st.spinner("Launch App"):
             init_load_data()
@@ -312,6 +313,9 @@ def main():
         df_leader_extended = sort_table_df(df_leader_extended, sort_by=sort_by,
                                            display_name2df_col_name=display_name2df_col_name)
         display_leaderboard_table(df_leader_extended, meta_format, display_name2df_col_name, only_official=only_official)
+
+        # Reload page if iframe does not load leader table correctly
+        execute_js_file("missing_iframe_table", display_none=False)
     else:
         st.warning("Seems like the selected meta does not contain any matches")
 
