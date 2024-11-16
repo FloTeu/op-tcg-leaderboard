@@ -20,9 +20,6 @@ def init_load_data():
     get_card_data()
     get_card_popularity_data()
 
-    # fix streamlit elements issue
-    patch_streamlit_elements()
-
 
 
 

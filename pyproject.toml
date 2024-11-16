@@ -35,8 +35,8 @@ beautifulsoup4 = "^4.12.3"
 streamlit = "1.38.0"
 #streamlit-elements = { git = "https://github.com/FloTeu/streamlit-elements.git", branch = "build-branch" }
 cssutils = "^2.11.1"
-streamlit-elements = "^0.1.0"
 streamlit-js-eval = "^0.1.7"
+streamlit-elements-fte = "^0.1.1"
 
 
 [build-system]
