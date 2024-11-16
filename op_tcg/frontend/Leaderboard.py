@@ -183,8 +183,8 @@ def upload_match_dialog():
     meta_format = display_meta_select(multiselect=False, key="upload_form_meta_format")[0]
     allowed_meta_fomats = MetaFormat.to_list()[0:MetaFormat.to_list().index(meta_format) + 1]
 
-    default_winner = None
-    default_loser = None
+    default_winner = st.session_state.get("match_leader_id", None)
+    default_loser = st.session_state.get("match_opponent_leader_id", None)
     if st.button("Switch Leaders"):
         if st.session_state.match_leader_id:
             default_loser = st.session_state.match_leader_id
