@@ -18,6 +18,12 @@ function getAllIframes(doc) {
     return allIframes; // Return all found iframes
 }
 
+function isElementVisible(el) {
+    // Check if the element is visible
+    const style = window.getComputedStyle(el);
+    return style.display !== 'none' && style.visibility !== 'hidden' && el.offsetWidth > 0 && el.offsetHeight > 0;
+}
+
 function checkIframeForTable() {
     const iframes = getAllIframes(parent.document); // Get all iframes from the parent document
     let tableFound = false;
@@ -27,10 +33,18 @@ function checkIframeForTable() {
         try {
             const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
 
+            const table = iframeDocument.querySelector('table');
             // Check if there is a table in the iframe
-            if (iframeDocument.querySelector('table')) {
+            if (table) {
                 console.log('Iframe at index ' + index + ' contains a table.');
-                tableFound = true; // Table found
+
+                // Check if the table is visible
+                if (isElementVisible(table)) {
+                    console.log('Table in iframe at index ' + index + ' is visible to the user.');
+                    tableFound = true; // Table found and is visible
+                } else {
+                    console.log('Table in iframe at index ' + index + ' is not visible to the user.');
+                }
             }
         } catch (error) {
             console.warn('Cannot access iframe at index ' + index + ': ' + error);
