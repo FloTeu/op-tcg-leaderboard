@@ -2315,18 +2315,18 @@ snowflake = ["snowflake-connector-python (>=2.8.0)", "snowflake-snowpark-python[
 
 [[package]]
 name = "streamlit-elements-fte"
-version = "0.1.1"
+version = "0.1.2"
 description = "Fork of streamlit-elements with minor bugfixes"
 category = "dev"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "streamlit-elements-fte-0.1.1.tar.gz", hash = "sha256:5e21ce2a17ace7156d42716c6ca7ef86c44c7205794c127cde2bc0102cd81664"},
-    {file = "streamlit_elements_fte-0.1.1-py3-none-any.whl", hash = "sha256:8462bc2dc68b0557a2c4dfb42a250d8184791b0e7da3a232938a5049eef11116"},
+    {file = "streamlit-elements-fte-0.1.2.tar.gz", hash = "sha256:154e154854f574654ca2fd62ab4f98c2e193c443c97b346d2088545cb368e8de"},
+    {file = "streamlit_elements_fte-0.1.2-py3-none-any.whl", hash = "sha256:b9852a8e34e1ef4996f95be437b42c7762bc72a31a19a9a6b4e9f72c57df0184"},
 ]
 
 [package.dependencies]
-streamlit = ">1.34.0"
+streamlit = ">=1.40.0"
 
 [[package]]
 name = "streamlit-js-eval"
@@ -2749,4 +2749,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.13"
-content-hash = "6884f8e3743ef50ad1438618d1ed8a675e813117fa1b6d24aa9851ad9e49795b"
+content-hash = "030e59ed0a591bcfb09bce1324ccba8c79a1ebae4b4adda972fdf0b01efff6e0"

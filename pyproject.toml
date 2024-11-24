@@ -35,7 +35,7 @@ streamlit = "1.40.0"
 #streamlit-elements = { git = "https://github.com/FloTeu/streamlit-elements.git", branch = "build-branch" }
 cssutils = "^2.11.1"
 streamlit-js-eval = "^0.1.7"
-streamlit-elements-fte = "^0.1.1"
+streamlit-elements-fte = "^0.1.2"
 st-theme = "^1.2.2"
 
 

@@ -1,28 +1,54 @@
-import os
-import streamlit_elements
-import re
+def patch_modules_streamlit_elements(file: str, old_line: str, new_line: str):
+    import streamlit_elements
+    import os
 
-def patch_streamlit_elements():
-
-    # issue: https://github.com/okld/streamlit-elements/issues/35
-    relative_file_path = 'core/callback.py'
+    relative_file_path = "core/callback.py"
     library_root = list(streamlit_elements.__path__)[0]
     file_path = os.path.join(library_root, relative_file_path)
 
-    # Read broken file
-    with open(file_path, 'r') as file:
+    with open(file_path, "r") as file:
         lines = file.readlines()
 
-    broken_import = 'from streamlit.components.v1 import components'
-    fixed_import = 'from streamlit.components.v1 import custom_component as components\n'
-
-    # Fix broken import line
+    is_changed = False
     for index, line in enumerate(lines):
+        if old_line in line:
+            print(f"Replacing line {index + 1} in {file_path}")
+            lines[index] = line.replace(old_line, new_line)
+            is_changed = True
 
-        if re.match(broken_import, line):
-            print(f'Replaced broken import in {file_path}')
-            lines[index] = fixed_import
+    if is_changed:
+        with open(file_path, "w") as file:
+            file.writelines(lines)
+        import importlib
+        importlib.reload(streamlit_elements)
 
-    # Update broken file with fix
-    with open(file_path, 'w') as file:
-        file.writelines(lines)
+    return True
+
+def patch_streamlit_elements():
+    # fix 1.34.0
+    patch_modules_streamlit_elements(
+        "core/callback.py",
+        "from streamlit.components.v1 import components",
+        "from streamlit.components.v1 import custom_component as components\n",
+    )
+
+
+    #fix 1.40.0
+    patch_modules_streamlit_elements(
+        "core/callback.py",
+        '        user_key = kwargs.get("user_key", None)\n',
+        """
+        try:
+            user_key = None
+            new_callback_data = kwargs[
+                "ctx"
+            ].session_state._state._new_session_state.get(
+                "streamlit_elements.core.frame.elements_frame", None
+            )
+            if new_callback_data is not None:
+                user_key = new_callback_data._key
+        except:
+            user_key = None
+        """.rstrip()
+        + "\n",
+    )
