@@ -1,7 +1,7 @@
 // Tries to fix https://github.com/streamlit/streamlit/issues/5003
 
-// Select all elements with the data-testid="column" attribute
-const columns = parent.document.querySelectorAll('[data-testid="column"]');
+// Select all elements with the data-testid="stColumn" attribute
+const columns = parent.document.querySelectorAll('[data-testid="stColumn"]');
 
 //document.addEventListener('DOMContentLoaded', () => {
 // Use setTimeout to delay the execution slightly
