@@ -1,6 +1,7 @@
 import logging
 
 import streamlit as st
+from streamlit_theme import st_theme
 
 from op_tcg.backend.models.cards import OPTcgCardCatagory, ExtendedCardData
 from op_tcg.backend.models.input import MetaFormat
@@ -11,7 +12,9 @@ from op_tcg.frontend.utils.extract import get_tournament_decklist_data, get_card
 from op_tcg.frontend.utils.js import execute_js_file
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid
 from op_tcg.frontend.utils.styles import execute_style_sheet
+from op_tcg.frontend.views.card import display_card_attributes
 
+ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 
 @st.dialog("Card Detail", width="large")
 def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = None):
@@ -79,29 +82,10 @@ def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = Non
         chart_data = [{lid: occ for lid, occ in cd.items() if lid in most_occurring_leader_ids} for cd in chart_data]
 
         # display data
-        st.header(lid_to_name_and_lid(selected_card_id, leader_name=card_data.name))
         col1, col2 = st.columns([0.5, 1])
         col1.image(card_data.image_url)
         with col2:
-            md_string = f"""
-            **Meta**: {card_data.meta_format}  
-            **Card Type**: {card_data.card_category}  
-            **Color**: {", ".join(card_data.colors)}  """
-            if card_data.cost is not None:
-                md_string += f"\n**Cost**: {card_data.cost}  "
-            if card_data.power is not None:
-                md_string += f"\n**Power**: {card_data.power}  "
-            if card_data.counter is not None:
-                md_string += f"\n**Counter**: {card_data.counter}  "
-            if card_data.life is not None:
-                md_string += f"\n**Life**: {card_data.life}  "
-            if card_data.attributes:
-                md_string += f"""\n**Attribute**: {", ".join(card_data.attributes)}  """
-
-            md_string += f"""\n**Types**: {", ".join(card_data.types)}  
-            **Ability**: {card_data.ability}  """
-
-            st.markdown(md_string)
+            display_card_attributes(card_data)
 
         show_normalized = st.toggle("Show normalized data", True)
         if show_normalized:

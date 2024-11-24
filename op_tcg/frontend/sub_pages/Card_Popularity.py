@@ -188,3 +188,6 @@ def main_card_meta_analysis():
             extended_card_data_list.sort(key=lambda x: x.occurrence_in_decklists, reverse=True)
 
             display_cards(extended_card_data_list[0:30], is_mobile=is_mobile())
+
+    # change height dynamically based on content
+    execute_js_file("iframe_fix_height", display_none=True)
