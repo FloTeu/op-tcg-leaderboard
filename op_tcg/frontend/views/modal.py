@@ -80,8 +80,8 @@ def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = Non
         chart_data = [{lid: occ for lid, occ in cd.items() if lid in most_occurring_leader_ids} for cd in chart_data]
 
         # display data
-        col1, col2 = st.columns([0.5, 1])
-        col1.image(card_data.image_url)
+        col1, col2 = st.columns([0.7, 1])
+        col1.image(card_data.image_url, use_container_width=True)
         with col2:
             display_card_attributes(card_data)
 

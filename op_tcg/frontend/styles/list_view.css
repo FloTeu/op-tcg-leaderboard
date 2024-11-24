@@ -1,11 +1,11 @@
 /* Define color variables for light and dark themes */
 :root {
-  --background-color-light: #f9f9f9;
+  --background-color-light: transparent;
   --border-color-light: #ccc;
   --text-color-light: #333;
   --modal-bg-color-light: rgba(0, 0, 0, 0.7);
 
-  --background-color-dark: #1e1e1e;
+  --background-color-dark: transparent;
   --border-color-dark: #444;
   --text-color-dark: #f1f1f1;
   --modal-bg-color-dark: rgba(255, 255, 255, 0.7);

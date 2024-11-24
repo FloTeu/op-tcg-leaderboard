@@ -16,7 +16,9 @@ def display_list_view(decklist_data: DecklistData, card_ids: list[str]):
         card_data: LatestCardPrice | None = decklist_data.card_id2card_data.get(card_id, None)
         op_set = card_id.split("-")[0]
         occurrence_percantage = decklist_data.card_id2occurrence_proportion[card_id]
-        card_headline_html = f'<h2 class="item-title">{card_data.name if card_data else card_id}</h2>'
+        card_headline_str = card_data.name if card_data else card_id
+        card_headline_str = card_headline_str[0:20] + " [...]" if len(card_headline_str) > 25 else card_headline_str
+        card_headline_html = f'<h2 class="item-title">{card_headline_str}</h2>'
         img_src = card_data.image_url if card_data else f'https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{op_set}/{card_id}_{OPTcgLanguage.EN.upper()}.webp'
         price_html = f'<li>Price: {card_data.latest_eur_price}€ | ${card_data.latest_usd_price}</li>' if card_data else ''
         lis += f"""
