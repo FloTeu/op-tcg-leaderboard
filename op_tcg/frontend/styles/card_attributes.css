@@ -4,10 +4,10 @@ body {
     font-family: Arial, sans-serif;
     background-color: transparent; /* Set body background to transparent */
     display: flex;
-    justify-content: flex-start; /* Align items to the start (top) */
-    align-items: flex-start; /* Align items to the start (top) */
+    justify-content: center; /* Center items horizontally */
+    align-items: center; /* Center items vertically */
     margin: 0;
-    padding: 0 20px 20px 20px; /* Padding: top 0, right 20px, bottom 20px, left 20px */
+    padding: 0; /* Padding: top 0, right 20px, bottom 20px, left 20px */
 }
 
 .card {

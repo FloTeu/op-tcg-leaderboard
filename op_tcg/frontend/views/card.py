@@ -1,10 +1,11 @@
 from cssutils.css import CSSStyleRule
 from streamlit.components import v1 as components
+from streamlit_theme import st_theme
 
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid
 from op_tcg.frontend.utils.styles import read_style_sheet
-from op_tcg.frontend.views.modal import ST_THEME
 
+ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 
 def display_card_attributes(card_data):
     def get_card_attribute_html(attribute_name: str, attribute_value: str) -> str:

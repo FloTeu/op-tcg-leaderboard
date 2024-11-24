@@ -1,7 +1,6 @@
 import logging
 
 import streamlit as st
-from streamlit_theme import st_theme
 
 from op_tcg.backend.models.cards import OPTcgCardCatagory, ExtendedCardData
 from op_tcg.backend.models.input import MetaFormat
@@ -14,7 +13,6 @@ from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid
 from op_tcg.frontend.utils.styles import execute_style_sheet
 from op_tcg.frontend.views.card import display_card_attributes
 
-ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 
 @st.dialog("Card Detail", width="large")
 def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = None):
