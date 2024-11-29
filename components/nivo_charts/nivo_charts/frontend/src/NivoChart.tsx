@@ -38,6 +38,29 @@ interface StringMap {
     [key: string]: string;
 }
 
+function move_position_of_on_hover_legend(translateX: Number | undefined, translateY: Number | undefined){
+    /** Applies translateX and translateY to (hovered) legend in nivo chart
+    * Assumption: legend is inside of div element directly following a svg(plot)
+    */
+    // Find all svg elements in the document
+    const svgElements = document.querySelectorAll('svg');
+    svgElements.forEach(svg => {
+        // Check if the next sibling of the svg is a div
+        const nextSibling = svg.nextElementSibling;
+        if (nextSibling && nextSibling.tagName.toLowerCase() === 'div') {
+            // Cast nextSibling to HTMLElement to access the style property
+            const divElement = nextSibling as HTMLElement;
+            // Change the top and left styling of the div
+            if (translateX){
+               divElement.style.left = `${translateX}px`;
+            }
+            if (translateY){
+               divElement.style.top = `${translateY}px`;
+            }
+        }
+    });
+}
+
 function createCallable(obj: StringMap): (key: string | number) => string | undefined {
     return function(key: string | number): string | undefined {
         return obj[key.toString()];
@@ -89,15 +112,51 @@ class NivoChart extends StreamlitComponentBase<State> {
       return <div>Invalid chart class name: {chartClassName}</div>;
     }
 
+
+    // Safely access translateX and translateY using optional chaining
+    const translateX = layout.legends?.[0]?.effects?.[0]?.style?.translateX ?? 0;
+    const translateY = layout.legends?.[0]?.effects?.[0]?.style?.translateY ?? 0;
+
+    // Create a new MutationObserver instance
+    const observer = new MutationObserver((mutationsList) => {
+        for (const mutation of mutationsList) {
+            if (mutation.type === 'childList') {
+                // Iterate over added nodes
+                const addedNodesArray = Array.from(mutation.addedNodes);
+                for (const node of addedNodesArray) {
+                    if (node.nodeName === 'DIV') {
+                        move_position_of_on_hover_legend(translateX, translateY);
+                    }
+                }
+            }
+        }
+    });
+
+
+    // Wait for 100 ms before checking the DOM structure
+    setTimeout(() => {
+        // Select the target element to observe
+        const targetNode = document.getElementById('custom-nivo-chart');
+
+        // Configuration for the observer (observe child nodes and subtree)
+        const config = { childList: true, subtree: true };
+
+        // Start observing the target node
+        if (targetNode){
+           observer.observe(targetNode, config);
+        }
+    }, 100); // n ms delay
+
+
     // Display nivo chart
     return (
       <div>
-          <div style={styles} key={key}>
-          <div dangerouslySetInnerHTML={{ __html: cleanCustomHtml }} />
-              <ChartComponent
-                data={data}
-                {...layout}
-              />
+          <div id="custom-nivo-chart" style={styles} key={key} >
+              <div dangerouslySetInnerHTML={{ __html: cleanCustomHtml }} />
+                  <ChartComponent
+                    data={data}
+                    {...layout}
+                  />
           </div>
       </div>
     )

@@ -12,6 +12,7 @@ from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.frontend.utils.components import nivo_chart, NivoChartType
 from op_tcg.frontend.utils.leader_data import lid2ldata_fn
 from op_tcg.frontend.utils.styles import css_rule_to_dict, read_style_sheet, PRIMARY_COLOR_RGB
+from op_tcg.frontend.utils.utils import merge_dicts
 
 ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 
@@ -169,7 +170,7 @@ def get_radar_chart_data(df_color_win_rates) -> list[dict[str, str | float]]:
     return radar_chart_data
 
 
-def create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, colors, styles: dict | None = None):
+def create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, colors, styles: dict | None = None, layout_overwrites: dict | None = None):
     text_color = "#ffffff" if ST_THEME["base"] == "dark" else "#31333F"
     layout = {
         "keys": selected_leader_names,
@@ -186,8 +187,8 @@ def create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, 
             {
                 "anchor": "top-left",
                 "direction": "column",
-                "translateX": -50,
-                "translateY": -40,
+                "translateX": -60,
+                "translateY": -60,
                 "itemWidth": 80,
                 "itemHeight": 20,
                 "itemTextColor": "#ffffff" if ST_THEME["base"] == "dark" else "#999",
@@ -197,7 +198,7 @@ def create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, 
                     {
                         "on": "hover",
                         "style": {
-                            "itemTextColor": "#000"
+                            "itemTextColor": "#000",
                         }
                     }
                 ]
@@ -218,11 +219,9 @@ def create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, 
         },
         "colors": colors
     }
+    if layout_overwrites:
+        layout = merge_dicts(layout, layout_overwrites)
     return nivo_chart(radar_chart_data, chart_type=NivoChartType.RADAR, layout=layout, styles=styles)
-    # return nivo.Radar(
-    #     data=radar_chart_data,
-    #     **layout
-    # )
 
 
 def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]], data_keys: list[str] | None = None,

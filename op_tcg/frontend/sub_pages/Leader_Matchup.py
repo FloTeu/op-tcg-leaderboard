@@ -51,7 +51,7 @@ def display_elements(selected_leader_ids,
               **rounder_corners_css,
               "background": f"rgb{PRIMARY_COLOR_RGB}"
               }
-    create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, colors, styles=styles)
+    create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, colors, styles=styles, layout_overwrites={"dotSize": 15, "legends": [{"effects": [{"style": {"translateX": 160, "translateY": 120}}]}]})
 
     with elements("dashboard"):
         # leader win rate
