@@ -27,7 +27,7 @@ from op_tcg.frontend.sidebar import display_meta_select, display_only_official_t
     display_match_count_slider_slider, display_leader_color_multiselect, display_leader_select, LeaderboardSortBy, \
     display_sortby_select
 from op_tcg.frontend.utils.extract import get_leader_extended
-from op_tcg.frontend.utils.styles import execute_style_sheet
+from op_tcg.frontend.utils.styles import execute_style_sheet, read_style_sheet, css_rule_to_dict
 from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_cell, value2color_table_cell
 from op_tcg.frontend.utils.leader_data import get_lid2ldata_dict_cached, lids_to_name_and_lids, lname_and_lid_to_lid, calculate_dominance_score
 from op_tcg.frontend.utils.utils import bq_client
@@ -122,7 +122,8 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
                 columns=[c for c in df_leader_extended_selected_meta.columns if c not in (display_columns + ["id"])])[
                 display_columns + ["id"]]
 
-            header_cells = [mui.TableCell(children="Leader", sx={"width": "200px"})] + [mui.TableCell(col) for col in
+            header_stylings = css_rule_to_dict(read_style_sheet("table", ".sticky-header"))
+            header_cells = [mui.TableCell(children="Leader", sx={"width": "200px", **header_stylings})] + [mui.TableCell(col, sx=header_stylings) for col in
                                                                                         (display_columns + [
                                                                                             "Win Rate Chart"])]
 
@@ -157,7 +158,6 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
                           key="lboard_table_item")
 
     st.markdown("*D-Score: Composite score from multiple metrics defining the dominance a leader has in the selected meta (Formula: $win\_rate * 0.1 + matches * 0.3 + elo * 0.2 + tournament\_wins * 0.4$ )")
-
 
 def sort_table_df(df: LeaderExtended.paSchema(), sort_by: LeaderboardSortBy,
                   display_name2df_col_name: dict[str, str]) -> LeaderExtended.paSchema():

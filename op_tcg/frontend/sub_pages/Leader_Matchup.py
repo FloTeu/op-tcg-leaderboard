@@ -10,6 +10,7 @@ from op_tcg.backend.models.matches import LeaderWinRate
 from op_tcg.frontend.utils.chart import get_radar_chart_data, create_leader_win_rate_radar_chart
 from op_tcg.frontend.utils.extract import get_leader_win_rate, get_leader_extended
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select, display_only_official_toggle
+from op_tcg.frontend.utils.js import is_mobile
 from op_tcg.frontend.utils.material_ui_fns import create_image_cell, display_table, value2color_table_cell, \
     add_tooltip
 from op_tcg.frontend.utils.leader_data import leader_id2aa_image_url, lid2ldata_fn, get_lid2ldata_dict_cached, \
@@ -30,6 +31,7 @@ def display_elements(selected_leader_ids,
                      df_Leader_vs_leader_match_count,
                      radar_chart_data):
     lid2ldata_dict = get_lid2ldata_dict_cached()
+
     def get_leader_name(leader_id: str) -> str:
         return f"{lid2ldata_dict.get(leader_id, get_template_leader()).name} ({lid2ldata_dict.get(leader_id, get_template_leader()).get_color_short_name()})"
 
@@ -39,7 +41,7 @@ def display_elements(selected_leader_ids,
     for j, r_data in enumerate(radar_chart_data):
         radar_chart_data[j] = {k if i == 0 else get_leader_name(k): v for i, (k, v) in enumerate(r_data.items())}
 
-    col1, col2 = st.columns([1,1])
+    col1, col2 = st.columns([1, 1])
     col1.subheader("Leader Color Win Rates")
     with col2:
         with elements("avatars"):
@@ -51,7 +53,16 @@ def display_elements(selected_leader_ids,
               **rounder_corners_css,
               "background": f"rgb{PRIMARY_COLOR_RGB}"
               }
-    create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, colors, styles=styles, layout_overwrites={"dotSize": 15, "legends": [{"effects": [{"style": {"translateX": 160, "translateY": 120}}]}]})
+    layout_overwrites = {"dotSize": 15, "legends": [
+        {"effects":
+             [{"style":
+                   {"translateX": 0 if is_mobile() else 160,
+                    "translateY": 70 if is_mobile() else 120}
+               }]
+         }
+    ]}
+    create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, colors, styles=styles,
+                                       layout_overwrites=layout_overwrites)
 
     with elements("dashboard"):
         # leader win rate
@@ -67,13 +78,20 @@ def display_elements(selected_leader_ids,
 
         header_cells = [mui.TableCell(children="Winner\\Opponent"), mui.TableCell(children="Win Rate")] + [
             create_image_cell(lid2ldata_dict.get(col, get_template_leader()).image_url,
-                              text=lid2ldata_dict.get(col, get_template_leader()).name.replace('"', " ").replace('.', " "),
-                              overlay_color=lid2ldata_dict.get(col, get_template_leader()).to_hex_color(), horizontal=False) for col in
+                              text=lid2ldata_dict.get(col, get_template_leader()).name.replace('"', " ").replace('.',
+                                                                                                                 " "),
+                              overlay_color=lid2ldata_dict.get(col, get_template_leader()).to_hex_color(),
+                              horizontal=False) for col in
             df_Leader_vs_leader_win_rates.columns.values]
         index_cells = []
         index_cells.append([create_image_cell(leader_id2aa_image_url(leader_id, lid2ldata_dict),
-                                              text=lid2ldata_dict.get(leader_id, get_template_leader()).id.split("-")[0] + "\n" + lid2ldata_dict.get(leader_id, get_template_leader()).name.replace('"', " ").replace('.', " "),
-                                              overlay_color=lid2ldata_dict.get(leader_id, get_template_leader()).to_hex_color()) for
+                                              text=lid2ldata_dict.get(leader_id, get_template_leader()).id.split("-")[
+                                                       0] + "\n" + lid2ldata_dict.get(leader_id,
+                                                                                      get_template_leader()).name.replace(
+                                                  '"', " ").replace('.', " "),
+                                              overlay_color=lid2ldata_dict.get(leader_id,
+                                                                               get_template_leader()).to_hex_color())
+                            for
                             leader_id, df_row in df_Leader_vs_leader_win_rates.iterrows()])
         index_cells.append(
             [value2color_table_cell(leader2win_rate[leader_id], max=100) for leader_id in sorted_leader_ids])
@@ -118,6 +136,7 @@ def get_leader2avg_win_rate_dict(df_Leader_vs_leader_match_count, df_Leader_vs_l
         leader2win_rate[leader_id] = float("%.1f" % avg_leader_win_rate)
     return leader2win_rate
 
+
 def add_qparam_on_change_fn(qparam2session_key: dict[str, str]):
     for qparam, session_key in qparam2session_key.items():
         if session_key == "selected_lids":
@@ -126,6 +145,7 @@ def add_qparam_on_change_fn(qparam2session_key: dict[str, str]):
             add_query_param(qparam, selected_leader_ids)
         else:
             raise NotImplementedError
+
 
 def main_meta_analysis():
     st.header("Leader Matchup")
@@ -138,7 +158,8 @@ def main_meta_analysis():
     else:
         leader_extended_data: list[LeaderExtended] = get_leader_extended()
         selected_meta_win_rate_data: list[LeaderWinRate] = get_leader_win_rate(meta_formats=selected_meta_formats)
-        df_meta_win_rate_data = pd.DataFrame([lwr.dict() for lwr in selected_meta_win_rate_data if lwr.only_official == only_official])
+        df_meta_win_rate_data = pd.DataFrame(
+            [lwr.dict() for lwr in selected_meta_win_rate_data if lwr.only_official == only_official])
         if len(df_meta_win_rate_data) == 0:
             st.warning("No leader data available for the selected meta")
             return None
@@ -146,7 +167,9 @@ def main_meta_analysis():
         min_match_count = min(int(max(lid2match_count.values()) * 0.1), 30)
 
         # first element is leader with best d_score
-        leader_extended_data = list(filter(lambda x: x.meta_format in selected_meta_formats and x.total_matches > min_match_count, leader_extended_data))
+        leader_extended_data = list(
+            filter(lambda x: x.meta_format in selected_meta_formats and x.total_matches > min_match_count,
+                   leader_extended_data))
         leader_extended_data.sort(key=lambda x: x.d_score, reverse=True)
         available_leader_ids = list(dict.fromkeys([le.id for le in leader_extended_data]))
         available_leader_names = lids_to_name_and_lids(available_leader_ids)
@@ -158,7 +181,12 @@ def main_meta_analysis():
             default_leader_names = get_default_leader_names(available_leader_ids, query_param="lid")
             if len(set(available_leader_names) - set(default_leader_names)) == 0:
                 default_leader_names = default_leader_names[0:5]
-            selected_leader_names: list[str] = display_leader_select(available_leader_names=available_leader_names, multiselect=True, default=default_leader_names, key="selected_lids", on_change=partial(add_qparam_on_change_fn, qparam2session_key={"lid": "selected_lids"}))
+            selected_leader_names: list[str] = display_leader_select(available_leader_names=available_leader_names,
+                                                                     multiselect=True, default=default_leader_names,
+                                                                     key="selected_lids",
+                                                                     on_change=partial(add_qparam_on_change_fn,
+                                                                                       qparam2session_key={
+                                                                                           "lid": "selected_lids"}))
         if len(selected_leader_names) < 2:
             st.warning("Please select at least two leaders")
         else:
@@ -172,4 +200,3 @@ def main_meta_analysis():
                              df_Leader_vs_leader_win_rates,
                              df_Leader_vs_leader_match_count,
                              radar_chart_data)
-

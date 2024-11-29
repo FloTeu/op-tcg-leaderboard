@@ -1,8 +1,7 @@
-import streamlit as st
 import pandas as pd
 from typing import Any
 
-from streamlit_elements import mui, html, core
+from streamlit_elements import mui, html
 
 from op_tcg.frontend.utils.styles import GREEN_RGB, RED_RGB
 

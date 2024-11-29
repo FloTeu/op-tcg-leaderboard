@@ -60,7 +60,7 @@ function checkIframeForTable() {
 setTimeout(() => {
     if (!checkIframeForTable()){
         // Show a warning message before reloading
-        const userConfirmed = confirm('Leaderboard could not be loaded. The page will reload. Do you want to continue?');
+        const userConfirmed = confirm('Leaderboard could not be loaded. Do you want to reload the page?');
         if (userConfirmed) {
             console.log('No iframe contains a table. Reloading the page...');
             parent.window.location.reload(); // Reload the page
