@@ -1,3 +1,7 @@
-// assumes sidebar button to be the first element
-const match = parent.document.querySelectorAll(".st-emotion-cache-1f3w014")[0];
-match.classList.add("bounce");
+// Select the element with the specific data-testid attribute
+const match = parent.document.querySelector('[data-testid="stSidebarCollapsedControl"]');
+if (match) {
+    match.classList.add("bounce");
+} else {
+    console.error('Element with data-testid="stSidebarCollapsedControl" not found.');
+}

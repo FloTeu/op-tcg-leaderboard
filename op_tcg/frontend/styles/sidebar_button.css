@@ -1,11 +1,13 @@
-.st-emotion-cache-1f3w014 {
+/* Target the first svg element inside the element with the specified data-testid */
+[data-testid="stSidebarCollapsedControl"] svg:first-of-type {
     height: 3rem;
-    width : 3rem;
- }
- .st-emotion-cache-1f3w014.bounce {
+    width: 3rem;
+}
+/* Apply bounce animation to the element with the bounce class */
+[data-testid="stSidebarCollapsedControl"].bounce {
     animation: bounce 2s ease infinite;
- }
- @keyframes bounce {
+}
+@keyframes bounce {
         70% { transform:translateY(0%); }
         80% { transform:translateY(-15%); }
         90% { transform:translateY(0%); }
