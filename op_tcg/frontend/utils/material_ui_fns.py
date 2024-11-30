@@ -79,6 +79,7 @@ def value2color_table_cell(value: float | int, max: float | int, color_switch_th
                             'fontSize': '1.35rem',  # Adjust font size as needed
                             'color': 'black',  # Text color set to white
                             'fontWeight': 'bold',  # Optional: make the text bold
+                            'border': '0px',
                              })
     return cell
 

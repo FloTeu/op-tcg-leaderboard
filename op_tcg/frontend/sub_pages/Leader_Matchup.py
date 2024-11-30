@@ -20,7 +20,7 @@ from streamlit_elements import elements, mui
 from streamlit_theme import st_theme
 
 from op_tcg.frontend.utils.query_params import add_query_param, get_default_leader_names
-from op_tcg.frontend.utils.styles import css_rule_to_dict, read_style_sheet, PRIMARY_COLOR_RGB
+from op_tcg.frontend.utils.styles import css_rule_to_dict, read_style_sheet
 
 ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 
@@ -51,7 +51,6 @@ def display_elements(selected_leader_ids,
     rounder_corners_css = css_rule_to_dict(read_style_sheet("chart", selector=".rounded-corners"))
     styles = {"height": 450,
               **rounder_corners_css,
-              "background": f"rgb{PRIMARY_COLOR_RGB}"
               }
     layout_overwrites = {"dotSize": 15, "legends": [
         {"effects":

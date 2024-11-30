@@ -29,7 +29,7 @@ from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid, lname_and_lid
     get_lid2ldata_dict_cached
 from op_tcg.frontend.utils.query_params import get_default_leader_name, \
     delete_query_param, add_query_param
-from op_tcg.frontend.utils.styles import read_style_sheet, css_rule_to_dict, PRIMARY_COLOR_RGB
+from op_tcg.frontend.utils.styles import read_style_sheet, css_rule_to_dict
 from op_tcg.frontend.utils.utils import sort_df_by_meta_format
 from op_tcg.frontend.views.decklist import display_list_view, display_decklist
 
@@ -111,7 +111,6 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
         rounder_corners_css = css_rule_to_dict(read_style_sheet("chart", selector=".rounded-corners"))
         styles = {"height": 150,
                  **rounder_corners_css,
-                 "background": f"rgb{PRIMARY_COLOR_RGB}"
                  }
         create_leader_line_chart(leader_id=leader_data.id, leader_extended=leader_extended_data,
                                                  enable_x_axis=True, enable_y_axis=False,
@@ -120,7 +119,6 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
         st.subheader("Win Rate Matchup")
         styles = {"height": 250,
                   **rounder_corners_css,
-                  "background": f"rgb{PRIMARY_COLOR_RGB}"
                   }
         create_leader_win_rate_radar_chart(radar_chart_data, [leader_data.id],
                                                colors=[leader_data.to_hex_color()], styles=styles)
@@ -133,8 +131,8 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
         with col2:
             st.subheader("Win Rate Matchup")
             styles = {"height": 300,
-                             **rounder_corners_css,
-                             "background": f"rgb{PRIMARY_COLOR_RGB}"}
+                             **rounder_corners_css
+                      }
             create_leader_win_rate_radar_chart(radar_chart_data, [leader_data.id, hardest_opponent_data.id,
                                                                       easiest_opponent_data.id],
                                                    colors=[leader_data.to_hex_color(),
@@ -296,9 +294,8 @@ def display_opponent_view(selected_opponent_id: str, matchups: list[Matchup], le
         st.subheader("Win Rate Change")
         rounded_corners_css = css_rule_to_dict(read_style_sheet("chart", selector=".rounded-corners"))
         styles = {"height": 150,
-                         **rounded_corners_css,
-                         "background": f"rgb{PRIMARY_COLOR_RGB}"
-                         }
+                   **rounded_corners_css,
+                }
         with mui.Box():
             create_line_chart(opponent_matchup.win_rate_chart_data, data_id="WR", enable_x_axis=True, enable_y_axis=False, styles=styles)
 

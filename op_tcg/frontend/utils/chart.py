@@ -11,7 +11,7 @@ from streamlit_theme import st_theme
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.frontend.utils.components import nivo_chart, NivoChartType
 from op_tcg.frontend.utils.leader_data import lid2ldata_fn
-from op_tcg.frontend.utils.styles import css_rule_to_dict, read_style_sheet, PRIMARY_COLOR_RGB
+from op_tcg.frontend.utils.styles import css_rule_to_dict, read_style_sheet
 from op_tcg.frontend.utils.utils import merge_dicts
 
 ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
@@ -350,7 +350,6 @@ def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]
     styles = {
         "height": "400px",
         **rounder_corners_css,
-        "background": f"rgb{PRIMARY_COLOR_RGB}"
     }
     nivo_chart(data, chart_type=NivoChartType.STREAM, layout=layout, layout_callables=layout_callables, styles=styles,
                custom_html=custom_html)
