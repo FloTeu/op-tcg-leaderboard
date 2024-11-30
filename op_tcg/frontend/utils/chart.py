@@ -201,12 +201,11 @@ def create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, 
                             "itemTextColor": "#000",
                         }
                     }
-                ]
+                ],
             }
         ],
         "theme": {
             "background": "#2C3A47" if ST_THEME["base"] == "dark" else "#ffffff",
-            "textColor": text_color,
             "tooltip": {
                 "container": {
                     "background": "#FFFFFF",
@@ -214,8 +213,14 @@ def create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, 
                 }
             },
             "text": {
-                "fill": text_color
+                "fill": text_color,
+                "fontSize": 17,
             },
+            "legends": {
+                "text": {
+                    "fontSize": 10,
+                },
+            }
         },
         "colors": colors
     }
