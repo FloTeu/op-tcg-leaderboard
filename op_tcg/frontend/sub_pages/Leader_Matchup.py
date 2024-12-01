@@ -31,6 +31,7 @@ def display_elements(selected_leader_ids,
                      df_Leader_vs_leader_match_count,
                      radar_chart_data):
     lid2ldata_dict = get_lid2ldata_dict_cached()
+    table_cell_styles = css_rule_to_dict(read_style_sheet("table", ".colored-table-cell"))
 
     def get_leader_name(leader_id: str) -> str:
         return f"{lid2ldata_dict.get(leader_id, get_template_leader()).name} ({lid2ldata_dict.get(leader_id, get_template_leader()).get_color_short_name()})"
@@ -93,7 +94,7 @@ def display_elements(selected_leader_ids,
                             for
                             leader_id, df_row in df_Leader_vs_leader_win_rates.iterrows()])
         index_cells.append(
-            [value2color_table_cell(leader2win_rate[leader_id], max=100) for leader_id in sorted_leader_ids])
+            [value2color_table_cell(leader2win_rate[leader_id], max=100, styles=table_cell_styles) for leader_id in sorted_leader_ids])
 
         for col in df_Leader_vs_leader_match_count.columns.values:
             df_Leader_vs_leader_match_count[col] = df_Leader_vs_leader_match_count[col].fillna(0)
@@ -106,7 +107,7 @@ def display_elements(selected_leader_ids,
             for i in range(len(row)):
                 other_df_cell = other_df.loc[row.name, row.index[i]]
                 result_row.append(value2color_table_cell(row.iloc[i], max=100, cell_input=add_tooltip(row.iloc[i],
-                                                                                                      tooltip=other_df_cell)))
+                                                        tooltip=other_df_cell), styles=table_cell_styles))
             return result_row
 
         df_Leader_vs_leader_win_rates_table_cells = df_Leader_vs_leader_win_rates.apply(

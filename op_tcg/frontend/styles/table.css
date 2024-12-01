@@ -8,9 +8,9 @@
 
 .colored-table-cell {
     text-align: center;
-    font-size: 1.35rem;
+    font-size: 20px;
     color: black;
     font-weight: bold;
-    border-right: 2px solid transparent;
-    border-left: 2px solid transparent;
+    border-right: 3px solid transparent;
+    border-left: 3px solid transparent;
 }

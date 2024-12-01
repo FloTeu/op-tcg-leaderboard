@@ -99,6 +99,7 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
         if display_name == LeaderboardSortBy.WIN_RATE:
             df_col_name = "win_rate_decimal"
         df_leader_extended_selected_meta[str(display_name)] = df_leader_extended_selected_meta[df_col_name]
+    table_cell_styles = css_rule_to_dict(read_style_sheet("table", ".colored-table-cell"))
 
     with elements("dashboard"):
         # Layout for every element in the dashboard
@@ -135,7 +136,7 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
                     df_leaderboard_display[col] = df_leaderboard_display[col].apply(
                         lambda elo: value2color_table_cell(elo, max=max_elo,
                                                            color_switch_threshold=1000 if 1000 < max_elo else (
-                                                                   max_elo * (7 / 8))))
+                                                                   max_elo * (7 / 8)), styles=table_cell_styles))
                 elif col == "Name":
                     df_leaderboard_display[col] = df_leaderboard_display[[col, "id"]].apply(
                         lambda x: mui.TableCell(mui.Link(

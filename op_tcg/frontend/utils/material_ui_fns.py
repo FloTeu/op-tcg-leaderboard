@@ -61,7 +61,8 @@ def add_tooltip(win_rate, tooltip=None):
         cell_input = mui.Typography(cell_text, sx=cell_text_styles)
     return cell_input
 
-def value2color_table_cell(value: float | int, max: float | int, color_switch_threshold: float | int = None, cell_input=None):
+def value2color_table_cell(value: float | int, max: float | int, color_switch_threshold: float | int = None, cell_input=None, styles: dict | None = None):
+    styles = styles or {}
     cell_input = cell_input or value
     background_color = "rgb(164, 176, 190)"
     half_max = (max/2)
@@ -75,9 +76,8 @@ def value2color_table_cell(value: float | int, max: float | int, color_switch_th
         transparency = 0.5 + (value / half_max - 1) / 2
         background_color = f"rgba({GREEN_RGB[0]},{GREEN_RGB[1]},{GREEN_RGB[2]}, {transparency})"
 
-    style = css_rule_to_dict(read_style_sheet("table", ".colored-table-cell"))
     cell = mui.TableCell(cell_input, sx={"background": background_color,
-                             **style
+                             **styles
                              })
     return cell
 
