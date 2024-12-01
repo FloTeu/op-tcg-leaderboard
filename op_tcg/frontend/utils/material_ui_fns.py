@@ -3,7 +3,7 @@ from typing import Any
 
 from streamlit_elements import mui, html
 
-from op_tcg.frontend.utils.styles import GREEN_RGB, RED_RGB
+from op_tcg.frontend.utils.styles import GREEN_RGB, RED_RGB, css_rule_to_dict, read_style_sheet
 
 
 def display_table(table_cells,
@@ -74,13 +74,10 @@ def value2color_table_cell(value: float | int, max: float | int, color_switch_th
         # expected to be between 0 (0.5 in best case) and 1
         transparency = 0.5 + (value / half_max - 1) / 2
         background_color = f"rgba({GREEN_RGB[0]},{GREEN_RGB[1]},{GREEN_RGB[2]}, {transparency})"
+
+    style = css_rule_to_dict(read_style_sheet("table", ".colored-table-cell"))
     cell = mui.TableCell(cell_input, sx={"background": background_color,
-                             "text-align": "center",
-                            'fontSize': '1.35rem',  # Adjust font size as needed
-                            'color': 'black',  # Text color set to white
-                            'fontWeight': 'bold',  # Optional: make the text bold
-                            'border-right': '2px solid transparent', # prevent sticky header border issue
-                            'border-left': '2px solid transparent', # prevent sticky header border issue
+                             **style
                              })
     return cell
 

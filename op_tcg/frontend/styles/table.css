@@ -1,7 +1,16 @@
 .sticky-header {
     position: sticky;
-    top: -1px;
+    top: -2px; /* Ensures sticky header overlaps all table rows below*/
     z-index: 2;
     background-color: rgb(14, 17, 23);
     border: 0px;
+}
+
+.colored-table-cell {
+    text-align: center;
+    font-size: 1.35rem;
+    color: black;
+    font-weight: bold;
+    border-right: 2px solid transparent;
+    border-left: 2px solid transparent;
 }
