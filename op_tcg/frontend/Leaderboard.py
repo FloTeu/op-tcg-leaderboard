@@ -2,6 +2,7 @@ from functools import partial
 
 import streamlit as st
 
+from op_tcg.frontend.sub_pages.utils import sub_page_title_to_url_path
 from op_tcg.frontend.utils.js import is_mobile, execute_js_file, prevent_js_frame_height, execute_js_code
 
 st.set_page_config(layout="wide")
@@ -13,14 +14,13 @@ from datetime import datetime, date
 from uuid import uuid4
 
 from op_tcg.frontend.utils.chart import LineChartYValue, create_leader_line_chart
-from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER_MATCHUP, SUB_PAGE_LEADER_DECKLIST, \
-    SUB_PAGE_LEADER_DECKLIST_MOVEMENT, SUB_PAGE_CARD_POPULARITY, SUB_PAGE_LEADER, SUB_PAGE_LEADER_CARD_MOVEMENT
+from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER_MATCHUP, SUB_PAGE_LEADER_DECKLIST_MOVEMENT, SUB_PAGE_CARD_POPULARITY, SUB_PAGE_LEADER, SUB_PAGE_LEADER_CARD_MOVEMENT
 from op_tcg.backend.utils.utils import booleanize
 from op_tcg.backend.etl.load import bq_insert_rows, get_or_create_table
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.leader import TournamentWinner, LeaderElo, LeaderExtended, Leader
+from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.cards import OPTcgColor
-from op_tcg.backend.models.matches import Match, MatchResult, LeaderWinRate
+from op_tcg.backend.models.matches import Match, MatchResult
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.frontend.utils.session import get_session_id
 from op_tcg.frontend.sidebar import display_meta_select, display_only_official_toggle, display_release_meta_select, \
@@ -37,7 +37,7 @@ from op_tcg.frontend.sub_pages import (main_meta_analysis, main_leader_card_move
                                        main_leader_decklist_movement, main_card_meta_analysis
                                        )
 
-from streamlit_elements import elements, dashboard, mui, lazy, sync
+from streamlit_elements import elements, dashboard, mui
 
 prevent_js_frame_height()
 
@@ -79,7 +79,7 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
                               display_name2df_col_name: dict[str, str], only_official: bool = True):
     # Define a callback function to handle link click
     def open_leader_page(leader_id: str):
-        url = f"/{SUB_PAGE_LEADER}?lid={leader_id}"
+        url = f"/{sub_page_title_to_url_path(SUB_PAGE_LEADER)}?lid={leader_id}"
         script = f'parent.window.open("{url}", "_self")'
         execute_js_code(script)
 
@@ -344,17 +344,12 @@ def main():
         st.warning("Seems like the selected meta does not contain any matches")
 
 
-def sub_page_title_to_url_path(title: str):
-    return title.replace(" ", "_").lower()
-
 # main_meta_analysis, main_leader_detail_analysis_decklists, main_leader_detail_anylsis, main_admin_leader_upload
 pages = [
     st.Page(main, title="Leaderboard", default=True),
     st.Page(main_leader_detail_analysis, title=SUB_PAGE_LEADER, url_path=sub_page_title_to_url_path(SUB_PAGE_LEADER)),
     st.Page(main_meta_analysis, title=SUB_PAGE_LEADER_MATCHUP, url_path=sub_page_title_to_url_path(SUB_PAGE_LEADER_MATCHUP)),
     # st.Page(main_leader_detail_analysis_decklists, title=SUB_PAGE_LEADER_DECKLIST, url_path=SUB_PAGE_LEADER_DECKLIST),
-    st.Page(main_leader_decklist_movement, title=SUB_PAGE_LEADER_DECKLIST_MOVEMENT,
-            url_path=sub_page_title_to_url_path(SUB_PAGE_LEADER_DECKLIST_MOVEMENT)),
     st.Page(main_leader_card_movement, title=SUB_PAGE_LEADER_CARD_MOVEMENT,
             url_path=sub_page_title_to_url_path(SUB_PAGE_LEADER_CARD_MOVEMENT)),
     st.Page(main_card_meta_analysis, title=SUB_PAGE_CARD_POPULARITY, url_path=sub_page_title_to_url_path(SUB_PAGE_CARD_POPULARITY)),

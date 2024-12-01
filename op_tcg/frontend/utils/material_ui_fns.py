@@ -1,5 +1,5 @@
 import pandas as pd
-from typing import Any
+from typing import Any, Callable
 
 from streamlit_elements import mui, html
 
@@ -7,8 +7,8 @@ from op_tcg.frontend.utils.styles import GREEN_RGB, RED_RGB, css_rule_to_dict, r
 
 
 def display_table(table_cells,
-                  index_cells: list[list[Any]]=None,
-                  header_cells: list[Any]=None,
+                  index_cells: list[list[Any]] = None,
+                  header_cells: list[Any] = None,
                   title=None,
                   key="mui-table"):
     """
@@ -21,7 +21,9 @@ def display_table(table_cells,
     if header_cells:
         assert table_cells.shape[1] + count_index_sells == len(header_cells)
     else:
-        header_cells = [mui.TableCell(children="") for _ in range(count_index_sells)] + [mui.TableCell(children=col) for col in table_cells.columns.values]
+        header_cells = [mui.TableCell(children="") for _ in range(count_index_sells)] + [mui.TableCell(children=col) for
+                                                                                         col in
+                                                                                         table_cells.columns.values]
     with mui.TableContainer(key=key):
         if title:
             mui.Box(html.H2(title), sx={"font-family": '"Source Sans Pro", sans-serif;'})
@@ -44,6 +46,7 @@ def display_table(table_cells,
 
                     # Create the table row with all the cells
                     mui.TableRow(row_cells)
+
 
 def add_tooltip(win_rate, tooltip=None):
     cell_text = f"{win_rate}%" if not pd.isna(win_rate) else win_rate
@@ -107,8 +110,8 @@ def calculate_transparency(value, min_value, max_value):
             return 0.5 + (midpoint - value) / (midpoint - min_value) * 0.5
 
 
-
-def value2color_table_cell(value: str | float | int, max_value: float | int, min_value: float | int = 0, color_switch_threshold: float | int = None, cell_input=None, styles: dict | None = None):
+def value2color_table_cell(value: str | float | int, max_value: float | int, min_value: float | int = 0,
+                           color_switch_threshold: float | int = None, cell_input=None, styles: dict | None = None):
     styles = styles or {}
     cell_input = cell_input or value
     background_color = "rgb(164, 176, 190)"
@@ -128,36 +131,45 @@ def value2color_table_cell(value: str | float | int, max_value: float | int, min
     #     background_color = f"rgba({GREEN_RGB[0]},{GREEN_RGB[1]},{GREEN_RGB[2]}, {transparency})"
 
     cell = mui.TableCell(cell_input, sx={"background": background_color,
-                             **styles
-                             })
+                                         **styles
+                                         })
     return cell
 
 
-def create_image_cell(image_url, text: str | None=None, overlay_color='#000000', sx: dict=None, horizontal=True):
+def create_image_cell(image_url, text: str | None = None, overlay_color='#000000', sx: dict = None, horizontal=True,
+                      on_click: Callable | None = None):
     # Function to create an image cell in a table with a background image and formatted text
     width = "200px" if horizontal else "auto"
     sx = sx or {}
-    text_blocks=[]
+    text_blocks = []
     if text:
         text_blocks = [mui.Typography(
-                            text_line,
-                            sx={
-                                'fontSize': '1.15rem',  # Adjust font size as needed
-                                'color': 'white',  # Text color set to white
-                                'fontWeight': 'bold',  # Optional: make the text bold
-                                '-webkit-text-stroke': '0.1px beige',  # Black border line around the text
-                                'textShadow': '1px 2px 4px black',  # Optional: text shadow for better readability
-                            }
-                        ) for text_line in text.split("\n")]
-
+            text_line,
+            sx={
+                'fontSize': '1.15rem',  # Adjust font size as needed
+                'color': 'white',  # Text color set to white
+                'fontWeight': 'bold',  # Optional: make the text bold
+                '-webkit-text-stroke': '0.1px beige',  # Black border line around the text
+                'textShadow': '1px 2px 4px black',  # Optional: text shadow for better readability
+            }
+        ) for text_line in text.split("\n")]
+    text_style = {
+        'position': 'absolute',
+        'bottom': 0,
+        'right': 0,
+        'padding': '8px',
+    }
+    text_element = mui.Link(text_blocks, sx=text_style, onClick=on_click) if on_click else mui.Box(text_blocks,
+                                                                                                   sx=text_style)
     return mui.TableCell(mui.Box(mui.Box(
         sx={
             'backgroundImage': f'linear-gradient(to top, {overlay_color}, transparent), url("{image_url}")',
-            #'backgroundImage': f'url("{image_url}")',
+            # 'backgroundImage': f'url("{image_url}")',
             'backgroundSize': 'cover, 125%',  # Apply cover for gradient and zoom for image
-            #'backgroundSize': '110%',  # Zoom in by 25%
-            'backgroundPosition': 'bottom, center -50px' if horizontal else 'bottom, center 0px', # Gradient from bottom, image from 50px from top
-            #'backgroundPosition': 'center -40px',  # Start from 50px from the top
+            # 'backgroundSize': '110%',  # Zoom in by 25%
+            'backgroundPosition': 'bottom, center -50px' if horizontal else 'bottom, center 0px',
+            # Gradient from bottom, image from 50px from top
+            # 'backgroundPosition': 'center -40px',  # Start from 50px from the top
             'backgroundRepeat': 'no-repeat',
             'position': 'relative',  # Needed to position children absolutely
             'height': '120px',  # Adjust height as needed
@@ -165,18 +177,10 @@ def create_image_cell(image_url, text: str | None=None, overlay_color='#000000',
             **sx
         },
         children=[
-            mui.Box(
-                sx={
-                    'position': 'absolute',
-                    'bottom': 0,
-                    'right': 0,
-                    'padding': '8px',
-                },
-                children=text_blocks
-            )
+            text_element
         ]), sx={'position': 'relative', 'width': "100%"})
         , sx={"padding": "0px",
               'width': width
-              }
+              },
+        onClick=on_click
     )
-

@@ -83,7 +83,7 @@ def display_dialog_button(card_id: str, carousel_card_ids: list[str] = None):
     if st.button(":bar_chart:", key=f"card_modal_button_{card_id}"):
         logging.warning(f"Click Open Card Detail Modal {card_id}")
         # reset index offset
-        st.session_state["index_offset"] = 0
+        st.session_state["card_details_index_offset"] = 0
         display_card_details_dialog(card_id=card_id, carousel_card_ids=carousel_card_ids)
 
 

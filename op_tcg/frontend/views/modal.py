@@ -46,7 +46,11 @@ def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = Non
                     leader_id_to_highest_value[lid] = occurrence
         return [k for k, v in sorted(leader_id_to_highest_value.items(), key=lambda item: item[1], reverse=True)]
 
-    index_offset = st.session_state.get("index_offset", 0)
+    index_offset = st.session_state.get("card_details_index_offset", 0)
+    if index_offset == 0:
+        # ensure index_offset is initialized
+        st.session_state["card_details_index_offset"] = 0
+
     if index_offset != 0 and carousel_card_ids:
         card_index = carousel_card_ids.index(card_id) + index_offset
         card_id = carousel_card_ids[card_index]
@@ -57,16 +61,16 @@ def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = Non
         card_index = carousel_card_ids.index(card_id)
         if card_index != 0 and button_left.button(":arrow_left:", key=f"open_prev_modal_button"):
             selected_card_id = carousel_card_ids[card_index - 1]
-            st.session_state["index_offset"] -= 1
+            st.session_state["card_details_index_offset"] -= 1
             if card_index == (len(carousel_card_ids)-1) and button_right.button(":arrow_right:", key=f"open_next_modal_button"):
                 selected_card_id = carousel_card_ids[card_index + 1]
-                st.session_state["index_offset"] += 1
+                st.session_state["card_details_index_offset"] += 1
         if card_index != (len(carousel_card_ids)-1) and button_right.button(":arrow_right:", key=f"open_next_modal_button"):
             selected_card_id = carousel_card_ids[card_index + 1]
-            st.session_state["index_offset"] += 1
+            st.session_state["card_details_index_offset"] += 1
             if card_index == 0 and button_left.button(":arrow_left:", key=f"open_prev_modal_button"):
                 selected_card_id = carousel_card_ids[card_index - 1]
-                st.session_state["index_offset"] -= 1
+                st.session_state["card_details_index_offset"] -= 1
 
 
     with st.spinner():
