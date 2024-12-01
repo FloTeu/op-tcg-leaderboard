@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Callable
+from typing import Callable, Generic, TypeVar
 
 import streamlit as st
 
@@ -9,12 +9,17 @@ from op_tcg.backend.models.cards import OPTcgColor, OPTcgAbility, OPTcgAttribute
 from op_tcg.frontend.utils.extract import get_card_types
 from op_tcg.frontend.utils.meta_format import get_latest_released_meta_format_with_data
 
+T = TypeVar('T')  # Define type variable "T"
 
 class LeaderboardSortBy(EnumBase, StrEnum):
     DOMINANCE_SCORE = "D-Score"
     TOURNAMENT_WINS = "Tournament Wins"
     WIN_RATE = "Win Rate"
     ELO = "Elo"
+
+class LeaderCardMovementSortBy(EnumBase, StrEnum):
+    CARD_MOVEMENT_WINNER = "Winner"
+    CARD_MOVEMENT_LOSER = "Loser"
 
 
 def display_meta_select(multiselect: bool = True, key: str | None = None, label: str="Meta", reverse=True, default: MetaFormat | None = None) -> list[MetaFormat]:
@@ -63,8 +68,8 @@ def display_only_official_toggle() -> bool:
     return st.toggle("Only Official", value=True)
 
 
-def display_sortby_select() -> LeaderboardSortBy:
-    return st.selectbox("Sort By", LeaderboardSortBy.to_list())
+def display_sortby_select(enum_cls: Generic[T]) -> T:
+    return st.selectbox("Sort By", enum_cls.to_list())
 
 
 def display_leader_select(available_leader_names: list[str] | None = None,

@@ -14,7 +14,7 @@ from uuid import uuid4
 
 from op_tcg.frontend.utils.chart import LineChartYValue, create_leader_line_chart
 from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER_MATCHUP, SUB_PAGE_LEADER_DECKLIST, \
-    SUB_PAGE_LEADER_DECKLIST_MOVEMENT, SUB_PAGE_CARD_POPULARITY, SUB_PAGE_LEADER
+    SUB_PAGE_LEADER_DECKLIST_MOVEMENT, SUB_PAGE_CARD_POPULARITY, SUB_PAGE_LEADER, SUB_PAGE_LEADER_CARD_MOVEMENT
 from op_tcg.backend.utils.utils import booleanize
 from op_tcg.backend.etl.load import bq_insert_rows, get_or_create_table
 from op_tcg.backend.models.input import MetaFormat
@@ -29,10 +29,13 @@ from op_tcg.frontend.sidebar import display_meta_select, display_only_official_t
 from op_tcg.frontend.utils.extract import get_leader_extended
 from op_tcg.frontend.utils.styles import execute_style_sheet, read_style_sheet, css_rule_to_dict
 from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_cell, value2color_table_cell
-from op_tcg.frontend.utils.leader_data import get_lid2ldata_dict_cached, lids_to_name_and_lids, lname_and_lid_to_lid, calculate_dominance_score
+from op_tcg.frontend.utils.leader_data import get_lid2ldata_dict_cached, lids_to_name_and_lids, lname_and_lid_to_lid, \
+    calculate_dominance_score
 from op_tcg.frontend.utils.utils import bq_client
-from op_tcg.frontend.sub_pages import main_meta_analysis, \
-    main_leader_detail_analysis, main_admin_leader_upload, main_leader_decklist_movement, main_card_meta_analysis
+from op_tcg.frontend.sub_pages import (main_meta_analysis, main_leader_card_movement,
+                                       main_leader_detail_analysis, main_admin_leader_upload,
+                                       main_leader_decklist_movement, main_card_meta_analysis
+                                       )
 
 from streamlit_elements import elements, dashboard, mui, lazy, sync
 
@@ -44,10 +47,13 @@ def change_sidebar_collapse_button_style():
         execute_style_sheet("sidebar_button")
 
 
-def leader_id2line_chart(leader_id: str, df_leader_extended, y_value: LineChartYValue = LineChartYValue.WIN_RATE, only_official: bool = True):
+def leader_id2line_chart(leader_id: str, df_leader_extended, y_value: LineChartYValue = LineChartYValue.WIN_RATE,
+                         only_official: bool = True):
     # Streamlit Elements includes 45 dataviz components powered by Nivo.
-    leader_extended_list: list[LeaderExtended] = df_leader_extended.query(f"id == '{leader_id}'").apply(lambda row: LeaderExtended(**row), axis=1).tolist()
-    line_plot = create_leader_line_chart(leader_id, leader_extended_list, y_value=y_value, only_official=only_official, use_custom_component=False)
+    leader_extended_list: list[LeaderExtended] = df_leader_extended.query(f"id == '{leader_id}'").apply(
+        lambda row: LeaderExtended(**row), axis=1).tolist()
+    line_plot = create_leader_line_chart(leader_id, leader_extended_list, y_value=y_value, only_official=only_official,
+                                         use_custom_component=False)
     return mui.TableCell(mui.Box(line_plot, sx={"height": 120, "width": 190}), sx={"padding": "0px"})
 
 
@@ -59,18 +65,18 @@ def add_dominance_score(df_meta_group: pd.DataFrame) -> pd.DataFrame:
         "elo": df_meta_group["elo"].max(),
         "tournament_wins": df_meta_group["tournament_wins"].max()
     }
-    df_meta_group[LeaderboardSortBy.DOMINANCE_SCORE.value] = df_meta_group.apply(lambda x: f"""{int(round(calculate_dominance_score(
-        win_rate_norm=(x.win_rate / max_values["win_rate"]),
-        total_matches_norm=(x.total_matches / max_values["total_matches"]),
-        elo_rating_norm=(x.elo / max_values["elo"]),
-        tournament_wins_norm=(x.tournament_wins / max_values["tournament_wins"]),
-    ), 2)*100)}%""", axis=1)
+    df_meta_group[LeaderboardSortBy.DOMINANCE_SCORE.value] = df_meta_group.apply(
+        lambda x: f"""{int(round(calculate_dominance_score(
+            win_rate_norm=(x.win_rate / max_values["win_rate"]),
+            total_matches_norm=(x.total_matches / max_values["total_matches"]),
+            elo_rating_norm=(x.elo / max_values["elo"]),
+            tournament_wins_norm=(x.tournament_wins / max_values["tournament_wins"]),
+        ), 2) * 100)}%""", axis=1)
     return df_meta_group
 
 
 def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), meta_format: MetaFormat,
                               display_name2df_col_name: dict[str, str], only_official: bool = True):
-
     # Define a callback function to handle link click
     def open_leader_page(leader_id: str):
         url = f"/{SUB_PAGE_LEADER}?lid={leader_id}"
@@ -93,7 +99,8 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
                        LeaderboardSortBy.WIN_RATE, LeaderboardSortBy.DOMINANCE_SCORE.value, "Elo"]
     df_leader_extended_selected_meta["Set"] = df_leader_extended_selected_meta["id"].apply(
         lambda lid: lid.split("-")[0])
-    df_leader_extended_selected_meta['d_score'] = df_leader_extended_selected_meta['d_score'].apply(lambda x: f"{int(x * 100)}%")
+    df_leader_extended_selected_meta['d_score'] = df_leader_extended_selected_meta['d_score'].apply(
+        lambda x: f"{int(x * 100)}%")
     # df_leader_extended_selected_meta["Name"] = df_leader_extended_selected_meta["id"]  # .apply(lambda lid: lid2ldata(lid).name.replace('"', " ").replace('.', " "))
     for display_name, df_col_name in display_name2df_col_name.items():
         if display_name == LeaderboardSortBy.WIN_RATE:
@@ -124,9 +131,10 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
                 display_columns + ["id"]]
 
             header_stylings = css_rule_to_dict(read_style_sheet("table", ".sticky-header"))
-            header_cells = [mui.TableCell(children="Leader", sx={"width": "200px", **header_stylings})] + [mui.TableCell(col, sx=header_stylings) for col in
-                                                                                        (display_columns + [
-                                                                                            "Win Rate Chart"])]
+            header_cells = [mui.TableCell(children="Leader", sx={"width": "200px", **header_stylings})] + [
+                mui.TableCell(col, sx=header_stylings) for col in
+                (display_columns + [
+                    "Win Rate Chart"])]
 
             df_leaderboard_display = df_leader_elos_filtered.copy()
             for col in display_columns:
@@ -134,7 +142,7 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
                 if col == "Elo":
                     max_elo = df_leaderboard_display[col].max()
                     df_leaderboard_display[col] = df_leaderboard_display[col].apply(
-                        lambda elo: value2color_table_cell(elo, max=max_elo,
+                        lambda elo: value2color_table_cell(elo, max_value=max_elo,
                                                            color_switch_threshold=1000 if 1000 < max_elo else (
                                                                    max_elo * (7 / 8)), styles=table_cell_styles))
                 elif col == "Name":
@@ -144,13 +152,14 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
                             onClick=partial(open_leader_page, leader_id=x.id),  # Call the function to open the link
                             style={"cursor": "pointer"}
                         )
-                    ), axis=1)
+                        ), axis=1)
                 else:
                     df_leaderboard_display[col] = df_leaderboard_display[col].apply(lambda x: mui.TableCell(str(x)))
 
             df_leaderboard_display = df_leaderboard_display.drop(columns=["id"])
             df_leaderboard_display["Elo Chart"] = df_leader_extended_selected_meta["id"].apply(
-                lambda lid: leader_id2line_chart(lid, df_leader_extended, y_value=LineChartYValue.WIN_RATE, only_official=only_official))
+                lambda lid: leader_id2line_chart(lid, df_leader_extended, y_value=LineChartYValue.WIN_RATE,
+                                                 only_official=only_official))
 
             display_table(df_leaderboard_display,
                           index_cells=index_cells,
@@ -158,7 +167,9 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
                           title=None,
                           key="lboard_table_item")
 
-    st.markdown("*D-Score: Composite score from multiple metrics defining the dominance a leader has in the selected meta (Formula: $win\_rate * 0.1 + matches * 0.3 + elo * 0.2 + tournament\_wins * 0.4$ )")
+    st.markdown(
+        "*D-Score: Composite score from multiple metrics defining the dominance a leader has in the selected meta (Formula: $win\_rate * 0.1 + matches * 0.3 + elo * 0.2 + tournament\_wins * 0.4$ )")
+
 
 def sort_table_df(df: LeaderExtended.paSchema(), sort_by: LeaderboardSortBy,
                   display_name2df_col_name: dict[str, str]) -> LeaderExtended.paSchema():
@@ -268,12 +279,10 @@ def main():
     # Make sidebar button bounce for leaderboard page
     execute_js_file("add_sidebar_bounce", display_none=True)
 
-
     if not st.session_state.get("launch_succeeded", False):
         with st.spinner("Launch App"):
             init_load_data()
             st.session_state["launch_succeeded"] = True
-
 
     with st.sidebar:
         meta_format: MetaFormat = display_meta_select(multiselect=False)[0]
@@ -282,7 +291,7 @@ def main():
         display_max_match_count = 10000
         match_count_min, match_count_max = display_match_count_slider_slider(min=0, max=display_max_match_count)
         only_official: bool = display_only_official_toggle()
-        sort_by: LeaderboardSortBy = display_sortby_select()
+        sort_by: LeaderboardSortBy = display_sortby_select(LeaderboardSortBy)
 
     display_name2df_col_name = {
         "Name": "name",
@@ -326,7 +335,8 @@ def main():
             [{**r.dict(), "color_hex_code": r.to_hex_color()} for r in leader_extended_data])
         df_leader_extended = sort_table_df(df_leader_extended, sort_by=sort_by,
                                            display_name2df_col_name=display_name2df_col_name)
-        display_leaderboard_table(df_leader_extended, meta_format, display_name2df_col_name, only_official=only_official)
+        display_leaderboard_table(df_leader_extended, meta_format, display_name2df_col_name,
+                                  only_official=only_official)
 
         # Reload page if iframe does not load leader table correctly
         execute_js_file("missing_iframe_table", display_none=False)
@@ -334,15 +344,20 @@ def main():
         st.warning("Seems like the selected meta does not contain any matches")
 
 
+def sub_page_title_to_url_path(title: str):
+    return title.replace(" ", "_").lower()
+
 # main_meta_analysis, main_leader_detail_analysis_decklists, main_leader_detail_anylsis, main_admin_leader_upload
 pages = [
     st.Page(main, title="Leaderboard", default=True),
-    st.Page(main_leader_detail_analysis, title=SUB_PAGE_LEADER, url_path=SUB_PAGE_LEADER),
-    st.Page(main_meta_analysis, title=SUB_PAGE_LEADER_MATCHUP, url_path=SUB_PAGE_LEADER_MATCHUP),
-    #st.Page(main_leader_detail_analysis_decklists, title=SUB_PAGE_LEADER_DECKLIST, url_path=SUB_PAGE_LEADER_DECKLIST),
+    st.Page(main_leader_detail_analysis, title=SUB_PAGE_LEADER, url_path=sub_page_title_to_url_path(SUB_PAGE_LEADER)),
+    st.Page(main_meta_analysis, title=SUB_PAGE_LEADER_MATCHUP, url_path=sub_page_title_to_url_path(SUB_PAGE_LEADER_MATCHUP)),
+    # st.Page(main_leader_detail_analysis_decklists, title=SUB_PAGE_LEADER_DECKLIST, url_path=SUB_PAGE_LEADER_DECKLIST),
     st.Page(main_leader_decklist_movement, title=SUB_PAGE_LEADER_DECKLIST_MOVEMENT,
-            url_path=SUB_PAGE_LEADER_DECKLIST_MOVEMENT),
-    st.Page(main_card_meta_analysis, title=SUB_PAGE_CARD_POPULARITY, url_path=SUB_PAGE_CARD_POPULARITY),
+            url_path=sub_page_title_to_url_path(SUB_PAGE_LEADER_DECKLIST_MOVEMENT)),
+    st.Page(main_leader_card_movement, title=SUB_PAGE_LEADER_CARD_MOVEMENT,
+            url_path=sub_page_title_to_url_path(SUB_PAGE_LEADER_CARD_MOVEMENT)),
+    st.Page(main_card_meta_analysis, title=SUB_PAGE_CARD_POPULARITY, url_path=sub_page_title_to_url_path(SUB_PAGE_CARD_POPULARITY)),
 ]
 
 # admin_password = st.sidebar.text_input("Show Admin Page")
@@ -355,4 +370,3 @@ if booleanize(os.environ.get("DEBUG", "")):
 
 pg = st.navigation(pages)
 pg.run()
-

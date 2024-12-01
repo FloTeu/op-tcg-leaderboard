@@ -94,7 +94,7 @@ def display_elements(selected_leader_ids,
                             for
                             leader_id, df_row in df_Leader_vs_leader_win_rates.iterrows()])
         index_cells.append(
-            [value2color_table_cell(leader2win_rate[leader_id], max=100, styles=table_cell_styles) for leader_id in sorted_leader_ids])
+            [value2color_table_cell(leader2win_rate[leader_id], max_value=100, styles=table_cell_styles) for leader_id in sorted_leader_ids])
 
         for col in df_Leader_vs_leader_match_count.columns.values:
             df_Leader_vs_leader_match_count[col] = df_Leader_vs_leader_match_count[col].fillna(0)
@@ -106,8 +106,8 @@ def display_elements(selected_leader_ids,
             result_row = []
             for i in range(len(row)):
                 other_df_cell = other_df.loc[row.name, row.index[i]]
-                result_row.append(value2color_table_cell(row.iloc[i], max=100, cell_input=add_tooltip(row.iloc[i],
-                                                        tooltip=other_df_cell), styles=table_cell_styles))
+                result_row.append(value2color_table_cell(row.iloc[i], max_value=100, cell_input=add_tooltip(row.iloc[i],
+                                                                                                            tooltip=other_df_cell), styles=table_cell_styles))
             return result_row
 
         df_Leader_vs_leader_win_rates_table_cells = df_Leader_vs_leader_win_rates.apply(

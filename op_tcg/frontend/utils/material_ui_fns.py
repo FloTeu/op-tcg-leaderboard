@@ -12,8 +12,7 @@ def display_table(table_cells,
                   title=None,
                   key="mui-table"):
     """
-    df_data: DataFrame containing all data which should be display. Index and headers are also displayed by default
-    df_tooltip: Dataframe containing optional tooltip information
+    table_cells: DataFrame containing all table cells which should be displayed. Index and headers are also displayed by default
     """
     if index_cells:
         for index_cell_col in index_cells:
@@ -61,20 +60,72 @@ def add_tooltip(win_rate, tooltip=None):
         cell_input = mui.Typography(cell_text, sx=cell_text_styles)
     return cell_input
 
-def value2color_table_cell(value: float | int, max: float | int, color_switch_threshold: float | int = None, cell_input=None, styles: dict | None = None):
+
+def calculate_transparency(value, min_value, max_value):
+    """
+    Calculate transparency between 0.5 and 1 based on a given range.
+    If the value is the half of (max_value + min_value) it should be 0.5
+    If the value is above half of (max_value + min_value) it should be >0.5 <=1
+    If the value is below half of (max_value + min_value) it should be >0.5 <=1
+    If the value is max_value it should be 1
+    If the value is min_value it should be 1
+
+    Examples:
+        print(calculate_transparency(-1, -1, 1))  # Output: 1
+        print(calculate_transparency(0, -1, 1))  # Output: 0.5
+        print(calculate_transparency(1, -1, 1))  # Output: 1
+        print(calculate_transparency(0.9999, -1, 1))  # Output: ~1
+        print(calculate_transparency(0.5, -1, 1))  # Output: 0.75
+        print(calculate_transparency(-0.5, -1, 1))  # Output: 0.75
+
+        print(calculate_transparency(0, 0, 1))  # Output: 1
+        print(calculate_transparency(0.25, 0, 1))  # Output: 0.75
+        print(calculate_transparency(0.5, 0, 1))  # Output: 0.5
+        print(calculate_transparency(0.75, 0, 1))  # Output: 0.75
+        print(calculate_transparency(1, 0, 1))  # Output: 1
+
+    Parameters:
+    - value: The current value for which transparency is calculated.
+    - min_value: The minimum value of the range.
+    - max_value: The maximum value of the range.
+
+    Returns:
+    - Transparency value between 0.5 and 1.
+    """
+    midpoint = (max_value + min_value) / 2.0
+    if value == midpoint:
+        return 0.5
+    elif value == min_value or value == max_value:
+        return 1
+    else:
+        # Calculate the transparency on a scale from 0.5 to 1.0
+        if value > midpoint:
+            # Scale between midpoint and max_value
+            return 0.5 + (value - midpoint) / (max_value - midpoint) * 0.5
+        else:
+            # Scale between min_value and midpoint
+            return 0.5 + (midpoint - value) / (midpoint - min_value) * 0.5
+
+
+
+def value2color_table_cell(value: str | float | int, max_value: float | int, min_value: float | int = 0, color_switch_threshold: float | int = None, cell_input=None, styles: dict | None = None):
     styles = styles or {}
     cell_input = cell_input or value
     background_color = "rgb(164, 176, 190)"
-    half_max = (max/2)
+    half_max = ((max_value + min_value) / 2)
     color_switch_threshold = color_switch_threshold or half_max
-    if value < color_switch_threshold:
-        # expected to be between 0 (0.5 in best case) and 1
-        transparency = 1 - (value / half_max / 2)
-        background_color = f"rgba({RED_RGB[0]},{RED_RGB[1]},{RED_RGB[2]}, {transparency})"
-    if value > color_switch_threshold:
-        # expected to be between 0 (0.5 in best case) and 1
-        transparency = 0.5 + (value / half_max - 1) / 2
-        background_color = f"rgba({GREEN_RGB[0]},{GREEN_RGB[1]},{GREEN_RGB[2]}, {transparency})"
+    transparency = calculate_transparency(value, min_value, max_value)
+    color_rgb = RED_RGB if value < color_switch_threshold else GREEN_RGB
+    background_color = f"rgba({color_rgb[0]},{color_rgb[1]},{color_rgb[2]}, {transparency})"
+
+    # if value < color_switch_threshold:
+    #     # expected to be between 0 (0.5 in best case) and 1
+    #     transparency = 1 - (value / half_max / (max / half_max))
+    #     background_color = f"rgba({RED_RGB[0]},{RED_RGB[1]},{RED_RGB[2]}, {transparency})"
+    # if value > color_switch_threshold:
+    #     # expected to be between 0 (0.5 in best case) and 1
+    #     transparency = 0.5 + (value / half_max - 1) / (max_value / half_max)
+    #     background_color = f"rgba({GREEN_RGB[0]},{GREEN_RGB[1]},{GREEN_RGB[2]}, {transparency})"
 
     cell = mui.TableCell(cell_input, sx={"background": background_color,
                              **styles

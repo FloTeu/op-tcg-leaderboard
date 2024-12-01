@@ -3,4 +3,5 @@ from .Leader_Detail_Analysis import main_leader_detail_analysis
 from .Leader_Decklists import main_leader_detail_analysis_decklists
 from .Leader_Matchup import main_meta_analysis
 from .Leader_Decklist_Movement import main_leader_decklist_movement
+from .Leader_Card_Movement import main_leader_card_movement
 from .Card_Popularity import main_card_meta_analysis
