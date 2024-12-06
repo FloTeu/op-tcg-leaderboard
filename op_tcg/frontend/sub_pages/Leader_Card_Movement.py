@@ -1,4 +1,3 @@
-import time
 from functools import partial
 
 import pandas as pd
@@ -15,6 +14,7 @@ from op_tcg.backend.models.tournaments import TournamentStanding, TournamentStan
 from op_tcg.backend.utils.utils import timeit
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select, display_sortby_select, \
     LeaderCardMovementSortBy
+from op_tcg.frontend.utils.chart import create_line_chart
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_tournament_standing_data, get_leader_extended, \
     get_tournament_decklist_data, get_card_id_card_data_lookup
 from op_tcg.frontend.utils.js import execute_js_file
@@ -59,22 +59,47 @@ def get_card_movement(decklist_data_past: DecklistData, decklist_data_current: D
     return card_movement
 
 
+def card_id2line_chart(card_id: str, meta_format2decklist_data: dict[MetaFormat, DecklistData],
+                       max_width: str | None = None):
+    def _get_deck_occurrence_proportion(dd: DecklistData) -> float | None:
+        if card_id in dd.card_id2occurrence_proportion:
+            return int(dd.card_id2occurrence_proportion[card_id] * 100)
+        else:
+            return None
+
+    data_dict = {mf: _get_deck_occurrence_proportion(dd) for mf, dd in meta_format2decklist_data.items()}
+    # fill up missing data
+    unequal_none = False
+    for mf, data in data_dict.items():
+        if data is not None:
+            unequal_none = True
+        elif unequal_none:
+            # if meta already exists unequal None, next metas should have at least 0 value
+            data_dict[mf] = 0.0
+
+    line_plot = create_line_chart(data_dict, "Occ. (in %)", enable_y_axis=False, enable_x_axis=False,
+                                  use_custom_component=False, fill_up_missing_meta_format=False)
+    return mui.TableCell(mui.Box(line_plot, sx={"height": 120, "max-width": max_width}),
+                         sx={"padding": "0px", "max-width": max_width, "width": max_width})
+
+
 def get_avg_price(tournament_standings: list[TournamentStanding] | list[TournamentDecklist],
                   currency: CardCurrency) -> float:
     card_id2card_data = get_card_id_card_data_lookup()
     return mean([get_decklist_price(ts.decklist, card_id2card_data, currency=currency) for ts in tournament_standings])
 
 
+def get_previous_meta_format(meta_format: MetaFormat) -> MetaFormat:
+    return MetaFormat.to_list()[MetaFormat.to_list().index(meta_format) - 1]
+
+
 @timeit
 def main_leader_card_movement():
     st.header("Leader Card Movement")
-    header_stylings = css_rule_to_dict(read_style_sheet("table", ".sticky-header"))
-    header_stylings["font-size"] = "20px;"
-    table_cell_styles = css_rule_to_dict(read_style_sheet("table", ".colored-table-cell"))
 
     with st.sidebar:
         selected_meta_format: MetaFormat = display_meta_select(multiselect=False)[0]
-        previous_meta_format: MetaFormat = MetaFormat.to_list()[MetaFormat.to_list().index(selected_meta_format) - 1]
+        previous_meta_format: MetaFormat = get_previous_meta_format(selected_meta_format)
 
     leader_extended_data: list[LeaderExtended] = get_leader_extended()
     lid2meta_formats = {}
@@ -105,28 +130,23 @@ def main_leader_card_movement():
                                                           on_change=lambda: add_query_param("lid", lname_and_lid_to_lid(
                                                               st.session_state.get("select_lid", "")))
                                                           )
-        sort_by: LeaderCardMovementSortBy = display_sortby_select(LeaderCardMovementSortBy)
-        threshold: int = st.slider("Min Occurrence Change (in %)", min_value=2, max_value=100, value=10)
 
-    st.text(f"This page shows the card movement for leader {selected_leader_name} from meta {previous_meta_format} to meta {selected_meta_format}")
+    st.text(
+        f"This page shows the card movement for leader {selected_leader_name} from meta {previous_meta_format} to meta {selected_meta_format}")
 
     if selected_leader_name:
         leader_id: str = lname_and_lid_to_lid(selected_leader_name)
-        tournament_decklist_data_previous_meta = get_tournament_decklist_data(meta_formats=[previous_meta_format],
-                                                                              leader_ids=[leader_id])
-        tournament_decklist_data_selected_meta = get_tournament_decklist_data(meta_formats=[selected_meta_format],
-                                                                              leader_ids=[leader_id])
+        tournament_decklist_data = get_tournament_decklist_data(meta_formats=MetaFormat.to_list(),
+                                                                leader_ids=[leader_id])
+        tournament_decklist_data_previous_meta = [dd for dd in tournament_decklist_data if
+                                                  dd.meta_format == previous_meta_format]
+        tournament_decklist_data_selected_meta = [dd for dd in tournament_decklist_data if
+                                                  dd.meta_format == selected_meta_format]
 
         if len(tournament_decklist_data_selected_meta) == 0 or len(tournament_decklist_data_previous_meta) == 0:
             st.warning("No decklists available")
         else:
             card_id2card_data = get_card_id_card_data_lookup()
-            decklist_data_previous_meta: DecklistData = tournament_standings2decklist_data(
-                tournament_decklist_data_previous_meta, card_id2card_data)
-            decklist_data_selected_meta: DecklistData = tournament_standings2decklist_data(
-                tournament_decklist_data_selected_meta, card_id2card_data)
-            card_movement: dict[str, CardMovement] = get_card_movement(decklist_data_previous_meta,
-                                                                       decklist_data_selected_meta)
             avg_price_eur_previous_meta = get_avg_price(tournament_decklist_data_previous_meta,
                                                         currency=CardCurrency.EURO)
             avg_price_eur_selected_meta = get_avg_price(tournament_decklist_data_selected_meta,
@@ -141,82 +161,111 @@ def main_leader_card_movement():
                 st.write(f"Number of decks ({previous_meta_format}): {len(tournament_decklist_data_previous_meta)}")
                 st.write(
                     f"Average price: {'%.2f' % avg_price_eur_previous_meta}€ | ${'%.2f' % avg_price_usd_previous_meta}")
-                # st.subheader("Decklist Loser")
-                # for key in sorted(card_movement, key=lambda lid: card_movement[lid].occurrence_proportion_change):
-                #     if card_movement[key].occurrence_proportion_change < -(threshold/100):
-                #         st.image(decklist_data_previous_meta.card_id2card_data[key].image_url)
-                #         st.write(f"Occurrence {int(card_movement[key].occurrence_proportion_before*100)}% -> {int(card_movement[key].occurrence_proportion_after*100)}%")
             with col3:
                 st.subheader("Decklist Leader")
-                st.image(decklist_data_selected_meta.card_id2card_data[leader_id].image_url)
+                st.image(card_id2card_data[leader_id].image_url)
             with col5:
                 st.write(f"Number of decks ({selected_meta_format}): {len(tournament_decklist_data_selected_meta)}")
                 st.write(
                     f"Average price: {'%.2f' % avg_price_eur_selected_meta}€ | ${'%.2f' % avg_price_usd_selected_meta}")
-                # st.subheader("Decklist Winner")
-                # for key in sorted(card_movement, key=lambda lid: card_movement[lid].occurrence_proportion_change, reverse=True):
-                #     if card_movement[key].occurrence_proportion_change > (threshold/100):
-                #         st.image(decklist_data_selected_meta.card_id2card_data[key].image_url)
-                #         st.write(f"Occurrence {int(card_movement[key].occurrence_proportion_before*100)}% -> {int(card_movement[key].occurrence_proportion_after*100)}%")
 
-            with elements("dashboard"):
-                # Layout for every element in the dashboard
-                layout = [
-                    # Parameters: element_identifier, x_pos, y_pos, width, height, [item properties...]
-                    dashboard.Item("card_movement_table_item", 0, 0, 12, 6, isResizable=False, isDraggable=False),
-                ]
-
-                df_data = {previous_meta_format: [], selected_meta_format: [],
-                           "Change": []}
-                card_movement_sorted = sorted(card_movement,
-                                              key=lambda lid: card_movement[lid].occurrence_proportion_change,
-                                              reverse=sort_by == LeaderCardMovementSortBy.CARD_MOVEMENT_WINNER)
-                def _filter_card_movement(card_id: str):
-                    change = card_movement[card_id].occurrence_proportion_change
-                    return change < -(threshold / 100) or change > (threshold / 100)
-
-                def _open_dialog(card_id: str, carousel_card_ids: list[str] | None):
-                    # reset index offset for modal/dialog
-                    st.session_state["card_details_index_offset"] = 0
-                    display_card_details_dialog(card_id, carousel_card_ids)
-
-
-                card_movement_sorted = list(filter(lambda x: _filter_card_movement(x), card_movement_sorted))
-                index_cells = []
-
-                def _to_percentage_string(value: float) -> str:
-                    return f"{int(100 * value)}%"
-
-                for card_id in card_movement_sorted:
-                    movement = card_movement[card_id]
-                    change = movement.occurrence_proportion_change
-                    index_cells.append(create_image_cell(card_id2card_data[card_id].image_url,
-                                                         text=f"{card_id}",
-                                                         overlay_color=card_id2card_data[card_id].to_hex_color(),
-                                                         horizontal=True,
-                                                         on_click=partial(
-                                                             _open_dialog, card_id=card_id,
-                                                             carousel_card_ids=card_movement_sorted)
-                                                         ))
-                    df_data[previous_meta_format].append(
-                        mui.TableCell(_to_percentage_string(movement.occurrence_proportion_before)))
-                    df_data[selected_meta_format].append(
-                        mui.TableCell(_to_percentage_string(movement.occurrence_proportion_after)))
-                    df_data["Change"].append(value2color_table_cell(change, max_value=1, min_value=-1,
-                                                                    cell_input=_to_percentage_string(change),
-                                                                    styles=table_cell_styles))
-
-                header_cells = [mui.TableCell(children="Card", sx={"width": "200px", **header_stylings})] + [
-                    mui.TableCell(col, sx=header_stylings) for col in
-                    list(df_data.keys())]
-                df_display = pd.DataFrame(df_data)
-
-                with dashboard.Grid(layout):
-                    display_table(df_display,
-                                  index_cells=[index_cells],
-                                  header_cells=header_cells,
-                                  title=None,
-                                  key="card_movement_table_item")
+            display_card_movement_table(card_id2card_data, tournament_decklist_data,
+                                        selected_meta_format)
 
             # Reload page if iframe does not load leader table correctly
             execute_js_file("missing_iframe_table", display_none=False)
+
+
+@st.fragment
+def display_card_movement_table(card_id2card_data, tournament_decklists: list[TournamentDecklist],
+                                selected_meta_format):
+    n_meta_formats_to_display = 6
+
+    # frontend interactables
+    cols = st.columns([0.2, 0.8])
+    with cols[0]:
+        sort_by: LeaderCardMovementSortBy = display_sortby_select(LeaderCardMovementSortBy)
+    with cols[1]:
+        threshold: int = st.slider("Min Occurrence Change (in %)", min_value=0, max_value=100, value=10)
+
+    header_stylings = css_rule_to_dict(read_style_sheet("table", ".sticky-header"))
+    header_stylings["font-size"] = "20px;"
+    table_cell_styles = css_rule_to_dict(read_style_sheet("table", ".colored-table-cell"))
+
+    all_meta_formats_until_selected = MetaFormat.to_list(until_meta_format=selected_meta_format)
+    previous_meta_format: MetaFormat = get_previous_meta_format(selected_meta_format)
+    meta_format2decklist_data: dict[MetaFormat, DecklistData] = {}
+    n_meta_formats = len(all_meta_formats_until_selected)
+    for meta_format in all_meta_formats_until_selected[max(0,n_meta_formats-n_meta_formats_to_display):]:
+        tournament_decklists_meta = [dd for dd in tournament_decklists if dd.meta_format == meta_format]
+        meta_format2decklist_data[meta_format] = tournament_standings2decklist_data(
+            tournament_decklists_meta, card_id2card_data)
+
+    card_movement: dict[str, CardMovement] = get_card_movement(meta_format2decklist_data[previous_meta_format],
+                                                               meta_format2decklist_data[selected_meta_format])
+
+    with elements("dashboard"):
+        # Layout for every element in the dashboard
+        layout = [
+            # Parameters: element_identifier, x_pos, y_pos, width, height, [item properties...]
+            dashboard.Item("card_movement_table_item", 0, 0, 12, 6, isResizable=False, isDraggable=False),
+        ]
+
+        df_data = {previous_meta_format: [], selected_meta_format: [],
+                   "Change": [], "Deck Occurrence": []}
+        card_movement_sorted = sorted(card_movement,
+                                      key=lambda lid: card_movement[lid].occurrence_proportion_change,
+                                      reverse=sort_by == LeaderCardMovementSortBy.CARD_MOVEMENT_WINNER)
+
+        def _filter_card_movement(card_id: str):
+            change = card_movement[card_id].occurrence_proportion_change
+            return change < -(threshold / 100) or change > (threshold / 100)
+
+        def _open_dialog(card_id: str, carousel_card_ids: list[str] | None):
+            # reset index offset for modal/dialog
+            st.session_state["card_details_index_offset"] = 0
+            display_card_details_dialog(card_id, carousel_card_ids)
+
+        card_movement_sorted = list(filter(lambda x: _filter_card_movement(x), card_movement_sorted))
+        index_cells = []
+        max_width = "220px"
+
+        def _to_percentage_string(value: float) -> str:
+            return f"{int(100 * value)}%"
+
+        for card_id in card_movement_sorted:
+            movement = card_movement[card_id]
+            change = movement.occurrence_proportion_change
+            index_cells.append(create_image_cell(card_id2card_data[card_id].image_url,
+                                                 text=f"{card_id}",
+                                                 overlay_color=card_id2card_data[card_id].to_hex_color(),
+                                                 horizontal=True,
+                                                 on_click=partial(
+                                                     _open_dialog, card_id=card_id,
+                                                     carousel_card_ids=card_movement_sorted)
+                                                 ))
+            df_data[previous_meta_format].append(
+                mui.TableCell(_to_percentage_string(movement.occurrence_proportion_before)))
+            df_data[selected_meta_format].append(
+                mui.TableCell(_to_percentage_string(movement.occurrence_proportion_after)))
+            df_data["Change"].append(value2color_table_cell(change, max_value=1, min_value=-1,
+                                                            cell_input=_to_percentage_string(change),
+                                                            styles=table_cell_styles))
+            # df_data["Deck Occurrence"].append(
+            #     mui.TableCell(_to_percentage_string(movement.occurrence_proportion_before)))
+            df_data["Deck Occurrence"].append(
+                card_id2line_chart(card_id, meta_format2decklist_data, max_width=max_width))
+
+        header_cells = [mui.TableCell(children="Card", sx={"width": "200px", **header_stylings})] + [
+            mui.TableCell(col, sx={"max-width": max_width, **header_stylings}
+            if col == "Deck Occurrence" else header_stylings) for col in list(df_data.keys())]
+        df_display = pd.DataFrame(df_data)
+
+        with dashboard.Grid(layout):
+            display_table(df_display,
+                          index_cells=[index_cells],
+                          header_cells=header_cells,
+                          title=None,
+                          key="card_movement_table_item")
+
+    t = 0

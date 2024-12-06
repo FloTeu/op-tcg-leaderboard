@@ -19,10 +19,17 @@ class MetaFormat(EnumBase, StrEnum):
     OP08 = "OP08"
     OP09 = "OP09"
     OP10 = "OP10"
+    OP11 = "OP11"
+    OP12 = "OP12"
+    OP13 = "OP13"
+    OP14 = "OP14"
 
     @classmethod
-    def to_list(cls, only_after_release: bool = True):
+    def to_list(cls, only_after_release: bool = True, until_meta_format: str | None = None):
         all_meta_formats = list(map(lambda c: c.value, cls))
+        if until_meta_format is not None:
+            until_meta_format_i = all_meta_formats.index(cls(until_meta_format))
+            all_meta_formats = all_meta_formats[:until_meta_format_i+1]
         return_meta_formats = []
         for meta_format in all_meta_formats:
             if not only_after_release:
@@ -78,6 +85,10 @@ def meta_format2release_datetime(meta_format: MetaFormat) -> datetime | None:
         return datetime(2024, 9, 13)
     if meta_format == MetaFormat.OP09:
         return datetime(2024, 12, 14)
+    if meta_format == MetaFormat.OP10:
+        return datetime(2025, 3, 21)
+    # if meta_format == MetaFormat.OP11:
+    #     return datetime(2024, 6, 14)
     else:
         return None
 

@@ -66,12 +66,14 @@ def create_line_chart(data_dict: dict[MetaFormat, str | None],
                       enable_y_axis: bool = False,
                       y_axis_label: str = "",
                       styles: dict | None = None,
+                      fill_up_missing_meta_format: bool = True,
                       use_custom_component: bool = True):
     # fillup missing meta_format data
-    for meta_format in sorted(MetaFormat.to_list(), reverse=True):
-        # exclude OP01 since we have no official matches yet
-        if meta_format not in data_dict and meta_format != MetaFormat.OP01:
-            data_dict[meta_format] = None
+    if fill_up_missing_meta_format:
+        for meta_format in sorted(MetaFormat.to_list(), reverse=True):
+            # exclude OP01 since we have no official matches yet
+            if meta_format not in data_dict and meta_format != MetaFormat.OP01:
+                data_dict[meta_format] = None
 
     order_mapping = {meta: idx for idx, meta in enumerate(MetaFormat.to_list())}
     data_dict_sorted = dict(sorted(data_dict.items(), key=lambda item: order_mapping[item[0]]))
