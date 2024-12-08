@@ -143,7 +143,6 @@ def create_line_chart(data_dict: dict[MetaFormat, str | None],
         }
     }
 
-
     if use_custom_component:
         return nivo_chart(DATA, chart_type=NivoChartType.LINE, layout=layout, styles=styles)
     else:
@@ -151,6 +150,7 @@ def create_line_chart(data_dict: dict[MetaFormat, str | None],
             data=DATA,
             **layout
         )
+
 
 def get_radar_chart_data(df_color_win_rates) -> list[dict[str, str | float]]:
     """
@@ -172,7 +172,8 @@ def get_radar_chart_data(df_color_win_rates) -> list[dict[str, str | float]]:
     return radar_chart_data
 
 
-def create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, colors, styles: dict | None = None, layout_overwrites: dict | None = None):
+def create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, colors, styles: dict | None = None,
+                                       layout_overwrites: dict | None = None):
     text_color = "#ffffff" if ST_THEME["base"] == "dark" else "#31333F"
     layout = {
         "keys": selected_leader_names,
@@ -231,8 +232,24 @@ def create_leader_win_rate_radar_chart(radar_chart_data, selected_leader_names, 
     return nivo_chart(radar_chart_data, chart_type=NivoChartType.RADAR, layout=layout, styles=styles)
 
 
-def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]], data_keys: list[str] | None = None,
-                                               x_tick_labels: list[str] | None = None, title: str | None = None):
+def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]],
+                                               legend_data: list[dict[str: float | int]] | None = None,
+                                               data_keys: list[str] | None = None,
+                                               x_tick_labels: list[str] | None = None,
+                                               enable_y_axis: bool = False,
+                                               title: str | None = None):
+    """
+
+    Args:
+        data ():
+        legend_data (): Optional, data which is only used for displaying the legend and axis. Same format as data
+        data_keys ():
+        x_tick_labels ():
+        title ():
+
+    Returns:
+
+    """
     def extract_data_keys() -> list[str]:
         data_keys = []
         for data_point in data:
@@ -290,7 +307,7 @@ def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]
             "tickValues": 5,  # number of ticks
             "format": f"function(x) {{ return (x + ({max_value} / 2)).toFixed({round_decimals}); }}"
             # {((i*0.1)-0.5): (i*0.1) for i in range(10)}
-        },
+        } if enable_y_axis else None,
         "enableGridX": True,
         "enableGridY": False,
         "offsetType": "silhouette",
@@ -300,7 +317,7 @@ def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]
         "dotBorderWidth": 2,
         "legends": [
             {
-                "dataFrom": 'keys',
+                "data": legend_data,
                 "anchor": 'bottom',
                 "direction": 'column',
                 "justify": False,

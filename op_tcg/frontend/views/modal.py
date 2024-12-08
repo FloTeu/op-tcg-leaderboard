@@ -1,3 +1,4 @@
+import copy
 import logging
 
 import streamlit as st
@@ -7,7 +8,8 @@ from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.tournaments import TournamentDecklist
 
 from op_tcg.frontend.utils.chart import create_card_leader_occurrence_stream_chart
-from op_tcg.frontend.utils.extract import get_tournament_decklist_data, get_card_id_card_data_lookup
+from op_tcg.frontend.utils.extract import get_tournament_decklist_data, get_card_id_card_data_lookup, \
+    get_card_popularity_by_meta
 from op_tcg.frontend.utils.js import execute_js_file
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid
 from op_tcg.frontend.utils.styles import execute_style_sheet
@@ -17,6 +19,7 @@ from op_tcg.frontend.views.card import display_card_attributes
 @st.dialog("Card Detail", width="large")
 def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = None):
     logging.warning(f"Open Card Detail Modal {card_id}")
+
     def normalize_data(chart_data: list[dict[str, int]]) -> dict[str, float]:
         def normalize_dict_values(input_dict):
             # Calculate the sum of all values in the dictionary
@@ -62,18 +65,20 @@ def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = Non
         if card_index != 0 and button_left.button(":arrow_left:", key=f"open_prev_modal_button"):
             selected_card_id = carousel_card_ids[card_index - 1]
             st.session_state["card_details_index_offset"] -= 1
-            if card_index == (len(carousel_card_ids)-1) and button_right.button(":arrow_right:", key=f"open_next_modal_button"):
+            if card_index == (len(carousel_card_ids) - 1) and button_right.button(":arrow_right:",
+                                                                                  key=f"open_next_modal_button"):
                 selected_card_id = carousel_card_ids[card_index + 1]
                 st.session_state["card_details_index_offset"] += 1
-        if card_index != (len(carousel_card_ids)-1) and button_right.button(":arrow_right:", key=f"open_next_modal_button"):
+        if card_index != (len(carousel_card_ids) - 1) and button_right.button(":arrow_right:",
+                                                                              key=f"open_next_modal_button"):
             selected_card_id = carousel_card_ids[card_index + 1]
             st.session_state["card_details_index_offset"] += 1
             if card_index == 0 and button_left.button(":arrow_left:", key=f"open_prev_modal_button"):
                 selected_card_id = carousel_card_ids[card_index - 1]
                 st.session_state["card_details_index_offset"] -= 1
 
-
     with st.spinner():
+        card_proportion: dict[MetaFormat, float] = get_card_popularity_by_meta(card_id)
         cid2card_data: dict[str, ExtendedCardData] = get_card_id_card_data_lookup(aa_version=0)
         card_data = cid2card_data[selected_card_id]
         chart_data, chart_data_meta_formats = get_stream_leader_occurrence_data(cid2card_data, selected_card_id)
@@ -89,15 +94,26 @@ def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = Non
         with col2:
             display_card_attributes(card_data)
 
+        display_chart_data = None
         show_normalized = st.toggle("Show normalized data", True)
         if show_normalized:
             try:
                 chart_data = normalize_data(chart_data)
             except Exception as e:
                 st.error("Sorry something went wrong with the data normalization")
-
-        create_card_leader_occurrence_stream_chart(chart_data, x_tick_labels=chart_data_meta_formats, title=f"Occurrence in Top {top_n_leaders} Leader Decks")
-
+        else:
+            display_chart_data = copy.deepcopy(chart_data)
+            assert all(mf in card_proportion for mf in
+                       chart_data_meta_formats), "Not all meta formats are available in card_proportion"
+            # Change chart data depending to their popularity in every meta (make meta comparable)
+            for chart_data_i, chart_data_meta_format in zip(chart_data, chart_data_meta_formats):
+                for card_name, card_count in chart_data_i.items():
+                    chart_data_i[card_name] = round(card_count * card_proportion[chart_data_meta_format], 4)
+        create_card_leader_occurrence_stream_chart(chart_data,
+                                                   legend_data=display_chart_data,
+                                                   enable_y_axis=show_normalized,
+                                                   x_tick_labels=chart_data_meta_formats,
+                                                   title=f"Occurrence in Top {top_n_leaders} Leader Decks")
 
     # center buttons (and other columns, which is not intended right now)
     execute_style_sheet("st_columns/two_cols_centered")

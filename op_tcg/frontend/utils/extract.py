@@ -153,6 +153,23 @@ def get_card_popularity_data() -> list[CardPopularity]:
             f"""SELECT * FROM `{st.secrets["gcp_service_account"]["project_id"]}.{CardPopularity.get_dataset_id()}.{CardPopularity.__tablename__}`""")
     return [CardPopularity(**d) for d in latest_card_rows]
 
+def get_card_popularity_by_meta(card_id: str, until_meta_format: MetaFormat | None = None) -> dict[MetaFormat, float]:
+    card_popularity_by_meta: dict[MetaFormat, float] = {}
+    card_colors = get_card_id_card_data_lookup().get(card_id).colors
+    card_popularities = [cpd for cpd in get_card_popularity_data() if cpd.card_id == card_id]
+    for meta_format in MetaFormat.to_list(until_meta_format=until_meta_format):
+        card_popularities_in_meta = [cp for cp in card_popularities if cp.meta_format == meta_format and cp.color in card_colors]
+        if len(card_popularities_in_meta) > 0:
+            # take the maximum popularity if card is played in multi colored decks
+            max_popularity = max([cp.popularity for cp in card_popularities_in_meta])
+            card_popularity_by_meta[meta_format] = max_popularity
+        else:
+            card_popularity_by_meta[meta_format] = 0.0
+    return card_popularity_by_meta
+
+
+
+
 def get_card_types() -> list[str]:
     latest_card_rows = run_bq_query(
             f"""SELECT DISTINCT(types) FROM `{st.secrets["gcp_service_account"]["project_id"]}.{Card.get_dataset_id()}.{Card.__tablename__}` c, UNNEST(c.types) AS types """)

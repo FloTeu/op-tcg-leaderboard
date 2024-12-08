@@ -10,6 +10,8 @@ import { ResponsiveRadar } from '@nivo/radar'
 import { ResponsiveLine } from '@nivo/line'
 import { ResponsiveHeatMap } from '@nivo/heatmap'
 import DOMPurify from 'dompurify';
+import { extractObjectFromLegendHtml, updateLegendHtmlValues } from "./utils/htmlTransformer"
+import { findEquivalentIndex } from "./utils/utils"
 
 // Define a type for the chart components
 type NivoChartComponents = {
@@ -67,6 +69,7 @@ function createCallable(obj: StringMap): (key: string | number) => string | unde
     };
 };
 
+
 /**
  * This is a React-based component template. The `render()` function is called
  * automatically when your component should be re-rendered.
@@ -116,6 +119,8 @@ class NivoChart extends StreamlitComponentBase<State> {
     // Safely access translateX and translateY using optional chaining
     const translateX = layout.legends?.[0]?.effects?.[0]?.style?.translateX ?? 0;
     const translateY = layout.legends?.[0]?.effects?.[0]?.style?.translateY ?? 0;
+    // Safely access legend data
+    const legendData = layout.legends?.[0]?.data;
 
     // Create a new MutationObserver instance
     const observer = new MutationObserver((mutationsList) => {
@@ -124,8 +129,23 @@ class NivoChart extends StreamlitComponentBase<State> {
                 // Iterate over added nodes
                 const addedNodesArray = Array.from(mutation.addedNodes);
                 for (const node of addedNodesArray) {
-                    if (node.nodeName === 'DIV') {
-                        move_position_of_on_hover_legend(translateX, translateY);
+                    // Check if node is an instance of Element
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        const element = node as HTMLElement; // Cast to HTMLElement
+                        if (node.nodeName === 'DIV') {
+                            // assumption: node is expected to be a legend
+                            move_position_of_on_hover_legend(translateX, translateY);
+
+                            // Change legend data
+                            if (legendData){
+                                // Check if the node contains a table and transform to data
+                                const result = extractObjectFromLegendHtml(element);
+                                let index_in_data = findEquivalentIndex(data, result);
+                                if (index_in_data !== null){
+                                    updateLegendHtmlValues(element, legendData[index_in_data]);
+                                }
+                            }
+                        }
                     }
                 }
             }
