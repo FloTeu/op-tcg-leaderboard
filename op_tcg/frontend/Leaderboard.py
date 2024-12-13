@@ -48,12 +48,14 @@ def change_sidebar_collapse_button_style():
 
 
 def leader_id2line_chart(leader_id: str, df_leader_extended, y_value: LineChartYValue = LineChartYValue.WIN_RATE,
-                         only_official: bool = True):
-    # Streamlit Elements includes 45 dataviz components powered by Nivo.
+                        n_meta_formats: int = 5, only_official: bool = True, enable_x_top_axis: bool = False):
+    all_released_meta_formats = MetaFormat.to_list()
+    visible_meta_formats = all_released_meta_formats[max(0, len(all_released_meta_formats) - n_meta_formats):]
     leader_extended_list: list[LeaderExtended] = df_leader_extended.query(f"id == '{leader_id}'").apply(
         lambda row: LeaderExtended(**row), axis=1).tolist()
+    leader_extended_list = [le for le in leader_extended_list if le.meta_format in visible_meta_formats]
     line_plot = create_leader_line_chart(leader_id, leader_extended_list, y_value=y_value, only_official=only_official,
-                                         use_custom_component=False)
+                                         use_custom_component=False, enable_x_top_axis=enable_x_top_axis, fill_up_max_n_meta_formats=n_meta_formats)
     return mui.TableCell(mui.Box(line_plot, sx={"height": 120, "width": 190}), sx={"padding": "0px"})
 
 
@@ -157,9 +159,10 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
                     df_leaderboard_display[col] = df_leaderboard_display[col].apply(lambda x: mui.TableCell(str(x)))
 
             df_leaderboard_display = df_leaderboard_display.drop(columns=["id"])
+            first_lid = df_leader_extended_selected_meta.iloc[0].id
             df_leaderboard_display["Elo Chart"] = df_leader_extended_selected_meta["id"].apply(
                 lambda lid: leader_id2line_chart(lid, df_leader_extended, y_value=LineChartYValue.WIN_RATE,
-                                                 only_official=only_official))
+                                                 only_official=only_official, enable_x_top_axis=lid == first_lid))
 
             display_table(df_leaderboard_display,
                           index_cells=index_cells,

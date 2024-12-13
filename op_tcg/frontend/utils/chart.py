@@ -28,7 +28,9 @@ def create_leader_line_chart(leader_id: str,
                              y_value: LineChartYValue = LineChartYValue.ELO,
                              only_official: bool = True,
                              enable_x_axis: bool = False,
+                             enable_x_top_axis: bool = False,
                              enable_y_axis: bool = False,
+                             fill_up_max_n_meta_formats: int | None = None,
                              styles: dict | None = None,
                              use_custom_component: bool = True
                              ):
@@ -45,10 +47,13 @@ def create_leader_line_chart(leader_id: str,
                              data_id="Elo" if y_value == "elo" else "WR",
                              y_format=" >-.2f" if y_value == LineChartYValue.WIN_RATE else "",
                              enable_x_axis=enable_x_axis,
+                             enable_x_top_axis=enable_x_top_axis,
                              enable_y_axis=enable_y_axis,
                              y_axis_label=str(y_value),
                              styles=styles,
-                             use_custom_component=use_custom_component
+                             use_custom_component=use_custom_component,
+                             fill_up_missing_meta_format=True,
+                             fill_up_max_n_meta_formats=fill_up_max_n_meta_formats,
                              )
 
 
@@ -63,14 +68,20 @@ def create_line_chart(data_dict: dict[MetaFormat, str | None],
                       data_id: str,
                       y_format: str | None = None,
                       enable_x_axis: bool = False,
+                      enable_x_top_axis: bool = False,
                       enable_y_axis: bool = False,
                       y_axis_label: str = "",
                       styles: dict | None = None,
                       fill_up_missing_meta_format: bool = True,
+                      fill_up_max_n_meta_formats: int | None = None,
                       use_custom_component: bool = True):
     # fillup missing meta_format data
     if fill_up_missing_meta_format:
-        for meta_format in sorted(MetaFormat.to_list(), reverse=True):
+
+        fillup_meta_formats = MetaFormat.to_list()
+        if fill_up_max_n_meta_formats:
+            fillup_meta_formats = fillup_meta_formats[max(0, len(fillup_meta_formats) - fill_up_max_n_meta_formats):]
+        for meta_format in sorted(fillup_meta_formats, reverse=True):
             # exclude OP01 since we have no official matches yet
             if meta_format not in data_dict and meta_format != MetaFormat.OP01:
                 data_dict[meta_format] = None
@@ -95,9 +106,11 @@ def create_line_chart(data_dict: dict[MetaFormat, str | None],
     ]
 
     text_color = "#ffffff" if ST_THEME["base"] == "dark" else "#31333F"
+    margin_left = 50 if enable_x_axis or enable_y_axis else 20
+    margin_top = 25 if enable_x_top_axis else 10
     layout = {
-        "margin": {"top": 10, "right": 20, "bottom": 50 if enable_x_axis else 10,
-                "left": 50 if enable_x_axis or enable_y_axis else 10},
+        "margin": {"top": margin_top, "right": 20, "bottom": 50 if enable_x_axis else 10,
+                "left": margin_left},
         "enableGridX": False,
         "enableGridY": False,
         "yScale": {
@@ -116,6 +129,12 @@ def create_line_chart(data_dict: dict[MetaFormat, str | None],
             "legendPosition": 'middle',
             "truncateTickAt": 0
         } if enable_x_axis else None,
+        "axisTop": {
+            "tickSize": 5,
+            "tickPadding": 5,
+            "tickRotation": 0,
+            "truncateTickAt": 0
+        } if enable_x_top_axis else None,
         "axisLeft": {
             "tickSize": 5,
             "tickPadding": 5,

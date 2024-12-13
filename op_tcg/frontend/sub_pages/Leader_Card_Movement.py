@@ -63,7 +63,7 @@ def get_card_movement(decklist_data_past: DecklistData, decklist_data_current: D
 
 
 def card_id2line_chart(card_id: str, meta_format2decklist_data: dict[MetaFormat, DecklistData],
-                       max_width: str | None = None):
+                       max_width: str | None = None, enable_x_axis: bool = False):
     def _get_deck_occurrence_proportion(dd: DecklistData) -> float | None:
         if card_id in dd.card_id2occurrence_proportion:
             return int(dd.card_id2occurrence_proportion[card_id] * 100)
@@ -80,7 +80,7 @@ def card_id2line_chart(card_id: str, meta_format2decklist_data: dict[MetaFormat,
             # if meta already exists unequal None, next metas should have at least 0 value
             data_dict[mf] = 0.0
 
-    line_plot = create_line_chart(data_dict, "Occ. (in %)", enable_y_axis=False, enable_x_axis=False,
+    line_plot = create_line_chart(data_dict, "Occ. (in %)", enable_y_axis=False, enable_x_top_axis=enable_x_axis,
                                   use_custom_component=False, fill_up_missing_meta_format=False)
     return mui.TableCell(mui.Box(line_plot, sx={"height": 120, "max-width": max_width}),
                          sx={"padding": "0px", "max-width": max_width, "width": max_width})
@@ -276,7 +276,7 @@ def display_card_movement_table(card_id2card_data, tournament_decklists: list[To
         def _to_percentage_string(value: float) -> str:
             return f"{int(100 * value)}%"
 
-        for card_id in card_movement_sorted:
+        for i, card_id in enumerate(card_movement_sorted):
             movement = card_movement[card_id]
             change = movement.occurrence_proportion_change
             index_cells.append(create_image_cell(card_id2card_data[card_id].image_url,
@@ -297,7 +297,7 @@ def display_card_movement_table(card_id2card_data, tournament_decklists: list[To
             # df_data["Deck Occurrence"].append(
             #     mui.TableCell(_to_percentage_string(movement.occurrence_proportion_before)))
             df_data["Deck Occurrence"].append(
-                card_id2line_chart(card_id, meta_format2decklist_data, max_width=max_width))
+                card_id2line_chart(card_id, meta_format2decklist_data, max_width=max_width, enable_x_axis=i==0))
 
         header_cells = [mui.TableCell(children="Card", sx={"width": "200px", **header_stylings})] + [
             mui.TableCell(col, sx={"max-width": max_width, **header_stylings}
