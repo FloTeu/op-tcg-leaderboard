@@ -17,6 +17,7 @@ from op_tcg.backend.models.matches import LeaderWinRate
 from op_tcg.backend.models.tournaments import TournamentDecklist
 from op_tcg.frontend.sidebar import display_leader_select, display_meta_select, display_only_official_toggle
 from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER
+from op_tcg.frontend.sub_pages.utils import sub_page_title_to_url_path
 from op_tcg.frontend.utils.chart import create_leader_line_chart, LineChartYValue, create_leader_win_rate_radar_chart, \
     get_radar_chart_data, create_line_chart
 from op_tcg.frontend.utils.decklist import DecklistData, tournament_standings2decklist_data, \
@@ -164,7 +165,7 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
             col2_1, col2_2 = st.columns([0.4, 0.5])
             with col2_1:
                 img_with_href = get_img_with_href(lid2data_dict[selected_most_similar_lid].aa_image_url,
-                                                  f'/{SUB_PAGE_LEADER}?lid={selected_most_similar_lid}')
+                                                  f'/{sub_page_title_to_url_path(SUB_PAGE_LEADER)}?lid={selected_most_similar_lid}')
                 st.markdown(img_with_href, unsafe_allow_html=True)
             with col2_2:
                 cards_missing_price_eur = sum([cid2cdata_dict[cid].latest_eur_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_missing])
@@ -223,7 +224,7 @@ def display_decklist_filter(tournament_decklists: list[TournamentDecklist], sele
     else:
         min_date = min(oldest_release_date, decklist_min_tournament_date)
     min_datetime = datetime(min_date.year, min_date.month, min_date.day)
-    max_datetime = datetime(datetime.now().year, datetime.now().month, datetime.now().day)
+    max_datetime = datetime(datetime.now().year, datetime.now().month, datetime.now().day) + timedelta(hours=23, minutes=59)
 
     filter_currency = st.selectbox("Currency", [CardCurrency.EURO, CardCurrency.US_DOLLAR])
     min_price = min(td.price_eur if filter_currency == CardCurrency.EURO else td.price_usd for td in tournament_decklists)
@@ -250,7 +251,8 @@ def display_decklist_filter(tournament_decklists: list[TournamentDecklist], sele
         end_datetime=end_datetime,
         min_tournament_placing=min_tournament_placing,
         min_price=selected_min_price,
-        max_price=selected_max_price
+        max_price=selected_max_price,
+        filter_currency=filter_currency
     )
 
 def display_cards_view(card_ids: list[str], cid2cdata_dict: dict[str, ExtendedCardData], title: str, n_cols: int = 4):
@@ -280,7 +282,7 @@ def display_opponent_view(selected_opponent_id: str, matchups: list[Matchup], le
                           default=opponent_leader_names[opponent_index],
                           on_change=partial(add_qparam_on_change_fn, qparam2session_key={Q_PARAM_EASIEST_OPPONENT if best_matchup else Q_PARAM_HARDEST_OPPONENT: f"select_opp_lid_{selected_opponent_id}"}),
                           )
-    img_with_href = get_img_with_href(opponent_leader_data.aa_image_url, f'/{SUB_PAGE_LEADER}?lid={opponent_leader_data.id}')
+    img_with_href = get_img_with_href(opponent_leader_data.aa_image_url, f'/{sub_page_title_to_url_path(SUB_PAGE_LEADER)}?lid={opponent_leader_data.id}')
     st.markdown(img_with_href, unsafe_allow_html=True)
     st.markdown(f"""  
 \
