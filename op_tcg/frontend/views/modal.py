@@ -78,7 +78,6 @@ def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = Non
                 st.session_state["card_details_index_offset"] -= 1
 
     with st.spinner():
-        card_proportion: dict[MetaFormat, float] = get_card_popularity_by_meta(card_id)
         cid2card_data: dict[str, ExtendedCardData] = get_card_id_card_data_lookup(aa_version=0)
         card_data = cid2card_data[selected_card_id]
         chart_data, chart_data_meta_formats = get_stream_leader_occurrence_data(cid2card_data, selected_card_id)
@@ -102,6 +101,7 @@ def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = Non
             except Exception as e:
                 st.error("Sorry something went wrong with the data normalization")
         else:
+            card_proportion: dict[MetaFormat, float] = get_card_popularity_by_meta(card_id)
             display_chart_data = copy.deepcopy(chart_data)
             assert all(mf in card_proportion for mf in
                        chart_data_meta_formats), "Not all meta formats are available in card_proportion"

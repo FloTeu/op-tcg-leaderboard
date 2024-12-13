@@ -109,6 +109,7 @@ def main_card_meta_analysis():
         selected_min_price, selected_max_price = st.slider("Card Price Range", price_min, price_max,
                                                            (price_min, price_max))
         selected_card_cost_min, selected_card_cost_max = st.slider("Card Cost Range", 0, 10, (0, 10))
+        selected_card_power_min, selected_card_power_max = st.slider("Card Power Range (in k)", 0, 15, (0, 15))
         st.markdown("""---""")
         selected_card_abilities: list[OPTcgAbility] | None = display_card_ability_multiselect()
         card_ability_text: str = st.text_input("Card Ability Text")
@@ -137,6 +138,7 @@ def main_card_meta_analysis():
                 (True if not selected_card_category else selected_card_category == cd.card_category) and
                 (True if not selected_types else any(type in selected_types for type in cd.types)) and
                 (True if cd.cost is None else selected_card_cost_min <= cd.cost <= selected_card_cost_max) and
+                (True if cd.power is None else selected_card_power_min <= cd.power <= selected_card_power_max) and
                 (True if not price_filter_activated else (selected_min_price <= (
                     cd.latest_eur_price if filter_currency == CardCurrency.EURO else cd.latest_usd_price) <= selected_max_price))
         )}
