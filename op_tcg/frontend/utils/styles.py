@@ -1,3 +1,5 @@
+from typing import overload
+
 import cssutils
 import streamlit as st
 from pathlib import Path
@@ -12,6 +14,12 @@ GREEN_RGB = (123, 237, 159)
 RED_RGB = (255, 107, 129)
 PRIMARY_COLOR_RGB = (41, 128, 185)
 
+
+@overload
+def read_style_sheet(file_name: str, selector: str) -> CSSStyleRule: ...
+
+@overload
+def read_style_sheet(file_name: str, selector: None = None) -> CSSStyleSheet: ...
 
 def read_style_sheet(file_name: str, selector: str | None = None) -> CSSStyleSheet | CSSStyleRule:
     """

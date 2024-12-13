@@ -7,12 +7,15 @@ from op_tcg.frontend.utils.styles import read_style_sheet
 
 ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 
+
+def get_card_attribute_html(attribute_name: str, attribute_value: str) -> str:
+    return f"""<div class="card-attribute">
+                    <strong>{attribute_name}:</strong> {attribute_value}
+                </div>
+    """
+
+
 def display_card_attributes(card_data):
-    def get_card_attribute_html(attribute_name: str, attribute_value: str) -> str:
-        return f"""<div class="card-attribute">
-                        <strong>{attribute_name}:</strong> {attribute_value}
-                    </div>
-        """
 
     card_attributes_html = f"""
     {get_card_attribute_html("Release Meta", card_data.meta_format)}

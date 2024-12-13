@@ -4,7 +4,9 @@ import pandas as pd
 import streamlit as st
 from statistics import mean
 
+from cssutils.css import CSSStyleSheet
 from pydantic import BaseModel, field_validator
+from streamlit.components import v1 as components
 from streamlit_elements import elements, mui, dashboard, html as element_html
 
 from op_tcg.backend.models.input import MetaFormat
@@ -25,6 +27,7 @@ from op_tcg.frontend.utils.query_params import get_default_leader_name, add_quer
 from op_tcg.frontend.utils.decklist import tournament_standings2decklist_data, DecklistData
 from op_tcg.frontend.utils.card_price import get_decklist_price
 from op_tcg.frontend.utils.styles import css_rule_to_dict, read_style_sheet
+from op_tcg.frontend.views.card import get_card_attribute_html
 from op_tcg.frontend.views.modal import display_card_details_dialog
 
 
@@ -93,6 +96,41 @@ def get_previous_meta_format(meta_format: MetaFormat) -> MetaFormat:
     return MetaFormat.to_list()[MetaFormat.to_list().index(meta_format) - 1]
 
 
+def get_leader_extended_data(leader_id: str) -> LeaderExtended | None:
+    """Get extended data about the leader inkl. aa image url"""
+    leader_extended_data: list[LeaderExtended] = get_leader_extended()
+    leader_extended = None
+    leader_extended_filtered = [le for le in leader_extended_data if le.id == leader_id and le.only_official == True]
+    if len(leader_extended_filtered) > 0:
+        leader_extended = leader_extended_filtered[0]
+    return leader_extended
+
+
+def _display_meta_card(tournament_decklist_data: list[TournamentDecklist],
+                       meta_format: MetaFormat,
+                       avg_price_eur: float,
+                       avg_price_usd: float,
+                       css_stylings: CSSStyleSheet):
+    card_attributes_html = f"""
+        {get_card_attribute_html(f"Number of decks ({meta_format})", len(tournament_decklist_data))}
+        {get_card_attribute_html(f"Average price", '%.2f' % avg_price_eur + "€ | $" + '%.2f' % avg_price_usd)}
+    """
+
+    meta_html = f"""
+        <div class="card">
+            <h1 class="card-title">Meta: {meta_format}</h1>
+            {card_attributes_html}
+        </div>
+        """
+
+    components.html(f"""
+        <style> 
+        {css_stylings.cssText.decode()}
+        </style>
+        <body>
+        {meta_html}
+        </body>""", height=200, scrolling=False)
+
 @timeit
 def main_leader_card_movement():
     st.header("Leader Card Movement")
@@ -136,6 +174,8 @@ def main_leader_card_movement():
 
     if selected_leader_name:
         leader_id: str = lname_and_lid_to_lid(selected_leader_name)
+        leader_data: None | LeaderExtended = get_leader_extended_data(leader_id)
+
         tournament_decklist_data = get_tournament_decklist_data(meta_formats=MetaFormat.to_list(),
                                                                 leader_ids=[leader_id])
         tournament_decklist_data_previous_meta = [dd for dd in tournament_decklist_data if
@@ -156,18 +196,21 @@ def main_leader_card_movement():
             avg_price_usd_selected_meta = get_avg_price(tournament_decklist_data_selected_meta,
                                                         currency=CardCurrency.US_DOLLAR)
 
-            col1, col2, col3, col4, col5 = st.columns([5, 1, 4, 1, 5])
+            col1, col2, col3 = st.columns([0.25, 0.05, 0.5])
             with col1:
-                st.write(f"Number of decks ({previous_meta_format}): {len(tournament_decklist_data_previous_meta)}")
-                st.write(
-                    f"Average price: {'%.2f' % avg_price_eur_previous_meta}€ | ${'%.2f' % avg_price_usd_previous_meta}")
-            with col3:
                 st.subheader("Decklist Leader")
-                st.image(card_id2card_data[leader_id].image_url)
-            with col5:
-                st.write(f"Number of decks ({selected_meta_format}): {len(tournament_decklist_data_selected_meta)}")
-                st.write(
-                    f"Average price: {'%.2f' % avg_price_eur_selected_meta}€ | ${'%.2f' % avg_price_usd_selected_meta}")
+                if leader_data:
+                    st.image(leader_data.aa_image_url)
+                else:
+                    st.image(card_id2card_data[leader_id].image_url)
+            with col3:
+                st.subheader("")
+
+                card_attr_css = read_style_sheet("card_attributes")
+                _display_meta_card(tournament_decklist_data_selected_meta, selected_meta_format,
+                                   avg_price_eur_selected_meta, avg_price_usd_selected_meta, card_attr_css)
+                _display_meta_card(tournament_decklist_data_previous_meta, previous_meta_format,
+                                   avg_price_eur_previous_meta, avg_price_usd_previous_meta, card_attr_css)
 
             display_card_movement_table(card_id2card_data, tournament_decklist_data,
                                         selected_meta_format)
@@ -196,7 +239,7 @@ def display_card_movement_table(card_id2card_data, tournament_decklists: list[To
     previous_meta_format: MetaFormat = get_previous_meta_format(selected_meta_format)
     meta_format2decklist_data: dict[MetaFormat, DecklistData] = {}
     n_meta_formats = len(all_meta_formats_until_selected)
-    for meta_format in all_meta_formats_until_selected[max(0,n_meta_formats-n_meta_formats_to_display):]:
+    for meta_format in all_meta_formats_until_selected[max(0, n_meta_formats - n_meta_formats_to_display):]:
         tournament_decklists_meta = [dd for dd in tournament_decklists if dd.meta_format == meta_format]
         meta_format2decklist_data[meta_format] = tournament_standings2decklist_data(
             tournament_decklists_meta, card_id2card_data)
