@@ -11,7 +11,7 @@ from contextlib import suppress
 from pydantic import BaseModel
 from streamlit_elements import elements, mui, dashboard, nivo, html as element_html
 
-from op_tcg.backend.models.cards import ExtendedCardData, CardCurrency
+from op_tcg.backend.models.cards import ExtendedCardData, CardCurrency, LatestCardPrice
 from op_tcg.backend.models.input import MetaFormat, meta_format2release_datetime
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.matches import LeaderWinRate
@@ -53,12 +53,6 @@ class OpponentMatchups(BaseModel):
 class DecklistPrices(BaseModel):
     prices_eur: list[float]
     prices_usd: list[float]
-
-
-@dataclass
-class DefaultCard:
-    latest_eur_price: float = 0.0
-    latest_usd_price: float = 0.0
 
 def add_qparam_on_change_fn(qparam2session_key: dict[str, str], reset_query_params: bool=False):
     for qparam, session_key in qparam2session_key.items():
@@ -186,11 +180,11 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
                                                   f'/{sub_page_title_to_url_path(SUB_PAGE_LEADER)}?lid={selected_most_similar_lid}')
                 st.markdown(img_with_href, unsafe_allow_html=True)
             with col2_2:
-                cards_missing_price_eur = sum([cid2cdata_dict.get(cid, DefaultCard()).latest_eur_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_missing])
-                cards_missing_price_usd = sum([cid2cdata_dict.get(cid, DefaultCard()).latest_usd_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_missing])
+                cards_missing_price_eur = sum([cid2cdata_dict.get(cid, LatestCardPrice.from_default()).latest_eur_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_missing])
+                cards_missing_price_usd = sum([cid2cdata_dict.get(cid, LatestCardPrice.from_default()).latest_usd_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_missing])
 
-                cards_intersection_price_eur = sum([cid2cdata_dict.get(cid, DefaultCard()).latest_eur_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_intersection])
-                cards_intersection_price_usd = sum([cid2cdata_dict.get(cid, DefaultCard()).latest_usd_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_intersection])
+                cards_intersection_price_eur = sum([cid2cdata_dict.get(cid, LatestCardPrice.from_default()).latest_eur_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_intersection])
+                cards_intersection_price_usd = sum([cid2cdata_dict.get(cid, LatestCardPrice.from_default()).latest_usd_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_intersection])
 
                 st.markdown(f"""  
                 **Deck Similarity**: {int(round(similar_leader_data.similarity_score, 2) * 100)}%

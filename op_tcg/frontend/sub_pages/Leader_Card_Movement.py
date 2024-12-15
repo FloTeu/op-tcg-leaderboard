@@ -11,7 +11,7 @@ from streamlit_elements import elements, mui, dashboard, html as element_html
 
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import LeaderElo, LeaderExtended
-from op_tcg.backend.models.cards import OPTcgLanguage, CardCurrency
+from op_tcg.backend.models.cards import OPTcgLanguage, CardCurrency, LatestCardPrice
 from op_tcg.backend.models.tournaments import TournamentStanding, TournamentStandingExtended, TournamentDecklist
 from op_tcg.backend.utils.utils import timeit
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select, display_sortby_select, \
@@ -279,9 +279,9 @@ def display_card_movement_table(card_id2card_data, tournament_decklists: list[To
         for i, card_id in enumerate(card_movement_sorted):
             movement = card_movement[card_id]
             change = movement.occurrence_proportion_change
-            index_cells.append(create_image_cell(card_id2card_data[card_id].image_url,
+            index_cells.append(create_image_cell(card_id2card_data.get(card_id, LatestCardPrice.from_default()).image_url,
                                                  text=f"{card_id}",
-                                                 overlay_color=card_id2card_data[card_id].to_hex_color(),
+                                                 overlay_color=card_id2card_data.get(card_id, LatestCardPrice.from_default()).to_hex_color(),
                                                  horizontal=True,
                                                  on_click=partial(
                                                      _open_dialog, card_id=card_id,

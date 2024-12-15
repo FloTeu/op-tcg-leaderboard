@@ -1,5 +1,6 @@
 from datetime import datetime, date
 from enum import StrEnum
+from typing import Any
 
 from pydantic import Field, BaseModel
 
@@ -117,6 +118,29 @@ class Card(BaseCard, BQTableBaseModel):
     life: int | None = Field(description="Life of leader card e.g. 4")
 
 
+    @classmethod
+    def from_default(cls):
+        """This method can be used inn order to ensure functionality still works even do no data exists yet"""
+        return cls(
+            attributes = [],
+            power=None,
+            cost=None,
+            counter=None,
+            life=None,
+            id="test_id",
+            language=OPTcgLanguage.EN,
+            aa_version=0,
+            name="test_name",
+            image_url="https://storage.googleapis.com/op-tcg-leaderboard-prod-public/card/default/rainbow_luffy.jpg",
+            colors=[OPTcgColor.RED, OPTcgColor.GREEN, OPTcgColor.BLUE, OPTcgColor.PURPLE, OPTcgColor.BLACK, OPTcgColor.YELLOW],
+            ability="",
+            tournament_status=None,
+            types=[],
+            rarity=OPTcgCardRarity.COMMON,
+            card_category=OPTcgCardCatagory.CHARACTER,
+            release_set_id=""
+        )
+
 class CardPrice(BQTableBaseModel):
     _dataset_id: str = BQDataset.CARDS
     card_id: str = Field(description="The op tcg card id e.g. OP03-099", primary_key=True)
@@ -136,6 +160,16 @@ class LatestCardPrice(Card):
             self.latest_eur_price = 0.0
         if self.latest_usd_price is None:
             self.latest_usd_price = 0.0
+
+
+    @classmethod
+    def from_default(cls):
+        """This method can be used inn order to ensure functionality still works even do no data exists yet"""
+        return cls(
+            latest_eur_price = 0.0,
+            latest_usd_price = 0.0,
+            **Card.from_default().model_dump()
+        )
 
 class LimitlessCardData(BaseModel):
     cards: list[Card]
@@ -162,9 +196,39 @@ class CardReleaseSet(BQTableBaseModel):
     url: str = Field(description="Url with all card and price information")
     source: DataSource = Field(description="Source of url")
 
+
+    @classmethod
+    def from_default(cls):
+        """This method can be used inn order to ensure functionality still works even do no data exists yet"""
+        return cls(
+            id="test_id",
+            language=OPTcgLanguage.EN,
+            name="test_name",
+            meta_format=MetaFormat.latest_meta_format(),
+            release_date=None,
+            card_count=0,
+            code="",
+            type=None,
+            url="",
+            source=DataSource.LIMITLESS
+        )
+
+
 class ExtendedCardData(LatestCardPrice, CardReleaseSet):
     pass
 
     def get_searchable_string(self):
         return ' '.join(str(value) for value in self.model_dump().values())
 
+
+    @classmethod
+    def from_default(cls, overwrite_dict: dict[str, Any] | None = None):
+        """This method can be used inn order to ensure functionality still works even do no data exists yet"""
+        init_data = CardReleaseSet.from_default().model_dump()
+        init_data.update(LatestCardPrice.from_default().model_dump())
+        if overwrite_dict:
+            init_data.update(overwrite_dict)
+
+        return cls(
+            **init_data
+        )

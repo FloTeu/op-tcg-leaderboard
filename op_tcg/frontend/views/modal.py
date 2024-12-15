@@ -3,7 +3,7 @@ import logging
 
 import streamlit as st
 
-from op_tcg.backend.models.cards import OPTcgCardCatagory, ExtendedCardData
+from op_tcg.backend.models.cards import OPTcgCardCatagory, ExtendedCardData, LatestCardPrice
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.tournaments import TournamentDecklist
 
@@ -79,7 +79,7 @@ def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = Non
 
     with st.spinner():
         cid2card_data: dict[str, ExtendedCardData] = get_card_id_card_data_lookup(aa_version=0)
-        card_data = cid2card_data[selected_card_id]
+        card_data = cid2card_data.get(selected_card_id, ExtendedCardData.from_default({"id": selected_card_id}))
         chart_data, chart_data_meta_formats = get_stream_leader_occurrence_data(cid2card_data, selected_card_id)
 
         # filter top n most occurring leaders
@@ -122,7 +122,7 @@ def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = Non
 
 def get_stream_leader_occurrence_data(cid2card_data: dict[str, ExtendedCardData], card_id: str):
     # load data
-    card_data = cid2card_data[card_id]
+    card_data = cid2card_data.get(card_id, ExtendedCardData.from_default())
     release_meta = card_data.meta_format
     # start at least with OP02, since OP01 has no match data
     start_meta = release_meta if release_meta != MetaFormat.OP01 else MetaFormat.OP02
