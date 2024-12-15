@@ -222,7 +222,7 @@ def main_leader_card_movement():
 @st.fragment
 def display_card_movement_table(card_id2card_data, tournament_decklists: list[TournamentDecklist],
                                 selected_meta_format):
-    n_meta_formats_to_display = 6
+    n_meta_formats_to_display = 5
 
     # frontend interactables
     cols = st.columns([0.2, 0.8])

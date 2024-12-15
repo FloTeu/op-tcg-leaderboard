@@ -1,4 +1,5 @@
 import time
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from functools import partial
 
@@ -53,6 +54,12 @@ class DecklistPrices(BaseModel):
     prices_eur: list[float]
     prices_usd: list[float]
 
+
+@dataclass
+class DefaultCard:
+    latest_eur_price: float = 0.0
+    latest_usd_price: float = 0.0
+
 def add_qparam_on_change_fn(qparam2session_key: dict[str, str], reset_query_params: bool=False):
     for qparam, session_key in qparam2session_key.items():
         if qparam in ["lid", Q_PARAM_EASIEST_OPPONENT, Q_PARAM_HARDEST_OPPONENT]:
@@ -74,10 +81,8 @@ def get_img_with_href(img_url, target_url):
 def get_leader_data(matchups: list[Matchup], leader_extended_data: list[LeaderExtended], q_param: str) -> LeaderExtended | None:
     selected_opponent_id: str = lname_and_lid_to_lid(get_default_leader_name([m.leader_id for m in matchups], query_param=q_param))
     opponent_data: LeaderExtended | None = None
+    # Note: The exception might occurs if a leader is not complete yet (e.g. missing elo data)
     with suppress(Exception):
-        # if selected_opponent_id is None:
-        #     opponent_data = leader_extended_data[0]
-        # else:
         opponent_data = list(filter(lambda le: le.id == selected_opponent_id, leader_extended_data))[0]
     return opponent_data
 
@@ -93,8 +98,10 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
     easiest_opponent_data: LeaderExtended | None = get_leader_data(opponent_matchups.easiest_matchups, leader_extended_data, q_param=Q_PARAM_EASIEST_OPPONENT)
     hardest_opponent_data: LeaderExtended | None = get_leader_data(opponent_matchups.hardest_matchups, leader_extended_data, q_param=Q_PARAM_HARDEST_OPPONENT)
     # remove selected easiest opponent data from hardest matchups and vice versa
-    opponent_matchups.easiest_matchups = [m for m in opponent_matchups.easiest_matchups if m.leader_id != hardest_opponent_data.id]
-    opponent_matchups.hardest_matchups = [m for m in opponent_matchups.hardest_matchups if m.leader_id != easiest_opponent_data.id]
+    if hardest_opponent_data:
+        opponent_matchups.easiest_matchups = [m for m in opponent_matchups.easiest_matchups if m.leader_id != hardest_opponent_data.id]
+    if easiest_opponent_data:
+        opponent_matchups.hardest_matchups = [m for m in opponent_matchups.hardest_matchups if m.leader_id != easiest_opponent_data.id]
     if (easiest_opponent_data and hardest_opponent_data) and (easiest_opponent_data.id == hardest_opponent_data.id):
         st.error("Selected best and worst opponent cannot be the same")
         return None
@@ -128,20 +135,31 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
     with tab1:
         col1, col2, col3 = st.columns([0.3, 0.3, 0.3])
         with col1:
-            display_opponent_view(easiest_opponent_data.id, opponent_matchups.easiest_matchups, leader_extended_data, best_matchup=True)
+            if easiest_opponent_data:
+                display_opponent_view(easiest_opponent_data.id, opponent_matchups.easiest_matchups, leader_extended_data, best_matchup=True)
+            else:
+                st.warning("Easiest opponent is not yet available")
         with col2:
             st.subheader("Win Rate Matchup")
             styles = {"height": 300,
                              **rounder_corners_css
                       }
-            create_leader_win_rate_radar_chart(radar_chart_data, [leader_data.id, hardest_opponent_data.id,
-                                                                      easiest_opponent_data.id],
-                                                   colors=[leader_data.to_hex_color(),
-                                                           hardest_opponent_data.to_hex_color(),
-                                                           easiest_opponent_data.to_hex_color()],
+            radar_chart_ids = [leader_data.id]
+            radar_chart_colors = [leader_data.to_hex_color()]
+            if hardest_opponent_data:
+                radar_chart_ids.append(hardest_opponent_data.id)
+                radar_chart_colors.append(hardest_opponent_data.to_hex_color())
+            if easiest_opponent_data:
+                radar_chart_ids.append(easiest_opponent_data.id)
+                radar_chart_colors.append(easiest_opponent_data.to_hex_color())
+            create_leader_win_rate_radar_chart(radar_chart_data, radar_chart_ids,
+                                                   colors=radar_chart_colors,
                                                    styles=styles)
         with col3:
-            display_opponent_view(hardest_opponent_data.id, opponent_matchups.hardest_matchups, leader_extended_data, best_matchup=False)
+            if hardest_opponent_data:
+                display_opponent_view(hardest_opponent_data.id, opponent_matchups.hardest_matchups, leader_extended_data, best_matchup=False)
+            else:
+                st.warning("Hardest opponent is not yet available")
     with tab2:
         col1, col2 = st.columns([0.4, 0.5])
 
@@ -168,11 +186,11 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
                                                   f'/{sub_page_title_to_url_path(SUB_PAGE_LEADER)}?lid={selected_most_similar_lid}')
                 st.markdown(img_with_href, unsafe_allow_html=True)
             with col2_2:
-                cards_missing_price_eur = sum([cid2cdata_dict[cid].latest_eur_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_missing])
-                cards_missing_price_usd = sum([cid2cdata_dict[cid].latest_usd_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_missing])
+                cards_missing_price_eur = sum([cid2cdata_dict.get(cid, DefaultCard()).latest_eur_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_missing])
+                cards_missing_price_usd = sum([cid2cdata_dict.get(cid, DefaultCard()).latest_usd_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_missing])
 
-                cards_intersection_price_eur = sum([cid2cdata_dict[cid].latest_eur_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_intersection])
-                cards_intersection_price_usd = sum([cid2cdata_dict[cid].latest_usd_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_intersection])
+                cards_intersection_price_eur = sum([cid2cdata_dict.get(cid, DefaultCard()).latest_eur_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_intersection])
+                cards_intersection_price_usd = sum([cid2cdata_dict.get(cid, DefaultCard()).latest_usd_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_intersection])
 
                 st.markdown(f"""  
                 **Deck Similarity**: {int(round(similar_leader_data.similarity_score, 2) * 100)}%
@@ -260,12 +278,14 @@ def display_cards_view(card_ids: list[str], cid2cdata_dict: dict[str, ExtendedCa
     n_st_cols = st.columns([1 / n_cols for i in range(n_cols)])
     for i, card_id in enumerate(card_ids[:n_cols]):
         with n_st_cols[i % n_cols]:
-            st.image(cid2cdata_dict[card_id].image_url)
+            if card_id in cid2cdata_dict:
+                st.image(cid2cdata_dict[card_id].image_url)
     with st.expander("show all cards"):
         n_st_cols = st.columns([1 / n_cols for i in range(n_cols)])
         for i, card_id in enumerate(card_ids[n_cols:]):
             with n_st_cols[i % n_cols]:
-                st.image(cid2cdata_dict[card_id].image_url)
+                if card_id in cid2cdata_dict:
+                    st.image(cid2cdata_dict[card_id].image_url)
 
 def display_opponent_view(selected_opponent_id: str, matchups: list[Matchup], leader_extended_data: list[LeaderExtended], best_matchup: bool):
     if not any(m.leader_id == selected_opponent_id for m in matchups):
