@@ -311,4 +311,3 @@ def display_card_movement_table(card_id2card_data, tournament_decklists: list[To
                           title=None,
                           key="card_movement_table_item")
 
-    t = 0

@@ -9,6 +9,7 @@ import streamlit as st
 
 from contextlib import suppress
 from pydantic import BaseModel
+from streamlit.errors import StreamlitDuplicateElementId
 from streamlit_elements import elements, mui, dashboard, nivo, html as element_html
 
 from op_tcg.backend.models.cards import ExtendedCardData, CardCurrency, LatestCardPrice
@@ -38,6 +39,7 @@ from op_tcg.frontend.views.decklist import display_list_view, display_decklist
 Q_PARAM_EASIEST_OPPONENT = "easiest_opponent_lid"
 Q_PARAM_HARDEST_OPPONENT = "hardest_opponent_lid"
 
+
 class Matchup(BaseModel):
     leader_id: str
     win_rate: float
@@ -50,11 +52,13 @@ class OpponentMatchups(BaseModel):
     easiest_matchups: list[Matchup]
     hardest_matchups: list[Matchup]
 
+
 class DecklistPrices(BaseModel):
     prices_eur: list[float]
     prices_usd: list[float]
 
-def add_qparam_on_change_fn(qparam2session_key: dict[str, str], reset_query_params: bool=False):
+
+def add_qparam_on_change_fn(qparam2session_key: dict[str, str], reset_query_params: bool = False):
     for qparam, session_key in qparam2session_key.items():
         if qparam in ["lid", Q_PARAM_EASIEST_OPPONENT, Q_PARAM_HARDEST_OPPONENT]:
             qparam_value: str = lname_and_lid_to_lid(st.session_state.get(session_key, ""))
@@ -65,6 +69,7 @@ def add_qparam_on_change_fn(qparam2session_key: dict[str, str], reset_query_para
         delete_query_param(Q_PARAM_EASIEST_OPPONENT)
         delete_query_param(Q_PARAM_HARDEST_OPPONENT)
 
+
 def get_img_with_href(img_url, target_url):
     html_code = f'''
         <a href="{target_url}" target="_self" >
@@ -72,15 +77,23 @@ def get_img_with_href(img_url, target_url):
         </a>'''
     return html_code
 
-def get_leader_data(matchups: list[Matchup], leader_extended_data: list[LeaderExtended], q_param: str) -> LeaderExtended | None:
-    selected_opponent_id: str = lname_and_lid_to_lid(get_default_leader_name([m.leader_id for m in matchups], query_param=q_param))
+
+def get_leader_data(matchups: list[Matchup], leader_extended_data: list[LeaderExtended], q_param: str,
+                    blacklist_lids: list[str] | None = None) -> LeaderExtended | None:
+    blacklist_lids = blacklist_lids or []
+    selected_opponent_id: str = lname_and_lid_to_lid(
+        get_default_leader_name([m.leader_id for m in matchups if m.leader_id not in blacklist_lids],
+                                query_param=q_param))
     opponent_data: LeaderExtended | None = None
     # Note: The exception might occurs if a leader is not complete yet (e.g. missing elo data)
     with suppress(Exception):
         opponent_data = list(filter(lambda le: le.id == selected_opponent_id, leader_extended_data))[0]
     return opponent_data
 
-def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: list[LeaderExtended], radar_chart_data, tournament_decklists: list[TournamentDecklist], opponent_matchups: OpponentMatchups, lid2similar_leader_data: dict[str, SimilarLeaderData]):
+
+def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: list[LeaderExtended], radar_chart_data,
+                             tournament_decklists: list[TournamentDecklist], opponent_matchups: OpponentMatchups,
+                             lid2similar_leader_data: dict[str, SimilarLeaderData]):
     cid2cdata_dict = get_card_id_card_data_lookup()
 
     avg_price_eur = np.mean([td.price_eur for td in tournament_decklists])
@@ -89,17 +102,23 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
     min_tournament_date = min(td.tournament_timestamp for td in tournament_decklists).date() if len(
         tournament_decklists) > 0 else None
 
-    easiest_opponent_data: LeaderExtended | None = get_leader_data(opponent_matchups.easiest_matchups, leader_extended_data, q_param=Q_PARAM_EASIEST_OPPONENT)
-    hardest_opponent_data: LeaderExtended | None = get_leader_data(opponent_matchups.hardest_matchups, leader_extended_data, q_param=Q_PARAM_HARDEST_OPPONENT)
+    hardest_opponent_data: LeaderExtended | None = get_leader_data(opponent_matchups.hardest_matchups,
+                                                                   leader_extended_data,
+                                                                   q_param=Q_PARAM_HARDEST_OPPONENT)
+    easiest_opponent_data: LeaderExtended | None = get_leader_data(opponent_matchups.easiest_matchups,
+                                                                   leader_extended_data,
+                                                                   q_param=Q_PARAM_EASIEST_OPPONENT,
+                                                                   blacklist_lids=[hardest_opponent_data.id])
     # remove selected easiest opponent data from hardest matchups and vice versa
     if hardest_opponent_data:
-        opponent_matchups.easiest_matchups = [m for m in opponent_matchups.easiest_matchups if m.leader_id != hardest_opponent_data.id]
+        opponent_matchups.easiest_matchups = [m for m in opponent_matchups.easiest_matchups if
+                                              m.leader_id != hardest_opponent_data.id]
     if easiest_opponent_data:
-        opponent_matchups.hardest_matchups = [m for m in opponent_matchups.hardest_matchups if m.leader_id != easiest_opponent_data.id]
+        opponent_matchups.hardest_matchups = [m for m in opponent_matchups.hardest_matchups if
+                                              m.leader_id != easiest_opponent_data.id]
     if (easiest_opponent_data and hardest_opponent_data) and (easiest_opponent_data.id == hardest_opponent_data.id):
         st.error("Selected best and worst opponent cannot be the same")
         return None
-
 
     col1, col2, col3 = st.columns([0.25, 0.05, 0.5])
     with col1:
@@ -112,31 +131,32 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
         st.subheader("Win Rate Chart")
         rounder_corners_css = css_rule_to_dict(read_style_sheet("chart", selector=".rounded-corners"))
         styles = {"height": 150,
-                 **rounder_corners_css,
-                 }
+                  **rounder_corners_css,
+                  }
         create_leader_line_chart(leader_id=leader_data.id, leader_extended=leader_extended_data,
-                                                 enable_x_axis=True, enable_y_axis=False,
-                                                 y_value=LineChartYValue.WIN_RATE, styles=styles)
+                                 enable_x_axis=True, enable_y_axis=False,
+                                 y_value=LineChartYValue.WIN_RATE, styles=styles)
 
         st.subheader("Win Rate Matchup")
         styles = {"height": 250,
                   **rounder_corners_css,
                   }
         create_leader_win_rate_radar_chart(radar_chart_data, [leader_data.id],
-                                               colors=[leader_data.to_hex_color()], styles=styles)
+                                           colors=[leader_data.to_hex_color()], styles=styles)
 
     tab1, tab2 = st.tabs(["Opponents", "Decklist"])
     with tab1:
         col1, col2, col3 = st.columns([0.3, 0.3, 0.3])
         with col1:
             if easiest_opponent_data:
-                display_opponent_view(easiest_opponent_data.id, opponent_matchups.easiest_matchups, leader_extended_data, best_matchup=True)
+                display_opponent_view(easiest_opponent_data.id, opponent_matchups.easiest_matchups,
+                                      leader_extended_data, best_matchup=True)
             else:
                 st.warning("Easiest opponent is not yet available")
         with col2:
             st.subheader("Win Rate Matchup")
             styles = {"height": 300,
-                             **rounder_corners_css
+                      **rounder_corners_css
                       }
             radar_chart_ids = [leader_data.id]
             radar_chart_colors = [leader_data.to_hex_color()]
@@ -147,21 +167,24 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
                 radar_chart_ids.append(easiest_opponent_data.id)
                 radar_chart_colors.append(easiest_opponent_data.to_hex_color())
             create_leader_win_rate_radar_chart(radar_chart_data, radar_chart_ids,
-                                                   colors=radar_chart_colors,
-                                                   styles=styles)
+                                               colors=radar_chart_colors,
+                                               styles=styles)
         with col3:
             if hardest_opponent_data:
-                display_opponent_view(hardest_opponent_data.id, opponent_matchups.hardest_matchups, leader_extended_data, best_matchup=False)
+                display_opponent_view(hardest_opponent_data.id, opponent_matchups.hardest_matchups,
+                                      leader_extended_data, best_matchup=False)
             else:
                 st.warning("Hardest opponent is not yet available")
     with tab2:
         col1, col2 = st.columns([0.4, 0.5])
 
         with col1:
-            display_decklist_list_view_fragment(tournament_decklists, cid2cdata_dict, meta_formats, leader_data.id, min_tournament_date)
+            display_decklist_list_view_fragment(tournament_decklists, cid2cdata_dict, meta_formats, leader_data.id,
+                                                min_tournament_date)
 
         with col2:
-            most_similar_leader_ids = sorted(lid2similar_leader_data, key=lambda k: lid2similar_leader_data[k].similarity_score, reverse=True)
+            most_similar_leader_ids = sorted(lid2similar_leader_data,
+                                             key=lambda k: lid2similar_leader_data[k].similarity_score, reverse=True)
             st.subheader("Most similar leader")
 
             opponent_leader_names = [lid_to_name_and_lid(lid) for lid in most_similar_leader_ids]
@@ -180,28 +203,44 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
                                                   f'/{sub_page_title_to_url_path(SUB_PAGE_LEADER)}?lid={selected_most_similar_lid}')
                 st.markdown(img_with_href, unsafe_allow_html=True)
             with col2_2:
-                cards_missing_price_eur = sum([cid2cdata_dict.get(cid, LatestCardPrice.from_default()).latest_eur_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_missing])
-                cards_missing_price_usd = sum([cid2cdata_dict.get(cid, LatestCardPrice.from_default()).latest_usd_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_missing])
+                cards_missing_price_eur = sum([cid2cdata_dict.get(cid,
+                                                                  LatestCardPrice.from_default()).latest_eur_price *
+                                               similar_leader_data.card_id2avg_count_card[cid] for cid in
+                                               similar_leader_data.cards_missing])
+                cards_missing_price_usd = sum([cid2cdata_dict.get(cid,
+                                                                  LatestCardPrice.from_default()).latest_usd_price *
+                                               similar_leader_data.card_id2avg_count_card[cid] for cid in
+                                               similar_leader_data.cards_missing])
 
-                cards_intersection_price_eur = sum([cid2cdata_dict.get(cid, LatestCardPrice.from_default()).latest_eur_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_intersection])
-                cards_intersection_price_usd = sum([cid2cdata_dict.get(cid, LatestCardPrice.from_default()).latest_usd_price * similar_leader_data.card_id2avg_count_card[cid] for cid in similar_leader_data.cards_intersection])
+                cards_intersection_price_eur = sum([cid2cdata_dict.get(cid,
+                                                                       LatestCardPrice.from_default()).latest_eur_price *
+                                                    similar_leader_data.card_id2avg_count_card[cid] for cid in
+                                                    similar_leader_data.cards_intersection])
+                cards_intersection_price_usd = sum([cid2cdata_dict.get(cid,
+                                                                       LatestCardPrice.from_default()).latest_usd_price *
+                                                    similar_leader_data.card_id2avg_count_card[cid] for cid in
+                                                    similar_leader_data.cards_intersection])
 
                 st.markdown(f"""  
                 **Deck Similarity**: {int(round(similar_leader_data.similarity_score, 2) * 100)}%
                 
-                **Missing Cards Price**: {f"{round(cards_missing_price_eur, 2)}".replace(".",",")}€ | ${round(cards_missing_price_usd, 2)}
+                **Missing Cards Price**: {f"{round(cards_missing_price_eur, 2)}".replace(".", ",")}€ | ${round(cards_missing_price_usd, 2)}
                 
-                **Intersection Cards Price**: {f"{round(cards_intersection_price_eur, 2)}".replace(".",",")}€ | ${round(cards_intersection_price_usd, 2)}  
+                **Intersection Cards Price**: {f"{round(cards_intersection_price_eur, 2)}".replace(".", ",")}€ | ${round(cards_intersection_price_usd, 2)}  
                 """)
 
             display_cards_view(similar_leader_data.cards_intersection, cid2cdata_dict, title="Cards in both decks:")
             display_cards_view(similar_leader_data.cards_missing, cid2cdata_dict, title="Missing cards:")
 
+
 @st.fragment
-def display_decklist_list_view_fragment(tournament_decklists: list[TournamentDecklist], cid2cdata_dict: dict[str, ExtendedCardData], meta_formats: list[MetaFormat], leader_id: str, min_tournament_date: date):
+def display_decklist_list_view_fragment(tournament_decklists: list[TournamentDecklist],
+                                        cid2cdata_dict: dict[str, ExtendedCardData], meta_formats: list[MetaFormat],
+                                        leader_id: str, min_tournament_date: date):
     st.subheader("Decklist")
     with st.expander("Decklist Filter"):
-        decklist_filter: DecklistFilter = display_decklist_filter(tournament_decklists, meta_formats, min_tournament_date)
+        decklist_filter: DecklistFilter = display_decklist_filter(tournament_decklists, meta_formats,
+                                                                  min_tournament_date)
         tournament_decklists = filter_tournament_decklists(tournament_decklists, decklist_filter)
         decklist_data: DecklistData = tournament_standings2decklist_data(tournament_decklists,
                                                                          cid2cdata_dict)
@@ -224,7 +263,9 @@ def display_decklist_list_view_fragment(tournament_decklists: list[TournamentDec
         else:
             st.warning("No decklists available. Please change the 'Start Date'")
 
-def display_decklist_filter(tournament_decklists: list[TournamentDecklist], selected_meta_formats: list[MetaFormat], decklist_min_tournament_date: date | None = None) -> DecklistFilter:
+
+def display_decklist_filter(tournament_decklists: list[TournamentDecklist], selected_meta_formats: list[MetaFormat],
+                            decklist_min_tournament_date: date | None = None) -> DecklistFilter:
     oldest_release_date: date = datetime.now().date()
     for meta_format in selected_meta_formats:
         release_date = meta_format2release_datetime(meta_format)
@@ -236,11 +277,14 @@ def display_decklist_filter(tournament_decklists: list[TournamentDecklist], sele
     else:
         min_date = min(oldest_release_date, decklist_min_tournament_date)
     min_datetime = datetime(min_date.year, min_date.month, min_date.day)
-    max_datetime = datetime(datetime.now().year, datetime.now().month, datetime.now().day) + timedelta(hours=23, minutes=59)
+    max_datetime = datetime(datetime.now().year, datetime.now().month, datetime.now().day) + timedelta(hours=23,
+                                                                                                       minutes=59)
 
     filter_currency = st.selectbox("Currency", [CardCurrency.EURO, CardCurrency.US_DOLLAR])
-    min_price = min(td.price_eur if filter_currency == CardCurrency.EURO else td.price_usd for td in tournament_decklists)
-    max_price = max(td.price_eur if filter_currency == CardCurrency.EURO else td.price_usd for td in tournament_decklists)
+    min_price = min(
+        td.price_eur if filter_currency == CardCurrency.EURO else td.price_usd for td in tournament_decklists)
+    max_price = max(
+        td.price_eur if filter_currency == CardCurrency.EURO else td.price_usd for td in tournament_decklists)
     if min_price < max_price:
         selected_min_price, selected_max_price = st.slider("Decklist Price Range", min_price, max_price,
                                                            (min_price, max_price))
@@ -267,6 +311,7 @@ def display_decklist_filter(tournament_decklists: list[TournamentDecklist], sele
         filter_currency=filter_currency
     )
 
+
 def display_cards_view(card_ids: list[str], cid2cdata_dict: dict[str, ExtendedCardData], title: str, n_cols: int = 4):
     st.write(title)
     n_st_cols = st.columns([1 / n_cols for i in range(n_cols)])
@@ -281,7 +326,9 @@ def display_cards_view(card_ids: list[str], cid2cdata_dict: dict[str, ExtendedCa
                 if card_id in cid2cdata_dict:
                     st.image(cid2cdata_dict[card_id].image_url)
 
-def display_opponent_view(selected_opponent_id: str, matchups: list[Matchup], leader_extended_data: list[LeaderExtended], best_matchup: bool):
+
+def display_opponent_view(selected_opponent_id: str, matchups: list[Matchup],
+                          leader_extended_data: list[LeaderExtended], best_matchup: bool):
     if not any(m.leader_id == selected_opponent_id for m in matchups):
         st.warning(f"Selected opponent {selected_opponent_id} has no matchup data")
         return None
@@ -294,9 +341,11 @@ def display_opponent_view(selected_opponent_id: str, matchups: list[Matchup], le
                           key=f"select_opp_lid_{selected_opponent_id}",
                           multiselect=False,
                           default=opponent_leader_names[opponent_index],
-                          on_change=partial(add_qparam_on_change_fn, qparam2session_key={Q_PARAM_EASIEST_OPPONENT if best_matchup else Q_PARAM_HARDEST_OPPONENT: f"select_opp_lid_{selected_opponent_id}"}),
+                          on_change=partial(add_qparam_on_change_fn, qparam2session_key={
+                              Q_PARAM_EASIEST_OPPONENT if best_matchup else Q_PARAM_HARDEST_OPPONENT: f"select_opp_lid_{selected_opponent_id}"}),
                           )
-    img_with_href = get_img_with_href(opponent_leader_data.aa_image_url, f'/{sub_page_title_to_url_path(SUB_PAGE_LEADER)}?lid={opponent_leader_data.id}')
+    img_with_href = get_img_with_href(opponent_leader_data.aa_image_url,
+                                      f'/{sub_page_title_to_url_path(SUB_PAGE_LEADER)}?lid={opponent_leader_data.id}')
     st.markdown(img_with_href, unsafe_allow_html=True)
     st.markdown(f"""  
 \
@@ -310,44 +359,55 @@ def display_opponent_view(selected_opponent_id: str, matchups: list[Matchup], le
         st.subheader("Win Rate Change")
         rounded_corners_css = css_rule_to_dict(read_style_sheet("chart", selector=".rounded-corners"))
         styles = {"height": 150,
-                   **rounded_corners_css,
-                }
+                  **rounded_corners_css,
+                  }
         with mui.Box():
-            create_line_chart(opponent_matchup.win_rate_chart_data, data_id="WR", enable_x_axis=True, enable_y_axis=False, styles=styles)
+            try:
+                create_line_chart(opponent_matchup.win_rate_chart_data, data_id="WR", enable_x_axis=True,
+                              enable_y_axis=False, styles=styles, use_custom_component=True)
+            except StreamlitDuplicateElementId:
+                st.warning("Win rate chart could not be loaded")
 
 
-def get_best_and_worst_opponent(df_meta_win_rate_data, meta_formats: list[MetaFormat], exclude_leader_ids: list[str] | None = None) -> OpponentMatchups:
+
+def get_best_and_worst_opponent(df_meta_win_rate_data, meta_formats: list[MetaFormat],
+                                exclude_leader_ids: list[str] | None = None) -> OpponentMatchups:
     def create_matchup(df_group, win_rate_chart_data) -> Matchup:
         return Matchup(
             leader_id=df_group.iloc[0]["opponent_id"],
             win_rate=df_group["win_rate"].mean(),
             meta_formats=df_group["meta_format"].to_list(),
             total_matches=df_group["total_matches"].sum(),
-            win_rate_chart_data={meta: round(wr,2) for meta, wr in win_rate_chart_data.items()},
+            win_rate_chart_data={meta: round(wr, 2) for meta, wr in win_rate_chart_data.items()},
         )
+
     exclude_leader_ids = exclude_leader_ids or []
 
     # sort dataframe
     df_meta_win_rate_data = sort_df_by_meta_format(df_meta_win_rate_data)
-    leader_id2win_rate_chart_data: dict[str, dict[MetaFormat, float]] = df_meta_win_rate_data.groupby("opponent_id").apply(lambda df_group: df_group[["meta_format", "win_rate"]].set_index("meta_format")["win_rate"].to_dict()).to_dict()
+    leader_id2win_rate_chart_data: dict[str, dict[MetaFormat, float]] = df_meta_win_rate_data.groupby(
+        "opponent_id").apply(
+        lambda df_group: df_group[["meta_format", "win_rate"]].set_index("meta_format")["win_rate"].to_dict()).to_dict()
     # drop data not in selected meta format
     df_meta_win_rate_data = df_meta_win_rate_data.query("meta_format in @meta_formats")
 
     max_total_matches = df_meta_win_rate_data["total_matches"].max()
     # min 10 or 10% of the max total matches
-    threshold = min(int(max_total_matches/10), 10)
+    threshold = min(int(max_total_matches / 10), 10)
     df_sorted = df_meta_win_rate_data.query(f"total_matches > {threshold}").sort_values("win_rate")
 
-    matchups: list[Matchup] = df_sorted.query("opponent_id not in @exclude_leader_ids").groupby("opponent_id").apply(lambda df_group: create_matchup(df_group, leader_id2win_rate_chart_data[df_group.iloc[0]["opponent_id"]])).to_list()
-    matchups.sort(key= lambda m: m.win_rate)
+    matchups: list[Matchup] = df_sorted.query("opponent_id not in @exclude_leader_ids").groupby("opponent_id").apply(
+        lambda df_group: create_matchup(df_group,
+                                        leader_id2win_rate_chart_data[df_group.iloc[0]["opponent_id"]])).to_list()
+    matchups.sort(key=lambda m: m.win_rate)
     worst_matchups = matchups.copy()
-    matchups.sort(key= lambda m: m.win_rate, reverse=True)
+    matchups.sort(key=lambda m: m.win_rate, reverse=True)
     best_matchups = matchups.copy()
     return OpponentMatchups(easiest_matchups=best_matchups,
                             hardest_matchups=worst_matchups)
 
-def main_leader_detail_analysis():
 
+def main_leader_detail_analysis():
     with st.sidebar:
         selected_meta_formats: list[MetaFormat] = display_meta_select(multiselect=True)
 
@@ -356,7 +416,8 @@ def main_leader_detail_analysis():
         return None
 
     leader_extended_data: list[LeaderExtended] = get_leader_extended()
-    available_leader_ids = list(dict.fromkeys([l.id for l in leader_extended_data if l.meta_format in selected_meta_formats]))
+    available_leader_ids = list(
+        dict.fromkeys([l.id for l in leader_extended_data if l.meta_format in selected_meta_formats]))
     if len(available_leader_ids) == 0:
         st.warning("No leader data available for the selected meta")
         return None
@@ -364,43 +425,51 @@ def main_leader_detail_analysis():
     default_leader_name = get_default_leader_name(available_leader_ids, query_param="lid")
 
     with st.sidebar:
-        selected_leader_name: str = display_leader_select(available_leader_names=available_leader_names, key="selected_lid",
-                                                          multiselect=False, default=default_leader_name, on_change=partial(add_qparam_on_change_fn, qparam2session_key={"lid": "selected_lid"}, reset_query_params=True))
+        selected_leader_name: str = display_leader_select(available_leader_names=available_leader_names,
+                                                          key="selected_lid",
+                                                          multiselect=False, default=default_leader_name,
+                                                          on_change=partial(add_qparam_on_change_fn,
+                                                                            qparam2session_key={"lid": "selected_lid"},
+                                                                            reset_query_params=True))
         only_official: bool = display_only_official_toggle()
 
     leader_extended = None
     if selected_leader_name:
         leader_id: str = lname_and_lid_to_lid(selected_leader_name)
-        leader_extended_filtered = [le for le in leader_extended_data if le.meta_format in selected_meta_formats and le.id == leader_id and le.only_official == only_official]
+        leader_extended_filtered = [le for le in leader_extended_data if
+                                    le.meta_format in selected_meta_formats and le.id == leader_id and le.only_official == only_official]
         if len(leader_extended_filtered) > 0:
             leader_extended = leader_extended_filtered[0]
-
 
     st.header(f"Leader: {selected_leader_name}")
     if leader_extended:
         # get most similar leader ids
         t1 = time.time()
-        lid2similar_leader_data: dict[str, SimilarLeaderData] = get_most_similar_leader_data(leader_extended.id, selected_meta_formats, threshold_occurrence=0.4)
+        lid2similar_leader_data: dict[str, SimilarLeaderData] = get_most_similar_leader_data(leader_extended.id,
+                                                                                             selected_meta_formats,
+                                                                                             threshold_occurrence=0.4)
         print("elapsed time %.2f" % (time.time() - t1))
-
 
         selected_meta_win_rate_data: list[LeaderWinRate] = get_leader_win_rate(meta_formats=MetaFormat.to_list())
         df_meta_win_rate_data = pd.DataFrame(
             [lwr.dict() for lwr in selected_meta_win_rate_data if lwr.only_official == only_official])
 
-        opponent_matchups = get_best_and_worst_opponent(df_meta_win_rate_data.query(f"leader_id == '{leader_extended.id}'"), meta_formats=selected_meta_formats, exclude_leader_ids=[leader_extended.id])
+        opponent_matchups = get_best_and_worst_opponent(
+            df_meta_win_rate_data.query(f"leader_id == '{leader_extended.id}'"), meta_formats=selected_meta_formats,
+            exclude_leader_ids=[leader_extended.id])
 
         # Get decklist data
         tournament_decklists: list[TournamentDecklist] = get_tournament_decklist_data(
             meta_formats=selected_meta_formats, leader_ids=[leader_extended.id])
         # Get color matchup radar plot data
-        leader_ids = list(set([leader_extended.id, *[matchup.leader_id for matchup in opponent_matchups.hardest_matchups], *[matchup.leader_id for matchup in opponent_matchups.easiest_matchups]]))
+        leader_ids = list(
+            set([leader_extended.id, *[matchup.leader_id for matchup in opponent_matchups.hardest_matchups],
+                 *[matchup.leader_id for matchup in opponent_matchups.easiest_matchups]]))
         _, _, df_color_win_rates = get_win_rate_dataframes(
             df_meta_win_rate_data.query("meta_format in @selected_meta_formats"), leader_ids)
         radar_chart_data: list[dict[str, str | float]] = get_radar_chart_data(df_color_win_rates)
 
-
-        display_leader_dashboard(leader_extended, leader_extended_data, radar_chart_data, tournament_decklists, opponent_matchups, lid2similar_leader_data)
+        display_leader_dashboard(leader_extended, leader_extended_data, radar_chart_data, tournament_decklists,
+                                 opponent_matchups, lid2similar_leader_data)
     else:
         st.warning(f"No data available for Leader {leader_id}")
-
