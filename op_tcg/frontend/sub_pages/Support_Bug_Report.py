@@ -11,5 +11,5 @@ If you find any bugs or have some rad suggestions, don’t keep them to yourself
 Fill out the feedback form and help us make things better. 
 Thanks for being part of our journey!
 """)
-    google_forms_url = os.environ.get("GOOGLE_FORMS_FEEDBACK_URL", "")
+    google_forms_url = st.secrets["env"]["google_form_feedback_url"]
     st.link_button("Send Feedback", google_forms_url, icon="📫")
