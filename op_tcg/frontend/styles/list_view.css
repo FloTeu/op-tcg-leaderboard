@@ -56,12 +56,14 @@ body {
 .item-title {
   font-size: 1.2em;
   margin: 0 0 5px;
+  color: white;
 }
 
 .item-facts {
   margin: 0;
   padding: 0;
   list-style: none;
+  color: white;
 }
 
 .item-facts li {

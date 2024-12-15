@@ -352,7 +352,7 @@ pages: dict[str, st.Page] = {"Leader": [
         st.Page(main, title="Leaderboard", icon="🏆", default=True),
         st.Page(main_leader_detail_analysis, title="Leader", icon="👤", url_path=sub_page_title_to_url_path(SUB_PAGE_LEADER)),
         # st.Page(main_leader_detail_analysis_decklists, title=SUB_PAGE_LEADER_DECKLIST, url_path=SUB_PAGE_LEADER_DECKLIST),
-        st.Page(main_leader_card_movement, title="Card Movement", icon="👉",
+        st.Page(main_leader_card_movement, title="Card Movement", icon="📈",
                 url_path=sub_page_title_to_url_path(SUB_PAGE_LEADER_CARD_MOVEMENT)),
         st.Page(main_meta_analysis, title="Matchups", icon="🥊", url_path=sub_page_title_to_url_path(SUB_PAGE_LEADER_MATCHUP)),
     ],
