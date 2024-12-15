@@ -1,3 +1,5 @@
+from collections import Counter
+
 import streamlit as st
 from cachetools import TTLCache
 from op_tcg.backend.models.bq_enums import BQDataset
@@ -167,8 +169,12 @@ def get_card_popularity_by_meta(card_id: str, until_meta_format: MetaFormat | No
             card_popularity_by_meta[meta_format] = 0.0
     return card_popularity_by_meta
 
-
-
+@st.cache_data
+def get_meta_format_to_num_decklists() -> dict[MetaFormat, int]:
+    decklists = get_all_tournament_decklist_data()
+    # Use a Counter to count occurrences of each meta_format
+    meta_format_counter = Counter(decklist.meta_format for decklist in decklists)
+    return dict(meta_format_counter)
 
 def get_card_types() -> list[str]:
     latest_card_rows = run_bq_query(

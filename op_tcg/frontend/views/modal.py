@@ -9,7 +9,7 @@ from op_tcg.backend.models.tournaments import TournamentDecklist
 
 from op_tcg.frontend.utils.chart import create_card_leader_occurrence_stream_chart
 from op_tcg.frontend.utils.extract import get_tournament_decklist_data, get_card_id_card_data_lookup, \
-    get_card_popularity_by_meta
+    get_meta_format_to_num_decklists
 from op_tcg.frontend.utils.js import execute_js_file
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid
 from op_tcg.frontend.utils.styles import execute_style_sheet
@@ -101,14 +101,14 @@ def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = Non
             except Exception as e:
                 st.error("Sorry something went wrong with the data normalization")
         else:
-            card_proportion: dict[MetaFormat, float] = get_card_popularity_by_meta(card_id)
+            meta_format_to_num_decklists: dict[MetaFormat, int] = get_meta_format_to_num_decklists()
             display_chart_data = copy.deepcopy(chart_data)
-            assert all(mf in card_proportion for mf in
+            assert all(mf in meta_format_to_num_decklists for mf in
                        chart_data_meta_formats), "Not all meta formats are available in card_proportion"
             # Change chart data depending to their popularity in every meta (make meta comparable)
             for chart_data_i, chart_data_meta_format in zip(chart_data, chart_data_meta_formats):
                 for card_name, card_count in chart_data_i.items():
-                    chart_data_i[card_name] = round(card_count * card_proportion[chart_data_meta_format], 4)
+                    chart_data_i[card_name] = round(card_count / meta_format_to_num_decklists[chart_data_meta_format], 4)
         create_card_leader_occurrence_stream_chart(chart_data,
                                                    legend_data=display_chart_data,
                                                    enable_y_axis=show_normalized,
