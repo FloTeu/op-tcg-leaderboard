@@ -34,7 +34,7 @@ from op_tcg.frontend.utils.leader_data import get_lid2ldata_dict_cached, lids_to
 from op_tcg.frontend.utils.utils import bq_client
 from op_tcg.frontend.sub_pages import (main_meta_analysis, main_leader_card_movement,
                                        main_leader_detail_analysis, main_admin_leader_upload,
-                                       main_card_meta_analysis
+                                       main_card_meta_analysis, main_bug_report
                                        )
 
 from streamlit_elements import elements, dashboard, mui
@@ -348,15 +348,22 @@ def main():
 
 
 # main_meta_analysis, main_leader_detail_analysis_decklists, main_leader_detail_anylsis, main_admin_leader_upload
-pages = [
-    st.Page(main, title="Leaderboard", default=True),
-    st.Page(main_leader_detail_analysis, title=SUB_PAGE_LEADER, url_path=sub_page_title_to_url_path(SUB_PAGE_LEADER)),
-    st.Page(main_meta_analysis, title=SUB_PAGE_LEADER_MATCHUP, url_path=sub_page_title_to_url_path(SUB_PAGE_LEADER_MATCHUP)),
-    # st.Page(main_leader_detail_analysis_decklists, title=SUB_PAGE_LEADER_DECKLIST, url_path=SUB_PAGE_LEADER_DECKLIST),
-    st.Page(main_leader_card_movement, title=SUB_PAGE_LEADER_CARD_MOVEMENT,
-            url_path=sub_page_title_to_url_path(SUB_PAGE_LEADER_CARD_MOVEMENT)),
-    st.Page(main_card_meta_analysis, title=SUB_PAGE_CARD_POPULARITY, url_path=sub_page_title_to_url_path(SUB_PAGE_CARD_POPULARITY)),
-]
+pages: dict[str, st.Page] = {"Leader": [
+        st.Page(main, title="Leaderboard", icon="🏆", default=True),
+        st.Page(main_leader_detail_analysis, title="Leader", icon="👤", url_path=sub_page_title_to_url_path(SUB_PAGE_LEADER)),
+        # st.Page(main_leader_detail_analysis_decklists, title=SUB_PAGE_LEADER_DECKLIST, url_path=SUB_PAGE_LEADER_DECKLIST),
+        st.Page(main_leader_card_movement, title="Card Movement", icon="👉",
+                url_path=sub_page_title_to_url_path(SUB_PAGE_LEADER_CARD_MOVEMENT)),
+        st.Page(main_meta_analysis, title="Matchups", icon="🥊", url_path=sub_page_title_to_url_path(SUB_PAGE_LEADER_MATCHUP)),
+    ],
+    "Card": [
+        st.Page(main_card_meta_analysis, title=SUB_PAGE_CARD_POPULARITY, icon="💃",
+                url_path=sub_page_title_to_url_path(SUB_PAGE_CARD_POPULARITY)),
+    ],
+    "Support": [
+        st.Page(main_bug_report, icon="👾", title="Bug Report")
+    ]
+}
 
 # admin_password = st.sidebar.text_input("Show Admin Page")
 # if admin_password in st.secrets["admin"]["emails"]:
@@ -364,7 +371,7 @@ pages = [
 
 if booleanize(os.environ.get("DEBUG", "")):
     # if not admin_password in st.secrets["admin"]["emails"]:
-    pages.append(st.Page(main_admin_leader_upload, title='Admin_Leader_Upload', url_path="Admin_Leader_Upload"))
+    pages["Admin"] = [st.Page(main_admin_leader_upload, title='Admin_Leader_Upload', url_path="Admin_Leader_Upload")]
 
 pg = st.navigation(pages)
 pg.run()
