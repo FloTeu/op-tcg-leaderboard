@@ -13,11 +13,12 @@ from op_tcg.frontend.utils.js import is_mobile, execute_js_file
 
 from streamlit_theme import st_theme
 
+from op_tcg.frontend.utils.query_params import add_query_param
 from op_tcg.frontend.utils.styles import GREEN_RGB, read_style_sheet
 from op_tcg.frontend.views.modal import display_card_details_dialog
 
 ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
-
+DEFAULT_CARDS_TO_DISPLAY = 30
 
 class DisplayCardData(BaseModel):
     card_id: str
@@ -26,56 +27,71 @@ class DisplayCardData(BaseModel):
         description="Value between 0 and 1 indicating occurrence of card in decklist with same color")
     image_url: str | None
 
-def display_cards(cards_data: list[DisplayCardData], is_mobile: bool):
+def increase_n_card_q_param(num_cards_to_display):
+    add_query_param("n_cards", str(num_cards_to_display + DEFAULT_CARDS_TO_DISPLAY))
+
+
+def display_cards(cards_data: list[DisplayCardData], is_mobile: bool, num_cards_to_display: int=30, button_clicked=False):
+    # empty container for card data
+    card_container_placeholder = st.empty()
+
+    if is_mobile:
+        button_col = st
+    else:
+        _, button_col, _ = st.columns([0.4,0.2,0.4])
+
+    if len(cards_data) > num_cards_to_display:
+        button_col.button("load more cards", on_click=increase_n_card_q_param, args=[num_cards_to_display])
+
+    cards_data_to_display = cards_data[:num_cards_to_display]
     css_class_card = read_style_sheet("grid_view", selector=".card")
     css_class_progress_container = read_style_sheet("progress_bar", selector=".progress-container")
     css_class_progress_bar = read_style_sheet("progress_bar", selector=".progress-bar")
     css_class_progress_bar.style.backgroundColor = f"rgba({GREEN_RGB[0]},{GREEN_RGB[1]},{GREEN_RGB[2]}, 50)"
     n_cols = 1 if is_mobile else 3
 
-    n_st_cols = st.columns([1 / n_cols for i in range(n_cols)])
+    with card_container_placeholder.container():
+        n_st_cols = st.columns([1 / n_cols for i in range(n_cols)])
+        card_html = f"""
+        <html><style>
+            {css_class_card.cssText}
+            {css_class_progress_container.cssText}
+            {css_class_progress_bar.cssText}
+        </style></html>"""
+        st.markdown(card_html, unsafe_allow_html=True)
 
-    card_html = f"""
-    <html><style>
-        {css_class_card.cssText}
-        {css_class_progress_container.cssText}
-        {css_class_progress_bar.cssText}
-    </style></html>"""
-    st.markdown(card_html, unsafe_allow_html=True)
+        carousel_card_ids = [cd.card_id for cd in cards_data_to_display]
+        for i, card_data in enumerate(cards_data_to_display):
+            with n_st_cols[i % n_cols]:
+                width = f"{int(max(card_data.occurrence_in_decklists, 0.1) * 100)}%"
+                card_name = card_data.card_name
+                # if len(card_name) > 18:
+                #     card_name = card_name[:18] + " [...]"
+                header_hashtags = "###"
+                if len(card_name) > 14:
+                    header_hashtags = "####"
+                if len(card_name) > 18:
+                    header_hashtags = "#####"
+                if len(card_name) > 20:
+                    header_hashtags = "######"
 
-    carousel_card_ids = [cd.card_id for cd in cards_data]
-    for i, card_data in enumerate(cards_data):
-        with n_st_cols[i % n_cols]:
-            width = f"{int(max(card_data.occurrence_in_decklists, 0.1) * 100)}%"
-            card_name = card_data.card_name
-            # if len(card_name) > 18:
-            #     card_name = card_name[:18] + " [...]"
-            header_hashtags = "###"
-            if len(card_name) > 14:
-                header_hashtags = "####"
-            if len(card_name) > 18:
-                header_hashtags = "#####"
-            if len(card_name) > 20:
-                header_hashtags = "######"
-
-            _, col1, col3, _ = st.columns([0.05, 0.8, 0.1, 0.15])
-            # col1, col3 = st.columns([1,1])
-            col1.markdown(f"""{header_hashtags} {card_name}""")
-            with col3:
-                display_dialog_button(card_data.card_id, carousel_card_ids=carousel_card_ids)
-            card_html = f"""
-            <html>
-            <div class="card">
-                <div><img src="{card_data.image_url}" /></div>
-                <div class="progress-container">
-                    <div class="progress-bar" style="width: {width};">{int(card_data.occurrence_in_decklists * 100)}%
-                    </div>
-                </div>                
-            </div>
-            </html>
-            """
-            st.markdown(card_html, unsafe_allow_html=True)
-
+                _, col1, col3, _ = st.columns([0.05, 0.8, 0.1, 0.15])
+                # col1, col3 = st.columns([1,1])
+                col1.markdown(f"""{header_hashtags} {card_name}""")
+                with col3:
+                    display_dialog_button(card_data.card_id, carousel_card_ids=carousel_card_ids)
+                card_html = f"""
+                <html>
+                <div class="card">
+                    <div><img src="{card_data.image_url}" /></div>
+                    <div class="progress-container">
+                        <div class="progress-bar" style="width: {width};">{int(card_data.occurrence_in_decklists * 100)}%
+                        </div>
+                    </div>                
+                </div>
+                </html>
+                """
+                st.markdown(card_html, unsafe_allow_html=True)
 
     execute_js_file("st_columns_prevent_mobile_break_button")
 
@@ -195,7 +211,7 @@ def main_card_meta_analysis():
 
             extended_card_data_list.sort(key=lambda x: x.occurrence_in_decklists, reverse=True)
 
-            display_cards(extended_card_data_list[0:30], is_mobile=is_mobile())
+            display_cards(extended_card_data_list, is_mobile=is_mobile(), num_cards_to_display=int(st.query_params.get("n_cards", DEFAULT_CARDS_TO_DISPLAY)))
 
     # change height dynamically based on content
     execute_js_file("iframe_fix_height", display_none=True)
