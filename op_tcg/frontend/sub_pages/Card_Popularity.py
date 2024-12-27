@@ -141,7 +141,10 @@ def main_card_meta_analysis():
                 (True if not selected_card_category else selected_card_category == cd.card_category) and
                 (True if not selected_types else any(type in selected_types for type in cd.types)) and
                 (True if cd.cost is None else selected_card_cost_min <= cd.cost <= selected_card_cost_max) and
-                (True if cd.power is None else selected_card_power_min <= cd.power <= selected_card_power_max) and
+                (True if cd.power is None and selected_card_power_min == 0 else (
+                        False if cd.power is None else
+                        selected_card_power_min <= cd.power <= selected_card_power_max)
+                 ) and
                 (True if not price_filter_activated else (selected_min_price <= (
                     cd.latest_eur_price if filter_currency == CardCurrency.EURO else cd.latest_usd_price) <= selected_max_price))
         )}
