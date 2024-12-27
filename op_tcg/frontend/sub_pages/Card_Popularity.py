@@ -110,6 +110,9 @@ def main_card_meta_analysis():
                                                            (price_min, price_max))
         selected_card_cost_min, selected_card_cost_max = st.slider("Card Cost Range", 0, 10, (0, 10))
         selected_card_power_min, selected_card_power_max = st.slider("Card Power Range (in k)", 0, 15, (0, 15))
+        # transform power filter to real values
+        selected_card_power_min *= 1000
+        selected_card_power_max *= 1000
         st.markdown("""---""")
         selected_card_abilities: list[OPTcgAbility] | None = display_card_ability_multiselect()
         card_ability_text: str = st.text_input("Card Ability Text")
