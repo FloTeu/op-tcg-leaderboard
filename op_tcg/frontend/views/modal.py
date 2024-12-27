@@ -17,7 +17,7 @@ from op_tcg.frontend.views.card import display_card_attributes
 
 
 @st.dialog("Card Detail", width="large")
-def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = None):
+def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = None, top_n_leaders = 5):
     logging.warning(f"Open Card Detail Modal {card_id}")
 
     def normalize_data(chart_data: list[dict[str, int]]) -> dict[str, float]:
@@ -39,9 +39,10 @@ def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = Non
 
         return chart_data
 
-    def get_most_occurring_leader_ids(chart_data: list[dict[str, int]]) -> list[str]:
+    def get_most_occurring_leader_ids(chart_data: list[dict[str, int]], from_last_n_meta_formats=3) -> list[str]:
         leader_id_to_highest_value = {}
-        for chart_data_i in chart_data:
+        first_meta_index = max(0, len(chart_data)-from_last_n_meta_formats)
+        for chart_data_i in chart_data[first_meta_index:]:
             for lid, occurrence in chart_data_i.items():
                 if lid not in leader_id_to_highest_value:
                     leader_id_to_highest_value[lid] = occurrence
@@ -83,8 +84,7 @@ def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = Non
         chart_data, chart_data_meta_formats = get_stream_leader_occurrence_data(cid2card_data, selected_card_id)
 
         # filter top n most occurring leaders
-        top_n_leaders = 5
-        most_occurring_leader_ids = get_most_occurring_leader_ids(chart_data)[:top_n_leaders]
+        most_occurring_leader_ids = get_most_occurring_leader_ids(chart_data, from_last_n_meta_formats=3)[:top_n_leaders]
         chart_data = [{lid: occ for lid, occ in cd.items() if lid in most_occurring_leader_ids} for cd in chart_data]
 
         # display data
