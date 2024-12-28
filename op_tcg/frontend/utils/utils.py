@@ -65,4 +65,4 @@ def merge_dicts(dict1, dict2):
 
 def get_anchor_link(text: str) -> str:
     """Tries to apply streamlit logic to transform a text into a anchor link"""
-    return text.lower().replace(" ", "-").replace("(", "").replace(")", "")
+    return text.lower().replace(" ", "-").replace(".", "-").replace("(", "").replace(")", "")

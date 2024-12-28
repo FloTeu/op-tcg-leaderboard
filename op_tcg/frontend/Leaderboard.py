@@ -1,15 +1,14 @@
-from functools import partial
-
 import streamlit as st
+st.set_page_config(layout="wide")
 
 from op_tcg.frontend.sub_pages.utils import sub_page_title_to_url_path
 from op_tcg.frontend.utils.js import is_mobile, execute_js_file, prevent_js_frame_height, execute_js_code
-
-st.set_page_config(layout="wide")
 from op_tcg.frontend.utils.launch import init_load_data
 
 import os
 import pandas as pd
+
+from functools import partial
 from datetime import datetime, date
 from uuid import uuid4
 
