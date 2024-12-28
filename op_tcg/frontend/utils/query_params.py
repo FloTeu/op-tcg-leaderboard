@@ -2,6 +2,7 @@ from contextlib import suppress
 
 import streamlit as st
 
+from op_tcg.frontend.sub_pages.constants import Q_PARAM_LEADER_ID
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid
 
 def add_query_param(qparam_key: str, qparam_value: str | list[str]):
@@ -19,7 +20,7 @@ def get_default_leader_name(available_leader_ids: list[str], query_param: str = 
         # of no query param provided pick first of available_leader_ids
         return lid_to_name_and_lid(available_leader_ids[0])
 
-def get_default_leader_names(available_leader_ids: list[str], query_param: str = "lid") -> list[str]:
+def get_default_leader_names(available_leader_ids: list[str], query_param: str = Q_PARAM_LEADER_ID) -> list[str]:
     qp_lids = st.query_params.get_all(query_param)
     if qp_lids:
         return [lid_to_name_and_lid(qp_lid) for qp_lid in qp_lids if qp_lid in available_leader_ids]

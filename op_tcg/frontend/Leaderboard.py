@@ -14,7 +14,8 @@ from datetime import datetime, date
 from uuid import uuid4
 
 from op_tcg.frontend.utils.chart import LineChartYValue, create_leader_line_chart
-from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER_MATCHUP, SUB_PAGE_CARD_POPULARITY, SUB_PAGE_LEADER, SUB_PAGE_LEADER_CARD_MOVEMENT
+from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER_MATCHUP, SUB_PAGE_CARD_POPULARITY, SUB_PAGE_LEADER, \
+    SUB_PAGE_LEADER_CARD_MOVEMENT, Q_PARAM_LEADER_ID
 from op_tcg.backend.utils.utils import booleanize
 from op_tcg.backend.etl.load import bq_insert_rows, get_or_create_table
 from op_tcg.backend.models.input import MetaFormat
@@ -81,7 +82,7 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
                               display_name2df_col_name: dict[str, str], only_official: bool = True):
     # Define a callback function to handle link click
     def open_leader_page(leader_id: str):
-        url = f"/{sub_page_title_to_url_path(SUB_PAGE_LEADER)}?lid={leader_id}"
+        url = f"/{sub_page_title_to_url_path(SUB_PAGE_LEADER)}?{Q_PARAM_LEADER_ID}={leader_id}"
         script = f'parent.window.open("{url}", "_self")'
         execute_js_code(script)
 

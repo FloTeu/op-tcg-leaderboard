@@ -9,6 +9,7 @@ from op_tcg.backend.models.cards import OPTcgLanguage, CardCurrency
 from op_tcg.backend.models.tournaments import TournamentStanding, TournamentStandingExtended
 from op_tcg.backend.utils.utils import timeit
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select
+from op_tcg.frontend.sub_pages.constants import Q_PARAM_LEADER_ID
 from op_tcg.frontend.utils.decklist import tournament_standings2decklist_data, DecklistData, get_best_matching_decklist
 from op_tcg.frontend.utils.card_price import get_decklist_price
 from op_tcg.frontend.utils.extract import get_tournament_standing_data, get_leader_extended, \
@@ -42,7 +43,7 @@ def main_leader_detail_analysis_decklists():
         with st.sidebar:
             selected_leader_name: str = display_leader_select(available_leader_names=available_leader_names, key="select_lid",
                                                               multiselect=False, default=default_leader_name,
-                                                              on_change=lambda: add_query_param("lid", lname_and_lid_to_lid(st.session_state.get("select_lid", "")))
+                                                              on_change=lambda: add_query_param(Q_PARAM_LEADER_ID, lname_and_lid_to_lid(st.session_state.get("select_lid", "")))
                                                               )
             oldest_release_data: date = datetime.now().date()
             oldest_release_datetime: datetime = datetime.now()

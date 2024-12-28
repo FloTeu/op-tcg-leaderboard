@@ -5,16 +5,18 @@ from pydantic import Field, BaseModel
 from op_tcg.backend.models.cards import OPTcgColor, OPTcgCardCatagory, OPTcgAbility, \
     CardPopularity, CardCurrency, OPTcgAttribute, ExtendedCardData
 from op_tcg.backend.models.input import MetaFormat
+from op_tcg.frontend.sub_pages.constants import Q_PARAM_N_CARD, Q_PARAM_ANCHOR_TAG
 from op_tcg.frontend.utils.extract import get_card_popularity_data, get_card_id_card_data_lookup
 from op_tcg.frontend.sidebar import display_meta_select, display_card_color_multiselect, \
     display_card_ability_multiselect, display_card_fraction_multiselect, display_release_meta_select, \
     display_card_attribute_multiselect
-from op_tcg.frontend.utils.js import is_mobile, execute_js_file
+from op_tcg.frontend.utils.js import is_mobile, execute_js_file, execute_js_code
 
 from streamlit_theme import st_theme
 
 from op_tcg.frontend.utils.query_params import add_query_param
 from op_tcg.frontend.utils.styles import GREEN_RGB, read_style_sheet
+from op_tcg.frontend.utils.utils import get_anchor_link
 from op_tcg.frontend.views.modal import display_card_details_dialog
 
 ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
@@ -27,9 +29,21 @@ class DisplayCardData(BaseModel):
         description="Value between 0 and 1 indicating occurrence of card in decklist with same color")
     image_url: str | None
 
-def increase_n_card_q_param(num_cards_to_display):
-    add_query_param("n_cards", str(num_cards_to_display + DEFAULT_CARDS_TO_DISPLAY))
 
+def update_q_params(num_cards_to_display, anchor_tag: str | None = None):
+    incremented_n_card_q_param = str(num_cards_to_display + DEFAULT_CARDS_TO_DISPLAY)
+    add_query_param(Q_PARAM_N_CARD, incremented_n_card_q_param)
+    if anchor_tag:
+        add_query_param(Q_PARAM_ANCHOR_TAG, anchor_tag)
+
+def scroll_to_anchor():
+    anchor_tag = st.query_params.get(Q_PARAM_ANCHOR_TAG, None)
+    if anchor_tag:
+        script = f"""
+        var element = parent.document.getElementById("{anchor_tag}");
+        element.scrollIntoView();
+        """
+        execute_js_code(script)
 
 def display_cards(cards_data: list[DisplayCardData], is_mobile: bool, num_cards_to_display: int=30, button_clicked=False):
     # empty container for card data
@@ -40,10 +54,11 @@ def display_cards(cards_data: list[DisplayCardData], is_mobile: bool, num_cards_
     else:
         _, button_col, _ = st.columns([0.4,0.2,0.4])
 
-    if len(cards_data) > num_cards_to_display:
-        button_col.button("load more cards", on_click=increase_n_card_q_param, args=[num_cards_to_display])
-
     cards_data_to_display = cards_data[:num_cards_to_display]
+
+    if len(cards_data) > num_cards_to_display:
+        button_col.button("load more cards", on_click=update_q_params, args=[num_cards_to_display, get_anchor_link(cards_data_to_display[-1].card_name)])
+
     css_class_card = read_style_sheet("grid_view", selector=".card")
     css_class_progress_container = read_style_sheet("progress_bar", selector=".progress-container")
     css_class_progress_bar = read_style_sheet("progress_bar", selector=".progress-bar")
@@ -93,6 +108,7 @@ def display_cards(cards_data: list[DisplayCardData], is_mobile: bool, num_cards_
                 """
                 st.markdown(card_html, unsafe_allow_html=True)
 
+    scroll_to_anchor()
     execute_js_file("st_columns_prevent_mobile_break_button")
 
 def display_dialog_button(card_id: str, carousel_card_ids: list[str] = None):
@@ -183,6 +199,7 @@ def main_card_meta_analysis():
         if len(card_data_lookup) == 0:
             st.warning("No cards available")
         else:
+            unique_card_names: list[str] = []
             extended_card_data_list: list[DisplayCardData] = []
             for cid, cdata in card_data_lookup.items():
                 if not selected_card_category and cdata.card_category == OPTcgCardCatagory.LEADER:
@@ -201,17 +218,22 @@ def main_card_meta_analysis():
                 if cid not in card_popularity_dict:
                     # if popularity is not available, we expect 0
                     card_popularity_dict[cid] = 0.0
+                card_name = cdata.name
+                if card_name in unique_card_names:
+                    card_name = f"{card_name} ({cdata.id})"
                 extended_card = DisplayCardData(
                     card_id=cid,
-                    card_name=cdata.name,
+                    card_name=card_name,
                     occurrence_in_decklists=card_popularity_dict[cid],
                     image_url=cdata.image_url
                 )
                 extended_card_data_list.append(extended_card)
+                unique_card_names.append(card_name)
 
             extended_card_data_list.sort(key=lambda x: x.occurrence_in_decklists, reverse=True)
 
-            display_cards(extended_card_data_list, is_mobile=is_mobile(), num_cards_to_display=int(st.query_params.get("n_cards", DEFAULT_CARDS_TO_DISPLAY)))
+            num_cards_to_display = int(st.query_params.get(Q_PARAM_N_CARD, DEFAULT_CARDS_TO_DISPLAY))
+            display_cards(extended_card_data_list, is_mobile=is_mobile(), num_cards_to_display=num_cards_to_display)
 
     # change height dynamically based on content
     execute_js_file("iframe_fix_height", display_none=True)

@@ -62,3 +62,7 @@ def merge_dicts(dict1, dict2):
             # Otherwise, overwrite the value in dict1 with the value from dict2
             dict1[key] = value
     return dict1
+
+def get_anchor_link(text: str) -> str:
+    """Tries to apply streamlit logic to transform a text into a anchor link"""
+    return text.lower().replace(" ", "-").replace("(", "").replace(")", "")
