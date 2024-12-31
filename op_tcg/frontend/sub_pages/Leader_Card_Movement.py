@@ -10,9 +10,10 @@ from streamlit.components import v1 as components
 from streamlit_elements import elements, mui, dashboard, html as element_html
 
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.leader import LeaderElo, LeaderExtended
-from op_tcg.backend.models.cards import OPTcgLanguage, CardCurrency, LatestCardPrice
-from op_tcg.backend.models.tournaments import TournamentStanding, TournamentStandingExtended, TournamentDecklist
+from op_tcg.backend.models.leader import LeaderExtended
+from op_tcg.backend.models.cards import CardCurrency, LatestCardPrice
+from op_tcg.backend.models.tournaments import TournamentStanding, TournamentDecklist
+from op_tcg.backend.utils.environment import is_debug
 from op_tcg.backend.utils.utils import timeit
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select, display_sortby_select, \
     LeaderCardMovementSortBy
@@ -28,6 +29,7 @@ from op_tcg.frontend.utils.decklist import tournament_standings2decklist_data, D
 from op_tcg.frontend.utils.card_price import get_decklist_price
 from op_tcg.frontend.utils.styles import css_rule_to_dict, read_style_sheet
 from op_tcg.frontend.views.card import get_card_attribute_html
+from op_tcg.frontend.views.component import ElementsComponentView
 from op_tcg.frontend.views.modal import display_card_details_dialog
 
 
@@ -131,6 +133,7 @@ def _display_meta_card(tournament_decklist_data: list[TournamentDecklist],
         {meta_html}
         </body>""", height=200, scrolling=False)
 
+
 @timeit
 def main_leader_card_movement():
     st.header("Leader Card Movement")
@@ -216,7 +219,9 @@ def main_leader_card_movement():
                                         selected_meta_format)
 
             # Reload page if iframe does not load leader table correctly
-            execute_js_file("missing_iframe_table", display_none=False)
+            # Disable in case of DEBUG mode, as CORS prevent accessing frontend server code
+            if not is_debug():
+                execute_js_file("missing_iframe_table", display_none=False)
 
 
 @st.fragment
@@ -247,7 +252,15 @@ def display_card_movement_table(card_id2card_data, tournament_decklists: list[To
     card_movement: dict[str, CardMovement] = get_card_movement(meta_format2decklist_data[previous_meta_format],
                                                                meta_format2decklist_data[selected_meta_format])
 
-    with elements("dashboard"):
+    fn_args = (card_id2card_data, card_movement, header_stylings, meta_format2decklist_data,
+               previous_meta_format, selected_meta_format, sort_by, table_cell_styles)
+    fn_kwargs = {"threshold": threshold, "key": "card_movement_table"}
+    ElementsComponentView(display_component, *fn_args, **fn_kwargs).display(retries=1)
+
+def display_component(card_id2card_data, card_movement, header_stylings, meta_format2decklist_data,
+                      previous_meta_format, selected_meta_format, sort_by, table_cell_styles, threshold=10,
+                      key="card_movement_table"):
+    with elements(key):
         # Layout for every element in the dashboard
         layout = [
             # Parameters: element_identifier, x_pos, y_pos, width, height, [item properties...]
@@ -279,14 +292,16 @@ def display_card_movement_table(card_id2card_data, tournament_decklists: list[To
         for i, card_id in enumerate(card_movement_sorted):
             movement = card_movement[card_id]
             change = movement.occurrence_proportion_change
-            index_cells.append(create_image_cell(card_id2card_data.get(card_id, LatestCardPrice.from_default()).image_url,
-                                                 text=f"{card_id}",
-                                                 overlay_color=card_id2card_data.get(card_id, LatestCardPrice.from_default()).to_hex_color(),
-                                                 horizontal=True,
-                                                 on_click=partial(
-                                                     _open_dialog, card_id=card_id,
-                                                     carousel_card_ids=card_movement_sorted)
-                                                 ))
+            index_cells.append(
+                create_image_cell(card_id2card_data.get(card_id, LatestCardPrice.from_default()).image_url,
+                                  text=f"{card_id}",
+                                  overlay_color=card_id2card_data.get(card_id,
+                                                                      LatestCardPrice.from_default()).to_hex_color(),
+                                  horizontal=True,
+                                  on_click=partial(
+                                      _open_dialog, card_id=card_id,
+                                      carousel_card_ids=card_movement_sorted)
+                                  ))
             df_data[previous_meta_format].append(
                 mui.TableCell(_to_percentage_string(movement.occurrence_proportion_before)))
             df_data[selected_meta_format].append(
@@ -297,7 +312,7 @@ def display_card_movement_table(card_id2card_data, tournament_decklists: list[To
             # df_data["Deck Occurrence"].append(
             #     mui.TableCell(_to_percentage_string(movement.occurrence_proportion_before)))
             df_data["Deck Occurrence"].append(
-                card_id2line_chart(card_id, meta_format2decklist_data, max_width=max_width, enable_x_axis=i==0))
+                card_id2line_chart(card_id, meta_format2decklist_data, max_width=max_width, enable_x_axis=i == 0))
 
         header_cells = [mui.TableCell(children="Card", sx={"width": "200px", **header_stylings})] + [
             mui.TableCell(col, sx={"max-width": max_width, **header_stylings}
@@ -310,4 +325,3 @@ def display_card_movement_table(card_id2card_data, tournament_decklists: list[To
                           header_cells=header_cells,
                           title=None,
                           key="card_movement_table_item")
-
