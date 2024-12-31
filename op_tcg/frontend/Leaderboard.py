@@ -1,9 +1,12 @@
 import streamlit as st
+
 st.set_page_config(layout="wide")
 
 from op_tcg.frontend.sub_pages.utils import sub_page_title_to_url_path
 from op_tcg.frontend.utils.js import is_mobile, execute_js_file, prevent_js_frame_height, execute_js_code
 from op_tcg.frontend.utils.launch import init_load_data
+from op_tcg.backend.utils.environment import is_debug
+from op_tcg.frontend.views.component import ElementsComponentView
 
 import os
 import pandas as pd
@@ -78,7 +81,7 @@ def add_dominance_score(df_meta_group: pd.DataFrame) -> pd.DataFrame:
 
 
 def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), meta_format: MetaFormat,
-                              display_name2df_col_name: dict[str, str], only_official: bool = True):
+                              display_name2df_col_name: dict[str, str], only_official: bool = True, key="leaderboard_table"):
     # Define a callback function to handle link click
     def open_leader_page(leader_id: str):
         url = f"/{sub_page_title_to_url_path(SUB_PAGE_LEADER)}?{Q_PARAM_LEADER_ID}={leader_id}"
@@ -110,7 +113,7 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
         df_leader_extended_selected_meta[str(display_name)] = df_leader_extended_selected_meta[df_col_name]
     table_cell_styles = css_rule_to_dict(read_style_sheet("table", ".colored-table-cell"))
 
-    with elements("dashboard"):
+    with elements(key):
         # Layout for every element in the dashboard
 
         layout = [
@@ -169,9 +172,6 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
                           header_cells=header_cells,
                           title=None,
                           key="lboard_table_item")
-
-    st.markdown(
-        "*D-Score: Composite score from multiple metrics defining the dominance a leader has in the selected meta (Formula: $win\_rate * 0.1 + matches * 0.3 + elo * 0.2 + tournament\_wins * 0.4$ )")
 
 
 def sort_table_df(df: LeaderExtended.paSchema(), sort_by: LeaderboardSortBy,
@@ -338,11 +338,18 @@ def main():
             [{**r.dict(), "color_hex_code": r.to_hex_color()} for r in leader_extended_data])
         df_leader_extended = sort_table_df(df_leader_extended, sort_by=sort_by,
                                            display_name2df_col_name=display_name2df_col_name)
-        display_leaderboard_table(df_leader_extended, meta_format, display_name2df_col_name,
-                                  only_official=only_official)
+
+        fn_args = (df_leader_extended, meta_format, display_name2df_col_name, only_official)
+        fn_kwargs = {"key": "leaderboard_table"}
+        ElementsComponentView(display_leaderboard_table, *fn_args, **fn_kwargs).display(retries=1)
+
+        st.markdown(
+            "*D-Score: Composite score from multiple metrics defining the dominance a leader has in the selected meta (Formula: $win\_rate * 0.1 + matches * 0.3 + elo * 0.2 + tournament\_wins * 0.4$ )")
 
         # Reload page if iframe does not load leader table correctly
-        execute_js_file("missing_iframe_table", display_none=False)
+        # Disable in case of DEBUG mode, as CORS prevent accessing frontend server code
+        if not is_debug():
+            execute_js_file("missing_iframe_table", display_none=False)
     else:
         st.warning("Seems like the selected meta does not contain any matches")
 

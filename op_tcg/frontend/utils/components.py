@@ -41,7 +41,7 @@ if _DEBUG:
         # Pass `url` here to tell Streamlit that the component will be served
         # by the local dev server that you run via `npm run start`.
         # (This is useful while your component is in development.)
-        url="http://localhost:3001",
+        url="http://localhost:3002",
     )
 else:
     # When we're distributing a production version of the component, we'll
