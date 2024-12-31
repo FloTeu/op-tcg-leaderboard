@@ -2222,20 +2222,18 @@ watchdog = {version = ">=2.1.5,<6", markers = "platform_system != \"Darwin\""}
 snowflake = ["snowflake-connector-python (>=2.8.0)", "snowflake-snowpark-python[modin] (>=1.17.0)"]
 
 [[package]]
-name = "streamlit-elements"
-version = "0.1.0"
+name = "streamlit-elements-fte"
+version = "0.1.3"
 description = "React Components for Streamlit."
 optional = false
 python-versions = ">=3.6"
-files = []
-develop = true
+files = [
+    {file = "streamlit-elements-fte-0.1.3.tar.gz", hash = "sha256:bd3a6625815c1440cece31045540f4b7b77f0eaeebcf329ef57ac923c1050f6f"},
+    {file = "streamlit_elements_fte-0.1.3-py3-none-any.whl", hash = "sha256:0a6925cd90cba970908b2bda2e081152e5419891b495f23b66073a7cc3efc2ee"},
+]
 
 [package.dependencies]
 streamlit = ">=1.4.0"
-
-[package.source]
-type = "directory"
-url = "../private/streamlit-element"
 
 [[package]]
 name = "streamlit-js-eval"
@@ -2641,4 +2639,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.13"
-content-hash = "9b6b94c85dd8f36a785fbb9613ce8d4de77b005bbbf28c5b84272b097e964d91"
+content-hash = "2a5461fea0f6a02669ec7a7d572d6351ef57f4e3eb3071ea8ce0cc5523808310"
