@@ -4,7 +4,7 @@ from enum import StrEnum
 
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
-from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.input import MetaFormat, CountryMetaFormat
 from op_tcg.backend.models.common import DataSource
 
 class TournamentMode(StrEnum):
@@ -21,14 +21,15 @@ class TournamentPhase(BaseModel):
 
 class Tournament(BQTableBaseModel):
     _dataset_id: str = BQDataset.MATCHES
-    id: str = Field(description="Unique id of single tournament", primary_key=True)
-    name: str = Field(description="Tournament name set by the organizer")
-    num_players: int = Field(description="Number of players that participated in the tournament", alias="players")
+    id: str = Field(description="Unique id of single tournament. Limitless id or custom made id in case of op-top-decks", primary_key=True)
+    name: str = Field(description="Tournament name set by the organizer. For op-top-decks its the host.")
+    num_players: int | None = Field(description="Number of players that participated in the tournament", alias="players")
     decklists: bool = Field(description="Indicates whether the tournament used decklist / teamlist submission")
-    is_public: bool = Field(description="Indicates whether the tournament is listed publicly (otherwise accessible through direct link only)", alias="isPublic")
-    is_online: bool = Field(description="Set to true if the tournament is played online, false if it's an in-person event", alias="isOnline")
-    phases: list[TournamentPhase] = Field(description="The tournament structure as an array of objects, one per phase")
+    is_public: bool | None = Field(description="Indicates whether the tournament is listed publicly (otherwise accessible through direct link only)", alias="isPublic")
+    is_online: bool | None = Field(description="Set to true if the tournament is played online, false if it's an in-person event", alias="isOnline")
+    phases: list[TournamentPhase] | None = Field(description="The tournament structure as an array of objects, one per phase")
     meta_format: MetaFormat | str = Field(description="Meta in which tournament happened, e.g. OP06")
+    country_meta_format: CountryMetaFormat | None = Field(CountryMetaFormat.WEST, description="The country area, which defines which meta format is available")
     official: bool = Field(default=False, description="Whether the tournament is official, i.e. comes from a official source")
     source: DataSource | str = Field(description="Origin of the tournament. In case of an unofficial match it can be the session id.")
     tournament_timestamp: datetime = Field(description="Scheduled tournament start set by the organizer.", alias="date")
