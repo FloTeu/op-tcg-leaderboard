@@ -1,5 +1,5 @@
 import datetime
-from enum import StrEnum
+from enum import StrEnum, auto
 from datetime import datetime
 
 from pydantic import BaseModel, Field
@@ -42,6 +42,12 @@ class MetaFormat(EnumBase, StrEnum):
     @classmethod
     def latest_meta_format(cls, only_after_release: bool = True) -> "MetaFormat":
         return cls.to_list(only_after_release=only_after_release)[-1]
+
+
+class CountryMetaFormat(EnumBase, StrEnum):
+    ASIA = auto()
+    WEST = auto()
+
 
 class LimitlessMatch(BaseModel):
     leader_name: str = Field(description="The op tcg leader name")

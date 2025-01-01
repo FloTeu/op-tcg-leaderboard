@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, field_validator, ConfigDict
-from datetime import datetime, date
-from enum import IntEnum, StrEnum
+from datetime import datetime
+from enum import StrEnum
 
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
