@@ -27,6 +27,7 @@ from op_tcg.frontend.utils.material_ui_fns import display_table, value2color_tab
 from op_tcg.frontend.utils.query_params import get_default_leader_name, add_query_param
 from op_tcg.frontend.utils.decklist import tournament_standings2decklist_data, DecklistData
 from op_tcg.frontend.utils.card_price import get_decklist_price
+from op_tcg.frontend.utils.session import SessionKeys, reset_session_state
 from op_tcg.frontend.utils.styles import css_rule_to_dict, read_style_sheet
 from op_tcg.frontend.views.card import get_card_attribute_html
 from op_tcg.frontend.views.component import ElementsComponentView
@@ -255,7 +256,13 @@ def display_card_movement_table(card_id2card_data, tournament_decklists: list[To
     fn_args = (card_id2card_data, card_movement, header_stylings, meta_format2decklist_data,
                previous_meta_format, selected_meta_format, sort_by, table_cell_styles)
     fn_kwargs = {"threshold": threshold, "key": "card_movement_table"}
-    ElementsComponentView(display_component, *fn_args, **fn_kwargs).display(retries=1)
+    # include retry if page is loaded for the first time
+    if st.session_state.get(SessionKeys.MODAL_OPEN_CLICKED, False):
+        ElementsComponentView(display_component, *fn_args, **fn_kwargs).rerender()
+    else:
+        ElementsComponentView(display_component, *fn_args, **fn_kwargs).display(retries=1)
+
+    reset_session_state()
 
 def display_component(card_id2card_data, card_movement, header_stylings, meta_format2decklist_data,
                       previous_meta_format, selected_meta_format, sort_by, table_cell_styles, threshold=10,
@@ -280,6 +287,7 @@ def display_component(card_id2card_data, card_movement, header_stylings, meta_fo
         def _open_dialog(card_id: str, carousel_card_ids: list[str] | None):
             # reset index offset for modal/dialog
             st.session_state["card_details_index_offset"] = 0
+            st.session_state[SessionKeys.MODAL_OPEN_CLICKED] = True
             display_card_details_dialog(card_id, carousel_card_ids)
 
         card_movement_sorted = list(filter(lambda x: _filter_card_movement(x), card_movement_sorted))

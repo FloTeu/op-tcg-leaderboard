@@ -25,7 +25,7 @@ from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.cards import OPTcgColor
 from op_tcg.backend.models.matches import Match, MatchResult
 from op_tcg.backend.models.bq_enums import BQDataset
-from op_tcg.frontend.utils.session import get_session_id
+from op_tcg.frontend.utils.session import get_session_id, reset_session_state, SessionKeys
 from op_tcg.frontend.sidebar import display_meta_select, display_only_official_toggle, display_release_meta_select, \
     display_match_count_slider_slider, display_leader_color_multiselect, display_leader_select, LeaderboardSortBy, \
     display_sortby_select
@@ -194,6 +194,8 @@ def sort_table_df(df: LeaderExtended.paSchema(), sort_by: LeaderboardSortBy,
 
 @st.dialog("Upload Match")
 def upload_match_dialog():
+    st.session_state[SessionKeys.MODAL_OPEN_CLICKED] = True
+
     leader_id2leader_data = get_lid2ldata_dict_cached()
     meta_format = display_meta_select(multiselect=False, key="upload_form_meta_format")[0]
     allowed_meta_fomats = MetaFormat.to_list()[0:MetaFormat.to_list().index(meta_format) + 1]
@@ -341,7 +343,12 @@ def main():
 
         fn_args = (df_leader_extended, meta_format, display_name2df_col_name, only_official)
         fn_kwargs = {"key": "leaderboard_table"}
-        ElementsComponentView(display_leaderboard_table, *fn_args, **fn_kwargs).display(retries=1)
+
+        # include retry if page is loaded for the first time
+        if st.session_state.get(SessionKeys.MODAL_OPEN_CLICKED, False):
+            ElementsComponentView(display_leaderboard_table, *fn_args, **fn_kwargs).rerender()
+        else:
+            ElementsComponentView(display_leaderboard_table, *fn_args, **fn_kwargs).display(retries=1)
 
         st.markdown(
             "*D-Score: Composite score from multiple metrics defining the dominance a leader has in the selected meta (Formula: $win\_rate * 0.1 + matches * 0.3 + elo * 0.2 + tournament\_wins * 0.4$ )")
@@ -352,6 +359,8 @@ def main():
             execute_js_file("missing_iframe_table", display_none=False)
     else:
         st.warning("Seems like the selected meta does not contain any matches")
+
+    reset_session_state()
 
 
 # main_meta_analysis, main_leader_detail_analysis_decklists, main_leader_detail_anylsis, main_admin_leader_upload
