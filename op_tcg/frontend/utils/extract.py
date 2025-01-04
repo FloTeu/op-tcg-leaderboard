@@ -5,6 +5,7 @@ from cachetools import TTLCache
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.cards import LatestCardPrice, CardPopularity, Card, CardReleaseSet, ExtendedCardData, \
     CardCurrency
+from op_tcg.backend.models.decklists import Decklist
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader, TournamentWinner, LeaderElo, LeaderExtended
 from op_tcg.backend.models.matches import Match, LeaderWinRate
@@ -97,10 +98,13 @@ def get_all_tournament_decklist_data() -> list[TournamentDecklist]:
         card_id2card_data = get_card_id_card_data_lookup()
         # cached for each session
         tournament_standing_rows = run_bq_query(f"""
-    SELECT t1.leader_id, t1.decklist, t1.placing, t1.player_id, t2.meta_format, t2.tournament_timestamp FROM `{st.secrets["gcp_service_account"]["project_id"]}.matches.{TournamentStanding.__tablename__}` t1
-    left join `{st.secrets["gcp_service_account"]["project_id"]}.matches.{Tournament.__tablename__}` t2
-    on t1.tournament_id = t2.id
-    where t1.decklist IS NOT NULL""")
+    SELECT t1.leader_id, COALESCE(t3.decklist, t1.decklist) AS decklist, t1.placing, t1.player_id, t2.meta_format, t2.tournament_timestamp 
+    FROM `{st.secrets["gcp_service_account"]["project_id"]}.matches.{TournamentStanding.__tablename__}` t1
+    left join `{st.secrets["gcp_service_account"]["project_id"]}.matches.{Tournament.__tablename__}` t2 on t1.tournament_id = t2.id
+    left join `{st.secrets["gcp_service_account"]["project_id"]}.matches.{Decklist.__tablename__}` t3 on t1.decklist_id = t3.id
+    where
+    t1.decklist IS NOT NULL 
+    OR t3.decklist IS NOT NULL""")
         tournament_decklists: list[TournamentDecklist] = []
         for ts in tournament_standing_rows:
             tournament_decklist = TournamentDecklist(**ts)
