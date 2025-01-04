@@ -51,14 +51,12 @@ def change_sidebar_collapse_button_style():
 
 
 def leader_id2line_chart(leader_id: str, df_leader_extended, y_value: LineChartYValue = LineChartYValue.WIN_RATE,
-                        n_meta_formats: int = 5, only_official: bool = True, enable_x_top_axis: bool = False):
-    all_released_meta_formats = MetaFormat.to_list()
-    visible_meta_formats = all_released_meta_formats[max(0, len(all_released_meta_formats) - n_meta_formats):]
+                         visible_meta_formats: list[MetaFormat] = None, only_official: bool = True, enable_x_top_axis: bool = False):
     leader_extended_list: list[LeaderExtended] = df_leader_extended.query(f"id == '{leader_id}'").apply(
         lambda row: LeaderExtended(**row), axis=1).tolist()
     leader_extended_list = [le for le in leader_extended_list if le.meta_format in visible_meta_formats]
     line_plot = create_leader_line_chart(leader_id, leader_extended_list, y_value=y_value, only_official=only_official,
-                                         use_custom_component=False, enable_x_top_axis=enable_x_top_axis, fill_up_max_n_meta_formats=n_meta_formats)
+                                         use_custom_component=False, enable_x_top_axis=enable_x_top_axis, fillup_meta_formats=visible_meta_formats)
     return mui.TableCell(mui.Box(line_plot, sx={"height": 120, "width": 190}), sx={"padding": "0px"})
 
 
@@ -94,6 +92,7 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
     # data preprocessing
     all_meta_formats = MetaFormat.to_list()
     relevant_meta_formats = all_meta_formats[:all_meta_formats.index(meta_format) + 1]
+    visible_meta_formats = relevant_meta_formats[max(0, len(relevant_meta_formats) - 5):]
     df_leader_extended = df_leader_extended.query("meta_format in @relevant_meta_formats")
     df_leader_extended_selected_meta = df_leader_extended.query(f"meta_format == '{meta_format}'").copy()
     if len(df_leader_extended_selected_meta) == 0:
@@ -165,6 +164,7 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
             first_lid = df_leader_extended_selected_meta.iloc[0].id
             df_leaderboard_display["Elo Chart"] = df_leader_extended_selected_meta["id"].apply(
                 lambda lid: leader_id2line_chart(lid, df_leader_extended, y_value=LineChartYValue.WIN_RATE,
+                                                 visible_meta_formats=visible_meta_formats,
                                                  only_official=only_official, enable_x_top_axis=lid == first_lid))
 
             display_table(df_leaderboard_display,
