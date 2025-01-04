@@ -175,6 +175,7 @@ class OpTopDeckDecklistPipeline:
                 if tournament.id not in spider.tournament_ids_crawled:
                     tournaments_to_upload.append(tournament)
                     spider.tournament_ids_crawled.append(tournament.id)
+                    spider.bq_add_data_stats[spider.tournament_table.table_id] += 1
             # insert all new rows
             if tournaments_to_upload:
                 _upload_to_bq(tournaments_to_upload, spider.tournament_table)
@@ -186,6 +187,7 @@ class OpTopDeckDecklistPipeline:
                 if decklist.id not in spider.decklist_ids_crawled:
                     decklists_to_upload.append(decklist)
                     spider.decklist_ids_crawled.append(decklist.id)
+                    spider.bq_add_data_stats[spider.decklist_table.table_id] += 1
             # insert all new rows
             if decklists_to_upload:
                 _upload_to_bq(decklists_to_upload, spider.decklist_table)
@@ -197,6 +199,7 @@ class OpTopDeckDecklistPipeline:
                 if spider.tournament_standing_to_id(tournament_standing) not in spider.tournament_standing_ids_crawled:
                     tournament_standings_to_upload.append(tournament_standing)
                     spider.tournament_standing_ids_crawled.append(spider.tournament_standing_to_id(tournament_standing))
+                    spider.bq_add_data_stats[spider.tournament_standing_table.table_id] += 1
             # insert all new rows
             if tournament_standings_to_upload:
                 _upload_to_bq(tournament_standings_to_upload, spider.tournament_standing_table)
@@ -209,7 +212,7 @@ class OpTopDeckDecklistPipeline:
                 if id not in spider.decklists_crawled:
                     op_top_deck_decklists_to_upload.append(decklist)
                     spider.decklists_crawled.append(id)
-                    spider.new_op_top_deck_decklists_crawled += 1
+                    spider.bq_add_data_stats[spider.op_top_deck_table.table_id] += 1
             # insert all new rows
             if op_top_deck_decklists_to_upload:
                 _upload_to_bq(op_top_deck_decklists_to_upload, spider.op_top_deck_table)

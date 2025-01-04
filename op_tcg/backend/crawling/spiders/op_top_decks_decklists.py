@@ -59,7 +59,7 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
         tournament_standing_ids: list[str] = []
         for card_row in self.bq_client.query(
                 f"""SELECT t1.* FROM `{self.tournament_standing_table.full_table_id.replace(':', '.')}` as t1
-                LEFT JOIN `{self.tournament_table.full_table_id.replace(':', '.')}` as t2 on t1.decklist_id = t2.id
+                LEFT JOIN `{self.tournament_table.full_table_id.replace(':', '.')}` as t2 on t1.tournament_id = t2.id
                 where t2.source = '{DataSource.OP_TOP_DECKS}'""").result():
             tournament_standing_ids.append(self.tournament_standing_to_id(TournamentStanding(**dict(card_row))))
         return tournament_standing_ids
@@ -82,12 +82,18 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
         self.decklist_ids_crawled = self.get_bq_decklist_ids()
         self.bq_decklists = self.get_bq_op_top_deck_decklists()
         self.decklists_crawled = [self.op_top_deck_decklist_to_id(d) for d in self.bq_decklists]
-        self.new_op_top_deck_decklists_crawled = 0
+        self.bq_add_data_stats = {
+            self.decklist_table.table_id: 0,
+            self.op_top_deck_table.table_id: 0,
+            self.tournament_table.table_id: 0,
+            self.tournament_standing_table.table_id: 0
+        }
 
         start_url = "https://onepiecetopdecks.com/deck-list"
         yield scrapy.Request(url=start_url,
                              callback=self.parse_decklist_landingpage,
                              errback=self.errback_httpbin)
+
     @staticmethod
     def is_meta_in_url(meta_format: MetaFormat, url: str):
         # Extract the prefix and number using slicing
@@ -106,13 +112,13 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
 
         return any(variation in url for variation in variations)
 
-
     def parse_decklist_landingpage(self, response):
         """Extracts all meta format and country meta format urls for further steps"""
         # extract all urls
         urls = response.xpath('//a/@href').getall()
         # drop urls
-        urls_to_crawl: dict[CountryMetaFormat, list[tuple[MetaFormat, str]]] = {cmf: [] for cmf in CountryMetaFormat.to_list()}
+        urls_to_crawl: dict[CountryMetaFormat, list[tuple[MetaFormat, str]]] = {cmf: [] for cmf in
+                                                                                CountryMetaFormat.to_list()}
         for url in urls:
             if "deck-list" not in url:
                 continue
@@ -143,6 +149,7 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
                                          'country_meta_format': country_meta_format,
                                          'meta_format': meta_format,
                                      })
+
     def parse_decklist_meta_page(self, response):
         meta_format = response.meta["meta_format"]
         country_meta_format = response.meta["country_meta_format"]
@@ -151,9 +158,11 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
 
         yield self.parse_html_table(table_html, table_url, meta_format, country_meta_format)
 
-    def parse_html_table(self, table_html: str, table_url: str, meta_format: MetaFormat, country_meta_format: CountryMetaFormat) -> OpTopDecksItem:
+    def parse_html_table(self, table_html: str, table_url: str, meta_format: MetaFormat,
+                         country_meta_format: CountryMetaFormat) -> OpTopDecksItem:
         soup = BeautifulSoup(table_html, 'html.parser')
         header_cells = soup.select('thead th')
+
         def _index_of_header_name(header_name: str, default: int = 0) -> int:
             for i, header_cell in enumerate(header_cells):
                 if header_name.lower() in header_cell.text.lower():
@@ -224,7 +233,7 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
                     leader_id=leader_id,
                     decklist=None,
                     drop=None
-            ))
+                ))
 
             decklists.append(Decklist(
                 id=decklist_id,
@@ -297,15 +306,19 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
 
     def parse_record_from_tournament_text(self, tournament: str) -> TournamentRecord | None:
         if '(' in tournament and ')' in tournament:
-            record_info = tournament.split('(')[-1].split(')')[0].split('-')
-            ties = 0
-            if len(record_info) == 2:
-                wins, losses = map(int, record_info)
-            elif len(record_info) == 3:
-                wins, ties, losses = map(int, record_info)
-            else:
+            try:
+                record_info = tournament.split('(')[-1].split(')')[0].split('-')
+                ties = 0
+                if len(record_info) == 2:
+                    wins, losses = map(int, record_info)
+                elif len(record_info) == 3:
+                    wins, ties, losses = map(int, record_info)
+                else:
+                    return None
+                return TournamentRecord(wins=wins, losses=losses, ties=ties)
+            except Exception as e:
+                self.logger.error(str(e))
                 return None
-            return TournamentRecord(wins=wins, losses=losses, ties=ties)
         else:
             return None
 
@@ -314,4 +327,4 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
         self.logger.error(repr(failure))
 
     def closed(self, reason):
-        logging.info(f"Finished spider with {self.new_op_top_deck_decklists_crawled} op tcg decklists crawled")
+        logging.info(f"Finished spider with {self.bq_add_data_stats} new data in Big Query")
