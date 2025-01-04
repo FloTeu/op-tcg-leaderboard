@@ -159,16 +159,29 @@ def crawl_decklist_cards(
                        table=card_price_table, client=bq_client)
 
 @op_top_deck_group.command()
+@click.option("--meta-formats", "-m", multiple=True)
 def crawl_decklists(
+    meta_formats: list[MetaFormat] | None = None,
 ) -> None:
     """
     Starts a One Piece Top Deck crawler for tournament data
     """
     process = CrawlerProcess({
         'ITEM_PIPELINES': {
+            'op_tcg.backend.crawling.pipelines.OpTopDeckDecklistPipeline': 1,
         }
     })
-    process.crawl(OPTopDeckDecklistSpider)
+
+    if meta_formats:
+        # ensure enum format
+        meta_formats = [MetaFormat(meta_format) for meta_format in meta_formats]
+    else:
+        # default: take the latest west and asia meta
+        latest_meta_format = MetaFormat.latest_meta_format()
+        latest_meta_format_i = MetaFormat.to_list(only_after_release=False).index(latest_meta_format)
+        meta_formats = MetaFormat.to_list(only_after_release=False)[latest_meta_format_i: latest_meta_format_i+2]
+
+    process.crawl(OPTopDeckDecklistSpider, meta_formats=meta_formats)
     process.start() # the script will block here until the crawling is finished
 
 

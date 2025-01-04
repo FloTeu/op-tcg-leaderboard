@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from op_tcg.backend.models.cards import OPTcgLanguage, CardReleaseSet, Card
+from op_tcg.backend.models.decklists import Decklist, OpTopDeckDecklist
 from op_tcg.backend.models.tournaments import Tournament, TournamentStanding
 from op_tcg.backend.models.matches import Match
 
@@ -31,3 +32,10 @@ class LimitlessPriceRow:
     rarity: str
     price_usd: float | None
     price_eur: float | None
+
+@dataclass
+class OpTopDecksItem:
+    decklists: list[Decklist]
+    op_top_deck_decklists: list[OpTopDeckDecklist]
+    tournaments: list[Tournament]
+    tournament_standings: list[TournamentStanding]
