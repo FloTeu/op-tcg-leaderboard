@@ -4,7 +4,7 @@ from typing import Callable, Generic, TypeVar
 import streamlit as st
 
 from op_tcg.backend.models.base import EnumBase
-from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.input import MetaFormat, CountryMetaFormat
 from op_tcg.backend.models.cards import OPTcgColor, OPTcgAbility, OPTcgAttribute
 from op_tcg.frontend.utils.extract import get_card_types
 from op_tcg.frontend.utils.meta_format import get_latest_released_meta_format_with_data
@@ -25,6 +25,16 @@ class LeaderCardMovementSortBy(EnumBase, StrEnum):
 def display_meta_select(multiselect: bool = True, key: str | None = None, label: str="Meta", reverse=True, default: MetaFormat | None = None) -> list[MetaFormat]:
     all_metas = MetaFormat.to_list()
     default = default or get_latest_released_meta_format_with_data()
+    if reverse:
+        all_metas = sorted(all_metas, reverse=reverse)
+    if multiselect:
+        return st.multiselect(label, all_metas, default=default, key=key)
+    else:
+        index = all_metas.index(default) if default else None
+        return [st.selectbox(label, all_metas, index=index, key=key)]
+
+def display_country_meta_format(multiselect: bool = False, key: str | None = None, label: str="Meta Region", reverse=True, default: CountryMetaFormat = CountryMetaFormat.ALL) -> list[CountryMetaFormat]:
+    all_metas = CountryMetaFormat.to_list()
     if reverse:
         all_metas = sorted(all_metas, reverse=reverse)
     if multiselect:

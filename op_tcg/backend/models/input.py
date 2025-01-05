@@ -47,6 +47,7 @@ class MetaFormat(EnumBase, StrEnum):
 class CountryMetaFormat(EnumBase, StrEnum):
     ASIA = auto()
     WEST = auto()
+    ALL = auto()
 
 
 class LimitlessMatch(BaseModel):
