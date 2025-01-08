@@ -87,24 +87,21 @@ def run_crawl_tournament(event, context):
 
     assert os.environ.get("LIMITLESS_API_TOKEN"), "LIMITLESS_API_TOKEN not set in environment"
     process = CrawlerProcess({
-        'ITEM_PIPELINES': {'op_tcg.backend.crawling.pipelines.TournamentPipeline': 1},  # Hooking in our custom pipline
+        'ITEM_PIPELINES': {'op_tcg.backend.crawling.pipelines.TournamentPipeline': 1,
+                           'op_tcg.backend.crawling.pipelines.OpTopDeckDecklistPipeline': 2
+                           },  # Hooking in our custom pipline
     })
     # ensure enum format
     meta_formats = [MetaFormat(meta_format) for meta_format in meta_formats]
     process.crawl(LimitlessTournamentSpider, meta_formats=meta_formats, api_token=os.environ.get("LIMITLESS_API_TOKEN"), num_tournament_limit=num_tournament_limit)
-    process.start() # the script will block here until the crawling is finished
 
     ## OP TOP DECKS CRAWLER
-    process = CrawlerProcess({
-        'ITEM_PIPELINES': {
-            'op_tcg.backend.crawling.pipelines.OpTopDeckDecklistPipeline': 1,
-        }
-    })
-
     # for op top deck crawler use all meta formats (crawler will check which ones are available)
     meta_formats = MetaFormat.to_list(only_after_release=False)
     process.crawl(OPTopDeckDecklistSpider, meta_formats=meta_formats)
-    process.start() # the script will block here until the crawling is finished
+
+    # the script will block here until the crawling is finished (both crawler will start in parallel)
+    process.start()
 
     return f"Successfully ran limitless/op top deck tournament crawling"
 

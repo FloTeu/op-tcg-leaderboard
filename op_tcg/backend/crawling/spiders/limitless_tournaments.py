@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 from uuid import uuid4
 
@@ -203,3 +204,6 @@ class LimitlessTournamentSpider(scrapy.Spider):
                             matches: list[Match] = None) -> TournamentItem:
         matches = matches if matches is not None else []  # if no matches exist returns an empy list
         return TournamentItem(tournament=tournament, tournament_standings=tournament_standings, matches=matches)
+
+    def closed(self, reason):
+        logging.info(f"Finished spider")
