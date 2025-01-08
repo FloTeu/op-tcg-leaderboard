@@ -20,7 +20,7 @@ from op_tcg.frontend.sidebar import display_leader_select, display_meta_select, 
 from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER, Q_PARAM_EASIEST_OPPONENT, Q_PARAM_HARDEST_OPPONENT
 from op_tcg.frontend.sub_pages.utils import sub_page_title_to_url_path
 from op_tcg.frontend.utils.chart import create_leader_line_chart, LineChartYValue, create_leader_win_rate_radar_chart, \
-    get_radar_chart_data, create_line_chart
+    get_radar_chart_data, create_line_chart, get_fillup_meta_formats
 from op_tcg.frontend.utils.decklist import DecklistData, tournament_standings2decklist_data, \
     decklist_data_to_card_ids, get_most_similar_leader_data, SimilarLeaderData, \
     DecklistFilter, filter_tournament_decklists, get_best_matching_decklist
@@ -130,7 +130,7 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
                   }
         create_leader_line_chart(leader_id=leader_data.id, leader_extended=leader_extended_data,
                                  enable_x_axis=True, enable_y_axis=False,
-                                 y_value=LineChartYValue.WIN_RATE, styles=styles)
+                                 y_value=LineChartYValue.WIN_RATE, styles=styles, auto_fillup=True)
 
         st.subheader("Win Rate Matchup")
         styles = {"height": 250,
@@ -359,7 +359,7 @@ def display_opponent_view(selected_opponent_id: str, matchups: list[Matchup],
         with mui.Box():
             try:
                 create_line_chart(opponent_matchup.win_rate_chart_data, data_id="WR", enable_x_axis=True,
-                              enable_y_axis=False, styles=styles, use_custom_component=True)
+                                  enable_y_axis=False, styles=styles, fillup_meta_formats=get_fillup_meta_formats(opponent_matchup.win_rate_chart_data), use_custom_component=True)
             except StreamlitDuplicateElementId:
                 st.warning("Win rate chart could not be loaded")
 

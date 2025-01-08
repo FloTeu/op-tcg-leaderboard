@@ -2,7 +2,7 @@ from datetime import date
 
 from pydantic import Field
 from op_tcg.backend.models.cards import OPTcgColor, OPTcgAttribute, OPTcgLanguage, Card
-from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
 from op_tcg.backend.utils.color_fns import average_hex_colors
@@ -32,6 +32,7 @@ class TournamentWinner(BQTableBaseModel):
     win_count: int = Field(description="Number of total tournament wins in meta format")
     only_official: bool = Field(default=False, description="Whether the matches are only originated from "
                                                            "official tournaments", primary_key=True)
+    meta_format_region: MetaFormatRegion = Field(description="The country area, which defines which meta format is available")
 
 class LeaderExtended(Leader):
     _dataset_id = BQDataset.LEADERS
@@ -43,3 +44,4 @@ class LeaderExtended(Leader):
     elo: int | None = Field(description="Elo rating of leader until a certain time/ meta format. None if no elo is calculated")
     d_score: float | None = Field(description="Composite score from multiple metrics defining the dominance a leader has in the selected meta")
     only_official: bool | None = Field(default=False, description="Whether the matches are only originated from official tournaments. None, if no data si available", primary_key=True)
+    meta_format_region: MetaFormatRegion | None = Field(description="The country area, which defines which meta format is available")

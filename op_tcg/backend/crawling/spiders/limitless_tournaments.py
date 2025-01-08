@@ -11,7 +11,7 @@ from op_tcg.backend.crawling.items import TournamentItem
 from op_tcg.backend.etl.load import get_or_create_table
 from op_tcg.backend.models.cards import Card, CardPrice
 from op_tcg.backend.models.common import DataSource
-from op_tcg.backend.models.input import MetaFormat, meta_format2release_datetime
+from op_tcg.backend.models.input import MetaFormat, meta_format2release_datetime, MetaFormatRegion
 from op_tcg.backend.models.tournaments import Tournament, TournamentStanding
 from op_tcg.backend.models.matches import Match, MatchResult
 
@@ -131,7 +131,8 @@ class LimitlessTournamentSpider(scrapy.Spider):
                                        "tournament_standings": tournament_standings, **response.meta})
         else:
             tournament = Tournament(source=DataSource.LIMITLESS,
-                                    meta_format=meta_format, **response.meta)
+                                    meta_format=meta_format,
+                                    meta_format_region=MetaFormatRegion.WEST, **response.meta)
             yield self.get_tournamend_item(tournament=tournament, tournament_standings=tournament_standings)
 
     def parse_tournament_pairings(self, response):
@@ -193,6 +194,7 @@ class LimitlessTournamentSpider(scrapy.Spider):
                 ))
 
         tournament = Tournament(source=DataSource.LIMITLESS,
+                                meta_format_region=MetaFormatRegion.WEST,
                                 **response.meta)
         yield self.get_tournamend_item(tournament=tournament,
                                        tournament_standings=response.meta["tournament_standings"], matches=matches)

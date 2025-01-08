@@ -12,6 +12,7 @@ from tqdm import tqdm
 from op_tcg.backend.crawling.spiders.limitless_matches import LimitlessMatchSpider
 from op_tcg.backend.crawling.spiders.limitless_prices import LimitlessPricesSpider
 from op_tcg.backend.crawling.spiders.limitless_tournaments import LimitlessTournamentSpider
+from op_tcg.backend.crawling.spiders.op_top_decks_decklists import OPTopDeckDecklistSpider
 from op_tcg.backend.etl.extract import get_leader_ids, crawl_limitless_card
 from op_tcg.backend.etl.load import get_or_create_table, bq_insert_rows
 from op_tcg.backend.models.cards import Card, CardPrice, LimitlessCardData
@@ -27,14 +28,22 @@ def crawling_group() -> None:
     pass
 
 
-@click.group("limitless", help="Limitless Crawling functionality")
+@click.group("limitless", help="Limitless crawling functionality")
 def limitless_group() -> None:
     """
     Define a click group for the crawling limitless section
     """
     pass
 
+@click.group("op-top-deck", help="One Piecce Top Deck crawling functionality")
+def op_top_deck_group() -> None:
+    """
+    Define a click group for the crawling limitless section
+    """
+    pass
+
 crawling_group.add_command(limitless_group)
+crawling_group.add_command(op_top_deck_group)
 
 @limitless_group.command()
 @click.option("--meta-formats", "-m", multiple=True)
@@ -148,6 +157,32 @@ def crawl_decklist_cards(
                        client=bq_client)
         bq_insert_rows([json.loads(bq_card_price.model_dump_json()) for bq_card_price in card_data.card_prices],
                        table=card_price_table, client=bq_client)
+
+@op_top_deck_group.command()
+@click.option("--meta-formats", "-m", multiple=True)
+def crawl_decklists(
+    meta_formats: list[MetaFormat] | None = None,
+) -> None:
+    """
+    Starts a One Piece Top Deck crawler for tournament data
+    """
+    process = CrawlerProcess({
+        'ITEM_PIPELINES': {
+            'op_tcg.backend.crawling.pipelines.OpTopDeckDecklistPipeline': 1,
+        }
+    })
+
+    if meta_formats:
+        # ensure enum format
+        meta_formats = [MetaFormat(meta_format) for meta_format in meta_formats]
+    else:
+        # default: take the latest west and asia meta
+        latest_meta_format = MetaFormat.latest_meta_format()
+        latest_meta_format_i = MetaFormat.to_list(only_after_release=False).index(latest_meta_format)
+        meta_formats = MetaFormat.to_list(only_after_release=False)[latest_meta_format_i: latest_meta_format_i+2]
+
+    process.crawl(OPTopDeckDecklistSpider, meta_formats=meta_formats)
+    process.start() # the script will block here until the crawling is finished
 
 
 if __name__ == "__main__":

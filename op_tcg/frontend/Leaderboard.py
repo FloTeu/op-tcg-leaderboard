@@ -20,7 +20,7 @@ from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER_MATCHUP, SUB_PAG
     SUB_PAGE_LEADER_CARD_MOVEMENT, Q_PARAM_LEADER_ID
 from op_tcg.backend.utils.utils import booleanize
 from op_tcg.backend.etl.load import bq_insert_rows, get_or_create_table
-from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.cards import OPTcgColor
 from op_tcg.backend.models.matches import Match, MatchResult
@@ -28,7 +28,7 @@ from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.frontend.utils.session import get_session_id, reset_session_state, SessionKeys
 from op_tcg.frontend.sidebar import display_meta_select, display_only_official_toggle, display_release_meta_select, \
     display_match_count_slider_slider, display_leader_color_multiselect, display_leader_select, LeaderboardSortBy, \
-    display_sortby_select
+    display_sortby_select, display_meta_format_region
 from op_tcg.frontend.utils.extract import get_leader_extended
 from op_tcg.frontend.utils.styles import execute_style_sheet, read_style_sheet, css_rule_to_dict
 from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_cell, value2color_table_cell
@@ -51,14 +51,12 @@ def change_sidebar_collapse_button_style():
 
 
 def leader_id2line_chart(leader_id: str, df_leader_extended, y_value: LineChartYValue = LineChartYValue.WIN_RATE,
-                        n_meta_formats: int = 5, only_official: bool = True, enable_x_top_axis: bool = False):
-    all_released_meta_formats = MetaFormat.to_list()
-    visible_meta_formats = all_released_meta_formats[max(0, len(all_released_meta_formats) - n_meta_formats):]
+                         visible_meta_formats: list[MetaFormat] = None, only_official: bool = True, enable_x_top_axis: bool = False):
     leader_extended_list: list[LeaderExtended] = df_leader_extended.query(f"id == '{leader_id}'").apply(
         lambda row: LeaderExtended(**row), axis=1).tolist()
     leader_extended_list = [le for le in leader_extended_list if le.meta_format in visible_meta_formats]
     line_plot = create_leader_line_chart(leader_id, leader_extended_list, y_value=y_value, only_official=only_official,
-                                         use_custom_component=False, enable_x_top_axis=enable_x_top_axis, fill_up_max_n_meta_formats=n_meta_formats)
+                                         use_custom_component=False, enable_x_top_axis=enable_x_top_axis, fillup_meta_formats=visible_meta_formats)
     return mui.TableCell(mui.Box(line_plot, sx={"height": 120, "width": 190}), sx={"padding": "0px"})
 
 
@@ -94,6 +92,7 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
     # data preprocessing
     all_meta_formats = MetaFormat.to_list()
     relevant_meta_formats = all_meta_formats[:all_meta_formats.index(meta_format) + 1]
+    visible_meta_formats = relevant_meta_formats[max(0, len(relevant_meta_formats) - 5):]
     df_leader_extended = df_leader_extended.query("meta_format in @relevant_meta_formats")
     df_leader_extended_selected_meta = df_leader_extended.query(f"meta_format == '{meta_format}'").copy()
     if len(df_leader_extended_selected_meta) == 0:
@@ -165,6 +164,7 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
             first_lid = df_leader_extended_selected_meta.iloc[0].id
             df_leaderboard_display["Elo Chart"] = df_leader_extended_selected_meta["id"].apply(
                 lambda lid: leader_id2line_chart(lid, df_leader_extended, y_value=LineChartYValue.WIN_RATE,
+                                                 visible_meta_formats=visible_meta_formats,
                                                  only_official=only_official, enable_x_top_axis=lid == first_lid))
 
             display_table(df_leaderboard_display,
@@ -291,6 +291,7 @@ def main():
 
     with st.sidebar:
         meta_format: MetaFormat = display_meta_select(multiselect=False)[0]
+        meta_format_region: MetaFormatRegion = display_meta_format_region(multiselect=False)[0]
         release_meta_formats: list[MetaFormat] | None = display_release_meta_select(multiselect=True)
         selected_leader_colors: list[OPTcgColor] | None = display_leader_color_multiselect()
         display_max_match_count = 10000
@@ -307,7 +308,7 @@ def main():
         LeaderboardSortBy.ELO.value: "elo",
     }
     # get data
-    leader_extended_data: list[LeaderExtended] = get_leader_extended()
+    leader_extended_data: list[LeaderExtended] = get_leader_extended(meta_format_region=meta_format_region)
 
     # drop None values
     required_values = ["elo", "win_rate", "total_matches", "only_official"]

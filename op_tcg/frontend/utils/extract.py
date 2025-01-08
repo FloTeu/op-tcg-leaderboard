@@ -5,7 +5,8 @@ from cachetools import TTLCache
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.cards import LatestCardPrice, CardPopularity, Card, CardReleaseSet, ExtendedCardData, \
     CardCurrency
-from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.decklists import Decklist
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import Leader, TournamentWinner, LeaderElo, LeaderExtended
 from op_tcg.backend.models.matches import Match, LeaderWinRate
 from op_tcg.backend.models.tournaments import TournamentStanding, Tournament, TournamentStandingExtended, \
@@ -48,7 +49,7 @@ def get_leader_win_rate(meta_formats: list[MetaFormat], leader_ids: list[str] | 
     else:
         return bq_win_rates
 
-def get_leader_extended(meta_formats: list[MetaFormat] | None = None, leader_ids: list[str] | None = None) -> list[LeaderExtended]:
+def get_leader_extended(meta_formats: list[MetaFormat] | None = None, leader_ids: list[str] | None = None, meta_format_region: MetaFormatRegion = MetaFormatRegion.ALL) -> list[LeaderExtended]:
     bq_leader_data: list[LeaderExtended] = []
     if meta_formats:
         for meta_format in meta_formats:
@@ -61,9 +62,11 @@ def get_leader_extended(meta_formats: list[MetaFormat] | None = None, leader_ids
         bq_leader_data.extend([LeaderExtended(**d) for d in leader_data_rows])
 
     if leader_ids:
-        return [bql for bql in bq_leader_data if (bql.id in leader_ids)]
-    else:
-        return bq_leader_data
+        bq_leader_data = [bql for bql in bq_leader_data if (bql.id in leader_ids)]
+    if meta_format_region:
+        bq_leader_data = [bql for bql in bq_leader_data if (bql.meta_format_region == meta_format_region)]
+
+    return bq_leader_data
 
 @timeit
 def get_tournament_standing_data(meta_formats: list[MetaFormat], leader_id: str | None = None) -> list[TournamentStandingExtended]:
@@ -97,10 +100,13 @@ def get_all_tournament_decklist_data() -> list[TournamentDecklist]:
         card_id2card_data = get_card_id_card_data_lookup()
         # cached for each session
         tournament_standing_rows = run_bq_query(f"""
-    SELECT t1.leader_id, t1.decklist, t1.placing, t1.player_id, t2.meta_format, t2.tournament_timestamp FROM `{st.secrets["gcp_service_account"]["project_id"]}.matches.{TournamentStanding.__tablename__}` t1
-    left join `{st.secrets["gcp_service_account"]["project_id"]}.matches.{Tournament.__tablename__}` t2
-    on t1.tournament_id = t2.id
-    where t1.decklist IS NOT NULL""")
+    SELECT t1.leader_id, COALESCE(t3.decklist, t1.decklist) AS decklist, t1.placing, t1.player_id, t2.meta_format, t2.tournament_timestamp 
+    FROM `{st.secrets["gcp_service_account"]["project_id"]}.matches.{TournamentStanding.__tablename__}` t1
+    left join `{st.secrets["gcp_service_account"]["project_id"]}.matches.{Tournament.__tablename__}` t2 on t1.tournament_id = t2.id
+    left join `{st.secrets["gcp_service_account"]["project_id"]}.matches.{Decklist.__tablename__}` t3 on t1.decklist_id = t3.id
+    where
+    t1.decklist IS NOT NULL 
+    OR t3.decklist IS NOT NULL""")
         tournament_decklists: list[TournamentDecklist] = []
         for ts in tournament_standing_rows:
             tournament_decklist = TournamentDecklist(**ts)

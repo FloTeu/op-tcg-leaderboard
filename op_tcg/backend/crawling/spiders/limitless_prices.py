@@ -33,6 +33,10 @@ class ReleaseSetCardsInfo(BaseModel):
 class LimitlessPricesSpider(scrapy.Spider):
     name = "limitless_prices"
 
+    custom_settings = {
+        'USER_AGENT': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
+        'COOKIES_ENABLED': True,
+    }
     def get_release_sets(self) -> list[CardReleaseSet]:
         """Returns list of CardReleaseSet stored in bq"""
         release_sets: list[CardReleaseSet] = []
@@ -67,7 +71,7 @@ class LimitlessPricesSpider(scrapy.Spider):
 
 
         start_url = "https://onepiece.limitlesstcg.com/cards/en"
-        yield scrapy.Request(url=f"{start_url}",
+        yield scrapy.Request(url=start_url,
                              callback=self.parse_set_url,
                              errback=self.errback_httpbin,
                              meta={"language": OPTcgLanguage.EN})

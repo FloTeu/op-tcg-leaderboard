@@ -30,7 +30,8 @@ def create_leader_line_chart(leader_id: str,
                              enable_x_axis: bool = False,
                              enable_x_top_axis: bool = False,
                              enable_y_axis: bool = False,
-                             fill_up_max_n_meta_formats: int | None = None,
+                             fillup_meta_formats: list[MetaFormat] = None,
+                             auto_fillup: bool = False,
                              styles: dict | None = None,
                              use_custom_component: bool = True
                              ):
@@ -43,6 +44,8 @@ def create_leader_line_chart(leader_id: str,
     data_dict = {
         le.meta_format: getattr(le, str(y_value)) for le in leader_extended_filtered
     }
+    if fillup_meta_formats is None and auto_fillup:
+        fillup_meta_formats = get_fillup_meta_formats(data_dict)
     return create_line_chart(data_dict,
                              data_id="Elo" if y_value == "elo" else "WR",
                              y_format=" >-.2f" if y_value == LineChartYValue.WIN_RATE else "",
@@ -52,8 +55,7 @@ def create_leader_line_chart(leader_id: str,
                              y_axis_label=str(y_value),
                              styles=styles,
                              use_custom_component=use_custom_component,
-                             fill_up_missing_meta_format=True,
-                             fill_up_max_n_meta_formats=fill_up_max_n_meta_formats,
+                             fillup_meta_formats=fillup_meta_formats,
                              )
 
 
@@ -72,15 +74,10 @@ def create_line_chart(data_dict: dict[MetaFormat, str | None],
                       enable_y_axis: bool = False,
                       y_axis_label: str = "",
                       styles: dict | None = None,
-                      fill_up_missing_meta_format: bool = True,
-                      fill_up_max_n_meta_formats: int | None = None,
+                      fillup_meta_formats: list[MetaFormat] = None,
                       use_custom_component: bool = True):
     # fillup missing meta_format data
-    if fill_up_missing_meta_format:
-
-        fillup_meta_formats = MetaFormat.to_list()
-        if fill_up_max_n_meta_formats:
-            fillup_meta_formats = fillup_meta_formats[max(0, len(fillup_meta_formats) - fill_up_max_n_meta_formats):]
+    if fillup_meta_formats:
         for meta_format in sorted(fillup_meta_formats, reverse=True):
             # exclude OP01 since we have no official matches yet
             if meta_format not in data_dict and meta_format != MetaFormat.OP01:
@@ -625,3 +622,9 @@ def create_card_leader_occurrence_stream_chart_old(data, data_keys: list[str] | 
             }
         },
     )
+
+
+def get_fillup_meta_formats(data_dict: dict[MetaFormat, float]):
+    available_meta_wr_data = list(data_dict.keys())
+    return MetaFormat.to_list(until_meta_format=available_meta_wr_data[-1])[
+                  MetaFormat.to_list().index(available_meta_wr_data[0]):]

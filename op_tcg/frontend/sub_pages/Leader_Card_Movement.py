@@ -84,7 +84,7 @@ def card_id2line_chart(card_id: str, meta_format2decklist_data: dict[MetaFormat,
             data_dict[mf] = 0.0
 
     line_plot = create_line_chart(data_dict, "Occ. (in %)", enable_y_axis=False, enable_x_top_axis=enable_x_axis,
-                                  use_custom_component=False, fill_up_missing_meta_format=False)
+                                  use_custom_component=False)
     return mui.TableCell(mui.Box(line_plot, sx={"height": 120, "max-width": max_width}),
                          sx={"padding": "0px", "max-width": max_width, "width": max_width})
 

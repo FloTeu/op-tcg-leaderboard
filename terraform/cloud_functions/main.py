@@ -8,6 +8,7 @@ from scrapy.crawler import CrawlerProcess
 
 from op_tcg.backend.crawling.spiders.limitless_prices import LimitlessPricesSpider
 from op_tcg.backend.crawling.spiders.limitless_tournaments import LimitlessTournamentSpider
+from op_tcg.backend.crawling.spiders.op_top_decks_decklists import OPTopDeckDecklistSpider
 from op_tcg.backend.etl.classes import EloUpdateToBigQueryEtlJob, CardImageUpdateToGCPEtlJob
 from op_tcg.backend.models.input import MetaFormat
 
@@ -62,7 +63,7 @@ def run_etl_elo_update(event, context):
 def run_crawl_tournament(event, context):
     """
     Cloud Function triggered by Pub/Sub.
-    The function crawls latest limitless tournament data
+    The function crawls latest limitless tournament data and op top deck tournament/decklist data
 
     Args:
         event (dict): The dictionary with data specific to this type of event.
@@ -78,6 +79,8 @@ def run_crawl_tournament(event, context):
     message_dict = json.loads(message_data)
 
     print(f"Received message: {message_dict}")
+
+    ## LIMITLESS CRAWLER
     meta_formats = message_dict.get("meta_formats", None) or MetaFormat.to_list()
     num_tournament_limit = message_dict.get("num_tournament_limit", 50)
     print("Crawl limitless with meta_formats and num_tournament_limit", meta_formats, num_tournament_limit)
@@ -91,7 +94,19 @@ def run_crawl_tournament(event, context):
     process.crawl(LimitlessTournamentSpider, meta_formats=meta_formats, api_token=os.environ.get("LIMITLESS_API_TOKEN"), num_tournament_limit=num_tournament_limit)
     process.start() # the script will block here until the crawling is finished
 
-    return f"Successfully ran limitless tournament crawling"
+    ## OP TOP DECKS CRAWLER
+    process = CrawlerProcess({
+        'ITEM_PIPELINES': {
+            'op_tcg.backend.crawling.pipelines.OpTopDeckDecklistPipeline': 1,
+        }
+    })
+
+    # for op top deck crawler use all meta formats (crawler will check which ones are available)
+    meta_formats = MetaFormat.to_list(only_after_release=False)
+    process.crawl(OPTopDeckDecklistSpider, meta_formats=meta_formats)
+    process.start() # the script will block here until the crawling is finished
+
+    return f"Successfully ran limitless/op top deck tournament crawling"
 
 
 def run_etl_card_image_update(event, context):

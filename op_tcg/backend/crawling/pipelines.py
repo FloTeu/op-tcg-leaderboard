@@ -1,6 +1,8 @@
 import logging
 from typing import Any
 
+from google.cloud import bigquery
+
 import op_tcg
 import json
 from pathlib import Path
@@ -10,7 +12,7 @@ from op_tcg.backend.etl.load import bq_insert_rows
 from op_tcg.backend.models.cards import LimitlessCardData, CardPrice, CardCurrency, CardReleaseSet
 from op_tcg.backend.models.input import LimitlessLeaderMetaDoc
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
-from op_tcg.backend.crawling.items import TournamentItem, LimitlessPriceRow, ReleaseSetItem, CardsItem
+from op_tcg.backend.crawling.items import TournamentItem, LimitlessPriceRow, ReleaseSetItem, CardsItem, OpTopDecksItem
 from op_tcg.backend.models.matches import Match
 from op_tcg.backend.models.tournaments import Tournament, TournamentStanding
 
@@ -152,4 +154,67 @@ class CardReleaseSetPipeline:
 
         if isinstance(item, ReleaseSetItem):
             bq_insert_rows([json.loads(item.release_set.model_dump_json())], table=spider.release_set_table, client=spider.bq_client)
+        return item
+
+
+class OpTopDeckDecklistPipeline:
+    def process_item(self, item: OpTopDecksItem, spider):
+        """
+        Updates all tournament related data (if exists it will be deleted first)
+        """
+        def _upload_to_bq(data_to_upload: list[BQTableBaseModel],table: bigquery.Table):
+            if data_to_upload:
+                rows_to_insert = [json.loads(bq_row.model_dump_json()) for bq_row in data_to_upload]
+                bq_insert_rows(rows_to_insert, table=table, client=spider.bq_client)
+
+        if isinstance(item, OpTopDecksItem):
+            # upload tournaments to BQ
+            tournaments_to_upload = []
+            for tournament in item.tournaments:
+                # ignore duplicate
+                if tournament.id not in spider.tournament_ids_crawled:
+                    tournaments_to_upload.append(tournament)
+                    spider.tournament_ids_crawled.append(tournament.id)
+                    spider.bq_add_data_stats[spider.tournament_table.table_id] += 1
+            # insert all new rows
+            if tournaments_to_upload:
+                _upload_to_bq(tournaments_to_upload, spider.tournament_table)
+
+            # upload decklists to BQ
+            decklists_to_upload = []
+            for decklist in item.decklists:
+                # ignore duplicate
+                if decklist.id not in spider.decklist_ids_crawled:
+                    decklists_to_upload.append(decklist)
+                    spider.decklist_ids_crawled.append(decklist.id)
+                    spider.bq_add_data_stats[spider.decklist_table.table_id] += 1
+            # insert all new rows
+            if decklists_to_upload:
+                _upload_to_bq(decklists_to_upload, spider.decklist_table)
+
+            # upload tournament_standings to BQ
+            tournament_standings_to_upload = []
+            for tournament_standing in item.tournament_standings:
+                # ignore duplicate
+                if spider.tournament_standing_to_id(tournament_standing) not in spider.tournament_standing_ids_crawled:
+                    tournament_standings_to_upload.append(tournament_standing)
+                    spider.tournament_standing_ids_crawled.append(spider.tournament_standing_to_id(tournament_standing))
+                    spider.bq_add_data_stats[spider.tournament_standing_table.table_id] += 1
+            # insert all new rows
+            if tournament_standings_to_upload:
+                _upload_to_bq(tournament_standings_to_upload, spider.tournament_standing_table)
+
+            # upload op_top_deck_decklists to BQ
+            op_top_deck_decklists_to_upload = []
+            for decklist in item.op_top_deck_decklists:
+                id = spider.op_top_deck_decklist_to_id(decklist)
+                # ignore already crawled decklists
+                if id not in spider.decklists_crawled:
+                    op_top_deck_decklists_to_upload.append(decklist)
+                    spider.decklists_crawled.append(id)
+                    spider.bq_add_data_stats[spider.op_top_deck_table.table_id] += 1
+            # insert all new rows
+            if op_top_deck_decklists_to_upload:
+                _upload_to_bq(op_top_deck_decklists_to_upload, spider.op_top_deck_table)
+
         return item
