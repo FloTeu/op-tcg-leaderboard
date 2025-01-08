@@ -44,7 +44,7 @@ class MetaFormat(EnumBase, StrEnum):
         return cls.to_list(only_after_release=only_after_release)[-1]
 
 
-class CountryMetaFormat(EnumBase, StrEnum):
+class MetaFormatRegion(EnumBase, StrEnum):
     ASIA = auto()
     WEST = auto()
     ALL = auto()

@@ -6,7 +6,7 @@ from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.cards import LatestCardPrice, CardPopularity, Card, CardReleaseSet, ExtendedCardData, \
     CardCurrency
 from op_tcg.backend.models.decklists import Decklist
-from op_tcg.backend.models.input import MetaFormat, CountryMetaFormat
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import Leader, TournamentWinner, LeaderElo, LeaderExtended
 from op_tcg.backend.models.matches import Match, LeaderWinRate
 from op_tcg.backend.models.tournaments import TournamentStanding, Tournament, TournamentStandingExtended, \
@@ -49,7 +49,7 @@ def get_leader_win_rate(meta_formats: list[MetaFormat], leader_ids: list[str] | 
     else:
         return bq_win_rates
 
-def get_leader_extended(meta_formats: list[MetaFormat] | None = None, leader_ids: list[str] | None = None, country_meta_format: CountryMetaFormat = CountryMetaFormat.ALL) -> list[LeaderExtended]:
+def get_leader_extended(meta_formats: list[MetaFormat] | None = None, leader_ids: list[str] | None = None, meta_format_region: MetaFormatRegion = MetaFormatRegion.ALL) -> list[LeaderExtended]:
     bq_leader_data: list[LeaderExtended] = []
     if meta_formats:
         for meta_format in meta_formats:
@@ -63,8 +63,8 @@ def get_leader_extended(meta_formats: list[MetaFormat] | None = None, leader_ids
 
     if leader_ids:
         bq_leader_data = [bql for bql in bq_leader_data if (bql.id in leader_ids)]
-    if country_meta_format:
-        bq_leader_data = [bql for bql in bq_leader_data if (bql.country_meta_format == country_meta_format)]
+    if meta_format_region:
+        bq_leader_data = [bql for bql in bq_leader_data if (bql.meta_format_region == meta_format_region)]
 
     return bq_leader_data
 

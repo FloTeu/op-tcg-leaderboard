@@ -20,7 +20,7 @@ from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER_MATCHUP, SUB_PAG
     SUB_PAGE_LEADER_CARD_MOVEMENT, Q_PARAM_LEADER_ID
 from op_tcg.backend.utils.utils import booleanize
 from op_tcg.backend.etl.load import bq_insert_rows, get_or_create_table
-from op_tcg.backend.models.input import MetaFormat, CountryMetaFormat
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.cards import OPTcgColor
 from op_tcg.backend.models.matches import Match, MatchResult
@@ -28,7 +28,7 @@ from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.frontend.utils.session import get_session_id, reset_session_state, SessionKeys
 from op_tcg.frontend.sidebar import display_meta_select, display_only_official_toggle, display_release_meta_select, \
     display_match_count_slider_slider, display_leader_color_multiselect, display_leader_select, LeaderboardSortBy, \
-    display_sortby_select, display_country_meta_format
+    display_sortby_select, display_meta_format_region
 from op_tcg.frontend.utils.extract import get_leader_extended
 from op_tcg.frontend.utils.styles import execute_style_sheet, read_style_sheet, css_rule_to_dict
 from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_cell, value2color_table_cell
@@ -291,7 +291,7 @@ def main():
 
     with st.sidebar:
         meta_format: MetaFormat = display_meta_select(multiselect=False)[0]
-        country_meta_format: CountryMetaFormat = display_country_meta_format(multiselect=False)[0]
+        meta_format_region: MetaFormatRegion = display_meta_format_region(multiselect=False)[0]
         release_meta_formats: list[MetaFormat] | None = display_release_meta_select(multiselect=True)
         selected_leader_colors: list[OPTcgColor] | None = display_leader_color_multiselect()
         display_max_match_count = 10000
@@ -308,7 +308,7 @@ def main():
         LeaderboardSortBy.ELO.value: "elo",
     }
     # get data
-    leader_extended_data: list[LeaderExtended] = get_leader_extended(country_meta_format=country_meta_format)
+    leader_extended_data: list[LeaderExtended] = get_leader_extended(meta_format_region=meta_format_region)
 
     # drop None values
     required_values = ["elo", "win_rate", "total_matches", "only_official"]

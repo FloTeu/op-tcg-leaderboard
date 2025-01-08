@@ -14,7 +14,7 @@ from google.cloud import bigquery
 
 from op_tcg.backend.models.common import DataSource
 from op_tcg.backend.models.decklists import OpTopDeckDecklistExtended, Decklist, OpTopDeckDecklist
-from op_tcg.backend.models.input import MetaFormat, CountryMetaFormat
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.tournaments import TournamentRecord, Tournament, TournamentStanding
 from op_tcg.backend.utils.database import create_decklist_id
 
@@ -117,8 +117,8 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
         # extract all urls
         urls = response.xpath('//a/@href').getall()
         # drop urls
-        urls_to_crawl: dict[CountryMetaFormat, list[tuple[MetaFormat, str]]] = {cmf: [] for cmf in
-                                                                                CountryMetaFormat.to_list()}
+        urls_to_crawl: dict[MetaFormatRegion, list[tuple[MetaFormat, str]]] = {cmf: [] for cmf in
+                                                                               MetaFormatRegion.to_list()}
         for url in urls:
             if "deck-list" not in url:
                 continue
@@ -132,13 +132,13 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
                 continue
 
             if any(w in url.lower() for w in ["japan", "jp-"]):
-                urls_to_crawl[CountryMetaFormat.ASIA].append((matching_meta_format, url))
+                urls_to_crawl[MetaFormatRegion.ASIA].append((matching_meta_format, url))
             elif any(w in url.lower() for w in ["english", "en-"]):
-                urls_to_crawl[CountryMetaFormat.WEST].append((matching_meta_format, url))
+                urls_to_crawl[MetaFormatRegion.WEST].append((matching_meta_format, url))
             else:
-                self.logger.error(f"url {url} could not be matched to any of {CountryMetaFormat.to_list()}")
+                self.logger.error(f"url {url} could not be matched to any of {MetaFormatRegion.to_list()}")
 
-        for country_meta_format, meta_format_and_urls in urls_to_crawl.items():
+        for meta_format_region, meta_format_and_urls in urls_to_crawl.items():
             for meta_format, url in meta_format_and_urls:
                 yield scrapy.Request(url=url,
                                      callback=self.parse_decklist_meta_page,
@@ -146,20 +146,20 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
                                      meta={
                                          # 'dont_redirect': True,
                                          # 'handle_httpstatus_list': [302],
-                                         'country_meta_format': country_meta_format,
+                                         'meta_format_region': meta_format_region,
                                          'meta_format': meta_format,
                                      })
 
     def parse_decklist_meta_page(self, response):
         meta_format = response.meta["meta_format"]
-        country_meta_format = response.meta["country_meta_format"]
+        meta_format_region = response.meta["meta_format_region"]
         table_html = response.xpath("//table").get()
         table_url = response.request.url
 
-        yield self.parse_html_table(table_html, table_url, meta_format, country_meta_format)
+        yield self.parse_html_table(table_html, table_url, meta_format, meta_format_region)
 
     def parse_html_table(self, table_html: str, table_url: str, meta_format: MetaFormat,
-                         country_meta_format: CountryMetaFormat) -> OpTopDecksItem:
+                         meta_format_region: MetaFormatRegion) -> OpTopDecksItem:
         soup = BeautifulSoup(table_html, 'html.parser')
         header_cells = soup.select('thead th')
 
@@ -215,7 +215,7 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
                 is_online=None,
                 phases=[],
                 meta_format=meta_format,
-                country_meta_format=country_meta_format,
+                meta_format_region=meta_format_region,
                 official=True,
                 source=DataSource.OP_TOP_DECKS,
                 tournament_timestamp=tournament_datetime
