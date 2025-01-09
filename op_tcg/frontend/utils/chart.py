@@ -427,6 +427,8 @@ def create_time_range_chart(data: list[TimeRangeValue],
     Returns:
 
     """
+    assert len(data) > 0, "No data available"
+
     rounder_corners_css = css_rule_to_dict(read_style_sheet("chart", selector=".rounded-corners"))
 
     text_color = "#ffffff" if ST_THEME["base"] == "dark" else "#31333F"

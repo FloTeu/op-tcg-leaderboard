@@ -92,6 +92,7 @@ class TournamentStandingExtended(TournamentStanding, Tournament):
 class TournamentDecklist(BQTableBaseModel):
     """Read only dataclass to extract data from BQ tables"""
     leader_id: str = Field(description="The op tcg leader id e.g. OP03-099")
+    tournament_id: str = Field(description="Unique id of single tournament", primary_key=True)
     decklist: dict[str, int] = Field(description="Used decklist in this tournament. The key is the card id e.g. OP01-006 and the value is the number of cards in the deck")
     placing: int | None = Field(description="The player's final placing in the tournament.")
     player_id: str = Field(description="Username/ID used to uniquely identify the player. Does not change between tournaments.")
@@ -110,3 +111,19 @@ class TournamentDecklist(BQTableBaseModel):
             return value
         else:
             raise ValueError("decklist must be a dictionary or a string that represents a dictionary")
+
+
+class TournamentExtended(Tournament):
+    leader_ids_placings: dict[str, list[int]] | None
+    host: str | None = Field(description="Tournament organizer. (from op top deck)")
+    country: str | None = Field(description="Country of match where decklist was used. (from op top deck)")
+
+
+    @field_validator('leader_ids_placings', mode="before")
+    def parse_dicts(cls, value):
+        if isinstance(value, str):
+            return cls.str2dict(value)
+        elif isinstance(value, dict) or value is None:
+            return value
+        else:
+            raise ValueError("leader_ids_placings must be a dictionary or a string that represents a dictionary")

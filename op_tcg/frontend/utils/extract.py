@@ -2,6 +2,8 @@ from collections import Counter
 
 import streamlit as st
 from cachetools import TTLCache
+
+from op_tcg.backend.models.bq_classes import BQTableBaseModel
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.cards import LatestCardPrice, CardPopularity, Card, CardReleaseSet, ExtendedCardData, \
     CardCurrency
@@ -10,7 +12,7 @@ from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import Leader, TournamentWinner, LeaderElo, LeaderExtended
 from op_tcg.backend.models.matches import Match, LeaderWinRate
 from op_tcg.backend.models.tournaments import TournamentStanding, Tournament, TournamentStandingExtended, \
-    TournamentDecklist
+    TournamentDecklist, TournamentExtended
 from op_tcg.backend.utils.utils import timeit
 from op_tcg.frontend.utils.card_price import get_decklist_price
 from op_tcg.frontend.utils.utils import run_bq_query
@@ -18,9 +20,12 @@ from op_tcg.frontend.utils.utils import run_bq_query
 # maxsize: Number of elements the cache can hold
 CACHE = TTLCache(maxsize=10, ttl=60 * 60 * 24)
 
+def get_bq_table_id(table: type[BQTableBaseModel]) -> str:
+    return f'{st.secrets["gcp_service_account"]["project_id"]}.{table.get_dataset_id()}.{table.__tablename__}'
+
 def get_leader_data() -> list[Leader]:
     # cached for each session
-    leader_data_rows = run_bq_query(f"""SELECT * FROM `{st.secrets["gcp_service_account"]["project_id"]}.{BQDataset.LEADERS}.{Leader.__tablename__}`""")
+    leader_data_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(Leader)}`""")
     bq_leaders = [Leader(**d) for d in leader_data_rows]
     return bq_leaders
 
@@ -29,7 +34,7 @@ def get_match_data(meta_formats: list[MetaFormat], leader_ids: list[str] | None 
     bq_matches: list[Match] = []
     for meta_format in meta_formats:
         # cached for each session
-        match_data_rows = run_bq_query(f"""SELECT * FROM `{st.secrets["gcp_service_account"]["project_id"]}.matches.{Match.__tablename__}` where meta_format = '{meta_format}'""")
+        match_data_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(Match)}` where meta_format = '{meta_format}'""")
         bq_matches.extend([Match(**d) for d in match_data_rows])
 
     if leader_ids:
@@ -41,7 +46,7 @@ def get_leader_win_rate(meta_formats: list[MetaFormat], leader_ids: list[str] | 
     bq_win_rates: list[LeaderWinRate] = []
     for meta_format in meta_formats:
         # cached for each session
-        win_rate_data_rows = run_bq_query(f"""SELECT * FROM `{st.secrets["gcp_service_account"]["project_id"]}.{LeaderWinRate.get_dataset_id()}.{LeaderWinRate.__tablename__}` where meta_format = '{meta_format}'""")
+        win_rate_data_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(LeaderWinRate)}` where meta_format = '{meta_format}'""")
         bq_win_rates.extend([LeaderWinRate(**d) for d in win_rate_data_rows])
 
     if leader_ids:
@@ -54,11 +59,11 @@ def get_leader_extended(meta_formats: list[MetaFormat] | None = None, leader_ids
     if meta_formats:
         for meta_format in meta_formats:
             # cached for each session
-            leader_data_rows = run_bq_query(f"""SELECT * FROM `{st.secrets["gcp_service_account"]["project_id"]}.{LeaderExtended.get_dataset_id()}.{LeaderExtended.__tablename__}` where meta_format = '{meta_format}'""")
+            leader_data_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(LeaderExtended)}` where meta_format = '{meta_format}'""")
             bq_leader_data.extend([LeaderExtended(**d) for d in leader_data_rows])
     else:
         leader_data_rows = run_bq_query(
-            f"""SELECT * FROM `{st.secrets["gcp_service_account"]["project_id"]}.{LeaderExtended.get_dataset_id()}.{LeaderExtended.__tablename__}`""")
+            f"""SELECT * FROM `{get_bq_table_id(LeaderExtended)}`""")
         bq_leader_data.extend([LeaderExtended(**d) for d in leader_data_rows])
 
     if leader_ids:
@@ -74,8 +79,8 @@ def get_tournament_standing_data(meta_formats: list[MetaFormat], leader_id: str 
     for meta_format in meta_formats:
         # cached for each session
         tournament_standing_rows = run_bq_query(f"""
-SELECT t1.*, t2.* EXCEPT (create_timestamp, name) FROM `{st.secrets["gcp_service_account"]["project_id"]}.matches.{TournamentStanding.__tablename__}` t1
-left join `{st.secrets["gcp_service_account"]["project_id"]}.matches.{Tournament.__tablename__}` t2
+SELECT t1.*, t2.* EXCEPT (create_timestamp, name) FROM `{get_bq_table_id(TournamentStanding)}` t1
+left join `{get_bq_table_id(Tournament)}` t2
 on t1.tournament_id = t2.id
 where t2.meta_format = '{meta_format}'""")
         bq_tournament_standings.extend([TournamentStandingExtended(**d) for d in tournament_standing_rows])
@@ -100,10 +105,10 @@ def get_all_tournament_decklist_data() -> list[TournamentDecklist]:
         card_id2card_data = get_card_id_card_data_lookup()
         # cached for each session
         tournament_standing_rows = run_bq_query(f"""
-    SELECT t1.leader_id, COALESCE(t3.decklist, t1.decklist) AS decklist, t1.placing, t1.player_id, t2.meta_format, t2.meta_format_region, t2.tournament_timestamp 
-    FROM `{st.secrets["gcp_service_account"]["project_id"]}.matches.{TournamentStanding.__tablename__}` t1
-    left join `{st.secrets["gcp_service_account"]["project_id"]}.matches.{Tournament.__tablename__}` t2 on t1.tournament_id = t2.id
-    left join `{st.secrets["gcp_service_account"]["project_id"]}.matches.{Decklist.__tablename__}` t3 on t1.decklist_id = t3.id
+    SELECT t1.leader_id, t1.tournament_id, COALESCE(t3.decklist, t1.decklist) AS decklist, t1.placing, t1.player_id, t2.meta_format, COALESCE(t2.meta_format_region, 'west') AS meta_format_region , t2.tournament_timestamp 
+    FROM `{get_bq_table_id(TournamentStanding)}` t1
+    left join `{get_bq_table_id(Tournament)}` t2 on t1.tournament_id = t2.id
+    left join `{get_bq_table_id(Decklist)}` t3 on t1.decklist_id = t3.id
     where
     t1.decklist IS NOT NULL 
     OR t3.decklist IS NOT NULL""")
@@ -116,6 +121,20 @@ def get_all_tournament_decklist_data() -> list[TournamentDecklist]:
         CACHE["TOURNAMENT_DECKLISTS"] = tournament_decklists
         return tournament_decklists
 
+def get_all_tournament_extened_data(meta_formats: list[MetaFormat] | None = None) -> list[TournamentExtended]:
+    if "TOURNAMENT_EXTENDED" in CACHE:
+        tournaments = CACHE["TOURNAMENT_EXTENDED"]
+    else:
+        tournament_extended_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(TournamentExtended)}`""")
+        tournaments: list[TournamentExtended] = []
+        for te in tournament_extended_rows:
+            tournaments.append(TournamentExtended(**te))
+        CACHE["TOURNAMENT_EXTENDED"] = tournaments
+
+    if meta_formats:
+        tournaments = [t for t in tournaments if t.meta_format in meta_formats]
+    return tournaments
+
 def get_leader_elo_data(meta_formats: list[MetaFormat] | None=None) -> list[LeaderElo]:
     """First element is leader with best elo.
     """
@@ -123,11 +142,11 @@ def get_leader_elo_data(meta_formats: list[MetaFormat] | None=None) -> list[Lead
     if meta_formats:
         for meta_format in meta_formats:
             # cached for each session
-            leader_elo_rows = run_bq_query(f"""SELECT * FROM `{st.secrets["gcp_service_account"]["project_id"]}.{LeaderElo.get_dataset_id()}.{LeaderElo.__tablename__}` where meta_format = '{meta_format}' order by elo desc""")
+            leader_elo_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(LeaderElo)}` where meta_format = '{meta_format}' order by elo desc""")
             bq_leader_elos.extend([LeaderElo(**d) for d in leader_elo_rows])
     else:
         leader_elo_rows = run_bq_query(
-            f"""SELECT * FROM `{st.secrets["gcp_service_account"]["project_id"]}.{LeaderElo.get_dataset_id()}.{LeaderElo.__tablename__}` order by elo desc""")
+            f"""SELECT * FROM `{get_bq_table_id(LeaderElo)}` order by elo desc""")
         bq_leader_elos.extend([LeaderElo(**d) for d in leader_elo_rows])
     bq_leader_elos.sort(key=lambda x: x.elo, reverse=True)
     return bq_leader_elos
@@ -140,25 +159,25 @@ def get_leader_tournament_wins(meta_formats: list[MetaFormat] | None=None) -> li
     if meta_formats:
         for meta_format in meta_formats:
             # cached for each session
-            leader_wins_rows = run_bq_query(f"""SELECT * FROM `{st.secrets["gcp_service_account"]["project_id"]}.{TournamentWinner.get_dataset_id()}.{TournamentWinner.__tablename__}` where meta_format = '{meta_format}'""")
+            leader_wins_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(TournamentWinner)}` where meta_format = '{meta_format}'""")
             bq_leader_tournament_wins.extend([TournamentWinner(**d) for d in leader_wins_rows])
     else:
         leader_wins_rows = run_bq_query(
-            f"""SELECT * FROM `{st.secrets["gcp_service_account"]["project_id"]}.{TournamentWinner.get_dataset_id()}.{TournamentWinner.__tablename__}`""")
+            f"""SELECT * FROM `{get_bq_table_id(TournamentWinner)}`""")
         bq_leader_tournament_wins.extend([TournamentWinner(**d) for d in leader_wins_rows])
     return bq_leader_tournament_wins
 
 def get_card_data() -> list[LatestCardPrice]:
     latest_card_rows = run_bq_query(
             f"""SELECT t0.*, t1.* except(id, name, language, create_timestamp) 
-            FROM `{st.secrets["gcp_service_account"]["project_id"]}.{LatestCardPrice.get_dataset_id()}.{LatestCardPrice.__tablename__}` t0
-            LEFT JOIN `{st.secrets["gcp_service_account"]["project_id"]}.{LatestCardPrice.get_dataset_id()}.{CardReleaseSet.__tablename__}` t1 on t0.release_set_id = t1.id
+            FROM `{get_bq_table_id(LatestCardPrice)}` t0
+            LEFT JOIN `{get_bq_table_id(CardReleaseSet)}` t1 on t0.release_set_id = t1.id
     """)
     return [ExtendedCardData(**d) for d in latest_card_rows]
 
 def get_card_popularity_data() -> list[CardPopularity]:
     latest_card_rows = run_bq_query(
-            f"""SELECT * FROM `{st.secrets["gcp_service_account"]["project_id"]}.{CardPopularity.get_dataset_id()}.{CardPopularity.__tablename__}`""")
+            f"""SELECT * FROM `{get_bq_table_id(CardPopularity)}`""")
     return [CardPopularity(**d) for d in latest_card_rows]
 
 def get_card_popularity_by_meta(card_id: str, until_meta_format: MetaFormat | None = None) -> dict[MetaFormat, float]:
@@ -184,7 +203,7 @@ def get_meta_format_to_num_decklists() -> dict[MetaFormat, int]:
 
 def get_card_types() -> list[str]:
     latest_card_rows = run_bq_query(
-            f"""SELECT DISTINCT(types) FROM `{st.secrets["gcp_service_account"]["project_id"]}.{Card.get_dataset_id()}.{Card.__tablename__}` c, UNNEST(c.types) AS types """)
+            f"""SELECT DISTINCT(types) FROM `{get_bq_table_id(Card)}` c, UNNEST(c.types) AS types """)
     return [d["types"] for d in latest_card_rows]
 
 

@@ -15,7 +15,7 @@ from op_tcg.backend.models.cards import ExtendedCardData, CardCurrency, LatestCa
 from op_tcg.backend.models.input import MetaFormat, meta_format2release_datetime, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.matches import LeaderWinRate
-from op_tcg.backend.models.tournaments import TournamentDecklist
+from op_tcg.backend.models.tournaments import TournamentDecklist, TournamentExtended
 from op_tcg.frontend.sidebar import display_leader_select, display_meta_select, display_only_official_toggle, \
     display_meta_format_region
 from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER, Q_PARAM_EASIEST_OPPONENT, Q_PARAM_HARDEST_OPPONENT
@@ -25,7 +25,8 @@ from op_tcg.frontend.utils.chart import create_leader_line_chart, LineChartYValu
 from op_tcg.frontend.utils.decklist import DecklistData, tournament_standings2decklist_data, \
     decklist_data_to_card_ids, get_most_similar_leader_data, SimilarLeaderData, \
     DecklistFilter, filter_tournament_decklists, get_best_matching_decklist
-from op_tcg.frontend.utils.extract import get_leader_extended, get_leader_win_rate, get_tournament_decklist_data, get_card_id_card_data_lookup
+from op_tcg.frontend.utils.extract import get_leader_extended, get_leader_win_rate, get_tournament_decklist_data, \
+    get_card_id_card_data_lookup, get_all_tournament_extened_data
 from op_tcg.frontend.utils.js import is_mobile
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid, lname_and_lid_to_lid, get_win_rate_dataframes, \
     get_lid2ldata_dict_cached
@@ -88,7 +89,7 @@ def get_leader_data(matchups: list[Matchup], leader_extended_data: list[LeaderEx
 
 
 def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: list[LeaderExtended], radar_chart_data,
-                             tournament_decklists: list[TournamentDecklist], opponent_matchups: OpponentMatchups,
+                             tournament_decklists: list[TournamentDecklist], tournaments: list[TournamentExtended], opponent_matchups: OpponentMatchups,
                              lid2similar_leader_data: dict[str, SimilarLeaderData]):
     cid2cdata_dict = get_card_id_card_data_lookup()
 
@@ -229,12 +230,13 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
             display_cards_view(similar_leader_data.cards_missing, cid2cdata_dict, title="Missing cards:")
 
     with tab3:
-        display_tournament_view(tournament_decklists)
+        display_tournament_view(leader_data.id, tournament_decklists, tournaments)
 
 @st.fragment
-def display_tournament_view(tournament_decklists):
+def display_tournament_view(leader_id: str, tournament_decklists: list[TournamentDecklist], tournaments: list[TournamentExtended]):
     st.subheader("Tournaments")
     meta_format_region: MetaFormatRegion = display_meta_format_region(multiselect=False)[0]
+    tournament_ids: list[str] = []
     day_count: dict[date, int] = {}
     for td in tournament_decklists:
         if meta_format_region != MetaFormatRegion.ALL and td.meta_format_region != meta_format_region:
@@ -244,13 +246,44 @@ def display_tournament_view(tournament_decklists):
         elif not isinstance(td.tournament_timestamp, datetime):
             continue
 
+        tournament_ids.append(td.tournament_id)
         t_date = td.tournament_timestamp.date()
         if t_date in day_count:
             day_count[t_date] += 1
         else:
             day_count[t_date] = 1
+
+    tournaments_with_win = []
+    for t in tournaments:
+        if meta_format_region != MetaFormatRegion.ALL and t.meta_format_region != meta_format_region:
+            continue
+        if leader_id not in t.leader_ids_placings:
+            continue
+        elif 1 not in t.leader_ids_placings[leader_id]:
+            continue
+        tournaments_with_win.append(t)
+
     data = [TimeRangeValue(day=day_date, value=count) for day_date, count in day_count.items()]
-    create_time_range_chart(data)
+    st.write("#### Tournament Wins")
+    st.write(f"""
+    In total: {len(tournaments_with_win)}
+""")
+    if len(data) == 0:
+        st.warning("No tournament wins found")
+    else:
+        create_time_range_chart(data)
+
+    st.write("#### Tournaments")
+    selected_tournament_name = st.selectbox("Tournament", [t.name for t in tournaments_with_win])
+    selected_tournament = [t for t in tournaments_with_win if t.name == selected_tournament_name][0]
+    st.write(f"""
+Name: {selected_tournament.name}  
+ID: {selected_tournament.id}  
+Number Players: {selected_tournament.num_players}  
+Placing: {selected_tournament.leader_ids_placings[leader_id]}  
+""")
+
+
 
 
 @st.fragment
@@ -481,6 +514,8 @@ def main_leader_detail_analysis():
         # Get decklist data
         tournament_decklists: list[TournamentDecklist] = get_tournament_decklist_data(
             meta_formats=selected_meta_formats, leader_ids=[leader_extended.id])
+        # get tournament data
+        tournaments: list[TournamentExtended] = get_all_tournament_extened_data(meta_formats=selected_meta_formats)
         # Get color matchup radar plot data
         leader_ids = list(
             set([leader_extended.id, *[matchup.leader_id for matchup in opponent_matchups.hardest_matchups],
@@ -490,6 +525,6 @@ def main_leader_detail_analysis():
         radar_chart_data: list[dict[str, str | float]] = get_radar_chart_data(df_color_win_rates)
 
         display_leader_dashboard(leader_extended, leader_extended_data, radar_chart_data, tournament_decklists,
-                                 opponent_matchups, lid2similar_leader_data)
+                                 tournaments, opponent_matchups, lid2similar_leader_data)
     else:
         st.warning(f"No data available for Leader {leader_id}")
