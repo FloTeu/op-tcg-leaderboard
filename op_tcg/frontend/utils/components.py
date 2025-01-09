@@ -13,6 +13,7 @@ class NivoChartType(StrEnum):
     LINE = "ResponsiveLine"
     HEAT_MAP = "ResponsiveHeatMap"
     RADAR = "ResponsiveRadar"
+    TIME_RANGE = "ResponsiveTimeRange"
 
 
 # Create a _RELEASE constant. We'll set this to False while we're developing

@@ -1,7 +1,9 @@
 from enum import StrEnum
 from typing import Any
+from datetime import date
 
 import pandas as pd
+from pydantic import BaseModel, field_validator
 from streamlit_elements import nivo
 
 from op_tcg.backend.models.cards import OPTcgColor
@@ -21,6 +23,18 @@ class LineChartYValue(StrEnum):
     ELO = "elo"
     WIN_RATE = "win_rate"
     WIN_RATE_DECIMAL = "win_rate_decimal"
+
+class TimeRangeValue(BaseModel):
+    day: date | str
+    value: int
+
+
+    @field_validator('day', mode='after')
+    @classmethod
+    def ensure_str(cls, value: date | str) -> str:
+        if isinstance(value, date):
+            return str(value)
+        return value
 
 
 def create_leader_line_chart(leader_id: str,
@@ -394,6 +408,76 @@ def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]
     nivo_chart(data, chart_type=NivoChartType.STREAM, layout=layout, layout_callables=layout_callables, styles=styles,
                custom_html=custom_html)
 
+
+def create_time_range_chart(data: list[TimeRangeValue],
+                           legend_data: list[dict[str: float | int]] | None = None,
+                           data_keys: list[str] | None = None,
+                           x_tick_labels: list[str] | None = None,
+                           enable_y_axis: bool = False,
+                           title: str | None = None):
+    """
+
+    Args:
+        data ():
+        legend_data (): Optional, data which is only used for displaying the legend and axis. Same format as data
+        data_keys ():
+        x_tick_labels ():
+        title ():
+
+    Returns:
+
+    """
+    rounder_corners_css = css_rule_to_dict(read_style_sheet("chart", selector=".rounded-corners"))
+
+    text_color = "#ffffff" if ST_THEME["base"] == "dark" else "#31333F"
+
+    layout = {
+        "from": min([d.day for d in data]),
+        "to": max([d.day for d in data]),
+        "emptyColor": "#eeeeee",
+        "colors": [ '#61cdbb', '#97e3d5', '#e8c1a0', '#f47560' ],
+        "margin": { "top": 40, "right": 40, "bottom": 100, "left": 40 },
+        "dayBorderWidth": 2,
+        "dayBorderColor": "#000000",
+        "legends": [
+            {
+                "anchor": 'bottom-right',
+                "direction": 'row',
+                "justify": False,
+                "itemCount": 4,
+                "itemWidth": 42,
+                "itemHeight": 36,
+                "itemsSpacing": 14,
+                "itemDirection": 'right-to-left',
+                "translateX": -60,
+                "translateY": -60,
+                "symbolSize": 20
+            }
+        ],
+        "theme": {
+            "background": "#2C3A47" if ST_THEME["base"] == "dark" else "#ffffff",
+            "tooltip": {
+                "container": {
+                    "background": "#FFFFFF",
+                    "color": "#31333F",
+                }
+            },
+            "text": {
+                "fill": text_color
+            },
+            "legends": {
+                "text": {
+                    "fontSize": 16
+                },
+            },
+        }
+    }
+    styles = {
+        "height": "400px",
+        **rounder_corners_css,
+    }
+    data = [d.model_dump() for d in data]
+    nivo_chart(data, chart_type=NivoChartType.TIME_RANGE, layout=layout, styles=styles)
 
 def create_card_leader_occurrence_stream_chart_old(data, data_keys: list[str] | None = None,
                                                    x_tick_values: list[str] | None = None):

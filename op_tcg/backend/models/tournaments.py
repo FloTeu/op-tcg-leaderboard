@@ -96,6 +96,7 @@ class TournamentDecklist(BQTableBaseModel):
     placing: int | None = Field(description="The player's final placing in the tournament.")
     player_id: str = Field(description="Username/ID used to uniquely identify the player. Does not change between tournaments.")
     meta_format: MetaFormat | str = Field(description="Meta in which tournament happened, e.g. OP06")
+    meta_format_region: MetaFormatRegion | None = Field(MetaFormatRegion.WEST, description="The country area, which defines which meta format is available")
     tournament_timestamp: datetime = Field(description="Scheduled tournament start set by the organizer.")
     price_eur: float | None = Field(None, description="Sum of all card prices in decklist")
     price_usd: float | None = Field(None, description="Sum of all card prices in decklist")

@@ -9,6 +9,7 @@ import { ResponsiveBar } from '@nivo/bar';
 import { ResponsiveRadar } from '@nivo/radar'
 import { ResponsiveLine } from '@nivo/line'
 import { ResponsiveHeatMap } from '@nivo/heatmap'
+import { ResponsiveTimeRange } from '@nivo/calendar'
 import DOMPurify from 'dompurify';
 import { extractObjectFromLegendHtml, updateLegendHtmlValues } from "./utils/htmlTransformer"
 import { findEquivalentIndex } from "./utils/utils"
@@ -20,6 +21,7 @@ type NivoChartComponents = {
   ResponsiveRadar: typeof ResponsiveRadar;
   ResponsiveLine: typeof ResponsiveLine;
   ResponsiveHeatMap: typeof ResponsiveHeatMap;
+  ResponsiveTimeRange: typeof ResponsiveTimeRange;
   // Add more components as needed
 };
 
@@ -30,6 +32,7 @@ const NivoCharts: NivoChartComponents = {
   ResponsiveRadar,
   ResponsiveLine,
   ResponsiveHeatMap,
+  ResponsiveTimeRange
 };
 
 interface State {

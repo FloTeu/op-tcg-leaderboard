@@ -12,15 +12,16 @@ from streamlit.errors import StreamlitDuplicateElementId
 from streamlit_elements import elements, mui
 
 from op_tcg.backend.models.cards import ExtendedCardData, CardCurrency, LatestCardPrice
-from op_tcg.backend.models.input import MetaFormat, meta_format2release_datetime
+from op_tcg.backend.models.input import MetaFormat, meta_format2release_datetime, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.matches import LeaderWinRate
 from op_tcg.backend.models.tournaments import TournamentDecklist
-from op_tcg.frontend.sidebar import display_leader_select, display_meta_select, display_only_official_toggle
+from op_tcg.frontend.sidebar import display_leader_select, display_meta_select, display_only_official_toggle, \
+    display_meta_format_region
 from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER, Q_PARAM_EASIEST_OPPONENT, Q_PARAM_HARDEST_OPPONENT
 from op_tcg.frontend.sub_pages.utils import sub_page_title_to_url_path
 from op_tcg.frontend.utils.chart import create_leader_line_chart, LineChartYValue, create_leader_win_rate_radar_chart, \
-    get_radar_chart_data, create_line_chart, get_fillup_meta_formats
+    get_radar_chart_data, create_line_chart, get_fillup_meta_formats, create_time_range_chart, TimeRangeValue
 from op_tcg.frontend.utils.decklist import DecklistData, tournament_standings2decklist_data, \
     decklist_data_to_card_ids, get_most_similar_leader_data, SimilarLeaderData, \
     DecklistFilter, filter_tournament_decklists, get_best_matching_decklist
@@ -139,7 +140,7 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
         create_leader_win_rate_radar_chart(radar_chart_data, [leader_data.id],
                                            colors=[leader_data.to_hex_color()], styles=styles)
 
-    tab1, tab2 = st.tabs(["Opponents", "Decklist"])
+    tab1, tab2, tab3 = st.tabs(["Opponents", "Decklist", "Tournaments"])
     with tab1:
         col1, col2, col3 = st.columns([0.3, 0.3, 0.3])
         with col1:
@@ -226,6 +227,30 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
 
             display_cards_view(similar_leader_data.cards_intersection, cid2cdata_dict, title="Cards in both decks:")
             display_cards_view(similar_leader_data.cards_missing, cid2cdata_dict, title="Missing cards:")
+
+    with tab3:
+        display_tournament_view(tournament_decklists)
+
+@st.fragment
+def display_tournament_view(tournament_decklists):
+    st.subheader("Tournaments")
+    meta_format_region: MetaFormatRegion = display_meta_format_region(multiselect=False)[0]
+    day_count: dict[date, int] = {}
+    for td in tournament_decklists:
+        if meta_format_region != MetaFormatRegion.ALL and td.meta_format_region != meta_format_region:
+            continue
+        elif td.placing != 1:
+            continue
+        elif not isinstance(td.tournament_timestamp, datetime):
+            continue
+
+        t_date = td.tournament_timestamp.date()
+        if t_date in day_count:
+            day_count[t_date] += 1
+        else:
+            day_count[t_date] = 1
+    data = [TimeRangeValue(day=day_date, value=count) for day_date, count in day_count.items()]
+    create_time_range_chart(data)
 
 
 @st.fragment
