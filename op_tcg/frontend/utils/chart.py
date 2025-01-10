@@ -1,6 +1,6 @@
 from enum import StrEnum
 from typing import Any
-from datetime import date
+from datetime import date, timedelta, datetime
 
 import pandas as pd
 from pydantic import BaseModel, field_validator
@@ -409,12 +409,7 @@ def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]
                custom_html=custom_html)
 
 
-def create_time_range_chart(data: list[TimeRangeValue],
-                           legend_data: list[dict[str: float | int]] | None = None,
-                           data_keys: list[str] | None = None,
-                           x_tick_labels: list[str] | None = None,
-                           enable_y_axis: bool = False,
-                           title: str | None = None):
+def create_time_range_chart(data: list[TimeRangeValue]):
     """
 
     Args:
@@ -434,7 +429,7 @@ def create_time_range_chart(data: list[TimeRangeValue],
     text_color = "#ffffff" if ST_THEME["base"] == "dark" else "#31333F"
 
     layout = {
-        "from": min([d.day for d in data]),
+        "from": str(datetime.strptime(min([d.day for d in data]), "%Y-%m-%d").date() - timedelta(days=1)),
         "to": max([d.day for d in data]),
         "emptyColor": "#eeeeee",
         "colors": [ '#61cdbb', '#97e3d5', '#e8c1a0', '#f47560' ],

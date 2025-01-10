@@ -30,6 +30,7 @@ from op_tcg.frontend.utils.extract import get_leader_extended, get_leader_win_ra
 from op_tcg.frontend.utils.js import is_mobile
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid, lname_and_lid_to_lid, get_win_rate_dataframes, \
     get_lid2ldata_dict_cached
+from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_cell
 from op_tcg.frontend.utils.query_params import get_default_leader_name, \
     delete_query_param, add_query_param
 from op_tcg.frontend.utils.styles import read_style_sheet, css_rule_to_dict
@@ -89,7 +90,8 @@ def get_leader_data(matchups: list[Matchup], leader_extended_data: list[LeaderEx
 
 
 def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: list[LeaderExtended], radar_chart_data,
-                             tournament_decklists: list[TournamentDecklist], tournaments: list[TournamentExtended], opponent_matchups: OpponentMatchups,
+                             tournament_decklists: list[TournamentDecklist], tournaments: list[TournamentExtended],
+                             opponent_matchups: OpponentMatchups,
                              lid2similar_leader_data: dict[str, SimilarLeaderData]):
     cid2cdata_dict = get_card_id_card_data_lookup()
 
@@ -230,10 +232,17 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
             display_cards_view(similar_leader_data.cards_missing, cid2cdata_dict, title="Missing cards:")
 
     with tab3:
-        display_tournament_view(leader_data.id, tournament_decklists, tournaments)
+        display_tournament_view(leader_data.id, tournament_decklists, tournaments, cid2cdata_dict)
+
 
 @st.fragment
-def display_tournament_view(leader_id: str, tournament_decklists: list[TournamentDecklist], tournaments: list[TournamentExtended]):
+def display_tournament_view(leader_id: str, tournament_decklists: list[TournamentDecklist],
+                            tournaments: list[TournamentExtended], cid2cdata_dict):
+    def _get_tournament_share(placings: list[int], num_players: int | None) -> float:
+        if num_players is None:
+            return 0
+        return len(placings) / num_players
+
     st.subheader("Tournaments")
     meta_format_region: MetaFormatRegion = display_meta_format_region(multiselect=False)[0]
     tournament_ids: list[str] = []
@@ -272,18 +281,50 @@ def display_tournament_view(leader_id: str, tournament_decklists: list[Tournamen
         st.warning("No tournament wins found")
     else:
         create_time_range_chart(data)
+        selected_tournament_name = st.selectbox("Tournament", [t.name for t in tournaments_with_win])
+        selected_tournament = [t for t in tournaments_with_win if t.name == selected_tournament_name][0]
+        st.write(f"""
+    Name: {selected_tournament.name}  {f'''
+    Host: {selected_tournament.host}  ''' if selected_tournament.host else ""}{f'''
+    Country: {selected_tournament.country}  ''' if selected_tournament.host else ""}
+    Number Players: {selected_tournament.num_players if selected_tournament.num_players else "unknown"}  
+    Winner: {cid2cdata_dict[leader_id].name} ({leader_id})  
+    Date: {selected_tournament.tournament_timestamp.date() if isinstance(selected_tournament.tournament_timestamp, datetime) else "unknown"} 
+        """)
 
-    st.write("#### Tournaments")
-    selected_tournament_name = st.selectbox("Tournament", [t.name for t in tournaments_with_win])
-    selected_tournament = [t for t in tournaments_with_win if t.name == selected_tournament_name][0]
-    st.write(f"""
-Name: {selected_tournament.name}  
-ID: {selected_tournament.id}  
-Number Players: {selected_tournament.num_players}  
-Placing: {selected_tournament.leader_ids_placings[leader_id]}  
-""")
+        lid2tournament_share = {lid: _get_tournament_share(placings, selected_tournament.num_players) for lid, placings in
+                                selected_tournament.leader_ids_placings.items()}
+        lid2tournament_share_sorted = dict(sorted(lid2tournament_share.items(), key=lambda item: item[1], reverse=True))
+
+        display_tournament_participants(lid2tournament_share_sorted, cid2cdata_dict)
 
 
+def display_tournament_participants(lid2tournament_share_sorted, cid2cdata_dict):
+    st.write("###### Participating leaders")
+    st.info("The percentage represents the share of the leader in relation to the number of participants in the tournament")
+    with elements("leader_images"):
+        def _get_table_cell(lid: str, tournament_share: float):
+            cdata = cid2cdata_dict[lid]
+            img_url = cdata.image_url
+            overlay_color = cdata.to_hex_color()
+            text = "" if tournament_share == 0 else f"{(float('%.4f' % tournament_share) * 100)}"[:5] + "%"
+            return create_image_cell(img_url, text=text, overlay_color=overlay_color, sx={
+                'backgroundPosition': 'bottom, center -26px',
+                'height': '160px'
+            })
+
+        cols = 4
+        df_dict = {f"col_{i}": [] for i in range(cols)}
+        for i, (lid, share) in enumerate(lid2tournament_share_sorted.items()):
+            col = f"col_{i % cols}"
+            df_dict[col].append(_get_table_cell(lid, share))
+        last_added_col = int(col.split("_")[1])
+        for j in range(cols):
+            if j > last_added_col:
+                df_dict[f"col_{j % cols}"].append(mui.TableCell(""))
+
+        df = pd.DataFrame(df_dict)
+        display_table(df, header_cells=[mui.TableCell("") for _ in range(df.shape[1])])
 
 
 @st.fragment
@@ -417,10 +458,11 @@ def display_opponent_view(selected_opponent_id: str, matchups: list[Matchup],
         with mui.Box():
             try:
                 create_line_chart(opponent_matchup.win_rate_chart_data, data_id="WR", enable_x_axis=True,
-                                  enable_y_axis=False, styles=styles, fillup_meta_formats=get_fillup_meta_formats(opponent_matchup.win_rate_chart_data), use_custom_component=True)
+                                  enable_y_axis=False, styles=styles,
+                                  fillup_meta_formats=get_fillup_meta_formats(opponent_matchup.win_rate_chart_data),
+                                  use_custom_component=True)
             except StreamlitDuplicateElementId:
                 st.warning("Win rate chart could not be loaded")
-
 
 
 def get_best_and_worst_opponent(df_meta_win_rate_data, meta_formats: list[MetaFormat],
