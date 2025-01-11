@@ -7,6 +7,7 @@ from op_tcg.backend.utils.leader_fns import df_win_rate_data2lid_dicts
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader, LeaderExtended
 from op_tcg.backend.models.matches import LeaderWinRate
+from op_tcg.frontend.sub_pages.constants import Q_PARAM_LEADER_ID
 from op_tcg.frontend.utils.chart import get_radar_chart_data, create_leader_win_rate_radar_chart
 from op_tcg.frontend.utils.extract import get_leader_win_rate, get_leader_extended
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select, display_only_official_toggle
@@ -178,7 +179,7 @@ def main_meta_analysis():
         # available_leader_ids = lids_to_name_and_lids(list(dict.fromkeys(sorted_leader_ids_by_win_rate)))
 
         with st.sidebar:
-            default_leader_names = get_default_leader_names(available_leader_ids, query_param="lid")
+            default_leader_names = get_default_leader_names(available_leader_ids, query_param=Q_PARAM_LEADER_ID)
             if len(set(available_leader_names) - set(default_leader_names)) == 0:
                 default_leader_names = default_leader_names[0:5]
             selected_leader_names: list[str] = display_leader_select(available_leader_names=available_leader_names,
@@ -186,7 +187,7 @@ def main_meta_analysis():
                                                                      key="selected_lids",
                                                                      on_change=partial(add_qparam_on_change_fn,
                                                                                        qparam2session_key={
-                                                                                           "lid": "selected_lids"}))
+                                                                                           Q_PARAM_LEADER_ID: "selected_lids"}))
         if len(selected_leader_names) < 2:
             st.warning("Please select at least two leaders")
         else:

@@ -1,5 +1,7 @@
 import streamlit as st
 
+from op_tcg.frontend.sub_pages.Leader_Detail_Analysis import add_qparam_on_change_fn
+
 st.set_page_config(layout="wide")
 
 from op_tcg.frontend.sub_pages.utils import sub_page_title_to_url_path
@@ -17,7 +19,7 @@ from uuid import uuid4
 
 from op_tcg.frontend.utils.chart import LineChartYValue, create_leader_line_chart
 from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER_MATCHUP, SUB_PAGE_CARD_POPULARITY, SUB_PAGE_LEADER, \
-    SUB_PAGE_LEADER_CARD_MOVEMENT, Q_PARAM_LEADER_ID
+    SUB_PAGE_LEADER_CARD_MOVEMENT, Q_PARAM_LEADER_ID, Q_PARAM_META
 from op_tcg.backend.utils.utils import booleanize
 from op_tcg.backend.etl.load import bq_insert_rows, get_or_create_table
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
@@ -82,7 +84,10 @@ def display_leaderboard_table(df_leader_extended: LeaderExtended.paSchema(), met
                               display_name2df_col_name: dict[str, str], only_official: bool = True, key="leaderboard_table"):
     # Define a callback function to handle link click
     def open_leader_page(leader_id: str):
+        meta_format = st.query_params.get(Q_PARAM_META, None)
         url = f"/{sub_page_title_to_url_path(SUB_PAGE_LEADER)}?{Q_PARAM_LEADER_ID}={leader_id}"
+        if meta_format:
+            url = f"{url}&{Q_PARAM_META}={meta_format}"
         script = f'parent.window.open("{url}", "_self")'
         execute_js_code(script)
 
@@ -290,7 +295,12 @@ def main():
             st.session_state["launch_succeeded"] = True
 
     with st.sidebar:
-        meta_format: MetaFormat = display_meta_select(multiselect=False)[0]
+        meta_format: MetaFormat = display_meta_select(multiselect=False,
+                                                      on_change=partial(add_qparam_on_change_fn,
+                                                                       qparam2session_key={
+                                                                           Q_PARAM_META: "selected_meta_format"}),
+                                                      key="selected_meta_format",
+                                                      )[0]
         meta_format_region: MetaFormatRegion = display_meta_format_region(multiselect=False)[0]
         release_meta_formats: list[MetaFormat] | None = display_release_meta_select(multiselect=True)
         selected_leader_colors: list[OPTcgColor] | None = display_leader_color_multiselect()

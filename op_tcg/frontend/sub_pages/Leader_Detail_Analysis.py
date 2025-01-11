@@ -18,7 +18,8 @@ from op_tcg.backend.models.matches import LeaderWinRate
 from op_tcg.backend.models.tournaments import TournamentDecklist, TournamentExtended
 from op_tcg.frontend.sidebar import display_leader_select, display_meta_select, display_only_official_toggle, \
     display_meta_format_region
-from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER, Q_PARAM_EASIEST_OPPONENT, Q_PARAM_HARDEST_OPPONENT
+from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER, Q_PARAM_EASIEST_OPPONENT, Q_PARAM_HARDEST_OPPONENT, \
+    Q_PARAM_LEADER_ID, Q_PARAM_META
 from op_tcg.frontend.sub_pages.utils import sub_page_title_to_url_path
 from op_tcg.frontend.utils.chart import create_leader_line_chart, LineChartYValue, create_leader_win_rate_radar_chart, \
     get_radar_chart_data, create_line_chart, get_fillup_meta_formats, create_time_range_chart, TimeRangeValue
@@ -58,7 +59,7 @@ class DecklistPrices(BaseModel):
 
 def add_qparam_on_change_fn(qparam2session_key: dict[str, str], reset_query_params: bool = False):
     for qparam, session_key in qparam2session_key.items():
-        if qparam in ["lid", Q_PARAM_EASIEST_OPPONENT, Q_PARAM_HARDEST_OPPONENT]:
+        if qparam in [Q_PARAM_LEADER_ID, Q_PARAM_EASIEST_OPPONENT, Q_PARAM_HARDEST_OPPONENT]:
             qparam_value: str = lname_and_lid_to_lid(st.session_state.get(session_key, ""))
             add_query_param(qparam, qparam_value)
         else:
@@ -504,7 +505,12 @@ def get_best_and_worst_opponent(df_meta_win_rate_data, meta_formats: list[MetaFo
 
 def main_leader_detail_analysis():
     with st.sidebar:
-        selected_meta_formats: list[MetaFormat] = display_meta_select(multiselect=True)
+        selected_meta_formats: list[MetaFormat] = display_meta_select(multiselect=True,
+                                                      default=st.query_params.get(Q_PARAM_META, None),
+                                                      on_change=partial(add_qparam_on_change_fn,
+                                                                       qparam2session_key={
+                                                                           Q_PARAM_META: "selected_meta_format"}),
+                                                      key="selected_meta_format")
 
     if len(selected_meta_formats) == 0:
         st.warning("Please select at least one meta format")

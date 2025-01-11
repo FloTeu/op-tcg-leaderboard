@@ -22,16 +22,21 @@ class LeaderCardMovementSortBy(EnumBase, StrEnum):
     CARD_MOVEMENT_LOSER = "Loser"
 
 
-def display_meta_select(multiselect: bool = True, key: str | None = None, label: str="Meta", reverse=True, default: MetaFormat | None = None) -> list[MetaFormat]:
+def display_meta_select(multiselect: bool = True,
+                        key: str | None = None,
+                        label: str="Meta",
+                        reverse=True,
+                        on_change: Callable[..., None] | None = None,
+                        default: MetaFormat | None = None) -> list[MetaFormat]:
     all_metas = MetaFormat.to_list()
     default = default or get_latest_released_meta_format_with_data()
     if reverse:
         all_metas = sorted(all_metas, reverse=reverse)
     if multiselect:
-        return st.multiselect(label, all_metas, default=default, key=key)
+        return st.multiselect(label, all_metas, default=default, on_change=on_change, key=key)
     else:
         index = all_metas.index(default) if default else None
-        return [st.selectbox(label, all_metas, index=index, key=key)]
+        return [st.selectbox(label, all_metas, index=index, on_change=on_change, key=key)]
 
 def display_meta_format_region(multiselect: bool = False, key: str | None = None, label: str= "Meta Region", reverse=True, default: MetaFormatRegion = MetaFormatRegion.ALL) -> list[MetaFormatRegion]:
     all_metas = MetaFormatRegion.to_list()
