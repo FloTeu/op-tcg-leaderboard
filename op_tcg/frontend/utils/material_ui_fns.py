@@ -10,10 +10,12 @@ def display_table(table_cells,
                   index_cells: list[list[Any]] = None,
                   header_cells: list[Any] = None,
                   title=None,
+                  sx=None,
                   key="mui-table"):
     """
     table_cells: DataFrame containing all table cells which should be displayed. Index and headers are also displayed by default
     """
+    sx = sx or {}
     if index_cells:
         for index_cell_col in index_cells:
             assert table_cells.shape[0] == len(index_cell_col)
@@ -27,7 +29,7 @@ def display_table(table_cells,
     with mui.TableContainer(key=key):
         if title:
             mui.Box(html.H2(title), sx={"font-family": '"Source Sans Pro", sans-serif;'})
-        with mui.Table():
+        with mui.Table(sx=sx):
             # header row
             mui.TableHead(mui.TableRow(header_cells))
 
@@ -136,11 +138,13 @@ def value2color_table_cell(value: str | float | int, max_value: float | int, min
     return cell
 
 
-def create_image_cell(image_url, text: str | None = None, overlay_color='#000000', sx: dict = None, horizontal=True,
-                      on_click: Callable | None = None):
+def create_image_cell(image_url, text: str | None = None, overlay_color='#000000', sx: dict = None,
+                      sx_table_cell: dict = None, sx_text: dict = None, horizontal=True, on_click: Callable | None = None):
     # Function to create an image cell in a table with a background image and formatted text
     width = "200px" if horizontal else "auto"
     sx = sx or {}
+    sx_text = sx_text or {}
+    sx_table_cell = sx_table_cell or {}
     text_blocks = []
     if text:
         text_blocks = [mui.Typography(
@@ -158,6 +162,7 @@ def create_image_cell(image_url, text: str | None = None, overlay_color='#000000
         'bottom': 0,
         'right': 0,
         'padding': '8px',
+        **sx_text
     }
     text_element = mui.Link(text_blocks, sx=text_style, onClick=on_click) if on_click else mui.Box(text_blocks,
                                                                                                    sx=text_style)
@@ -180,7 +185,8 @@ def create_image_cell(image_url, text: str | None = None, overlay_color='#000000
             text_element
         ]), sx={'position': 'relative', 'width': "100%"})
         , sx={"padding": "0px",
-              'width': width
+              'width': width,
+              **sx_table_cell
               },
         onClick=on_click
     )

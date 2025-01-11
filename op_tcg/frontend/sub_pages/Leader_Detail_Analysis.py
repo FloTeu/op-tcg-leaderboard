@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from streamlit.errors import StreamlitDuplicateElementId
 from streamlit_elements import elements, mui
 
-from op_tcg.backend.models.cards import ExtendedCardData, CardCurrency, LatestCardPrice
+from op_tcg.backend.models.cards import ExtendedCardData, CardCurrency, LatestCardPrice, Card
 from op_tcg.backend.models.input import MetaFormat, meta_format2release_datetime, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.matches import LeaderWinRate
@@ -233,12 +233,13 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
             display_cards_view(similar_leader_data.cards_missing, cid2cdata_dict, title="Missing cards:")
 
     with tab3:
-        display_tournament_view(leader_data.id, tournament_decklists, tournaments, cid2cdata_dict)
+        leader_extended_dict = {le.id: le for le in leader_extended_data}
+        display_tournament_view(leader_data.id, tournament_decklists, tournaments, leader_extended_dict, cid2cdata_dict)
 
 
 @st.fragment
 def display_tournament_view(leader_id: str, tournament_decklists: list[TournamentDecklist],
-                            tournaments: list[TournamentExtended], cid2cdata_dict):
+                            tournaments: list[TournamentExtended], leader_extended_dict: dict[str, LeaderExtended], cid2cdata_dict):
     def _get_tournament_share(placings: list[int], num_players: int | None) -> float:
         if num_players is None:
             return 0
@@ -296,36 +297,55 @@ def display_tournament_view(leader_id: str, tournament_decklists: list[Tournamen
         lid2tournament_share = {lid: _get_tournament_share(placings, selected_tournament.num_players) for lid, placings in
                                 selected_tournament.leader_ids_placings.items()}
         lid2tournament_share_sorted = dict(sorted(lid2tournament_share.items(), key=lambda item: item[1], reverse=True))
+        unknown_leaders_share: float = 0.0
+        if selected_tournament.num_players:
+            num_known_leaders = sum(len(values) for values in selected_tournament.leader_ids_placings.values())
+            unknown_leaders_share = max(0.0, (selected_tournament.num_players - num_known_leaders) / selected_tournament.num_players)
+        display_tournament_participants(lid2tournament_share_sorted, unknown_leaders_share, leader_extended_dict, cid2cdata_dict)
 
-        display_tournament_participants(lid2tournament_share_sorted, cid2cdata_dict)
 
-
-def display_tournament_participants(lid2tournament_share_sorted, cid2cdata_dict):
+def display_tournament_participants(lid2tournament_share_sorted, unknown_leaders_share: float, leader_extended_dict: dict[str, LeaderExtended], cid2cdata_dict):
     st.write("###### Participating leaders")
     st.info("The percentage represents the share of the leader in relation to the number of participants in the tournament")
     with elements("leader_images"):
-        def _get_table_cell(lid: str, tournament_share: float):
-            cdata = cid2cdata_dict[lid]
-            img_url = cdata.image_url
+        def _get_table_cell(lid: str, tournament_share: float, is_unknown: bool = False):
+            if is_unknown:
+                cdata = Card.from_default()
+                img_url = cdata.image_url
+                share_value = f"{(float('%.4f' % tournament_share) * 100)}"[:5]
+                text = f"unknown  {share_value}%"
+            else:
+                cdata = leader_extended_dict[lid]
+                img_url = cdata.aa_image_url
+                text = "" if tournament_share == 0 else f"{(float('%.4f' % tournament_share) * 100)}"[:5] + "%"
             overlay_color = cdata.to_hex_color()
-            text = "" if tournament_share == 0 else f"{(float('%.4f' % tournament_share) * 100)}"[:5] + "%"
             return create_image_cell(img_url, text=text, overlay_color=overlay_color, sx={
                 'backgroundPosition': 'bottom, center -26px',
-                'height': '160px'
-            })
+                'height': '160px',
+                "border-radius": "30%",
+                },
+                sx_table_cell={'border-bottom': 'none', "padding": "10px"},
+                sx_text={'right': '14px'}
+            )
 
         cols = 4
         df_dict = {f"col_{i}": [] for i in range(cols)}
         for i, (lid, share) in enumerate(lid2tournament_share_sorted.items()):
             col = f"col_{i % cols}"
             df_dict[col].append(_get_table_cell(lid, share))
+        if unknown_leaders_share:
+            i += 1
+            col = f"col_{i % cols}"
+            df_dict[col].append(_get_table_cell(lid, unknown_leaders_share, is_unknown=True))
+        # fill up last table row
         last_added_col = int(col.split("_")[1])
         for j in range(cols):
             if j > last_added_col:
-                df_dict[f"col_{j % cols}"].append(mui.TableCell(""))
+                df_dict[f"col_{j % cols}"].append(mui.TableCell("", sx={'border-bottom': 'none'}))
 
         df = pd.DataFrame(df_dict)
-        display_table(df, header_cells=[mui.TableCell("") for _ in range(df.shape[1])])
+        display_table(df, header_cells=[mui.TableCell("", sx={'border-bottom': 'none'})
+                                        for _ in range(df.shape[1])], sx={"width": "auto"})
 
 
 @st.fragment
