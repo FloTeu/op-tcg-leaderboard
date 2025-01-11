@@ -27,7 +27,7 @@ def display_meta_select(multiselect: bool = True,
                         label: str="Meta",
                         reverse=True,
                         on_change: Callable[..., None] | None = None,
-                        default: MetaFormat | None = None) -> list[MetaFormat]:
+                        default: MetaFormat | list[MetaFormat] | None  = None) -> list[MetaFormat]:
     all_metas = MetaFormat.to_list()
     default = default or get_latest_released_meta_format_with_data()
     if reverse:

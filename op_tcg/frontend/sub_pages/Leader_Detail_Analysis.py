@@ -144,8 +144,16 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
         create_leader_win_rate_radar_chart(radar_chart_data, [leader_data.id],
                                            colors=[leader_data.to_hex_color()], styles=styles)
 
-    tab1, tab2, tab3 = st.tabs(["Opponents", "Decklist", "Tournaments"])
-    with tab1:
+    tabs = st.tabs(["Opponents", "Decklist", "Tournaments"])
+    tab_containers = []
+    for tab in tabs:
+        tab_container = tab.empty()
+        tab_container.progress(0, "Page is loading...")
+        tab_containers.append(tab_container)
+
+    with tabs[0]:
+        tab_containers[0].progress(100)
+        tab_containers[0].empty()
         col1, col2, col3 = st.columns([0.3, 0.3, 0.3])
         with col1:
             if easiest_opponent_data:
@@ -175,7 +183,10 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
                                       leader_extended_data, best_matchup=False)
             else:
                 st.warning("Hardest opponent is not yet available")
-    with tab2:
+    with tabs[1]:
+        tab_containers[1].progress(100)
+        tab_containers[2].progress(50, "Page is loading...")
+        tab_containers[1].empty()
         col1, col2 = st.columns([0.4, 0.5])
 
         with col1:
@@ -232,7 +243,9 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
             display_cards_view(similar_leader_data.cards_intersection, cid2cdata_dict, title="Cards in both decks:")
             display_cards_view(similar_leader_data.cards_missing, cid2cdata_dict, title="Missing cards:")
 
-    with tab3:
+    with tabs[2]:
+        tab_containers[2].progress(100)
+        tab_containers[2].empty()
         leader_extended_dict = {le.id: le for le in leader_extended_data}
         display_tournament_view(leader_data.id, tournament_decklists, tournaments, leader_extended_dict, cid2cdata_dict)
 
@@ -526,7 +539,7 @@ def get_best_and_worst_opponent(df_meta_win_rate_data, meta_formats: list[MetaFo
 def main_leader_detail_analysis():
     with st.sidebar:
         selected_meta_formats: list[MetaFormat] = display_meta_select(multiselect=True,
-                                                      default=st.query_params.get(Q_PARAM_META, None),
+                                                      default=st.query_params.get_all(Q_PARAM_META),
                                                       on_change=partial(add_qparam_on_change_fn,
                                                                        qparam2session_key={
                                                                            Q_PARAM_META: "selected_meta_format"}),
