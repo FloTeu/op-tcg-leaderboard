@@ -144,7 +144,7 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
         create_leader_win_rate_radar_chart(radar_chart_data, [leader_data.id],
                                            colors=[leader_data.to_hex_color()], styles=styles)
 
-    tabs = st.tabs(["Opponents", "Decklist", "Tournaments"])
+    tabs = st.tabs(["Decklist", "Opponents", "Tournaments"])
     tab_containers = []
     for tab in tabs:
         tab_container = tab.empty()
@@ -152,38 +152,6 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
         tab_containers.append(tab_container)
 
     with tabs[0]:
-        tab_containers[0].progress(100)
-        tab_containers[0].empty()
-        col1, col2, col3 = st.columns([0.3, 0.3, 0.3])
-        with col1:
-            if easiest_opponent_data:
-                display_opponent_view(easiest_opponent_data.id, opponent_matchups.easiest_matchups,
-                                      leader_extended_data, best_matchup=True)
-            else:
-                st.warning("Easiest opponent is not yet available")
-        with col2:
-            st.subheader("Win Rate Matchup")
-            styles = {"height": 300,
-                      **rounder_corners_css
-                      }
-            radar_chart_ids = [leader_data.id]
-            radar_chart_colors = [leader_data.to_hex_color()]
-            if hardest_opponent_data:
-                radar_chart_ids.append(hardest_opponent_data.id)
-                radar_chart_colors.append(hardest_opponent_data.to_hex_color())
-            if easiest_opponent_data:
-                radar_chart_ids.append(easiest_opponent_data.id)
-                radar_chart_colors.append(easiest_opponent_data.to_hex_color())
-            create_leader_win_rate_radar_chart(radar_chart_data, radar_chart_ids,
-                                               colors=radar_chart_colors,
-                                               styles=styles)
-        with col3:
-            if hardest_opponent_data:
-                display_opponent_view(hardest_opponent_data.id, opponent_matchups.hardest_matchups,
-                                      leader_extended_data, best_matchup=False)
-            else:
-                st.warning("Hardest opponent is not yet available")
-    with tabs[1]:
         tab_containers[1].progress(100)
         tab_containers[2].progress(50, "Page is loading...")
         tab_containers[1].empty()
@@ -242,7 +210,38 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
 
             display_cards_view(similar_leader_data.cards_intersection, cid2cdata_dict, title="Cards in both decks:")
             display_cards_view(similar_leader_data.cards_missing, cid2cdata_dict, title="Missing cards:")
-
+    with tabs[1]:
+        tab_containers[0].progress(100)
+        tab_containers[0].empty()
+        col1, col2, col3 = st.columns([0.3, 0.3, 0.3])
+        with col1:
+            if easiest_opponent_data:
+                display_opponent_view(easiest_opponent_data.id, opponent_matchups.easiest_matchups,
+                                      leader_extended_data, best_matchup=True)
+            else:
+                st.warning("Easiest opponent is not yet available")
+        with col2:
+            st.subheader("Win Rate Matchup")
+            styles = {"height": 300,
+                      **rounder_corners_css
+                      }
+            radar_chart_ids = [leader_data.id]
+            radar_chart_colors = [leader_data.to_hex_color()]
+            if hardest_opponent_data:
+                radar_chart_ids.append(hardest_opponent_data.id)
+                radar_chart_colors.append(hardest_opponent_data.to_hex_color())
+            if easiest_opponent_data:
+                radar_chart_ids.append(easiest_opponent_data.id)
+                radar_chart_colors.append(easiest_opponent_data.to_hex_color())
+            create_leader_win_rate_radar_chart(radar_chart_data, radar_chart_ids,
+                                               colors=radar_chart_colors,
+                                               styles=styles)
+        with col3:
+            if hardest_opponent_data:
+                display_opponent_view(hardest_opponent_data.id, opponent_matchups.hardest_matchups,
+                                      leader_extended_data, best_matchup=False)
+            else:
+                st.warning("Hardest opponent is not yet available")
     with tabs[2]:
         tab_containers[2].progress(100)
         tab_containers[2].empty()
@@ -366,6 +365,11 @@ def display_decklist_list_view_fragment(tournament_decklists: list[TournamentDec
                                         cid2cdata_dict: dict[str, ExtendedCardData], meta_formats: list[MetaFormat],
                                         leader_id: str, min_tournament_date: date):
     st.subheader("Decklist")
+
+    if len(tournament_decklists) == 0:
+        st.warning(f"No decklist data available for meta_formats: {st.session_state.get('selected_meta_format')}")
+        return None
+
     with st.expander("Decklist Filter"):
         decklist_filter: DecklistFilter = display_decklist_filter(tournament_decklists, meta_formats,
                                                                   min_tournament_date)
@@ -408,16 +412,20 @@ def display_decklist_filter(tournament_decklists: list[TournamentDecklist], sele
     max_datetime = datetime(datetime.now().year, datetime.now().month, datetime.now().day) + timedelta(hours=23,
                                                                                                        minutes=59)
 
-    filter_currency = st.selectbox("Currency", [CardCurrency.EURO, CardCurrency.US_DOLLAR])
-    min_price = min(
-        td.price_eur if filter_currency == CardCurrency.EURO else td.price_usd for td in tournament_decklists)
-    max_price = max(
-        td.price_eur if filter_currency == CardCurrency.EURO else td.price_usd for td in tournament_decklists)
-    if min_price < max_price:
-        selected_min_price, selected_max_price = st.slider("Decklist Price Range", min_price, max_price,
-                                                           (min_price, max_price))
+    if len(tournament_decklists) > 0:
+        filter_currency = st.selectbox("Currency", [CardCurrency.EURO, CardCurrency.US_DOLLAR])
+        min_price = min(
+            td.price_eur if filter_currency == CardCurrency.EURO else td.price_usd for td in tournament_decklists)
+        max_price = max(
+            td.price_eur if filter_currency == CardCurrency.EURO else td.price_usd for td in tournament_decklists)
+        if min_price < max_price:
+            selected_min_price, selected_max_price = st.slider("Decklist Price Range", min_price, max_price,
+                                                               (min_price, max_price))
+        else:
+            selected_min_price, selected_max_price = min_price, max_price
     else:
-        selected_min_price, selected_max_price = min_price, max_price
+        filter_currency = CardCurrency.EURO
+        selected_min_price, selected_max_price = 0, 0
 
     start_datetime, end_datetime = st.slider(
         "Date Range",
