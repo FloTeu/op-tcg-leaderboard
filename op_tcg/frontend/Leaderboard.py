@@ -1,9 +1,7 @@
 import streamlit as st
-
-from op_tcg.frontend.sub_pages.Leader_Detail_Analysis import add_qparam_on_change_fn
-
 st.set_page_config(layout="wide")
 
+from op_tcg.frontend.sub_pages.Leader_Detail_Analysis import add_qparam_on_change_fn
 from op_tcg.frontend.sub_pages.utils import sub_page_title_to_url_path
 from op_tcg.frontend.utils.js import is_mobile, execute_js_file, prevent_js_frame_height, execute_js_code
 from op_tcg.frontend.utils.launch import init_load_data
