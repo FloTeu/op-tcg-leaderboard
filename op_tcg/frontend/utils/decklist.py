@@ -1,4 +1,3 @@
-from contextlib import suppress
 from datetime import date, datetime
 
 import numpy as np
@@ -236,3 +235,25 @@ dict[str, int]:
             best_overlap = current_overlap
 
     return best_matching_decklist
+
+def decklist_to_export_str(decklist: dict[str, int]):
+    """Transforms a decklist dict into a export string for TCGSim"""
+    return "\n".join([f"{c_count}x{cid}" for cid, c_count in decklist.items()])
+
+def ensure_leader_id(decklist: dict[str, int], leader_id: str) -> dict[str, int]:
+    return {leader_id: 1, **decklist}
+
+def decklist_data_to_fictive_decklist(decklist_data: DecklistData, leader_id: str) -> dict[str, int]:
+    decklist: dict[str, int] = {leader_id: 1}
+    num_cards = 0
+    sorted_decklist_card_ids = decklist_data_to_card_ids(decklist_data, exclude_card_ids=[leader_id])
+    for cid in sorted_decklist_card_ids:
+        avg_cid_count = round(decklist_data.card_id2avg_count_card[cid])
+        if num_cards + avg_cid_count > 50:
+            avg_cid_count = 50 - num_cards
+        decklist[cid] = avg_cid_count
+        num_cards += avg_cid_count
+        # if we have 50 cards in deck the deck is completed
+        if num_cards >= 50:
+            return decklist
+    return decklist

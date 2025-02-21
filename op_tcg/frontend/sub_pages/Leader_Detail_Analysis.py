@@ -25,7 +25,8 @@ from op_tcg.frontend.utils.chart import create_leader_line_chart, LineChartYValu
     get_radar_chart_data, create_line_chart, get_fillup_meta_formats, create_time_range_chart, TimeRangeValue
 from op_tcg.frontend.utils.decklist import DecklistData, tournament_standings2decklist_data, \
     decklist_data_to_card_ids, get_most_similar_leader_data, SimilarLeaderData, \
-    DecklistFilter, filter_tournament_decklists, get_best_matching_decklist
+    DecklistFilter, filter_tournament_decklists, get_best_matching_decklist, decklist_to_export_str, ensure_leader_id, \
+    decklist_data_to_fictive_decklist
 from op_tcg.frontend.utils.extract import get_leader_extended, get_leader_win_rate, get_tournament_decklist_data, \
     get_card_id_card_data_lookup, get_all_tournament_extened_data
 from op_tcg.frontend.utils.js import is_mobile
@@ -251,7 +252,8 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
 
 @st.fragment
 def display_tournament_view(leader_id: str, tournament_decklists: list[TournamentDecklist],
-                            tournaments: list[TournamentExtended], leader_extended_dict: dict[str, LeaderExtended], cid2cdata_dict):
+                            tournaments: list[TournamentExtended], leader_extended_dict: dict[str, LeaderExtended],
+                            cid2cdata_dict):
     def _get_tournament_share(placings: list[int], num_players: int | None) -> float:
         if num_players is None:
             return 0
@@ -306,19 +308,24 @@ def display_tournament_view(leader_id: str, tournament_decklists: list[Tournamen
     Date: {selected_tournament.tournament_timestamp.date() if isinstance(selected_tournament.tournament_timestamp, datetime) else "unknown"} 
         """)
 
-        lid2tournament_share = {lid: _get_tournament_share(placings, selected_tournament.num_players) for lid, placings in
+        lid2tournament_share = {lid: _get_tournament_share(placings, selected_tournament.num_players) for lid, placings
+                                in
                                 selected_tournament.leader_ids_placings.items()}
         lid2tournament_share_sorted = dict(sorted(lid2tournament_share.items(), key=lambda item: item[1], reverse=True))
         unknown_leaders_share: float = 0.0
         if selected_tournament.num_players:
             num_known_leaders = sum(len(values) for values in selected_tournament.leader_ids_placings.values())
-            unknown_leaders_share = max(0.0, (selected_tournament.num_players - num_known_leaders) / selected_tournament.num_players)
-        display_tournament_participants(lid2tournament_share_sorted, unknown_leaders_share, leader_extended_dict, cid2cdata_dict)
+            unknown_leaders_share = max(0.0, (
+                        selected_tournament.num_players - num_known_leaders) / selected_tournament.num_players)
+        display_tournament_participants(lid2tournament_share_sorted, unknown_leaders_share, leader_extended_dict,
+                                        cid2cdata_dict)
 
 
-def display_tournament_participants(lid2tournament_share_sorted, unknown_leaders_share: float, leader_extended_dict: dict[str, LeaderExtended], cid2cdata_dict):
+def display_tournament_participants(lid2tournament_share_sorted, unknown_leaders_share: float,
+                                    leader_extended_dict: dict[str, LeaderExtended], cid2cdata_dict):
     st.write("###### Participating leaders")
-    st.info("The percentage represents the share of the leader in relation to the number of participants in the tournament")
+    st.info(
+        "The percentage represents the share of the leader in relation to the number of participants in the tournament")
     with elements("leader_images"):
         def _get_table_cell(lid: str, tournament_share: float, is_unknown: bool = False):
             if is_unknown:
@@ -335,10 +342,10 @@ def display_tournament_participants(lid2tournament_share_sorted, unknown_leaders
                 'backgroundPosition': 'bottom, center -26px',
                 'height': '160px',
                 "border-radius": "30%",
-                },
-                sx_table_cell={'border-bottom': 'none', "padding": "10px"},
-                sx_text={'right': '14px'}
-            )
+            },
+                                     sx_table_cell={'border-bottom': 'none', "padding": "10px"},
+                                     sx_text={'right': '14px'}
+                                     )
 
         cols = 4
         df_dict = {f"col_{i}": [] for i in range(cols)}
@@ -358,6 +365,10 @@ def display_tournament_participants(lid2tournament_share_sorted, unknown_leaders
         df = pd.DataFrame(df_dict)
         display_table(df, header_cells=[mui.TableCell("", sx={'border-bottom': 'none'})
                                         for _ in range(df.shape[1])], sx={"width": "auto"})
+
+def display_decklist_export(export_decklist: dict[str, int], leader_id: str):
+    st.markdown("**Export for OPTCGSim**")
+    st.code(decklist_to_export_str(ensure_leader_id(export_decklist, leader_id)), language="python")
 
 
 @st.fragment
@@ -380,6 +391,8 @@ def display_decklist_list_view_fragment(tournament_decklists: list[TournamentDec
     decklist_card_ids = decklist_data_to_card_ids(decklist_data, occurrence_threshold=0.02,
                                                   exclude_card_ids=[leader_id])
     display_list_view(decklist_data, decklist_card_ids)
+    export_decklist = decklist_data_to_fictive_decklist(decklist_data, leader_id)
+    display_decklist_export(export_decklist, leader_id)
 
     with st.expander("Decklists"):
         selected_matching_decklist = get_best_matching_decklist(tournament_decklists, decklist_data)
@@ -392,6 +405,7 @@ def display_decklist_list_view_fragment(tournament_decklists: list[TournamentDec
             if leader_id in selected_matching_decklist:
                 selected_matching_decklist.pop(leader_id)
             display_decklist(selected_matching_decklist, is_mobile=is_mobile())
+            display_decklist_export(selected_matching_decklist, leader_id)
         else:
             st.warning("No decklists available. Please change the 'Start Date'")
 
@@ -547,11 +561,11 @@ def get_best_and_worst_opponent(df_meta_win_rate_data, meta_formats: list[MetaFo
 def main_leader_detail_analysis():
     with st.sidebar:
         selected_meta_formats: list[MetaFormat] = display_meta_select(multiselect=True,
-                                                      default=st.query_params.get_all(Q_PARAM_META),
-                                                      on_change=partial(add_qparam_on_change_fn,
-                                                                       qparam2session_key={
-                                                                           Q_PARAM_META: "selected_meta_format"}),
-                                                      key="selected_meta_format")
+                                                                      default=st.query_params.get_all(Q_PARAM_META),
+                                                                      on_change=partial(add_qparam_on_change_fn,
+                                                                                        qparam2session_key={
+                                                                                            Q_PARAM_META: "selected_meta_format"}),
+                                                                      key="selected_meta_format")
 
     if len(selected_meta_formats) == 0:
         st.warning("Please select at least one meta format")
