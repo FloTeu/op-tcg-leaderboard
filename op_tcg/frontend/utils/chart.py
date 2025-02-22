@@ -267,6 +267,8 @@ def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]
                                                data_keys: list[str] | None = None,
                                                x_tick_labels: list[str] | None = None,
                                                enable_y_axis: bool = False,
+                                               offset_type: str="silhouette",
+                                               bottom_tick_rotation: int=0,
                                                title: str | None = None):
     """
 
@@ -319,7 +321,7 @@ def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]
             "orient": 'bottom',
             "tickSize": 5,
             "tickPadding": 5,
-            "tickRotation": 0,
+            "tickRotation": bottom_tick_rotation,
             "legend": 'Meta Format',
             "legendPosition": 'middle',
             "legendOffset": 36,
@@ -340,7 +342,7 @@ def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]
         } if enable_y_axis else None,
         "enableGridX": True,
         "enableGridY": False,
-        "offsetType": "silhouette",
+        "offsetType": offset_type,
         # "colors": {"scheme": 'nivo'},
         "borderColor": {"theme": 'background'},
         "dotSize": 8,

@@ -156,48 +156,51 @@ def main_meta_analysis():
         only_official: bool = display_only_official_toggle()
     if len(selected_meta_formats) == 0:
         st.warning("Please select at least one meta format")
-    else:
-        leader_extended_data: list[LeaderExtended] = get_leader_extended()
-        selected_meta_win_rate_data: list[LeaderWinRate] = get_leader_win_rate(meta_formats=selected_meta_formats)
-        df_meta_win_rate_data = pd.DataFrame(
-            [lwr.dict() for lwr in selected_meta_win_rate_data if lwr.only_official == only_official])
-        if len(df_meta_win_rate_data) == 0:
-            st.warning("No leader data available for the selected meta")
-            return None
-        lid2win_rate, lid2match_count = df_win_rate_data2lid_dicts(df_meta_win_rate_data)
-        min_match_count = min(int(max(lid2match_count.values()) * 0.1), 30)
+        return None
 
-        # first element is leader with best d_score
-        leader_extended_data = list(
-            filter(lambda x: x.meta_format in selected_meta_formats and x.total_matches > min_match_count,
-                   leader_extended_data))
-        leader_extended_data.sort(key=lambda x: x.d_score, reverse=True)
-        available_leader_ids = list(dict.fromkeys([le.id for le in leader_extended_data]))
-        available_leader_names = lids_to_name_and_lids(available_leader_ids)
+    leader_extended_data: list[LeaderExtended] = get_leader_extended()
+    selected_meta_win_rate_data: list[LeaderWinRate] = get_leader_win_rate(meta_formats=selected_meta_formats)
+    df_meta_win_rate_data = pd.DataFrame(
+        [lwr.dict() for lwr in selected_meta_win_rate_data if lwr.only_official == only_official])
+    if len(df_meta_win_rate_data) == 0:
+        st.warning("No leader data available for the selected meta")
+        return None
 
-        # sorted_leader_ids_by_win_rate = sorted([lid for lid, count in lid2match_count.items() if count > min_match_count], key= lambda lid: lid2win_rate[lid], reverse=True)
-        # available_leader_ids = lids_to_name_and_lids(list(dict.fromkeys(sorted_leader_ids_by_win_rate)))
+    lid2win_rate, lid2match_count = df_win_rate_data2lid_dicts(df_meta_win_rate_data)
+    min_match_count = min(int(max(lid2match_count.values()) * 0.1), 30)
 
-        with st.sidebar:
-            default_leader_names = get_default_leader_names(available_leader_ids, query_param=Q_PARAM_LEADER_ID)
-            if len(set(available_leader_names) - set(default_leader_names)) == 0:
-                default_leader_names = default_leader_names[0:5]
-            selected_leader_names: list[str] = display_leader_select(available_leader_names=available_leader_names,
-                                                                     multiselect=True, default=default_leader_names,
-                                                                     key="selected_lids",
-                                                                     on_change=partial(add_qparam_on_change_fn,
-                                                                                       qparam2session_key={
-                                                                                           Q_PARAM_LEADER_ID: "selected_lids"}))
-        if len(selected_leader_names) < 2:
-            st.warning("Please select at least two leaders")
-        else:
-            selected_leader_ids: list[str] = [lname_and_lid_to_lid(ln) for ln in selected_leader_names]
-            selected_bq_leaders: list[Leader] = [lid2ldata_fn(lid) for lid in selected_leader_ids]
-            df_Leader_vs_leader_win_rates, df_Leader_vs_leader_match_count, df_color_win_rates = get_win_rate_dataframes(
-                df_meta_win_rate_data, selected_leader_ids)
-            radar_chart_data = get_radar_chart_data(df_color_win_rates)
-            display_elements(selected_leader_ids,
-                             selected_bq_leaders,
-                             df_Leader_vs_leader_win_rates,
-                             df_Leader_vs_leader_match_count,
-                             radar_chart_data)
+    # first element is leader with best d_score
+    leader_extended_data = list(
+        filter(lambda x: x.meta_format in selected_meta_formats and x.total_matches > min_match_count,
+               leader_extended_data))
+    leader_extended_data.sort(key=lambda x: x.d_score, reverse=True)
+    available_leader_ids = list(dict.fromkeys([le.id for le in leader_extended_data]))
+    available_leader_names = lids_to_name_and_lids(available_leader_ids)
+
+    # sorted_leader_ids_by_win_rate = sorted([lid for lid, count in lid2match_count.items() if count > min_match_count], key= lambda lid: lid2win_rate[lid], reverse=True)
+    # available_leader_ids = lids_to_name_and_lids(list(dict.fromkeys(sorted_leader_ids_by_win_rate)))
+
+    with st.sidebar:
+        default_leader_names = get_default_leader_names(available_leader_ids, query_param=Q_PARAM_LEADER_ID)
+        if len(set(available_leader_names) - set(default_leader_names)) == 0:
+            default_leader_names = default_leader_names[0:5]
+        selected_leader_names: list[str] = display_leader_select(available_leader_names=available_leader_names,
+                                                                 multiselect=True, default=default_leader_names,
+                                                                 key="selected_lids",
+                                                                 on_change=partial(add_qparam_on_change_fn,
+                                                                                   qparam2session_key={
+                                                                                       Q_PARAM_LEADER_ID: "selected_lids"}))
+    if len(selected_leader_names) < 2:
+        st.warning("Please select at least two leaders")
+        return None
+
+    selected_leader_ids: list[str] = [lname_and_lid_to_lid(ln) for ln in selected_leader_names]
+    selected_bq_leaders: list[Leader] = [lid2ldata_fn(lid) for lid in selected_leader_ids]
+    df_Leader_vs_leader_win_rates, df_Leader_vs_leader_match_count, df_color_win_rates = get_win_rate_dataframes(
+        df_meta_win_rate_data, selected_leader_ids)
+    radar_chart_data = get_radar_chart_data(df_color_win_rates)
+    display_elements(selected_leader_ids,
+                     selected_bq_leaders,
+                     df_Leader_vs_leader_win_rates,
+                     df_Leader_vs_leader_match_count,
+                     radar_chart_data)

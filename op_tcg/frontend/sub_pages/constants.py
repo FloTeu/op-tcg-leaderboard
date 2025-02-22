@@ -1,6 +1,7 @@
 SUB_PAGE_LEADER_MATCHUP = "Leader Matchup"
 SUB_PAGE_LEADER_DECKLIST = "Leader Decklist"
 SUB_PAGE_LEADER = "Leader"
+SUB_PAGE_TOURNAMENT = "Tournament"
 SUB_PAGE_LEADER_DECKLIST_MOVEMENT = "Leader Decklist Movement"
 SUB_PAGE_LEADER_CARD_MOVEMENT = "Leader Card Movement"
 SUB_PAGE_CARD_POPULARITY = "Card Popularity"

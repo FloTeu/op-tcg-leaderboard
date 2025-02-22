@@ -17,7 +17,7 @@ from uuid import uuid4
 
 from op_tcg.frontend.utils.chart import LineChartYValue, create_leader_line_chart
 from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER_MATCHUP, SUB_PAGE_CARD_POPULARITY, SUB_PAGE_LEADER, \
-    SUB_PAGE_LEADER_CARD_MOVEMENT, Q_PARAM_LEADER_ID, Q_PARAM_META
+    SUB_PAGE_LEADER_CARD_MOVEMENT, Q_PARAM_LEADER_ID, Q_PARAM_META, SUB_PAGE_TOURNAMENT
 from op_tcg.backend.utils.utils import booleanize
 from op_tcg.backend.etl.load import bq_insert_rows, get_or_create_table
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
@@ -37,7 +37,7 @@ from op_tcg.frontend.utils.leader_data import get_lid2ldata_dict_cached, lids_to
 from op_tcg.frontend.utils.utils import bq_client
 from op_tcg.frontend.sub_pages import (main_meta_analysis, main_leader_card_movement,
                                        main_leader_detail_analysis, main_admin_leader_upload,
-                                       main_card_meta_analysis, main_bug_report
+                                       main_card_meta_analysis, main_bug_report, main_tournaments
                                        )
 
 from streamlit_elements import elements, dashboard, mui
@@ -376,6 +376,7 @@ def main():
 pages: dict[str, st.Page] = {"Leader": [
         st.Page(main, title="Leaderboard", icon="🏆", default=True),
         st.Page(main_leader_detail_analysis, title="Leader", icon="👤", url_path=sub_page_title_to_url_path(SUB_PAGE_LEADER)),
+        st.Page(main_tournaments, title="Tournaments", icon="🏅", url_path=sub_page_title_to_url_path(SUB_PAGE_TOURNAMENT)),
         # st.Page(main_leader_detail_analysis_decklists, title=SUB_PAGE_LEADER_DECKLIST, url_path=SUB_PAGE_LEADER_DECKLIST),
         st.Page(main_leader_card_movement, title="Card Movement", icon="📈",
                 url_path=sub_page_title_to_url_path(SUB_PAGE_LEADER_CARD_MOVEMENT)),
