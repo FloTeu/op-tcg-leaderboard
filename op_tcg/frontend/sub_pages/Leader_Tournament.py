@@ -190,7 +190,7 @@ def display_tournament_leader_chart(tournament_decklists: list[TournamentDecklis
 
 @st.fragment
 def display_tournament_bubble_chart(leader_extended_data: list[LeaderExtended]):
-    st.subheader("Leader Popularity")
+    st.subheader("Leader Popularity", help="Size of the bubbles increases with the tournament wins")
     bubble_data = tournament_decklists_to_bubble_data(leader_extended_data)
     df = pd.DataFrame([bd.to_pd_row_dict() for bd in bubble_data])
 
@@ -205,7 +205,7 @@ def display_tournament_bubble_chart(leader_extended_data: list[LeaderExtended]):
     # Create a new figure
     fig = px.scatter(df, x="total_matches", y="win_rate",
                      size="size", color="color_name",
-                     hover_name="leader_name", log_x=True, size_max=40 if is_mobile() else 100)
+                     hover_name="leader_name", log_x=True, size_max=40 if is_mobile() else 80)
 
     # Update each trace with the correct color from the color_hex column
     for trace in fig.data:
