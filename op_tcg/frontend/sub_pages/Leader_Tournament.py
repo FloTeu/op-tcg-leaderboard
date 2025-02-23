@@ -13,11 +13,13 @@ from op_tcg.frontend.utils.extract import get_leader_extended, get_tournament_de
     get_all_tournament_extened_data, get_card_id_card_data_lookup
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select, \
     display_meta_format_region
+from op_tcg.frontend.utils.js import dict_to_js_func
 from op_tcg.frontend.utils.leader_data import lids_to_name_and_lids, lname_and_lid_to_lid, lid_to_name_and_lid
 
 from streamlit_theme import st_theme
 
 from op_tcg.frontend.utils.query_params import add_query_param, get_default_leader_names
+from op_tcg.frontend.utils.styles import brighten_hex_color
 
 ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 
@@ -32,11 +34,11 @@ def add_qparam_on_change_fn(qparam2session_key: dict[str, str]):
             raise NotImplementedError
 
 
-def tournament_decklists_to_stream_data(tournament_decklists: list[TournamentDecklist], cumulative: bool = False):
+def tournament_decklists_to_stream_data(tournament_decklists: list[TournamentDecklist],
+                                        lid_to_name: dict[str, str],
+                                        cumulative: bool = False):
     # dict[week information, dict[leader name, tournament wins]]
     stream_data: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
-    cid2card_data: dict[str, ExtendedCardData] = get_card_id_card_data_lookup(aa_version=0)
-    lid_to_name = {}
 
     for td in tournament_decklists:
         # Extract the calendar week and year from the tournament timestamp
@@ -45,10 +47,6 @@ def tournament_decklists_to_stream_data(tournament_decklists: list[TournamentDec
 
         # Check if the placing is 1, indicating a tournament win
         if td.placing == 1:
-            if td.leader_id not in lid_to_name:
-                lid_to_name[td.leader_id] = lid_to_name_and_lid(td.leader_id,
-                                                                leader_name=cid2card_data[td.leader_id].name)
-
             leader_name = lid_to_name[td.leader_id]
             stream_data[week_info][leader_name] += 1
 
@@ -75,7 +73,7 @@ def tournament_decklists_to_stream_data(tournament_decklists: list[TournamentDec
 
 
 @st.fragment
-def display_tournament_leader_chart(tournament_decklists: list[TournamentDecklist]):
+def display_tournament_leader_chart(tournament_decklists: list[TournamentDecklist], cid2card_data):
     if len(tournament_decklists) == 0:
         st.warning("No tournament decklists available")
         return None
@@ -92,20 +90,34 @@ def display_tournament_leader_chart(tournament_decklists: list[TournamentDecklis
     tournament_decklists = [td for td in tournament_decklists if
                             td.tournament_timestamp >= selected_min_date and td.tournament_timestamp <= selected_max_date
                             ]
+    lid_to_name = {}
+    lname_to_color = {}
+    for td in tournament_decklists:
+        if td.leader_id not in lid_to_name:
+            lname = lid_to_name_and_lid(td.leader_id, leader_name=cid2card_data[td.leader_id].name)
+            lid_to_name[td.leader_id] = lname
+            color = cid2card_data[td.leader_id].to_hex_color()
+            while color in lname_to_color.values():
+                color = brighten_hex_color(color, factor=1.5)
+            lname_to_color[lname] = color
 
-    stream_data = tournament_decklists_to_stream_data(tournament_decklists, cumulative=True)
+
+    stream_data = tournament_decklists_to_stream_data(tournament_decklists, lid_to_name, cumulative=True)
     x_tick_labels = list(stream_data.keys())
     data = list(stream_data.values())
+    colors = dict_to_js_func(lname_to_color, default_value="#ff0000")
+
     create_card_leader_occurrence_stream_chart(data,
                                                x_tick_labels=x_tick_labels,
                                                offset_type="diverging",
                                                bottom_tick_rotation=-45,
                                                enable_y_axis=True,
+                                               colors=colors,
                                                title="Tournament Wins by Leader")
 
 
-def display_tournaments(tournaments: list[TournamentExtended], tournament_decklists: list[TournamentDecklist]) -> None:
-    display_tournament_leader_chart(tournament_decklists)
+def display_tournaments(tournaments: list[TournamentExtended], tournament_decklists: list[TournamentDecklist], cid2card_data) -> None:
+    display_tournament_leader_chart(tournament_decklists, cid2card_data)
 
 
 def main_tournaments():
@@ -150,9 +162,11 @@ def main_tournaments():
         meta_formats=selected_meta_formats, leader_ids=selected_leader_ids)
     # get tournament data
     tournaments: list[TournamentExtended] = get_all_tournament_extened_data(meta_formats=selected_meta_formats)
+    # get card data
+    cid2card_data: dict[str, ExtendedCardData] = get_card_id_card_data_lookup(aa_version=0)
 
     # filter by meta format region
     if meta_format_region != MetaFormatRegion.ALL:
         tournament_decklists = [td for td in tournament_decklists if td.meta_format_region == meta_format_region]
         tournaments = [t for t in tournaments if t.meta_format_region == meta_format_region]
-    display_tournaments(tournaments, tournament_decklists)
+    display_tournaments(tournaments, tournament_decklists, cid2card_data)

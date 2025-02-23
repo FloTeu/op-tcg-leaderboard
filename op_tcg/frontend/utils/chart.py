@@ -1,8 +1,9 @@
+import pandas as pd
+
 from enum import StrEnum
 from typing import Any
 from datetime import date, timedelta, datetime
 
-import pandas as pd
 from pydantic import BaseModel, field_validator
 from streamlit_elements import nivo
 
@@ -269,6 +270,7 @@ def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]
                                                enable_y_axis: bool = False,
                                                offset_type: str="silhouette",
                                                bottom_tick_rotation: int=0,
+                                               colors: dict | str | None = None,
                                                title: str | None = None):
     """
 
@@ -309,6 +311,9 @@ def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]
         x_tick_labels = {i: x_tick_labels[i] for i in range(len(data))}
         layout_callables.append("axisBottom.format")
         axis_bottom_dict = {"format": x_tick_labels}
+    if isinstance(colors, str):
+        layout_callables.append("colors")
+
 
     max_value = max(round(sum(d.values())) for d in data)
     round_decimals = "0" if max_value > 1 else "1"
@@ -343,7 +348,7 @@ def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]
         "enableGridX": True,
         "enableGridY": False,
         "offsetType": offset_type,
-        # "colors": {"scheme": 'nivo'},
+        "colors": colors,
         "borderColor": {"theme": 'background'},
         "dotSize": 8,
         "dotBorderWidth": 2,

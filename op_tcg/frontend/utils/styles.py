@@ -61,3 +61,25 @@ def execute_style_sheet(file_name: str, selector: str | None = None):
 
 def css_rule_to_dict(rule: CSSStyleRule) -> dict:
     return {style: rule.style[style] for style in rule.style.keys()}
+
+def brighten_hex_color(hex_color, factor=1.1):
+    """
+    Brighten a hex color string by a given factor.
+
+    :param hex_color: The hex color string (e.g., "#0b1214").
+    :param factor: The factor by which to brighten the color (default is 1.1).
+    :return: A new hex color string that is slightly brighter.
+    """
+    # Remove the '#' character if present
+    hex_color = hex_color.lstrip('#')
+
+    # Convert hex to RGB
+    r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
+    # Brighten each component
+    r = min(int(r * factor), 255)
+    g = min(int(g * factor), 255)
+    b = min(int(b * factor), 255)
+
+    # Convert back to hex
+    return f'#{r:02x}{g:02x}{b:02x}'

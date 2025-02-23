@@ -1,3 +1,4 @@
+import json
 import time
 import random
 from pathlib import Path
@@ -69,3 +70,22 @@ def prevent_js_frame_height():
     This function includes display None in that case
     """
     execute_js_file("iframe_display_none")
+
+
+
+def dict_to_js_func(d, default_value='#000000'):
+    if not d:
+        return f"function(x) {{ return {json.dumps(default_value)}; }}"
+
+    conditions = []
+    for key, value in d.items():
+        key_escaped = json.dumps(key)
+        value_escaped = json.dumps(value)
+        condition = f"if (x.id === {key_escaped}) return {value_escaped};"
+        conditions.append(condition)
+
+    conditions_str = ' else '.join(conditions)
+    conditions_str = f"{conditions_str} else {{ console.log(x); return {json.dumps(default_value)}; }}"
+
+    js_func = f"function(x) {{{conditions_str}}}"
+    return js_func
