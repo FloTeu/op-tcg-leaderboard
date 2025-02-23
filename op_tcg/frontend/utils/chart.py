@@ -270,6 +270,7 @@ def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]
                                                enable_y_axis: bool = False,
                                                offset_type: str="silhouette",
                                                bottom_tick_rotation: int=0,
+                                               legend_translate_x: int=120,
                                                colors: dict | str | None = None,
                                                title: str | None = None):
     """
@@ -358,7 +359,7 @@ def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]
                 "anchor": 'bottom',
                 "direction": 'column',
                 "justify": False,
-                "translateX": 120,
+                "translateX": legend_translate_x,
                 "translateY": 190,
                 "itemsSpacing": 10,
                 "itemWidth": 100,
