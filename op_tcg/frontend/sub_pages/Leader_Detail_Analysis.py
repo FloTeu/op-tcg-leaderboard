@@ -25,8 +25,7 @@ from op_tcg.frontend.utils.chart import create_leader_line_chart, LineChartYValu
     get_radar_chart_data, create_line_chart, get_fillup_meta_formats, create_time_range_chart, TimeRangeValue
 from op_tcg.frontend.utils.decklist import DecklistData, tournament_standings2decklist_data, \
     decklist_data_to_card_ids, get_most_similar_leader_data, SimilarLeaderData, \
-    DecklistFilter, filter_tournament_decklists, get_best_matching_decklist, decklist_to_export_str, ensure_leader_id, \
-    decklist_data_to_fictive_decklist
+    DecklistFilter, filter_tournament_decklists, get_best_matching_decklist, decklist_data_to_fictive_decklist
 from op_tcg.frontend.utils.extract import get_leader_extended, get_leader_win_rate, get_tournament_decklist_data, \
     get_card_id_card_data_lookup, get_all_tournament_extened_data
 from op_tcg.frontend.utils.js import is_mobile
@@ -37,7 +36,8 @@ from op_tcg.frontend.utils.query_params import get_default_leader_name, \
     delete_query_param, add_query_param
 from op_tcg.frontend.utils.styles import read_style_sheet, css_rule_to_dict
 from op_tcg.frontend.utils.utils import sort_df_by_meta_format
-from op_tcg.frontend.views.decklist import display_list_view, display_decklist
+from op_tcg.frontend.views.decklist import display_list_view, display_decklist, display_decklist_export
+from op_tcg.frontend.views.tournament import display_tournament_keyfacts
 
 
 class Matchup(BaseModel):
@@ -299,14 +299,8 @@ def display_tournament_view(leader_id: str, tournament_decklists: list[Tournamen
         create_time_range_chart(data)
         selected_tournament_name = st.selectbox("Tournament", [t.name for t in tournaments_with_win])
         selected_tournament = [t for t in tournaments_with_win if t.name == selected_tournament_name][0]
-        st.write(f"""
-    Name: {selected_tournament.name}  {f'''
-    Host: {selected_tournament.host}  ''' if selected_tournament.host else ""}{f'''
-    Country: {selected_tournament.country}  ''' if selected_tournament.host else ""}
-    Number Players: {selected_tournament.num_players if selected_tournament.num_players else "unknown"}  
-    Winner: {cid2cdata_dict[leader_id].name} ({leader_id})  
-    Date: {selected_tournament.tournament_timestamp.date() if isinstance(selected_tournament.tournament_timestamp, datetime) else "unknown"} 
-        """)
+        winner_name = f"{cid2cdata_dict[leader_id].name}({leader_id})"
+        display_tournament_keyfacts(selected_tournament, winner_name)
 
         lid2tournament_share = {lid: _get_tournament_share(placings, selected_tournament.num_players) for lid, placings
                                 in
@@ -365,10 +359,6 @@ def display_tournament_participants(lid2tournament_share_sorted, unknown_leaders
         df = pd.DataFrame(df_dict)
         display_table(df, header_cells=[mui.TableCell("", sx={'border-bottom': 'none'})
                                         for _ in range(df.shape[1])], sx={"width": "auto"})
-
-def display_decklist_export(export_decklist: dict[str, int], leader_id: str):
-    st.markdown("**Export for OPTCGSim**")
-    st.code(decklist_to_export_str(ensure_leader_id(export_decklist, leader_id)), language="python")
 
 
 @st.fragment

@@ -6,7 +6,7 @@ from streamlit_elements import elements, dashboard, mui, html as element_html
 
 from op_tcg.backend.models.cards import LatestCardPrice, OPTcgLanguage
 from op_tcg.frontend import styles, scripts, html
-from op_tcg.frontend.utils.decklist import DecklistData
+from op_tcg.frontend.utils.decklist import DecklistData, decklist_to_export_str, ensure_leader_id
 
 
 def display_list_view(decklist_data: DecklistData, card_ids: list[str]):
@@ -129,3 +129,8 @@ def display_decklist_old(decklist: dict[str, int], is_mobile: bool):
                             gutterBottom=True
                         )], key=f"item_{card_id}"
                 )
+
+
+def display_decklist_export(export_decklist: dict[str, int], leader_id: str):
+    st.markdown("**Export for OPTCGSim**")
+    st.code(decklist_to_export_str(ensure_leader_id(export_decklist, leader_id)), language="python")

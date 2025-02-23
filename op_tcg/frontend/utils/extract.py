@@ -125,7 +125,7 @@ def get_all_tournament_extened_data(meta_formats: list[MetaFormat] | None = None
     if "TOURNAMENT_EXTENDED" in CACHE:
         tournaments = CACHE["TOURNAMENT_EXTENDED"]
     else:
-        tournament_extended_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(TournamentExtended)}`""")
+        tournament_extended_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(TournamentExtended)}` order by tournament_timestamp desc""")
         tournaments: list[TournamentExtended] = []
         for te in tournament_extended_rows:
             tournaments.append(TournamentExtended(**te))

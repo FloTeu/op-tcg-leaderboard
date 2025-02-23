@@ -37,6 +37,7 @@ streamlit-elements-fte = "^0.1.3"
 cssutils = "^2.11.1"
 streamlit-js-eval = "^0.1.7"
 st-theme = "^1.2.2"
+plotly = "^6.0.0"
 
 [tool.poetry.group.debug.dependencies]
 # TODO: Use this dependency only for debug purposes
