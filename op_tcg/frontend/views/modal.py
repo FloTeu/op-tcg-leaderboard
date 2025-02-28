@@ -17,7 +17,7 @@ from op_tcg.frontend.views.card import display_card_attributes
 
 
 @st.dialog("Card Detail", width="large")
-def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = None, top_n_leaders = 5):
+def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = None, top_n_leaders = 5, is_mobile: bool = False):
     logging.warning(f"Open Card Detail Modal {card_id}")
 
     def normalize_data(chart_data: list[dict[str, int]]) -> dict[str, float]:
@@ -112,8 +112,9 @@ def display_card_details_dialog(card_id: str, carousel_card_ids: list[str] = Non
         create_card_leader_occurrence_stream_chart(chart_data,
                                                    legend_data=display_chart_data,
                                                    enable_y_axis=show_normalized,
+                                                   legend_translate_x=-90 if is_mobile else None,
                                                    x_tick_labels=chart_data_meta_formats,
-                                                   title=f"Occurrence in Top {top_n_leaders} Leader Decks")
+                                                   title=f"Occ. in Leader Decks" if is_mobile else f"Occurrence in Top {top_n_leaders} Leader Decks")
 
     # center buttons (and other columns, which is not intended right now)
     execute_style_sheet("st_columns/two_cols_centered")

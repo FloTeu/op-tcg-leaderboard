@@ -94,7 +94,7 @@ def display_cards(cards_data: list[DisplayCardData], is_mobile: bool, num_cards_
                 # col1, col3 = st.columns([1,1])
                 col1.markdown(f"""{header_hashtags} {card_name}""")
                 with col3:
-                    display_dialog_button(card_data.card_id, carousel_card_ids=carousel_card_ids)
+                    display_dialog_button(card_data.card_id, carousel_card_ids=carousel_card_ids, is_mobile=is_mobile)
                 card_html = f"""
                 <html>
                 <div class="card">
@@ -111,12 +111,12 @@ def display_cards(cards_data: list[DisplayCardData], is_mobile: bool, num_cards_
     scroll_to_anchor()
     execute_js_file("st_columns_prevent_mobile_break_button")
 
-def display_dialog_button(card_id: str, carousel_card_ids: list[str] = None):
+def display_dialog_button(card_id: str, carousel_card_ids: list[str] = None, is_mobile=False):
     if st.button(":bar_chart:", key=f"card_modal_button_{card_id}"):
         logging.warning(f"Click Open Card Detail Modal {card_id}")
         # reset index offset
         st.session_state["card_details_index_offset"] = 0
-        display_card_details_dialog(card_id=card_id, carousel_card_ids=carousel_card_ids)
+        display_card_details_dialog(card_id=card_id, carousel_card_ids=carousel_card_ids, is_mobile=is_mobile)
 
 
 def main_card_meta_analysis():

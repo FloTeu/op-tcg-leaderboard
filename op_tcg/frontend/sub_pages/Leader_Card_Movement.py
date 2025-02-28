@@ -255,7 +255,7 @@ def display_card_movement_table(card_id2card_data, tournament_decklists: list[To
 
     fn_args = (card_id2card_data, card_movement, header_stylings, meta_format2decklist_data,
                previous_meta_format, selected_meta_format, sort_by, table_cell_styles)
-    fn_kwargs = {"threshold": threshold, "key": "card_movement_table"}
+    fn_kwargs = {"threshold": threshold, "key": "card_movement_table", "is_mobile": is_mobile}
     # include retry if page is loaded for the first time
     if st.session_state.get(SessionKeys.MODAL_OPEN_CLICKED, False):
         ElementsComponentView(display_component, *fn_args, **fn_kwargs).rerender()
@@ -266,7 +266,7 @@ def display_card_movement_table(card_id2card_data, tournament_decklists: list[To
 
 def display_component(card_id2card_data, card_movement, header_stylings, meta_format2decklist_data,
                       previous_meta_format, selected_meta_format, sort_by, table_cell_styles, threshold=10,
-                      key="card_movement_table"):
+                      is_mobile: bool = False, key="card_movement_table"):
     with elements(key):
         # Layout for every element in the dashboard
         layout = [
@@ -284,11 +284,11 @@ def display_component(card_id2card_data, card_movement, header_stylings, meta_fo
             change = card_movement[card_id].occurrence_proportion_change
             return change < -(threshold / 100) or change > (threshold / 100)
 
-        def _open_dialog(card_id: str, carousel_card_ids: list[str] | None):
+        def _open_dialog(card_id: str, carousel_card_ids: list[str] | None, is_mobile=False):
             # reset index offset for modal/dialog
             st.session_state["card_details_index_offset"] = 0
             st.session_state[SessionKeys.MODAL_OPEN_CLICKED] = True
-            display_card_details_dialog(card_id, carousel_card_ids)
+            display_card_details_dialog(card_id, carousel_card_ids, is_mobile=is_mobile)
 
         card_movement_sorted = list(filter(lambda x: _filter_card_movement(x), card_movement_sorted))
         index_cells = []
@@ -308,7 +308,8 @@ def display_component(card_id2card_data, card_movement, header_stylings, meta_fo
                                   horizontal=True,
                                   on_click=partial(
                                       _open_dialog, card_id=card_id,
-                                      carousel_card_ids=card_movement_sorted)
+                                      carousel_card_ids=card_movement_sorted,
+                                      is_mobile=is_mobile)
                                   ))
             df_data[previous_meta_format].append(
                 mui.TableCell(_to_percentage_string(movement.occurrence_proportion_before)))
