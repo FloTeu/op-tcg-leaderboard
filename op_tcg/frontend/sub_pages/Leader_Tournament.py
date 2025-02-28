@@ -28,6 +28,7 @@ from op_tcg.frontend.views.tournament import display_tournament_keyfacts
 
 ST_THEME = st_theme(key=str(__file__)) or {"base": "dark"}
 
+
 @dataclass
 class TournamentBubbleData:
     leader_id: str
@@ -63,19 +64,27 @@ def add_qparam_on_change_fn(qparam2session_key: dict[str, str]):
 
 def tournament_decklists_to_stream_data(tournament_decklists: list[TournamentDecklist],
                                         lid_to_name: dict[str, str],
-                                        cumulative: bool = False):
+                                        day_difference: int,
+                                        is_mobile: bool,
+                                        cumulative: bool = False) -> dict[str, dict[str, int]]:
     # dict[week information, dict[leader name, tournament wins]]
     stream_data: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
 
     for td in tournament_decklists:
-        # Extract the calendar week and year from the tournament timestamp
-        # Use ISO week date format to ensure week starts with 01
-        week_info = td.tournament_timestamp.strftime('%V-%g')
+        # if mobile view and too many weeks, we use month as date key
+        if is_mobile and (day_difference / 7) > 15:
+            date_key = td.tournament_timestamp.strftime('%m-%y')
+            if date_key == "12-25":
+                pass
+        else:
+            # Extract the calendar week and year from the tournament timestamp
+            # Use ISO week date format to ensure week starts with 01
+            date_key = td.tournament_timestamp.strftime('%V-%g')
 
         # Check if the placing is 1, indicating a tournament win
         if td.placing == 1:
             leader_name = lid_to_name[td.leader_id]
-            stream_data[week_info][leader_name] += 1
+            stream_data[date_key][leader_name] += 1
 
     # Convert defaultdict to regular dict and sort by week information
     sorted_weeks = sorted(stream_data.items(), key=lambda x: (int(x[0].split('-')[1]), int(x[0].split('-')[0])))
@@ -98,6 +107,7 @@ def tournament_decklists_to_stream_data(tournament_decklists: list[TournamentDec
 
     return sorted_stream_data
 
+
 def tournament_decklists_to_bubble_data(leader_extended_data: list[LeaderExtended]) -> list[TournamentBubbleData]:
     lid_to_bubble_data: dict[str, TournamentBubbleData] = {}
     for led in leader_extended_data:
@@ -119,13 +129,15 @@ def tournament_decklists_to_bubble_data(leader_extended_data: list[LeaderExtende
 
     return list(lid_to_bubble_data.values())
 
+
 @st.fragment
-def display_tournament_leader_chart(tournament_decklists: list[TournamentDecklist], cid2card_data, available_leader_ids: list[str]):
+def display_tournament_leader_chart(tournament_decklists: list[TournamentDecklist], cid2card_data,
+                                    available_leader_ids: list[str], is_mobile: bool):
     if len(tournament_decklists) == 0:
         st.warning("No tournament decklists available")
         return None
 
-    col1, col2 = st.columns((0.3,0.7))
+    col1, col2 = st.columns((0.3, 0.7))
     timestamps = [td.tournament_timestamp for td in tournament_decklists]
     min_date = min(timestamps)
     max_date = max(timestamps)
@@ -155,10 +167,10 @@ def display_tournament_leader_chart(tournament_decklists: list[TournamentDecklis
     selected_leader_ids: list[str] = [lname_and_lid_to_lid(ln) for ln in selected_leader_names]
 
     tournament_decklists = [td for td in tournament_decklists if
-                                (td.tournament_timestamp >= selected_min_date and
-                                 td.tournament_timestamp <= selected_max_date and
-                                 td.leader_id in selected_leader_ids
-                                 )
+                            (td.tournament_timestamp >= selected_min_date and
+                             td.tournament_timestamp <= selected_max_date and
+                             td.leader_id in selected_leader_ids
+                             )
                             ]
     lid_to_name = {}
     lname_to_color = {}
@@ -171,8 +183,9 @@ def display_tournament_leader_chart(tournament_decklists: list[TournamentDecklis
                 color = brighten_hex_color(color, factor=1.5)
             lname_to_color[lname] = color
 
-
-    stream_data = tournament_decklists_to_stream_data(tournament_decklists, lid_to_name, cumulative=True)
+    day_difference = (selected_max_date - selected_min_date).days
+    stream_data = tournament_decklists_to_stream_data(tournament_decklists, lid_to_name, day_difference=day_difference,
+                                                      is_mobile=is_mobile, cumulative=True)
     x_tick_labels = list(stream_data.keys())
     data = list(stream_data.values())
     colors = dict_to_js_func(lname_to_color, default_value="#ff0000")
@@ -180,16 +193,17 @@ def display_tournament_leader_chart(tournament_decklists: list[TournamentDecklis
     with col2:
         with st.spinner():
             create_card_leader_occurrence_stream_chart(data,
-                                               x_tick_labels=x_tick_labels,
-                                               offset_type="diverging",
-                                               bottom_tick_rotation=-45,
-                                               enable_y_axis=True,
-                                               legend_translate_x=0 if is_mobile() else 100,
-                                               colors=colors,
-                                               title="Tournament Wins")
+                                                       x_tick_labels=x_tick_labels,
+                                                       offset_type="diverging",
+                                                       bottom_tick_rotation=-45,
+                                                       enable_y_axis=True,
+                                                       legend_translate_x=-100 if is_mobile else 90,
+                                                       colors=colors,
+                                                       title="Tournament Wins")
+
 
 @st.fragment
-def display_tournament_bubble_chart(leader_extended_data: list[LeaderExtended]):
+def display_tournament_bubble_chart(leader_extended_data: list[LeaderExtended], is_mobile: bool):
     st.subheader("Leader Tournament Popularity", help="Size of the bubbles increases with the tournament wins")
     bubble_data = tournament_decklists_to_bubble_data(leader_extended_data)
     df = pd.DataFrame([bd.to_pd_row_dict() for bd in bubble_data])
@@ -205,7 +219,7 @@ def display_tournament_bubble_chart(leader_extended_data: list[LeaderExtended]):
     # Create a new figure
     fig = px.scatter(df, x="total_matches", y="win_rate",
                      size="size", color="color_name",
-                     hover_name="leader_name", log_x=True, size_max=40 if is_mobile() else 80)
+                     hover_name="leader_name", log_x=True, size_max=40 if is_mobile else 80)
 
     # Update each trace with the correct color from the color_hex column
     for trace in fig.data:
@@ -245,7 +259,8 @@ def display_tournament_bubble_chart(leader_extended_data: list[LeaderExtended]):
 
 
 @st.fragment
-def display_latest_tournament(tournaments: list[TournamentExtended], tournament_decklists: list[TournamentDecklist], cid2card_data) -> None:
+def display_latest_tournament(tournaments: list[TournamentExtended], tournament_decklists: list[TournamentDecklist],
+                              cid2card_data, is_mobile: bool) -> None:
     st.subheader("Latest Tournaments")
     col1, _, col2 = st.columns((0.2, 0.1, 0.8))
 
@@ -270,7 +285,8 @@ def display_latest_tournament(tournaments: list[TournamentExtended], tournament_
     else:
         winner_decklist = winner_decklists[0]
     if winner_decklist:
-        winner_leader_name = lid_to_name_and_lid(winner_decklist.leader_id, leader_name=cid2card_data[winner_decklist.leader_id].name)
+        winner_leader_name = lid_to_name_and_lid(winner_decklist.leader_id,
+                                                 leader_name=cid2card_data[winner_decklist.leader_id].name)
     with col1:
         st.markdown("#### Facts")
         display_tournament_keyfacts(selected_tournament, winner_name=winner_leader_name)
@@ -285,19 +301,21 @@ def display_latest_tournament(tournaments: list[TournamentExtended], tournament_
         available_placings.sort()
         placing = st.selectbox("Tournament placing", available_placings)
         selected_decklist = available_decklists[placing]
-        lname = lid_to_name_and_lid(selected_decklist.leader_id, leader_name=cid2card_data[selected_decklist.leader_id].name)
+        lname = lid_to_name_and_lid(selected_decklist.leader_id,
+                                    leader_name=cid2card_data[selected_decklist.leader_id].name)
         st.markdown(f"##### Selected Decklist: {lname}")
         decklist_dict = selected_decklist.decklist
         if selected_decklist.leader_id in decklist_dict:
             decklist_dict.pop(selected_decklist.leader_id)
-        display_decklist(decklist_dict, is_mobile=is_mobile())
+        display_decklist(decklist_dict, is_mobile=is_mobile)
         display_decklist_export(selected_decklist.decklist, selected_decklist.leader_id)
 
 
-def display_tournaments(tournaments: list[TournamentExtended], tournament_decklists: list[TournamentDecklist], leader_extended_data: list[LeaderExtended], cid2card_data, available_leader_ids) -> None:
-    display_tournament_leader_chart(tournament_decklists, cid2card_data, available_leader_ids)
-    display_tournament_bubble_chart(leader_extended_data)
-    display_latest_tournament(tournaments, tournament_decklists, cid2card_data)
+def display_tournaments(tournaments: list[TournamentExtended], tournament_decklists: list[TournamentDecklist],
+                        leader_extended_data: list[LeaderExtended], cid2card_data, available_leader_ids, is_mobile: bool = False) -> None:
+    display_tournament_leader_chart(tournament_decklists, cid2card_data, available_leader_ids, is_mobile)
+    display_tournament_bubble_chart(leader_extended_data, is_mobile=is_mobile)
+    display_latest_tournament(tournaments, tournament_decklists, cid2card_data, is_mobile=is_mobile)
 
 
 def main_tournaments():
@@ -330,7 +348,6 @@ def main_tournaments():
     # run filters
     leader_extended_data = list(filter(lambda x: filter_fn(x), leader_extended_data))
 
-
     # Get decklist data
     tournament_decklists: list[TournamentDecklist] = get_tournament_decklist_data(
         meta_formats=selected_meta_formats)
@@ -343,4 +360,4 @@ def main_tournaments():
     if meta_format_region != MetaFormatRegion.ALL:
         tournament_decklists = [td for td in tournament_decklists if td.meta_format_region == meta_format_region]
         tournaments = [t for t in tournaments if t.meta_format_region == meta_format_region]
-    display_tournaments(tournaments, tournament_decklists, leader_extended_data, cid2card_data, available_leader_ids)
+    display_tournaments(tournaments, tournament_decklists, leader_extended_data, cid2card_data, available_leader_ids, is_mobile=is_mobile())

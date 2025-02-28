@@ -20,7 +20,7 @@ from op_tcg.frontend.sidebar import display_meta_select, display_leader_select, 
 from op_tcg.frontend.utils.chart import create_line_chart
 from op_tcg.frontend.utils.extract import get_leader_elo_data, get_tournament_standing_data, get_leader_extended, \
     get_tournament_decklist_data, get_card_id_card_data_lookup
-from op_tcg.frontend.utils.js import execute_js_file
+from op_tcg.frontend.utils.js import execute_js_file, is_mobile
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid, lname_and_lid_to_lid, \
     get_lid2ldata_dict_cached
 from op_tcg.frontend.utils.material_ui_fns import display_table, value2color_table_cell, create_image_cell
@@ -217,7 +217,7 @@ def main_leader_card_movement():
                                    avg_price_eur_previous_meta, avg_price_usd_previous_meta, card_attr_css)
 
             display_card_movement_table(card_id2card_data, tournament_decklist_data,
-                                        selected_meta_format)
+                                        selected_meta_format, is_mobile())
 
             # Reload page if iframe does not load leader table correctly
             # Disable in case of DEBUG mode, as CORS prevent accessing frontend server code
@@ -227,8 +227,8 @@ def main_leader_card_movement():
 
 @st.fragment
 def display_card_movement_table(card_id2card_data, tournament_decklists: list[TournamentDecklist],
-                                selected_meta_format):
-    n_meta_formats_to_display = 5
+                                selected_meta_format, is_mobile: bool):
+    n_meta_formats_to_display = 4 if is_mobile else 5
 
     # frontend interactables
     cols = st.columns([0.2, 0.8])
