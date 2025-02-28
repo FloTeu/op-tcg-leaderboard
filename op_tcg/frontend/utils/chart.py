@@ -312,8 +312,6 @@ def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]
         x_tick_labels = {i: x_tick_labels[i] for i in range(len(data))}
         layout_callables.append("axisBottom.format")
         axis_bottom_dict = {"format": x_tick_labels}
-    if isinstance(colors, str):
-        layout_callables.append("colors")
 
 
     max_value = max(round(sum(d.values())) for d in data)
@@ -349,7 +347,6 @@ def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]
         "enableGridX": True,
         "enableGridY": False,
         "offsetType": offset_type,
-        "colors": colors,
         "borderColor": {"theme": 'background'},
         "dotSize": 8,
         "dotBorderWidth": 2,
@@ -392,6 +389,11 @@ def create_card_leader_occurrence_stream_chart(data: list[dict[str: float | int]
             },
         }
     }
+    if isinstance(colors, str):
+        layout_callables.append("colors")
+        layout["colors"] = colors
+
+
     custom_html = None
     if title:
         custom_html = f"""
