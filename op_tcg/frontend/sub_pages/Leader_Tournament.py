@@ -6,7 +6,7 @@ import numpy as np
 from collections import defaultdict
 from dataclasses import dataclass, asdict
 from functools import partial
-from op_tcg.backend.models.cards import ExtendedCardData
+from op_tcg.backend.models.cards import ExtendedCardData, OPTcgColor
 from op_tcg.backend.models.tournaments import TournamentDecklist, TournamentExtended
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended
@@ -107,7 +107,7 @@ def tournament_decklists_to_bubble_data(leader_extended_data: list[LeaderExtende
                 leader_image=led.aa_image_url,
                 leader_name=lid_to_name_and_lid(led.id, leader_name=led.name),
                 color_name=",".join(led.colors),
-                color_hex=led.to_hex_color(),
+                color_hex=led.to_hex_color() if led.colors != [OPTcgColor.BLACK] else "#2c3e50",
                 tournament_wins=[led.tournament_wins],
                 win_rate=[led.win_rate],
                 total_matches=[led.total_matches]
@@ -190,7 +190,7 @@ def display_tournament_leader_chart(tournament_decklists: list[TournamentDecklis
 
 @st.fragment
 def display_tournament_bubble_chart(leader_extended_data: list[LeaderExtended]):
-    st.subheader("Leader Popularity", help="Size of the bubbles increases with the tournament wins")
+    st.subheader("Leader Tournament Popularity", help="Size of the bubbles increases with the tournament wins")
     bubble_data = tournament_decklists_to_bubble_data(leader_extended_data)
     df = pd.DataFrame([bd.to_pd_row_dict() for bd in bubble_data])
 
@@ -222,19 +222,21 @@ def display_tournament_bubble_chart(leader_extended_data: list[LeaderExtended]):
         custom_data = np.stack((filtered_df['leader_name'],
                                 filtered_df['tournament_wins'],
                                 filtered_df['total_matches'],
+                                filtered_df['color_name'],
                                 filtered_df['leader_image']), axis=1)
 
         fig.update_traces(hovertemplate=
                           "<b> %{customdata[0]} </b><br>" +
                           "Win Rate: %{y}<br>" +
                           "Tournament Wins: %{customdata[1]}<br>" +
-                          "Total Matches: %{x}<br>",
+                          "Total Matches: %{x}<br>" +
+                          "Colors: %{customdata[3]}<br>",
                           customdata=custom_data,
                           selector={'name': trace.name})
 
     # Update the layout
     fig.update_layout(
-        xaxis_title="Total Matches",
+        xaxis_title="Total Tournament Matches",
         yaxis_title="Win Rate",
         xaxis=dict(type="log"),
         showlegend=False)
@@ -261,7 +263,7 @@ def display_latest_tournament(tournaments: list[TournamentExtended], tournament_
     selected_tournament = [t for t in tournaments_with_decklists if t.name == selected_tournament_name][0]
 
     winner_decklist: TournamentDecklist = None
-    winner_leader_name = "Not Known"
+    winner_leader_name = "unknown"
     winner_decklists = [td for td in tid_to_decklists[selected_tournament.id] if td.placing == 1]
     if len(winner_decklists) == 0:
         st.warning("No winner decklist available")
