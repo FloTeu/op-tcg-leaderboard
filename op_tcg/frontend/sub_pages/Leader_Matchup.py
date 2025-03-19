@@ -171,7 +171,7 @@ def main_meta_analysis():
 
     # first element is leader with best d_score
     leader_extended_data = list(
-        filter(lambda x: x.meta_format in selected_meta_formats and x.total_matches > min_match_count,
+        filter(lambda x: x.total_matches is not None and x.meta_format in selected_meta_formats and x.total_matches > min_match_count,
                leader_extended_data))
     leader_extended_data.sort(key=lambda x: x.d_score, reverse=True)
     available_leader_ids = list(dict.fromkeys([le.id for le in leader_extended_data]))
