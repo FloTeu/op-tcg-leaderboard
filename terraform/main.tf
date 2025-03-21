@@ -164,6 +164,10 @@ resource "google_cloudfunctions2_function" "all_elo" {
         object = google_storage_bucket_object.object.name
       }
     }
+    # triggers redeploy
+    environment_variables = {
+      DEPLOYED_AT = timestamp()
+    }
   }
 
 
