@@ -5,10 +5,10 @@ from op_tcg.frontend.sub_pages.Leader_Detail_Analysis import add_qparam_on_chang
 from op_tcg.frontend.sub_pages.utils import sub_page_title_to_url_path
 from op_tcg.frontend.utils.js import is_mobile, execute_js_file, prevent_js_frame_height, execute_js_code
 from op_tcg.frontend.utils.launch import init_load_data
-from op_tcg.backend.utils.environment import is_debug
 from op_tcg.frontend.views.component import ElementsComponentView
 
 import os
+import numpy as np
 import pandas as pd
 
 from functools import partial
@@ -52,7 +52,7 @@ def change_sidebar_collapse_button_style():
 
 def leader_id2line_chart(leader_id: str, df_leader_extended, y_value: LineChartYValue = LineChartYValue.WIN_RATE,
                          visible_meta_formats: list[MetaFormat] = None, only_official: bool = True, enable_x_top_axis: bool = False):
-    leader_extended_list: list[LeaderExtended] = df_leader_extended.query(f"id == '{leader_id}'").apply(
+    leader_extended_list: list[LeaderExtended] = df_leader_extended.replace({np.nan:None}).query(f"id == '{leader_id}'").apply(
         lambda row: LeaderExtended(**row), axis=1).tolist()
     leader_extended_list = [le for le in leader_extended_list if le.meta_format in visible_meta_formats]
     line_plot = create_leader_line_chart(leader_id, leader_extended_list, y_value=y_value, only_official=only_official,
