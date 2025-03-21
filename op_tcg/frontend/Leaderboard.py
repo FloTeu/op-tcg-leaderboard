@@ -362,10 +362,6 @@ def main():
         st.markdown(
             "*D-Score: Composite score from multiple metrics defining the dominance a leader has in the selected meta (Formula: $win\_rate * 0.1 + matches * 0.3 + elo * 0.2 + tournament\_wins * 0.4$ )")
 
-        # Reload page if iframe does not load leader table correctly
-        # Disable in case of DEBUG mode, as CORS prevent accessing frontend server code
-        if not is_debug():
-            execute_js_file("missing_iframe_table", display_none=False)
     else:
         st.warning("Seems like the selected meta does not contain any matches")
 

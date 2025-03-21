@@ -219,10 +219,6 @@ def main_leader_card_movement():
             display_card_movement_table(card_id2card_data, tournament_decklist_data,
                                         selected_meta_format, is_mobile())
 
-            # Reload page if iframe does not load leader table correctly
-            # Disable in case of DEBUG mode, as CORS prevent accessing frontend server code
-            if not is_debug():
-                execute_js_file("missing_iframe_table", display_none=False)
 
 
 @st.fragment
