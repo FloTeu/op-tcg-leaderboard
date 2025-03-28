@@ -55,21 +55,19 @@ def get_leader_win_rate(meta_formats: list[MetaFormat], leader_ids: list[str] | 
         return bq_win_rates
 
 def get_leader_extended(meta_formats: list[MetaFormat] | None = None, leader_ids: list[str] | None = None, meta_format_region: MetaFormatRegion = MetaFormatRegion.ALL) -> list[LeaderExtended]:
+    # ensure only available meta formats are used per default
+    meta_formats = meta_formats or MetaFormat.to_list()
     bq_leader_data: list[LeaderExtended] = []
-    if meta_formats:
-        for meta_format in meta_formats:
-            # cached for each session
-            leader_data_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(LeaderExtended)}` where meta_format = '{meta_format}'""")
-            bq_leader_data.extend([LeaderExtended(**d) for d in leader_data_rows])
-    else:
-        leader_data_rows = run_bq_query(
-            f"""SELECT * FROM `{get_bq_table_id(LeaderExtended)}`""")
-        bq_leader_data.extend([LeaderExtended(**d) for d in leader_data_rows])
+    leader_data_rows = run_bq_query(
+        f"""SELECT * FROM `{get_bq_table_id(LeaderExtended)}`""")
+    bq_leader_data.extend([LeaderExtended(**d) for d in leader_data_rows])
 
     if leader_ids:
         bq_leader_data = [bql for bql in bq_leader_data if (bql.id in leader_ids)]
     if meta_format_region:
         bq_leader_data = [bql for bql in bq_leader_data if (bql.meta_format_region == meta_format_region)]
+    if meta_formats:
+        bq_leader_data = [bql for bql in bq_leader_data if (bql.meta_format in meta_formats)]
 
     return bq_leader_data
 

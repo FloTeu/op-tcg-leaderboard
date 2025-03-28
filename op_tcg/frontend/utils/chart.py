@@ -59,6 +59,8 @@ def create_leader_line_chart(leader_id: str,
     data_dict = {
         le.meta_format: getattr(le, str(y_value)) for le in leader_extended_filtered
     }
+    if not data_dict:
+        return None
     if fillup_meta_formats is None and auto_fillup:
         fillup_meta_formats = get_fillup_meta_formats(data_dict)
     return create_line_chart(data_dict,

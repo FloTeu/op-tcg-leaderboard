@@ -93,7 +93,7 @@ def get_leader_data(matchups: list[Matchup], leader_extended_data: list[LeaderEx
 
 def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: list[LeaderExtended], radar_chart_data,
                              tournament_decklists: list[TournamentDecklist], tournaments: list[TournamentExtended],
-                             opponent_matchups: OpponentMatchups,
+                             opponent_matchups: OpponentMatchups | None,
                              lid2similar_leader_data: dict[str, SimilarLeaderData]):
     cid2cdata_dict = get_card_id_card_data_lookup()
 
@@ -103,23 +103,24 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
     min_tournament_date = min(td.tournament_timestamp for td in tournament_decklists).date() if len(
         tournament_decklists) > 0 else None
 
-    hardest_opponent_data: LeaderExtended | None = get_leader_data(opponent_matchups.hardest_matchups,
-                                                                   leader_extended_data,
-                                                                   q_param=Q_PARAM_HARDEST_OPPONENT)
-    easiest_opponent_data: LeaderExtended | None = get_leader_data(opponent_matchups.easiest_matchups,
-                                                                   leader_extended_data,
-                                                                   q_param=Q_PARAM_EASIEST_OPPONENT,
-                                                                   blacklist_lids=[hardest_opponent_data.id])
-    # remove selected easiest opponent data from hardest matchups and vice versa
-    if hardest_opponent_data:
-        opponent_matchups.easiest_matchups = [m for m in opponent_matchups.easiest_matchups if
-                                              m.leader_id != hardest_opponent_data.id]
-    if easiest_opponent_data:
-        opponent_matchups.hardest_matchups = [m for m in opponent_matchups.hardest_matchups if
-                                              m.leader_id != easiest_opponent_data.id]
-    if (easiest_opponent_data and hardest_opponent_data) and (easiest_opponent_data.id == hardest_opponent_data.id):
-        st.error("Selected best and worst opponent cannot be the same")
-        return None
+    if opponent_matchups is not None:
+        hardest_opponent_data: LeaderExtended | None = get_leader_data(opponent_matchups.hardest_matchups,
+                                                                       leader_extended_data,
+                                                                       q_param=Q_PARAM_HARDEST_OPPONENT)
+        easiest_opponent_data: LeaderExtended | None = get_leader_data(opponent_matchups.easiest_matchups,
+                                                                       leader_extended_data,
+                                                                       q_param=Q_PARAM_EASIEST_OPPONENT,
+                                                                       blacklist_lids=[hardest_opponent_data.id])
+        # remove selected easiest opponent data from hardest matchups and vice versa
+        if hardest_opponent_data:
+            opponent_matchups.easiest_matchups = [m for m in opponent_matchups.easiest_matchups if
+                                                  m.leader_id != hardest_opponent_data.id]
+        if easiest_opponent_data:
+            opponent_matchups.hardest_matchups = [m for m in opponent_matchups.hardest_matchups if
+                                                  m.leader_id != easiest_opponent_data.id]
+        if (easiest_opponent_data and hardest_opponent_data) and (easiest_opponent_data.id == hardest_opponent_data.id):
+            st.error("Selected best and worst opponent cannot be the same")
+            return None
 
     col1, col2, col3 = st.columns([0.25, 0.05, 0.5])
     with col1:
@@ -142,7 +143,8 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
         styles = {"height": 250,
                   **rounder_corners_css,
                   }
-        create_leader_win_rate_radar_chart(radar_chart_data, [leader_data.id],
+        if radar_chart_data:
+            create_leader_win_rate_radar_chart(radar_chart_data, [leader_data.id],
                                            colors=[leader_data.to_hex_color()], styles=styles)
 
     tabs = st.tabs(["Decklist", "Opponents", "Tournaments"])
@@ -215,34 +217,39 @@ def display_leader_dashboard(leader_data: LeaderExtended, leader_extended_data: 
         tab_containers[0].progress(100)
         tab_containers[0].empty()
         col1, col2, col3 = st.columns([0.3, 0.3, 0.3])
-        with col1:
-            if easiest_opponent_data:
-                display_opponent_view(easiest_opponent_data.id, opponent_matchups.easiest_matchups,
-                                      leader_extended_data, best_matchup=True)
-            else:
-                st.warning("Easiest opponent is not yet available")
-        with col2:
-            st.subheader("Win Rate Matchup")
-            styles = {"height": 300,
-                      **rounder_corners_css
-                      }
-            radar_chart_ids = [leader_data.id]
-            radar_chart_colors = [leader_data.to_hex_color()]
-            if hardest_opponent_data:
-                radar_chart_ids.append(hardest_opponent_data.id)
-                radar_chart_colors.append(hardest_opponent_data.to_hex_color())
-            if easiest_opponent_data:
-                radar_chart_ids.append(easiest_opponent_data.id)
-                radar_chart_colors.append(easiest_opponent_data.to_hex_color())
-            create_leader_win_rate_radar_chart(radar_chart_data, radar_chart_ids,
-                                               colors=radar_chart_colors,
-                                               styles=styles)
-        with col3:
-            if hardest_opponent_data:
-                display_opponent_view(hardest_opponent_data.id, opponent_matchups.hardest_matchups,
-                                      leader_extended_data, best_matchup=False)
-            else:
-                st.warning("Hardest opponent is not yet available")
+
+        if opponent_matchups is not None:
+            with col1:
+                if easiest_opponent_data:
+                    display_opponent_view(easiest_opponent_data.id, opponent_matchups.easiest_matchups,
+                                          leader_extended_data, best_matchup=True)
+                else:
+                    st.warning("Easiest opponent is not yet available")
+            with col2:
+                st.subheader("Win Rate Matchup")
+                styles = {"height": 300,
+                          **rounder_corners_css
+                          }
+                radar_chart_ids = [leader_data.id]
+                radar_chart_colors = [leader_data.to_hex_color()]
+                if hardest_opponent_data:
+                    radar_chart_ids.append(hardest_opponent_data.id)
+                    radar_chart_colors.append(hardest_opponent_data.to_hex_color())
+                if easiest_opponent_data:
+                    radar_chart_ids.append(easiest_opponent_data.id)
+                    radar_chart_colors.append(easiest_opponent_data.to_hex_color())
+                if radar_chart_data:
+                    create_leader_win_rate_radar_chart(radar_chart_data, radar_chart_ids,
+                                                   colors=radar_chart_colors,
+                                                   styles=styles)
+            with col3:
+                if hardest_opponent_data:
+                    display_opponent_view(hardest_opponent_data.id, opponent_matchups.hardest_matchups,
+                                          leader_extended_data, best_matchup=False)
+                else:
+                    st.warning("Hardest opponent is not yet available")
+        else:
+            st.warning("Matchups are not yet available")
     with tabs[2]:
         tab_containers[2].progress(100)
         tab_containers[2].empty()
@@ -561,7 +568,7 @@ def main_leader_detail_analysis():
         st.warning("Please select at least one meta format")
         return None
 
-    leader_extended_data: list[LeaderExtended] = get_leader_extended()
+    leader_extended_data: list[LeaderExtended] = get_leader_extended(meta_formats=MetaFormat.to_list())
     available_leader_ids = list(
         dict.fromkeys([l.id for l in leader_extended_data if l.meta_format in selected_meta_formats]))
     if len(available_leader_ids) == 0:
@@ -583,7 +590,9 @@ def main_leader_detail_analysis():
     if selected_leader_name:
         leader_id: str = lname_and_lid_to_lid(selected_leader_name)
         leader_extended_filtered = [le for le in leader_extended_data if
-                                    le.meta_format in selected_meta_formats and le.id == leader_id and le.only_official == only_official]
+                                    le.meta_format in selected_meta_formats and
+                                    le.id == leader_id and
+                                    (le.only_official is None or le.only_official == only_official)] # only_official is None in case no match data available
         if len(leader_extended_filtered) > 0:
             leader_extended = leader_extended_filtered[0]
 
@@ -598,24 +607,28 @@ def main_leader_detail_analysis():
 
         selected_meta_win_rate_data: list[LeaderWinRate] = get_leader_win_rate(meta_formats=MetaFormat.to_list())
         df_meta_win_rate_data = pd.DataFrame(
-            [lwr.dict() for lwr in selected_meta_win_rate_data if lwr.only_official == only_official])
-
-        opponent_matchups = get_best_and_worst_opponent(
-            df_meta_win_rate_data.query(f"leader_id == '{leader_extended.id}'"), meta_formats=selected_meta_formats,
-            exclude_leader_ids=[leader_extended.id])
+            [lwr.model_dump() for lwr in selected_meta_win_rate_data if lwr.only_official == only_official])
 
         # Get decklist data
         tournament_decklists: list[TournamentDecklist] = get_tournament_decklist_data(
             meta_formats=selected_meta_formats, leader_ids=[leader_extended.id])
         # get tournament data
         tournaments: list[TournamentExtended] = get_all_tournament_extened_data(meta_formats=selected_meta_formats)
-        # Get color matchup radar plot data
-        leader_ids = list(
-            set([leader_extended.id, *[matchup.leader_id for matchup in opponent_matchups.hardest_matchups],
-                 *[matchup.leader_id for matchup in opponent_matchups.easiest_matchups]]))
-        _, _, df_color_win_rates = get_win_rate_dataframes(
-            df_meta_win_rate_data.query("meta_format in @selected_meta_formats"), leader_ids)
-        radar_chart_data: list[dict[str, str | float]] = get_radar_chart_data(df_color_win_rates)
+
+        opponent_matchups = None
+        radar_chart_data = None
+        if leader_extended.total_matches is not None and leader_extended.total_matches > 0:
+            opponent_matchups = get_best_and_worst_opponent(
+                df_meta_win_rate_data.query(f"leader_id == '{leader_extended.id}'"), meta_formats=selected_meta_formats,
+                exclude_leader_ids=[leader_extended.id])
+
+            # Get color matchup radar plot data
+            leader_ids = list(
+                set([leader_extended.id, *[matchup.leader_id for matchup in opponent_matchups.hardest_matchups],
+                     *[matchup.leader_id for matchup in opponent_matchups.easiest_matchups]]))
+            _, _, df_color_win_rates = get_win_rate_dataframes(
+                df_meta_win_rate_data.query("meta_format in @selected_meta_formats"), leader_ids)
+            radar_chart_data: list[dict[str, str | float]] = get_radar_chart_data(df_color_win_rates)
 
         display_leader_dashboard(leader_extended, leader_extended_data, radar_chart_data, tournament_decklists,
                                  tournaments, opponent_matchups, lid2similar_leader_data)
