@@ -11,6 +11,7 @@ class TournamentItem:
     tournament: Tournament
     tournament_standings: list[TournamentStanding]
     matches: list[Match]
+    decklists: list[Decklist]
 
 
 @dataclass

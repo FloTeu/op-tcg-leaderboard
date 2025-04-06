@@ -10,6 +10,7 @@ from pathlib import Path
 from op_tcg.backend.etl.extract import crawl_limitless_card
 from op_tcg.backend.etl.load import bq_insert_rows
 from op_tcg.backend.models.cards import LimitlessCardData, CardPrice, CardCurrency, CardReleaseSet
+from op_tcg.backend.models.decklists import Decklist
 from op_tcg.backend.models.input import LimitlessLeaderMetaDoc
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
 from op_tcg.backend.crawling.items import TournamentItem, LimitlessPriceRow, ReleaseSetItem, CardsItem, OpTopDecksItem
@@ -35,6 +36,8 @@ class TournamentPipeline:
             return spider.tournament_table
         elif isinstance(bq_table_item, TournamentStanding):
             return spider.tournament_standing_table
+        elif isinstance(bq_table_item, Decklist):
+            return spider.decklist_table
         else:
             raise NotImplementedError
 
@@ -57,6 +60,19 @@ class TournamentPipeline:
             spider.bq_client.query(f"DELETE FROM `{bq_table.full_table_id.split(':')[1]}` WHERE id = '{item.tournament.id}';").result()
             # insert all new matches
             bq_insert_rows([json.loads(item.tournament.model_dump_json())], table=bq_table, client=spider.bq_client)
+
+
+            # upload decklists to BQ
+            decklists_to_upload = []
+            for decklist in item.decklists:
+                # ignore duplicate
+                if decklist.id not in spider.decklist_ids_crawled:
+                    decklists_to_upload.append(decklist)
+                    spider.decklist_ids_crawled.append(decklist.id)
+            # insert all new rows
+            if decklists_to_upload:
+                rows_to_insert = [json.loads(bq_row.model_dump_json()) for bq_row in decklists_to_upload]
+                bq_insert_rows(rows_to_insert, table=spider.decklist_table, client=spider.bq_client)
 
         return item
 

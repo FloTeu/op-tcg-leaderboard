@@ -12,9 +12,11 @@ from op_tcg.backend.crawling.items import TournamentItem
 from op_tcg.backend.etl.load import get_or_create_table
 from op_tcg.backend.models.cards import Card, CardPrice
 from op_tcg.backend.models.common import DataSource
+from op_tcg.backend.models.decklists import Decklist
 from op_tcg.backend.models.input import MetaFormat, meta_format2release_datetime, MetaFormatRegion
 from op_tcg.backend.models.tournaments import Tournament, TournamentStanding
 from op_tcg.backend.models.matches import Match, MatchResult
+from op_tcg.backend.utils.database import create_decklist_id
 
 
 class LimitlessTournamentSpider(scrapy.Spider):
@@ -40,15 +42,26 @@ class LimitlessTournamentSpider(scrapy.Spider):
             card_ids.append(card_row["id"])
         return card_ids
 
+
+    def get_bq_decklist_ids(self) -> list[str]:
+        """Returns list of decklist ids stored in bq"""
+        decklist_ids: list[str] = []
+        for card_row in self.bq_client.query(
+                f"SELECT id FROM `{self.decklist_table.full_table_id.replace(':', '.')}`").result():
+            decklist_ids.append(dict(card_row)["id"])
+        return decklist_ids
+
     def start_requests(self):
         self.bq_client = bigquery.Client(location="europe-west3")
         self.match_table = get_or_create_table(Match, client=self.bq_client)
         self.tournament_table = get_or_create_table(Tournament, client=self.bq_client)
         self.tournament_standing_table = get_or_create_table(TournamentStanding, client=self.bq_client)
+        self.decklist_table = get_or_create_table(Decklist, client=self.bq_client)
         self.card_table = get_or_create_table(Card, client=self.bq_client)
         self.card_price_table = get_or_create_table(CardPrice, client=self.bq_client)
         self.known_tournament_id2contains_decklists = self.get_already_crawled_tournament_ids()
         self.already_crawled_card_ids = self.get_already_crawled_card_ids()
+        self.decklist_ids_crawled = self.get_bq_decklist_ids()
 
 
         url = f"https://play.limitlesstcg.com/api/tournaments?game=OP&limit={self.num_tournament_limit}&key={self.api_token}"
@@ -102,6 +115,7 @@ class LimitlessTournamentSpider(scrapy.Spider):
         player_id2leader_id: dict[str, str] = {}
         all_decklists: list[dict[str, int]] = []
         tournament_standings: list[TournamentStanding] = []
+        bq_decklists: list[Decklist] = []
         for standing in json_res:
             decklist = standing["decklist"]
             leader_id = None
@@ -112,9 +126,15 @@ class LimitlessTournamentSpider(scrapy.Spider):
                                              decklist["character"] + decklist["event"] + decklist["stage"]}}
                 assert sum(decklist.values()) == 51, "Sum of card in deck should be 51"
                 all_decklists.append(decklist)
+                decklist_id = create_decklist_id(decklist)
+                bq_decklists.append(Decklist(
+                    id=decklist_id,
+                    leader_id=leader_id,
+                    decklist=decklist
+                ))
             try:
                 tournament_standings.append(TournamentStanding(tournament_id=response.meta["id"], leader_id=leader_id,
-                                                               decklist=decklist,
+                                                               decklist=decklist, decklist_id=decklist_id,
                                                                **{k: v for k, v in standing.items() if
                                                                   k not in ["decklist"]}))
             except ValidationError as e:
@@ -128,13 +148,15 @@ class LimitlessTournamentSpider(scrapy.Spider):
         # only add matches, if all players have a leader information
         if not any(leader_id == None for leader_id in player_id2leader_id.values()):
             yield scrapy.Request(url=url, callback=self.parse_tournament_pairings,
-                                 meta={"player_id2leader_id": player_id2leader_id, "meta_format": meta_format,
+                                 meta={"player_id2leader_id": player_id2leader_id,
+                                       "bq_decklists": bq_decklists,
+                                       "meta_format": meta_format,
                                        "tournament_standings": tournament_standings, **response.meta})
         else:
             tournament = Tournament(source=DataSource.LIMITLESS,
                                     meta_format=meta_format,
                                     meta_format_region=MetaFormatRegion.WEST, **response.meta)
-            yield self.get_tournamend_item(tournament=tournament, tournament_standings=tournament_standings)
+            yield self.get_tournamend_item(tournament=tournament, tournament_standings=tournament_standings, decklists=bq_decklists)
 
     def parse_tournament_pairings(self, response):
         json_res: list[dict[str, str]] = json.loads(response.body)
@@ -198,12 +220,14 @@ class LimitlessTournamentSpider(scrapy.Spider):
                                 meta_format_region=MetaFormatRegion.WEST,
                                 **response.meta)
         yield self.get_tournamend_item(tournament=tournament,
-                                       tournament_standings=response.meta["tournament_standings"], matches=matches)
+                                       tournament_standings=response.meta["tournament_standings"],
+                                       decklists=response.meta["bq_decklists"],
+                                       matches=matches)
 
     def get_tournamend_item(self, tournament: Tournament, tournament_standings: list[TournamentStanding],
-                            matches: list[Match] = None) -> TournamentItem:
+                            matches: list[Match] = None, decklists: list[Decklist] = None) -> TournamentItem:
         matches = matches if matches is not None else []  # if no matches exist returns an empy list
-        return TournamentItem(tournament=tournament, tournament_standings=tournament_standings, matches=matches)
+        return TournamentItem(tournament=tournament, tournament_standings=tournament_standings, matches=matches, decklists=decklists)
 
     def closed(self, reason):
         logging.info(f"Finished spider")
