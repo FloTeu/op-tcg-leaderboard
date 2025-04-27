@@ -11,11 +11,6 @@ from op_tcg.frontend.utils.meta_format import get_latest_released_meta_format_wi
 
 T = TypeVar('T')  # Define type variable "T"
 
-class LeaderboardSortBy(EnumBase, StrEnum):
-    DOMINANCE_SCORE = "D-Score"
-    TOURNAMENT_WINS = "Tournament Wins"
-    WIN_RATE = "Win Rate"
-    ELO = "Elo"
 
 class LeaderCardMovementSortBy(EnumBase, StrEnum):
     CARD_MOVEMENT_WINNER = "Winner"
