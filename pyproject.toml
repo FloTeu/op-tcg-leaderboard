@@ -39,12 +39,6 @@ streamlit-js-eval = "^0.1.7"
 st-theme = "^1.2.2"
 plotly = "^6.0.0"
 python-fasthtml = "^0.12.12"
-shad4fast = "^1.3.1"
-
-[tool.poetry.group.debug.dependencies]
-# TODO: Use this dependency only for debug purposes
-#streamlit-elements = {path = "../private/streamlit-element", develop = true}
-
 
 [build-system]
 requires = ["poetry-core"]

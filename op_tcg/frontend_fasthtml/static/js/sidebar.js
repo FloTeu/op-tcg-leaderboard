@@ -1,4 +1,27 @@
 // Sidebar functionality
+function isMobileDevice() {
+    return window.innerWidth <= 768; // Tailwind's md breakpoint
+}
+
+function setInitialSidebarState() {
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('main-content');
+    const burgerMenu = document.getElementById('burger-menu');
+    const isMobile = isMobileDevice();
+    
+    if (isMobile) {
+        sidebar.style.transform = 'translateX(-100%)';
+        mainContent.style.marginLeft = '0';
+        burgerMenu.style.left = '8px';
+        burgerMenu.style.right = 'auto';
+    } else {
+        sidebar.style.transform = 'translateX(0)';
+        mainContent.style.marginLeft = '256px';
+        burgerMenu.style.left = 'auto';
+        burgerMenu.style.right = '8px';
+    }
+}
+
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const mainContent = document.getElementById('main-content');
@@ -15,4 +38,10 @@ function toggleSidebar() {
         burgerMenu.style.left = '8px';
         burgerMenu.style.right = 'auto';
     }
-} 
+}
+
+// Set initial state on load
+document.addEventListener('DOMContentLoaded', setInitialSidebarState);
+
+// Update on resize
+window.addEventListener('resize', setInitialSidebarState); 

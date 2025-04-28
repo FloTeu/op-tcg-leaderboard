@@ -1219,29 +1219,12 @@ files = [
 referencing = ">=0.31.0"
 
 [[package]]
-name = "lucide-fasthtml"
-version = "0.0.9"
-description = "Lucide icons for FastHTML"
-optional = false
-python-versions = ">=3.8"
-groups = ["frontend"]
-files = [
-    {file = "lucide_fasthtml-0.0.9-py3-none-any.whl", hash = "sha256:edbe27a7ac7a3be46aefe8db8319a2afc283ca1f1245f1fb029a3768388ed9bc"},
-    {file = "lucide_fasthtml-0.0.9.tar.gz", hash = "sha256:60f25c1edd7a298516f762912765f278b0d7a18a51f8893eb40b36b224246caa"},
-]
-
-[package.dependencies]
-lxml = "*"
-python-fasthtml = ">=0.5.2"
-requests = ">=2.32.2"
-
-[[package]]
 name = "lxml"
 version = "5.3.1"
 description = "Powerful and Pythonic XML processing library combining libxml2/libxslt with the ElementTree API."
 optional = false
 python-versions = ">=3.6"
-groups = ["crawler", "frontend"]
+groups = ["crawler"]
 files = [
     {file = "lxml-5.3.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:a4058f16cee694577f7e4dd410263cd0ef75644b43802a689c2b3c2a7e69453b"},
     {file = "lxml-5.3.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:364de8f57d6eda0c16dcfb999af902da31396949efa0e583e12675d09709881b"},
@@ -2659,22 +2642,6 @@ test = ["build[virtualenv] (>=1.0.3)", "filelock (>=3.4.0)", "ini2toml[lite] (>=
 type = ["importlib_metadata (>=7.0.2) ; python_version < \"3.10\"", "jaraco.develop (>=7.21) ; sys_platform != \"cygwin\"", "mypy (==1.14.*)", "pytest-mypy"]
 
 [[package]]
-name = "shad4fast"
-version = "1.3.1"
-description = "Shadcn style components to be used with fasthtml"
-optional = false
-python-versions = ">=3.8"
-groups = ["frontend"]
-files = [
-    {file = "shad4fast-1.3.1-py3-none-any.whl", hash = "sha256:5f72c608a86246e523c3de4ab38799376714cd9648033147c7ed4a54f924f0a1"},
-    {file = "shad4fast-1.3.1.tar.gz", hash = "sha256:5a8b45cb1b022edd1d5cbcd2ecc4aee67d2408237a34ed5c9b8a89c6f77bd2e5"},
-]
-
-[package.dependencies]
-lucide-fasthtml = ">=0.0.6"
-python-fasthtml = "*"
-
-[[package]]
 name = "six"
 version = "1.17.0"
 description = "Python 2 and 3 compatibility utilities"
@@ -3484,4 +3451,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.13"
-content-hash = "e64eb36b81b7bfde15e6c014d3260c9c5a2c6c6ccfe39daf8294d2bf7b3dc63a"
+content-hash = "03e4cf9f044c497d0da1a178552da58b23f203dba209abfcf2c8186a96458b24"
