@@ -1,12 +1,16 @@
+
+from dotenv import load_dotenv
+load_dotenv()
+
 from fasthtml import ft
 from fasthtml.common import fast_app, serve
 from starlette.requests import Request
-from components.layout import layout
-from pages.home import home_page
-from pages.page1 import page1_content
-from pages.page2 import page2_content
-from pages.settings import settings_content
-from api.routes import setup_api_routes
+from op_tcg.frontend_fasthtml.components.layout import layout
+from op_tcg.frontend_fasthtml.pages.home import home_page
+from op_tcg.frontend_fasthtml.pages.page1 import page1_content
+from op_tcg.frontend_fasthtml.pages.page2 import page2_content
+from op_tcg.frontend_fasthtml.pages.settings import settings_content
+from op_tcg.frontend_fasthtml.api.routes import setup_api_routes
 
 # Create main app
 app, rt = fast_app(

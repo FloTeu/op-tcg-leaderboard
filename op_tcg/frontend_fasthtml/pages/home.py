@@ -6,17 +6,13 @@ from uuid import uuid4
 
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended, LeaderboardSortBy
-from op_tcg.backend.models.cards import OPTcgColor
-from op_tcg.backend.models.matches import Match, MatchResult
-from op_tcg.backend.models.bq_enums import BQDataset
-from op_tcg.frontend.utils.leader_data import get_lid2ldata_dict_cached, lids_to_name_and_lids, lname_and_lid_to_lid, calculate_dominance_score
+
 
 def create_filter_components():
     # Meta format select
     meta_formats = MetaFormat.to_list()
     meta_format_select = ft.Select(
         label="Meta Format",
-        value=meta_formats[0],
         id="meta-format-select",
         name="meta_format",
         cls="w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
@@ -24,14 +20,14 @@ def create_filter_components():
         hx_trigger="change",
         hx_target="#leaderboard-table",
         hx_include="[name='meta_format'],[name='region'],[name='only_official'],[name='sort_by']",
-        *[ft.Option(mf, value=mf) for mf in meta_formats]
+        *[ft.Option(mf, value=mf, selected=mf == meta_formats[-1]) for mf in meta_formats]
     )
     
     # Region select
     regions = MetaFormatRegion.to_list()
     region_select = ft.Select(
         label="Region",
-        value=regions[0],
+        value=MetaFormatRegion.ALL,
         id="region-select",
         name="region",
         cls="w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
@@ -68,7 +64,7 @@ def create_filter_components():
     ]
     sort_select = ft.Select(
         label="Sort By",
-        value=LeaderboardSortBy.WIN_RATE,
+        value=LeaderboardSortBy.DOMINANCE_SCORE,
         id="sort-select",
         name="sort_by",
         cls="w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
@@ -161,43 +157,21 @@ def create_leaderboard_table(df_leader_extended, meta_format, display_name2df_co
     )
 
 def home_page():
-    # TODO: Load actual data
-    # For now, we'll use placeholder data
-    df_leader_extended = pd.DataFrame({
-        "id": ["OP01-001", "OP01-002"],
-        "name": ["Monkey D. Luffy", "Roronoa Zoro"],
-        "meta_format": [MetaFormat.OP01, MetaFormat.OP01],
-        "win_rate": [0.65, 0.60],
-        "total_matches": [100, 90],
-        "elo": [1500, 1450],
-        "tournament_wins": [5, 3],
-        "d_score": [0.75, 0.70]
-    })
-    
-    display_name2df_col_name = {
-        "Name": "name",
-        "Set": "id",
-        LeaderboardSortBy.TOURNAMENT_WINS: "tournament_wins",
-        "Match Count": "total_matches",
-        LeaderboardSortBy.WIN_RATE: "win_rate",
-        LeaderboardSortBy.DOMINANCE_SCORE: "d_score",
-        "Elo": "elo"
-    }
-    
     return ft.Div(
         ft.H1("Leaderboard", cls="text-3xl font-bold text-white mb-6"),
         ft.Div(
             create_filter_components(),
             ft.Div(
-                create_leaderboard_table(
-                    df_leader_extended,
-                    MetaFormat.OP01,
-                    display_name2df_col_name,
-                    only_official=True
-                ),
-                id="leaderboard-table"
+                ft.Div(
+                    "Loading...",
+                    cls="text-white text-center py-8",
+                    hx_get="/api/leaderboard",
+                    hx_trigger="load",
+                    hx_include="[name='meta_format'],[name='region'],[name='only_official'],[name='sort_by']",
+                    id="leaderboard-table"
+                )
             ),
             cls="space-y-4"
         ),
-        cls="bg-gray-900 min-h-screen"
+        cls="min-h-screen"
     ) 
