@@ -1,5 +1,4 @@
 from fasthtml import ft
-from shad4fast import *
 import numpy as np
 import pandas as pd
 from datetime import datetime, date
@@ -15,33 +14,49 @@ from op_tcg.frontend.utils.leader_data import get_lid2ldata_dict_cached, lids_to
 def create_filter_components():
     # Meta format select
     meta_formats = MetaFormat.to_list()
-    meta_format_select = Select(
+    meta_format_select = ft.Select(
         label="Meta Format",
-        items=meta_formats,
-        default_value=meta_formats[0],
+        value=meta_formats[0],
         id="meta-format-select",
-        cls="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white",
-        on_change="updateLeaderboard()"
+        name="meta_format",
+        cls="w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+        hx_get="/api/leaderboard",
+        hx_trigger="change",
+        hx_target="#leaderboard-table",
+        hx_include="[name='meta_format'],[name='region'],[name='only_official'],[name='sort_by']",
+        *[ft.Option(mf, value=mf) for mf in meta_formats]
     )
     
     # Region select
     regions = MetaFormatRegion.to_list()
-    region_select = Select(
+    region_select = ft.Select(
         label="Region",
-        items=regions,
-        default_value=regions[0],
+        value=regions[0],
         id="region-select",
-        cls="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white",
-        on_change="updateLeaderboard()"
+        name="region",
+        cls="w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+        hx_get="/api/leaderboard",
+        hx_trigger="change",
+        hx_target="#leaderboard-table",
+        hx_include="[name='meta_format'],[name='region'],[name='only_official'],[name='sort_by']",
+        *[ft.Option(r, value=r) for r in regions]
     )
     
     # Only official toggle
-    official_toggle = Switch(
-        label="Only Official Matches",
-        default_checked=True,
-        id="official-toggle",
-        cls="w-full",
-        on_change="updateLeaderboard()"
+    official_toggle = ft.Div(
+        ft.Label("Only Official Matches", cls="text-white font-medium"),
+        ft.Input(
+            type="checkbox",
+            checked=True,
+            id="official-toggle",
+            name="only_official",
+            cls="ml-2 w-5 h-5 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500",
+            hx_get="/api/leaderboard",
+            hx_trigger="change",
+            hx_target="#leaderboard-table",
+            hx_include="[name='meta_format'],[name='region'],[name='only_official'],[name='sort_by']",
+        ),
+        cls="flex items-center p-3 bg-gray-800 rounded-lg"
     )
     
     # Sort by select
@@ -51,13 +66,17 @@ def create_filter_components():
         LeaderboardSortBy.ELO,
         LeaderboardSortBy.DOMINANCE_SCORE
     ]
-    sort_select = Select(
+    sort_select = ft.Select(
         label="Sort By",
-        items=sort_options,
-        default_value=LeaderboardSortBy.WIN_RATE,
+        value=LeaderboardSortBy.WIN_RATE,
         id="sort-select",
-        cls="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white",
-        on_change="updateLeaderboard()"
+        name="sort_by",
+        cls="w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+        hx_get="/api/leaderboard",
+        hx_trigger="change",
+        hx_target="#leaderboard-table",
+        hx_include="[name='meta_format'],[name='region'],[name='only_official'],[name='sort_by']",
+        *[ft.Option(so, value=so) for so in sort_options]
     )
     
     return ft.Div(
@@ -83,7 +102,7 @@ def create_leaderboard_table(df_leader_extended, meta_format, display_name2df_co
     df_leader_extended_selected_meta = df_leader_extended.query(f"meta_format == '{meta_format}'").copy()
     
     if len(df_leader_extended_selected_meta) == 0:
-        return ft.Div("No leader data available for the selected meta", cls="text-red-500")
+        return ft.Div("No leader data available for the selected meta", cls="text-red-400")
     
     display_columns = ["name", "Set", "tournament_wins", "total_matches",
                       "win_rate_decimal", "d_score", "elo"]
@@ -97,9 +116,9 @@ def create_leaderboard_table(df_leader_extended, meta_format, display_name2df_co
     # Create table header
     header = ft.Thead(
         ft.Tr(
-            ft.Th("Rank", cls="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white"),
-            ft.Th("Leader", cls="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white"),
-            *[ft.Th(col.replace("_", " ").title(), cls="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white") for col in display_columns],
+            ft.Th("Rank", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
+            ft.Th("Leader", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
+            *[ft.Th(col.replace("_", " ").title(), cls="px-4 py-2 bg-gray-800 text-white font-semibold") for col in display_columns],
             cls=""
         )
     )
@@ -108,12 +127,12 @@ def create_leaderboard_table(df_leader_extended, meta_format, display_name2df_co
     rows = []
     for idx, row in df_leader_extended_selected_meta.iterrows():
         cells = [
-            ft.Td(f"#{idx + 1}", cls="px-4 py-2 text-gray-900 dark:text-white"),
+            ft.Td(f"#{idx + 1}", cls="px-4 py-2 text-gray-200"),
             ft.Td(
                 ft.A(
                     row["name"].replace('"', " ").replace('.', " "),
                     href=f"/leader/{row['id']}",
-                    cls="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                    cls="text-blue-400 hover:text-blue-300"
                 ),
                 cls="px-4 py-2"
             )
@@ -123,12 +142,12 @@ def create_leaderboard_table(df_leader_extended, meta_format, display_name2df_co
             if col == "elo":
                 max_elo = df_leader_extended_selected_meta["elo"].max()
                 elo_value = row["elo"]
-                color_class = "text-green-600 dark:text-green-400" if elo_value > (max_elo * 0.7) else "text-yellow-600 dark:text-yellow-400" if elo_value > (max_elo * 0.4) else "text-red-600 dark:text-red-400"
+                color_class = "text-green-400" if elo_value > (max_elo * 0.7) else "text-yellow-400" if elo_value > (max_elo * 0.4) else "text-red-400"
                 cells.append(ft.Td(str(elo_value), cls=f"px-4 py-2 {color_class}"))
             else:
-                cells.append(ft.Td(str(row[col]), cls="px-4 py-2 text-gray-900 dark:text-white"))
+                cells.append(ft.Td(str(row[col]), cls="px-4 py-2 text-gray-200"))
         
-        rows.append(ft.Tr(*cells, cls="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"))
+        rows.append(ft.Tr(*cells, cls="border-b border-gray-700 hover:bg-gray-800/50"))
     
     body = ft.Tbody(*rows)
     
@@ -136,36 +155,12 @@ def create_leaderboard_table(df_leader_extended, meta_format, display_name2df_co
         ft.Table(
             header,
             body,
-            cls="w-full border-collapse bg-white dark:bg-gray-900"
+            cls="w-full border-collapse bg-gray-900"
         ),
-        cls="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700"
+        cls="overflow-x-auto rounded-lg border border-gray-700 shadow-gray-800/50"
     )
 
 def home_page():
-    # Add JavaScript for handling filter updates
-    js_code = """
-    async function updateLeaderboard() {
-        const metaFormat = document.getElementById('meta-format-select').value;
-        const region = document.getElementById('region-select').value;
-        const onlyOfficial = document.getElementById('official-toggle').checked;
-        const sortBy = document.getElementById('sort-select').value;
-        
-        try {
-            const response = await fetch(`/api/leaderboard?meta_format=${metaFormat}&region=${region}&only_official=${onlyOfficial}&sort_by=${sortBy}`);
-            const data = await response.json();
-            
-            // Update the table with new data
-            const tableContainer = document.getElementById('leaderboard-table');
-            tableContainer.innerHTML = data.html;
-        } catch (error) {
-            console.error('Error updating leaderboard:', error);
-        }
-    }
-    
-    // Initial load
-    document.addEventListener('DOMContentLoaded', updateLeaderboard);
-    """
-    
     # TODO: Load actual data
     # For now, we'll use placeholder data
     df_leader_extended = pd.DataFrame({
@@ -190,7 +185,6 @@ def home_page():
     }
     
     return ft.Div(
-        ft.Script(js_code),
         ft.H1("Leaderboard", cls="text-3xl font-bold text-white mb-6"),
         ft.Div(
             create_filter_components(),
@@ -205,5 +199,5 @@ def home_page():
             ),
             cls="space-y-4"
         ),
-        cls="p-8"
+        cls="bg-gray-900 min-h-screen"
     ) 

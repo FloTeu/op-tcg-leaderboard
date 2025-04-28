@@ -1,15 +1,14 @@
 from fasthtml import ft
-from shad4fast import *
 
 def sidebar_content():
     return ft.Div(
         ft.Div(
             ft.H2("Navigation", cls="text-xl font-bold mb-4 text-white"),
             ft.Div(
-                Button("Home", variant="ghost", cls="w-full justify-start text-white hover:bg-gray-700", onclick="window.location.href='/'"),
-                Button("Page 1", variant="ghost", cls="w-full justify-start text-white hover:bg-gray-700", onclick="window.location.href='/page1'"),
-                Button("Page 2", variant="ghost", cls="w-full justify-start text-white hover:bg-gray-700", onclick="window.location.href='/page2'"),
-                Button("Settings", variant="ghost", cls="w-full justify-start text-white hover:bg-gray-700", onclick="window.location.href='/settings'"),
+                ft.Button("Home", variant="ghost", cls="w-full justify-start text-white hover:bg-gray-700", onclick="window.location.href='/'"),
+                ft.Button("Page 1", variant="ghost", cls="w-full justify-start text-white hover:bg-gray-700", onclick="window.location.href='/page1'"),
+                ft.Button("Page 2", variant="ghost", cls="w-full justify-start text-white hover:bg-gray-700", onclick="window.location.href='/page2'"),
+                ft.Button("Settings", variant="ghost", cls="w-full justify-start text-white hover:bg-gray-700", onclick="window.location.href='/settings'"),
                 cls="space-y-2"
             ),
             cls="p-4 mt-8"
@@ -22,7 +21,7 @@ def sidebar():
         # Sidebar with burger menu inside
         ft.Div(
             ft.Div(
-                Button(
+                ft.Button(
                     "☰",
                     variant="ghost",
                     cls="text-white hover:bg-gray-700 z-50 bg-gray-800 rounded-md p-2",
