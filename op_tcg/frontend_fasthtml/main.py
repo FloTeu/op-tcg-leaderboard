@@ -8,13 +8,15 @@ from pages.settings import settings_content
 
 # Create main app
 app, rt = fast_app(
+    pico=False,
     hdrs=[
         ft.Style(':root { --pico-font-size: 100%; }'),
         ft.Link(
             href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css",
             rel="stylesheet"
         )
-    ]
+    ],
+    static_path='op_tcg/frontend_fasthtml/'
 )
 
 # Home page

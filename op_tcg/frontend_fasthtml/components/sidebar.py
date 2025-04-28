@@ -29,7 +29,7 @@ def sidebar():
                     onclick="toggleSidebar()",
                     id="burger-menu"
                 ),
-                cls="absolute left-2 top-2"
+                cls="absolute right-2 top-2"
             ),
             sidebar_content(),
             cls="w-64 bg-gray-800 h-screen fixed left-0 top-0 transition-all duration-300 ease-in-out",

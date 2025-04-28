@@ -25,7 +25,7 @@ class MetaFormat(EnumBase, StrEnum):
     OP14 = "OP14"
 
     @classmethod
-    def to_list(cls, only_after_release: bool = True, until_meta_format: str | None = None):
+    def to_list(cls, only_after_release: bool = True, until_meta_format: str | None = None) -> list[str]:
         all_meta_formats = list(map(lambda c: c.value, cls))
         if until_meta_format is not None:
             until_meta_format_i = all_meta_formats.index(cls(until_meta_format))
