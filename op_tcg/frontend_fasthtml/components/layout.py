@@ -9,7 +9,12 @@ def layout(content):
         ft.Div(
             ft.Div(
                 ft.Button(
-                    "☰",
+                    ft.Div(
+                        ft.Div(cls="w-6 h-0.5 bg-white mb-1.5 transition-all duration-300"),
+                        ft.Div(cls="w-6 h-0.5 bg-white mb-1.5 transition-all duration-300"),
+                        ft.Div(cls="w-6 h-0.5 bg-white transition-all duration-300"),
+                        cls="flex flex-col justify-center items-center"
+                    ),
                     cls="text-white hover:bg-gray-700 z-50 bg-gray-800 rounded-md p-2",
                     onclick="toggleSidebar()",
                     id="burger-menu"
