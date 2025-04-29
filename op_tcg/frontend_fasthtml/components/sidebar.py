@@ -11,7 +11,7 @@ def sidebar_content(filter_component=None):
                 cls="space-y-2 mb-8"
             ),
             ft.Div(
-                ft.H2("Filters", cls="text-xl font-bold text-white mb-4"),
+                ft.H2("Filters", cls="text-xl font-bold text-white mb-4") if filter_component else None,
                 filter_component if filter_component else None,
                 cls="space-y-4"
             ),

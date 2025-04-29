@@ -4,6 +4,14 @@
     margin-bottom: 1rem;
 }
 
+.multi-select-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #e2e8f0;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
 .multi-select {
     border: 1px solid #4a5568;
     border-radius: 6px;

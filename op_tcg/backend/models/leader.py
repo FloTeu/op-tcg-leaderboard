@@ -54,4 +54,5 @@ class LeaderboardSortBy(EnumBase, StrEnum):
     DOMINANCE_SCORE = "D-Score"
     TOURNAMENT_WINS = "Tournament Wins"
     WIN_RATE = "Win Rate"
+    MATCH_COUNT = "Match Count"
     ELO = "Elo"

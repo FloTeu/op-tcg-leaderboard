@@ -6,6 +6,12 @@ function initializeMultiSelect(selectId) {
     const container = document.createElement('div');
     container.className = 'multi-select-container';
     
+    // Create label
+    const label = document.createElement('label');
+    label.className = 'multi-select-label';
+    label.textContent = select.getAttribute('title') || select.getAttribute('label') || '';
+    label.htmlFor = selectId;
+    
     // Create display area
     const display = document.createElement('div');
     display.className = 'multi-select';
@@ -119,6 +125,7 @@ function initializeMultiSelect(selectId) {
     
     // Initialize
     select.parentNode.insertBefore(container, select);
+    container.appendChild(label);
     container.appendChild(display);
     container.appendChild(select);
     container.appendChild(searchInput);
@@ -140,6 +147,12 @@ function initializeSelect(selectId) {
     // Create container
     const container = document.createElement('div');
     container.className = 'multi-select-container';
+    
+    // Create label
+    const label = document.createElement('label');
+    label.className = 'multi-select-label';
+    label.textContent = select.getAttribute('title') || select.getAttribute('label') || '';
+    label.htmlFor = selectId;
     
     // Create display area
     const display = document.createElement('div');
@@ -229,6 +242,7 @@ function initializeSelect(selectId) {
     
     // Initialize
     select.parentNode.insertBefore(container, select);
+    container.appendChild(label);
     container.appendChild(display);
     container.appendChild(select);
     container.appendChild(searchInput);

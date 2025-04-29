@@ -26,11 +26,11 @@ def setup_api_routes(rt):
     @rt("/api/leaderboard")
     def api_leaderboard(request: Request):
         # Get query parameters from request
-        meta_format = request.query_params.get("meta_format", MetaFormat.latest_meta_format)
+        meta_format = MetaFormat(request.query_params.get("meta_format", MetaFormat.latest_meta_format))
         release_meta_formats = request.query_params.getlist("release_meta_formats")
-        region = request.query_params.get("region", MetaFormatRegion.ALL)
+        region = MetaFormatRegion(request.query_params.get("region", MetaFormatRegion.ALL))
         only_official = request.query_params.get("only_official", "true").lower() == "true"
-        sort_by = request.query_params.get("sort_by", LeaderboardSortBy.WIN_RATE)
+        sort_by = LeaderboardSortBy(request.query_params.get("sort_by", LeaderboardSortBy.WIN_RATE))
         
         # Get leader extended data
         leader_extended_data: list[LeaderExtended] = get_leader_extended(meta_format_region=region)
@@ -42,32 +42,27 @@ def setup_api_routes(rt):
             release_meta_formats=release_meta_formats if release_meta_formats else None
         )
         
-        # Convert filtered leader extended data to DataFrame
-        df_leader_extended = pd.DataFrame([{
-            "id": leader.id,
-            "name": leader.name,
-            "meta_format": leader.meta_format,
-            "win_rate": leader.win_rate,
-            "total_matches": leader.total_matches,
-            "elo": leader.elo,
-            "tournament_wins": leader.tournament_wins,
-            "d_score": leader.d_score,
-        } for leader in filtered_leaders])
-
-        
         display_name2df_col_name = {
             "Name": "name",
             "Set": "id",
             LeaderboardSortBy.TOURNAMENT_WINS: "tournament_wins",
-            "Match Count": "total_matches",
+            LeaderboardSortBy.MATCH_COUNT: "total_matches",
             LeaderboardSortBy.WIN_RATE: "win_rate",
             LeaderboardSortBy.DOMINANCE_SCORE: "d_score",
-            "Elo": "elo"
+            LeaderboardSortBy.ELO: "elo"
         }
+
+        # Sort leaders by the specified sort criteria
+        if sort_by == LeaderboardSortBy.TOURNAMENT_WINS:
+            filtered_leaders.sort(key=lambda x: (x.tournament_wins > 0, x.tournament_wins, x.elo), reverse=True)
+        else:
+            filtered_leaders.sort(key=lambda x: getattr(x, display_name2df_col_name.get(sort_by)), reverse=True)
+        
+        
         
         # Create the leaderboard table
         return create_leaderboard_table(
-            df_leader_extended,
+            filtered_leaders,
             meta_format,
             display_name2df_col_name,
             only_official
