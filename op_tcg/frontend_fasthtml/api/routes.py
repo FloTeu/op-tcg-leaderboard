@@ -25,12 +25,15 @@ def setup_api_routes(rt):
 
     @rt("/api/leaderboard")
     def api_leaderboard(request: Request):
+        max_max_match_count = 10000
         # Get query parameters from request
         meta_format = MetaFormat(request.query_params.get("meta_format", MetaFormat.latest_meta_format))
         release_meta_formats = request.query_params.getlist("release_meta_formats")
         region = MetaFormatRegion(request.query_params.get("region", MetaFormatRegion.ALL))
         only_official = request.query_params.get("only_official", "true").lower() == "true"
         sort_by = LeaderboardSortBy(request.query_params.get("sort_by", LeaderboardSortBy.WIN_RATE))
+        min_match_count = int(request.query_params.get("min_matches", 0))
+        max_match_count = int(request.query_params.get("max_matches", max_max_match_count))
         
         # Get leader extended data
         leader_extended_data: list[LeaderExtended] = get_leader_extended(meta_format_region=region)
@@ -39,7 +42,9 @@ def setup_api_routes(rt):
         filtered_leaders = filter_leader_extended(
             leaders=leader_extended_data,
             only_official=only_official,
-            release_meta_formats=release_meta_formats if release_meta_formats else None
+            release_meta_formats=release_meta_formats if release_meta_formats else None,
+            match_count_min=min_match_count if min_match_count else None,
+            match_count_max=max_match_count if max_match_count != max_max_match_count else None
         )
         
         display_name2df_col_name = {
