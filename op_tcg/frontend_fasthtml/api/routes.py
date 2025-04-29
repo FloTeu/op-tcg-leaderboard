@@ -39,7 +39,7 @@ def setup_api_routes(rt):
         filtered_leaders = filter_leader_extended(
             leaders=leader_extended_data,
             only_official=only_official,
-            release_meta_formats=release_meta_formats if release_meta_formats else [meta_format]
+            release_meta_formats=release_meta_formats if release_meta_formats else None
         )
         
         # Convert filtered leader extended data to DataFrame

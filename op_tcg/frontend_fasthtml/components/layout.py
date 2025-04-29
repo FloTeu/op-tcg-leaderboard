@@ -1,7 +1,7 @@
 from fasthtml import ft
 from .sidebar import sidebar
 
-def layout(content):
+def layout(content, filter_component=None):
     return ft.Div(
         # Include external JavaScript file
         ft.Script(src="static/js/sidebar.js"),
@@ -24,7 +24,7 @@ def layout(content):
             cls="fixed top-0 left-0 right-0 bg-gray-900",
             id="top-bar",
         ),
-        sidebar(),
+        sidebar(filter_component),
         ft.Div(
             content,
             cls="p-4 ml-64 min-h-screen bg-gray-900 transition-all duration-300 ease-in-out mt-16",

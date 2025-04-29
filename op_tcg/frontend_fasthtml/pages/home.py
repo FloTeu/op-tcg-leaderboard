@@ -26,7 +26,7 @@ def create_filter_components():
         label="Meta Format",
         id="meta-format-select", 
         name="meta_format",
-        cls=SELECT_CLS,
+        cls=SELECT_CLS + " styled-select",
         *[ft.Option(mf, value=mf, selected=mf == meta_formats[-1]) for mf in meta_formats],
         **FILTER_HX_ATTRS,
     )
@@ -50,7 +50,7 @@ def create_filter_components():
         value=MetaFormatRegion.ALL,
         id="region-select",
         name="region",
-        cls=SELECT_CLS,
+        cls=SELECT_CLS + " styled-select",
         *[ft.Option(r, value=r) for r in regions],
         **FILTER_HX_ATTRS,
     )
@@ -80,7 +80,7 @@ def create_filter_components():
         label="Sort By",
         id="sort-by-select",
         name="sort_by",
-        cls=SELECT_CLS,
+        cls=SELECT_CLS + " styled-select",
         *[ft.Option(opt, value=opt) for opt in sort_by_options],
         **FILTER_HX_ATTRS,
     )
@@ -168,7 +168,6 @@ def home_page():
     return ft.Div(
         ft.H1("Leaderboard", cls="text-3xl font-bold text-white mb-6"),
         ft.Div(
-            create_filter_components(),
             ft.Div(
                 # Loading indicator
                 ft.Div(
