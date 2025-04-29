@@ -21,13 +21,12 @@ SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shado
 
 def create_filter_components():
     # Meta format select
-    meta_formats = MetaFormat.to_list()
     meta_format_select = ft.Select(
         label="Meta Format",
         id="meta-format-select", 
         name="meta_format",
         cls=SELECT_CLS + " styled-select",
-        *[ft.Option(mf, value=mf, selected=mf == meta_formats[-1]) for mf in meta_formats],
+        *[ft.Option(mf, value=mf, selected=mf == MetaFormat.latest_meta_format) for mf in reversed(MetaFormat.to_list())],
         **FILTER_HX_ATTRS,
     )
     
@@ -39,7 +38,7 @@ def create_filter_components():
         multiple=True,
         size=1,
         cls=SELECT_CLS + " relative",
-        *[ft.Option(mf, value=mf) for mf in meta_formats],
+        *[ft.Option(mf, value=mf) for mf in reversed(MetaFormat.to_list())],
         **FILTER_HX_ATTRS,
     )
     
@@ -47,11 +46,10 @@ def create_filter_components():
     regions = MetaFormatRegion.to_list()
     region_select = ft.Select(
         label="Region",
-        value=MetaFormatRegion.ALL,
         id="region-select",
         name="region",
         cls=SELECT_CLS + " styled-select",
-        *[ft.Option(r, value=r) for r in regions],
+        *[ft.Option(r, value=r, selected=(r == MetaFormatRegion.ALL)) for r in regions],
         **FILTER_HX_ATTRS,
     )
     
@@ -100,12 +98,11 @@ def create_leaderboard_table(leaders: list[LeaderExtended], meta_format: MetaFor
     
     if not selected_meta_leaders:
         return ft.Div("No leader data available for the selected meta", cls="text-red-400")
-
-
+    
+    # Create table header
     header = ft.Thead(
         ft.Tr(
-            ft.Th("Rank", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
-            ft.Th("Image", cls="px-4 py-2 bg-gray-800 text-white font-semibold w-24"),
+            ft.Th("Image", cls="px-4 py-2 bg-gray-800 text-white font-semibold w-[200px]"),
             ft.Th("Leader", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
             ft.Th("Set", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
             ft.Th("Tournament Wins", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
@@ -122,18 +119,22 @@ def create_leaderboard_table(leaders: list[LeaderExtended], meta_format: MetaFor
     max_elo = max(leader.elo for leader in selected_meta_leaders)
     
     for idx, leader in enumerate(selected_meta_leaders):
+        
         # Calculate color class for Elo
         elo_color_class = "text-green-400" if leader.elo > (max_elo * 0.7) else "text-yellow-400" if leader.elo > (max_elo * 0.4) else "text-red-400"
         
         cells = [
-            ft.Td(f"#{idx + 1}", cls="px-4 py-2 text-gray-200"),
             ft.Td(
-                ft.Img(
-                    src=leader.aa_image_url,
-                    alt=leader.name,
-                    cls="w-16 h-16 object-cover rounded-md"
+                ft.Div(
+                    ft.Div(
+                        f"#{idx + 1}",
+                        cls="rank-text"
+                    ),
+                    cls="leaderboard-image-cell",
+                    style=f"background-image: linear-gradient(to top, {leader.to_hex_color()}, transparent), url('{leader.aa_image_url}')"
+
                 ),
-                cls="px-4 py-2"
+                cls="p-0"
             ),
             ft.Td(
                 ft.A(

@@ -41,6 +41,6 @@ def sidebar(filter_component=None):
             sidebar_content(filter_component),
             cls="p-4"
         ),
-        cls="fixed left-0 top-0 h-full w-64 bg-gray-800",
+        cls="fixed left-0 top-0 h-full w-64 bg-gray-800 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800 hover:scrollbar-thumb-gray-500",
         id="sidebar"
     ) 

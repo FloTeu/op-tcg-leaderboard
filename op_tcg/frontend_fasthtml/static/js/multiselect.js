@@ -38,25 +38,27 @@ function initializeMultiSelect(selectId) {
         dropdown.appendChild(optionDiv);
     });
     
-    // Create clear all button
-    const clearAll = document.createElement('button');
-    clearAll.className = 'clear-all';
-    clearAll.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>';
-    clearAll.onclick = () => {
-        Array.from(select.options).forEach(option => option.selected = false);
-        dropdown.querySelectorAll('.dropdown-option').forEach(option => {
-            option.classList.remove('selected');
-        });
-        updateDisplay();
-        select.dispatchEvent(new Event('change'));
-    };
-
     // Function to update the display of selected items
     function updateDisplay() {
         const selectedOptions = Array.from(select.options).filter(opt => opt.selected);
         display.innerHTML = selectedOptions.length > 0 
-            ? selectedOptions.map(opt => `<span class="multi-select-option">${opt.text}<button class="remove-item" data-value="${opt.value}">×</button></span>`).join('')
+            ? selectedOptions.map(opt => `<span class="multi-select-option">${opt.text}<button class="remove-item" data-value="${opt.value}">×</button></span>`).join('') + 
+              '<button class="clear-all"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button>'
             : '<span class="placeholder">Select options...</span>';
+            
+        // Add click handler for the clear all button
+        const clearAllBtn = display.querySelector('.clear-all');
+        if (clearAllBtn) {
+            clearAllBtn.onclick = (e) => {
+                e.stopPropagation();  // Prevent dropdown from opening
+                Array.from(select.options).forEach(option => option.selected = false);
+                dropdown.querySelectorAll('.dropdown-option').forEach(option => {
+                    option.classList.remove('selected');
+                });
+                updateDisplay();
+                select.dispatchEvent(new Event('change'));
+            };
+        }
     }
 
     // Handle option selection
@@ -130,7 +132,6 @@ function initializeMultiSelect(selectId) {
     container.appendChild(select);
     container.appendChild(searchInput);
     container.appendChild(dropdown);
-    container.appendChild(clearAll);
     
     // Hide the original select but keep it functional
     select.style.display = 'none';

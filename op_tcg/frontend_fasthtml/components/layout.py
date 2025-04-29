@@ -5,6 +5,7 @@ def layout(content, filter_component=None):
     return ft.Div(
         # Include external CSS files
         ft.Link(rel="stylesheet", href="static/css/sidebar.css"),
+        ft.Link(rel="stylesheet", href="static/css/leaderboard.css"),
         # Include external JavaScript file
         ft.Script(src="static/js/sidebar.js"),
         # Top bar that appears when sidebar is collapsed
