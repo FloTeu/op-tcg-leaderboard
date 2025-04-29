@@ -7,20 +7,40 @@ from uuid import uuid4
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended, LeaderboardSortBy
 
+# Common HTMX attributes for filter components
+FILTER_HX_ATTRS = {
+    "hx_get": "/api/leaderboard",
+    "hx_trigger": "change", 
+    "hx_target": "#leaderboard-table",
+    "hx_include": "[name='meta_format'],[name='region'],[name='only_official'],[name='sort_by'],[name='release_meta_formats']",
+    "hx_indicator": "#loading-indicator"
+}
+
+# Common CSS classes for select components
+SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
 def create_filter_components():
     # Meta format select
     meta_formats = MetaFormat.to_list()
     meta_format_select = ft.Select(
         label="Meta Format",
-        id="meta-format-select",
+        id="meta-format-select", 
         name="meta_format",
-        cls="w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
-        hx_get="/api/leaderboard",
-        hx_trigger="change",
-        hx_target="#leaderboard-table",
-        hx_include="[name='meta_format'],[name='region'],[name='only_official'],[name='sort_by']",
-        *[ft.Option(mf, value=mf, selected=mf == meta_formats[-1]) for mf in meta_formats]
+        cls=SELECT_CLS,
+        *[ft.Option(mf, value=mf, selected=mf == meta_formats[-1]) for mf in meta_formats],
+        **FILTER_HX_ATTRS,
+    )
+    
+    # Release meta formats multi-select
+    release_meta_formats_select = ft.Select(
+        label="Release Meta Formats",
+        id="release-meta-formats-select",
+        name="release_meta_formats",
+        multiple=True,
+        size=1,
+        cls=SELECT_CLS + " relative",
+        *[ft.Option(mf, value=mf) for mf in meta_formats],
+        **FILTER_HX_ATTRS,
     )
     
     # Region select
@@ -30,12 +50,9 @@ def create_filter_components():
         value=MetaFormatRegion.ALL,
         id="region-select",
         name="region",
-        cls="w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
-        hx_get="/api/leaderboard",
-        hx_trigger="change",
-        hx_target="#leaderboard-table",
-        hx_include="[name='meta_format'],[name='region'],[name='only_official'],[name='sort_by']",
-        *[ft.Option(r, value=r) for r in regions]
+        cls=SELECT_CLS,
+        *[ft.Option(r, value=r) for r in regions],
+        **FILTER_HX_ATTRS,
     )
     
     # Only official toggle
@@ -46,44 +63,35 @@ def create_filter_components():
             checked=True,
             id="official-toggle",
             name="only_official",
-            cls="ml-2 w-5 h-5 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500",
-            hx_get="/api/leaderboard",
-            hx_trigger="change",
-            hx_target="#leaderboard-table",
-            hx_include="[name='meta_format'],[name='region'],[name='only_official'],[name='sort_by']",
+            **FILTER_HX_ATTRS
         ),
-        cls="flex items-center p-3 bg-gray-800 rounded-lg"
+        cls="flex items-center space-x-2"
     )
     
     # Sort by select
-    sort_options = [
+    sort_by_options = [
         LeaderboardSortBy.WIN_RATE,
         LeaderboardSortBy.TOURNAMENT_WINS,
-        LeaderboardSortBy.ELO,
-        LeaderboardSortBy.DOMINANCE_SCORE
+        LeaderboardSortBy.DOMINANCE_SCORE,
+        "Match Count",
+        "Elo"
     ]
-    sort_select = ft.Select(
+    sort_by_select = ft.Select(
         label="Sort By",
-        value=LeaderboardSortBy.DOMINANCE_SCORE,
-        id="sort-select",
+        id="sort-by-select",
         name="sort_by",
-        cls="w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
-        hx_get="/api/leaderboard",
-        hx_trigger="change",
-        hx_target="#leaderboard-table",
-        hx_include="[name='meta_format'],[name='region'],[name='only_official'],[name='sort_by']",
-        *[ft.Option(so, value=so) for so in sort_options]
+        cls=SELECT_CLS,
+        *[ft.Option(opt, value=opt) for opt in sort_by_options],
+        **FILTER_HX_ATTRS,
     )
     
     return ft.Div(
-        ft.Div(
-            meta_format_select,
-            region_select,
-            official_toggle,
-            sort_select,
-            cls="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
-        ),
-        cls="mb-6"
+        meta_format_select,
+        release_meta_formats_select,
+        region_select,
+        official_toggle,
+        sort_by_select,
+        cls="space-y-4"
     )
 
 def create_leaderboard_table(df_leader_extended, meta_format, display_name2df_col_name, only_official=True):
@@ -162,14 +170,25 @@ def home_page():
         ft.Div(
             create_filter_components(),
             ft.Div(
+                # Loading indicator
                 ft.Div(
-                    "Loading...",
+                    ft.Div(
+                        cls="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white mx-auto"
+                    ),
+                    cls="text-white text-center py-8 htmx-indicator",
+                    id="loading-indicator"
+                ),
+                # Content
+                ft.Div(
                     cls="text-white text-center py-8",
                     hx_get="/api/leaderboard",
                     hx_trigger="load",
                     hx_include="[name='meta_format'],[name='region'],[name='only_official'],[name='sort_by']",
+                    hx_target="#leaderboard-table",
+                    hx_indicator="#loading-indicator",
                     id="leaderboard-table"
-                )
+                ),
+                cls="relative"
             ),
             cls="space-y-4"
         ),

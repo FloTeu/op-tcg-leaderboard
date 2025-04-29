@@ -1,4 +1,3 @@
-
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -21,7 +20,16 @@ app, rt = fast_app(
         ft.Link(
             href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css",
             rel="stylesheet"
-        )
+        ),
+        ft.Link(
+            href="/static/css/loading.css",
+            rel="stylesheet"
+        ),
+        ft.Link(
+            href="/static/css/multiselect.css",
+            rel="stylesheet"
+        ),
+        ft.Script(src="/static/js/multiselect.js")
     ],
     static_path='op_tcg/frontend_fasthtml/'
 )
@@ -32,7 +40,14 @@ setup_api_routes(rt)
 # Home page
 @rt("/")
 def home():
-    return layout(home_page())
+    return ft.Div(
+        ft.Div(
+            #hx_get="/api/launch",
+            hx_trigger="load",
+            hx_swap="none"
+        ),
+        layout(home_page())
+    )
 
 # Page 1
 @rt("/page1")

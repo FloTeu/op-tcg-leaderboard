@@ -6,23 +6,21 @@ function isMobileDevice() {
 function toggleBurgerMenu(isOpen) {
     const topBurgerMenu = document.getElementById('top-burger-menu');
     const sidebarBurgerMenu = document.getElementById('sidebar-burger-menu');
-    const lines = document.querySelectorAll('#top-burger-menu div div, #sidebar-burger-menu div div');
+    const lines = document.querySelectorAll('#sidebar-burger-menu div div');
     
     if (isOpen) {
         // Transform to X
         lines[0].style.transform = 'translateY(8px) rotate(45deg)';
         lines[1].style.opacity = '0';
         lines[2].style.transform = 'translateY(-8px) rotate(-45deg)';
-        // Show sidebar burger, hide top burger
-        topBurgerMenu.classList.add('hidden');
+        // Show sidebar burger
         sidebarBurgerMenu.classList.remove('hidden');
     } else {
         // Transform back to burger
         lines[0].style.transform = 'none';
         lines[1].style.opacity = '1';
         lines[2].style.transform = 'none';
-        // Show top burger, hide sidebar burger
-        topBurgerMenu.classList.remove('hidden');
+        // Hide sidebar burger
         sidebarBurgerMenu.classList.add('hidden');
     }
 }
