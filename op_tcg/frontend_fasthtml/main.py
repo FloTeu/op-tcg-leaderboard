@@ -33,6 +33,10 @@ app, rt = fast_app(
             href="/static/css/double_range_slider.css",
             rel="stylesheet"
         ),
+        ft.Link(
+            href="/static/css/tooltip.css",
+            rel="stylesheet"
+        ),
         ft.Script(src="/static/js/multiselect.js"),
     ],
     static_path='op_tcg/frontend_fasthtml/'

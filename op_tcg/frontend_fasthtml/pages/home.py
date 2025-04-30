@@ -151,7 +151,20 @@ def create_leaderboard_table(leaders: list[LeaderExtended], meta_format: MetaFor
             ft.Th("Tournament Wins", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
             ft.Th("Match Count", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
             ft.Th("Win Rate", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
-            ft.Th("D-Score", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
+            ft.Th(
+                ft.Div(
+                    ft.Div(
+                        "D-Score",
+                        ft.Span(
+                            "D-Score represents the dominance score of a leader. It takes into account win rate, match count, and tournament performance to provide a comprehensive measure of a leader's strength.",
+                            cls="tooltip-text"
+                        ),
+                        cls="tooltip"
+                    ),
+                    cls="inline-block"
+                ),
+                cls="px-4 py-2 bg-gray-800 text-white font-semibold"
+            ),
             ft.Th("Elo", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
             cls=""
         )
