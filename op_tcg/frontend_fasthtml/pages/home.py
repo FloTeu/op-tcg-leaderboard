@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended, LeaderboardSortBy
+from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended
 
 
 # Common HTMX attributes for filter components
@@ -20,7 +21,7 @@ FILTER_HX_ATTRS = {
 # Common CSS classes for select components
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
-def create_filter_components():
+def create_filter_components(max_match_count: int = 10000):
     # Meta format select
     meta_format_select = ft.Select(
         label="Meta Format",
@@ -86,7 +87,7 @@ def create_filter_components():
                 ft.Input(
                     type="range",
                     min="0",
-                    max="10000",
+                    max=str(max_match_count),
                     value="0",
                     name="min_matches",
                     cls="slider-range min-range",
@@ -95,8 +96,8 @@ def create_filter_components():
                 ft.Input(
                     type="range",
                     min="0",
-                    max="10000",
-                    value="10000",
+                    max=str(max_match_count),
+                    value=str(max_match_count),
                     name="max_matches",
                     cls="slider-range max-range",
                     **FILTER_HX_ATTRS
@@ -104,7 +105,7 @@ def create_filter_components():
                 ft.Div(
                     ft.Span("0", cls="min-value text-white"),
                     ft.Span(" - ", cls="text-white mx-2"),
-                    ft.Span("10000", cls="max-value text-white"),
+                    ft.Span(str(max_match_count), cls="max-value text-white"),
                     cls="slider-values"
                 ),
                 cls="double-range-slider",
