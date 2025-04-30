@@ -17,9 +17,6 @@ class DoubleRangeSlider {
             return;
         }
 
-        // Add transition to track for smooth color changes
-        this.sliderTrack.style.transition = 'background 0.2s ease';
-
         this.init();
     }
 
@@ -32,16 +29,9 @@ class DoubleRangeSlider {
         this.minValue.textContent = min.toLocaleString();
         this.maxValue.textContent = max.toLocaleString();
 
-        // Update the slider track background with smoother colors
-        this.sliderTrack.style.background = `linear-gradient(
-            to right,
-            #374151 0%,
-            #374151 ${percentage(min)}%,
-            #3B82F6 ${percentage(min)}%,
-            #3B82F6 ${percentage(max)}%,
-            #374151 ${percentage(max)}%,
-            #374151 100%
-        )`;
+        // Update track position using CSS variables
+        this.sliderTrack.style.setProperty('--left-percent', `${percentage(min)}%`);
+        this.sliderTrack.style.setProperty('--right-percent', `${100 - percentage(max)}%`);
 
         // Trigger a change event for HTMX
         this.minRange.dispatchEvent(new Event('change', { bubbles: true }));

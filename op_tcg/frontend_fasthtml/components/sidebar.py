@@ -4,20 +4,21 @@ def sidebar_content(filter_component=None):
     return ft.Div(
         ft.Div(
             ft.Div(
-                ft.Button("Home", variant="ghost", cls="w-full justify-start text-white hover:bg-gray-700", onclick="window.location.href='/'"),
-                ft.Button("Page 1", variant="ghost", cls="w-full justify-start text-white hover:bg-gray-700", onclick="window.location.href='/page1'"),
-                ft.Button("Page 2", variant="ghost", cls="w-full justify-start text-white hover:bg-gray-700", onclick="window.location.href='/page2'"),
-                ft.Button("Settings", variant="ghost", cls="w-full justify-start text-white hover:bg-gray-700", onclick="window.location.href='/settings'"),
-                cls="space-y-2 mb-8"
+                ft.H2("Leader", cls="text-lg font-bold text-white mb-2 text-left"),
+                ft.Button("🏠 Home", variant="ghost", cls="w-full justify-start text-white hover:bg-gray-700 py-2 text-left", onclick="window.location.href='/'"),
+                ft.Button("📄 Page 1", variant="ghost", cls="w-full justify-start text-white hover:bg-gray-700 py-2 text-left", onclick="window.location.href='/page1'"),
+                ft.Button("📊 Page 2", variant="ghost", cls="w-full justify-start text-white hover:bg-gray-700 py-2 text-left", onclick="window.location.href='/page2'"),
+                ft.Button("⚙️ Settings", variant="ghost", cls="w-full justify-start text-white hover:bg-gray-700 py-2 text-left", onclick="window.location.href='/settings'"),
+                cls="space-y-2 mb-4"
             ),
             ft.Div(
                 ft.H2("Filters", cls="text-xl font-bold text-white mb-4") if filter_component else None,
                 filter_component if filter_component else None,
-                cls="space-y-4"
+                cls="space-y-2"
             ),
             cls=""
         ),
-        cls="relative"
+        cls="relative p-4"
     )
 
 def sidebar(filter_component=None):
