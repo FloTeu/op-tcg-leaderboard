@@ -20,6 +20,10 @@ def layout(content, filter_component=None):
 
     # Main layout
     return ft.Div(
+        # Include external CSS files
+        ft.Link(rel="stylesheet", href="static/css/leaderboard.css"),
+        # Include external JavaScript file
+        ft.Script(src="static/js/sidebar.js"),
         ft.Div(
             sidebar(filter_component=filter_section),
             ft.Main(

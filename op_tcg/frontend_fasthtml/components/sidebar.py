@@ -46,7 +46,24 @@ def sidebar(filter_component=None, current_path="/"):
         ("/bug-report", "Bug Report", "👾", current_path == "/bug-report"),
     ]
     
-    return ft.Div(        
+    return ft.Div(    
+        
+            # Burger menu
+            ft.Div(
+                ft.H2("Navigation", cls="text-xl font-bold text-white"),
+                ft.Button(
+                    ft.Div(
+                        ft.Div(cls="w-6 h-0.5 bg-white mb-1.5 transition-all duration-300"),
+                        ft.Div(cls="w-6 h-0.5 bg-white mb-1.5 transition-all duration-300"),
+                        ft.Div(cls="w-6 h-0.5 bg-white transition-all duration-300"),
+                        cls="flex flex-col justify-center items-center"
+                    ),
+                    cls="text-white hover:bg-gray-700 z-50 bg-gray-800 rounded-md p-2",
+                    onclick="toggleSidebar()",
+                    id="sidebar-burger-menu"
+                ),
+                cls="flex justify-between items-center mb-4"
+            ),    
         # Navigation
         ft.Nav(
             create_nav_section("Leader", leader_links),
@@ -56,5 +73,6 @@ def sidebar(filter_component=None, current_path="/"):
         ),
         # Filter component if provided
         filter_component if filter_component else "",
-        cls="w-64 bg-gray-900 p-4 border-r border-gray-800 min-h-screen"
+        cls="w-64 bg-gray-900 p-4 border-r border-gray-800 min-h-screen",
+        id="sidebar"
     ) 
