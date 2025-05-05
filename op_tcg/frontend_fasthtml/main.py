@@ -5,9 +5,12 @@ from fasthtml import ft
 from fasthtml.common import fast_app, serve
 from op_tcg.frontend_fasthtml.components.layout import layout
 from op_tcg.frontend_fasthtml.pages.home import home_page, create_filter_components as home_filters
-from op_tcg.frontend_fasthtml.pages.page1 import page1_content
-from op_tcg.frontend_fasthtml.pages.page2 import page2_content
-from op_tcg.frontend_fasthtml.pages.settings import settings_content
+from op_tcg.frontend_fasthtml.pages.leader import leader_page
+from op_tcg.frontend_fasthtml.pages.tournaments import tournaments_page
+from op_tcg.frontend_fasthtml.pages.card_movement import card_movement_page
+from op_tcg.frontend_fasthtml.pages.matchups import matchups_page
+from op_tcg.frontend_fasthtml.pages.card_popularity import card_popularity_page
+from op_tcg.frontend_fasthtml.pages.bug_report import bug_report_page
 from op_tcg.frontend_fasthtml.api.routes import setup_api_routes
 
 # Create main app
@@ -45,32 +48,42 @@ app, rt = fast_app(
 # Setup API routes
 setup_api_routes(rt)
 
-# Home page
+# Leader pages
 @rt("/")
 def home():
     return ft.Div(
         ft.Div(
-            #hx_get="/api/launch",
             hx_trigger="load",
             hx_swap="none"
         ),
         layout(home_page(), filter_component=home_filters())
     )
 
-# Page 1
-@rt("/page1")
-def page1():
-    return layout(page1_content(), filter_component=None)
+@rt("/leader")
+def leader():
+    return layout(leader_page(), filter_component=None)
 
-# Page 2
-@rt("/page2")
-def page2():
-    return layout(page2_content(), filter_component=None)
+@rt("/tournaments")
+def tournaments():
+    return layout(tournaments_page(), filter_component=None)
 
-# Settings page
-@rt("/settings")
-def settings():
-    return layout(settings_content())
+@rt("/card-movement")
+def card_movement():
+    return layout(card_movement_page(), filter_component=None)
+
+@rt("/matchups")
+def matchups():
+    return layout(matchups_page(), filter_component=None)
+
+# Card pages
+@rt("/card-popularity")
+def card_popularity():
+    return layout(card_popularity_page(), filter_component=None)
+
+# Support pages
+@rt("/bug-report")
+def bug_report():
+    return layout(bug_report_page(), filter_component=None)
 
 if __name__ == "__main__":
     serve()
