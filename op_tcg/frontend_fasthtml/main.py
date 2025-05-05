@@ -41,6 +41,7 @@ app, rt = fast_app(
         ),
         ft.Script(src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"),
         ft.Script(src="/static/js/multiselect.js"),
+        ft.Script(src="/static/js/sidebar.js"),
     ],
     static_path='op_tcg/frontend_fasthtml/'
 )
@@ -59,9 +60,9 @@ def home():
         layout(home_page(), filter_component=home_filters())
     )
 
-@rt("/leader")
-def leader():
-    return layout(leader_page(), filter_component=None)
+@rt("/leader/{leader_id}")
+def leader(leader_id: str):
+    return layout(leader_page(leader_id), filter_component=None)
 
 @rt("/tournaments")
 def tournaments():
