@@ -1,20 +1,17 @@
 from fasthtml import ft
-import numpy as np
-import pandas as pd
-from datetime import datetime, date
-from uuid import uuid4
 
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended, LeaderboardSortBy
-from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended
+from op_tcg.frontend_fasthtml.components.loading import create_loading_overlay, create_loading_spinner
 
 
 # Common HTMX attributes for filter components
+HX_INCLUDE = "[name='meta_format'],[name='region'],[name='only_official'],[name='sort_by'],[name='release_meta_formats'],[name='min_matches'],[name='max_matches']"
 FILTER_HX_ATTRS = {
     "hx_get": "/api/leaderboard",
     "hx_trigger": "change", 
     "hx_target": "#leaderboard-table",
-    "hx_include": "[name='meta_format'],[name='region'],[name='only_official'],[name='sort_by'],[name='release_meta_formats'],[name='min_matches'],[name='max_matches']",
+    "hx_include":HX_INCLUDE,
     "hx_indicator": "#loading-indicator"
 }
 
@@ -129,7 +126,7 @@ def create_filter_components(max_match_count: int = 10000):
         cls="space-y-4"
     )
 
-def create_leaderboard_table(leaders: list[LeaderExtended], meta_format: MetaFormat, display_name2df_col_name: dict[str, str], only_official: bool = True):
+def create_leaderboard_table(leaders: list[LeaderExtended], meta_format: MetaFormat):
     # Filter leaders for the selected meta format
     relevant_meta_formats = MetaFormat.to_list()[:MetaFormat.to_list().index(meta_format) + 1]
     visible_meta_formats = relevant_meta_formats[max(0, len(relevant_meta_formats) - 5):]
@@ -167,6 +164,7 @@ def create_leaderboard_table(leaders: list[LeaderExtended], meta_format: MetaFor
                 cls="px-4 py-2 bg-gray-800 text-white font-semibold"
             ),
             ft.Th("Elo", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
+            ft.Th("Performance", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
             cls=""
         )
     )
@@ -206,21 +204,54 @@ def create_leaderboard_table(leaders: list[LeaderExtended], meta_format: MetaFor
             ft.Td(str(leader.total_matches), cls="px-4 py-2 text-gray-200"),
             ft.Td(f"{leader.win_rate * 100:.2f}%", cls="px-4 py-2 text-gray-200"),
             ft.Td(f"{int(leader.d_score * 100)}%", cls="px-4 py-2 text-gray-200"),
-            ft.Td(str(leader.elo), cls=f"px-4 py-2 {elo_color_class}")
+            ft.Td(str(leader.elo), cls=f"px-4 py-2 {elo_color_class}"),
+            ft.Td(
+                ft.Div(
+                    # Chart loading indicator
+                    create_loading_overlay(
+                        id=f"chart-loading-{leader.id}",
+                        size="w-8 h-8"
+                    ),
+                    # Chart container
+                    ft.Div(
+                        id=f"leader-chart-{leader.id}",
+                        hx_get=f"/api/leader-chart/{leader.id}",
+                        hx_trigger="load",
+                        hx_swap="innerHTML",
+                        hx_target=f"#leader-chart-{leader.id}",
+                        hx_include=HX_INCLUDE,
+                        hx_indicator=f"#chart-loading-{leader.id}",
+                        cls="w-[200px] h-[120px]"
+                    ),
+                    cls="relative w-[200px] h-[120px]"
+                ),
+                cls="px-0 py-0 min-w-[200px] h-[120px] relative"
+            )
         ]
         
         rows.append(ft.Tr(*cells, cls="border-b border-gray-700 hover:bg-gray-800/50"))
     
     body = ft.Tbody(*rows)
     
-    return ft.Div(
+    # Create table with loading indicator
+    table_container = ft.Div(
+        # Loading indicator for the entire table
+        create_loading_spinner(
+            id="leaderboard-loading",
+            size="w-12 h-12",
+            container_classes="htmx-indicator w-full h-[200px]"
+        ),
+        # Table
         ft.Table(
             header,
             body,
-            cls="w-full border-collapse bg-gray-900"
+            cls="min-w-full divide-y divide-gray-700"
         ),
-        cls="overflow-x-auto rounded-lg border border-gray-700 shadow-gray-800/50"
+        cls="relative",
+        hx_indicator="#leaderboard-loading"
     )
+    
+    return table_container
 
 def home_page():
     return ft.Div(
@@ -228,19 +259,17 @@ def home_page():
         ft.Div(
             ft.Div(
                 # Loading indicator
-                ft.Div(
-                    ft.Div(
-                        cls="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white mx-auto"
-                    ),
-                    cls="text-white text-center py-8 htmx-indicator",
-                    id="loading-indicator"
+                create_loading_spinner(
+                    id="loading-indicator",
+                    size="w-8 h-8",
+                    container_classes="min-h-[100px]"
                 ),
                 # Content
                 ft.Div(
                     cls="text-white text-center py-8",
                     hx_get="/api/leaderboard",
                     hx_trigger="load",
-                    hx_include="[name='meta_format'],[name='region'],[name='only_official'],[name='sort_by']",
+                    hx_include=HX_INCLUDE,
                     hx_target="#leaderboard-table",
                     hx_indicator="#loading-indicator",
                     id="leaderboard-table"

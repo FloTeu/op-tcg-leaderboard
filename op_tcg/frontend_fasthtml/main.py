@@ -3,7 +3,6 @@ load_dotenv()
 
 from fasthtml import ft
 from fasthtml.common import fast_app, serve
-from starlette.requests import Request
 from op_tcg.frontend_fasthtml.components.layout import layout
 from op_tcg.frontend_fasthtml.pages.home import home_page, create_filter_components as home_filters
 from op_tcg.frontend_fasthtml.pages.page1 import page1_content
@@ -37,6 +36,7 @@ app, rt = fast_app(
             href="/static/css/tooltip.css",
             rel="stylesheet"
         ),
+        ft.Script(src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"),
         ft.Script(src="/static/js/multiselect.js"),
     ],
     static_path='op_tcg/frontend_fasthtml/'
