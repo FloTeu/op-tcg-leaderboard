@@ -1,5 +1,6 @@
 from fasthtml import ft
 
+
 def create_nav_link(href: str, text: str, icon: str, is_active: bool = False) -> ft.A:
     """Create a navigation link with an icon."""
     active_classes = "bg-gray-800" if is_active else ""
@@ -21,14 +22,7 @@ def create_nav_section(title: str, links: list[tuple[str, str, str, bool]]) -> f
         cls="mb-6"
     )
 
-def sidebar(filter_component=None, current_path="/"):
-    """
-    Create the sidebar with navigation and optional filter component.
-    
-    Args:
-        filter_component: Optional filter component to show at the top of the sidebar
-        current_path: Current active path for highlighting the active link
-    """
+def sidebar_content(filter_component=None, current_path="/"):
     # Define navigation sections
     leader_links = [
         ("/", "Leaderboard", "🏆", current_path == "/"),
@@ -45,10 +39,24 @@ def sidebar(filter_component=None, current_path="/"):
     support_links = [
         ("/bug-report", "Bug Report", "👾", current_path == "/bug-report"),
     ]
-    
-    return ft.Div(    
-        
-            # Burger menu
+
+    return ft.Div(
+        # Navigation sections
+        create_nav_section("Leader", leader_links),
+        create_nav_section("Card", card_links),
+        create_nav_section("Support", support_links),
+        # Filter section
+        ft.Div(
+            ft.H2("Filters", cls="text-xl font-bold text-white mb-4") if filter_component else None,
+            filter_component if filter_component else None,
+            cls="mt-4"
+        ) if filter_component else None,
+        cls="space-y-2"
+    )
+
+def sidebar(filter_component=None):
+    return ft.Div(
+        ft.Div(
             ft.Div(
                 ft.H2("Navigation", cls="text-xl font-bold text-white"),
                 ft.Button(
@@ -63,16 +71,10 @@ def sidebar(filter_component=None, current_path="/"):
                     id="sidebar-burger-menu"
                 ),
                 cls="flex justify-between items-center mb-4"
-            ),    
-        # Navigation
-        ft.Nav(
-            create_nav_section("Leader", leader_links),
-            create_nav_section("Card", card_links),
-            create_nav_section("Support", support_links),
-            cls="mt-6"
+            ),
+            sidebar_content(filter_component),
+            cls="p-4"
         ),
-        # Filter component if provided
-        filter_component if filter_component else "",
-        cls="w-64 bg-gray-900 p-4 border-r border-gray-800 min-h-screen",
+        cls="fixed left-0 top-0 h-full w-64 bg-gray-800 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800 hover:scrollbar-thumb-gray-500",
         id="sidebar"
     ) 
