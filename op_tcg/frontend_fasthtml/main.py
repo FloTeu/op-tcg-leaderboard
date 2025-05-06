@@ -5,7 +5,7 @@ from fasthtml import ft
 from fasthtml.common import fast_app, serve
 from op_tcg.frontend_fasthtml.components.layout import layout
 from op_tcg.frontend_fasthtml.pages.home import home_page, create_filter_components as home_filters
-from op_tcg.frontend_fasthtml.pages.leader import leader_page
+from op_tcg.frontend_fasthtml.pages.leader import leader_page, create_filter_components as leader_filters
 from op_tcg.frontend_fasthtml.pages.tournaments import tournaments_page
 from op_tcg.frontend_fasthtml.pages.card_movement import card_movement_page
 from op_tcg.frontend_fasthtml.pages.matchups import matchups_page
@@ -40,7 +40,9 @@ app, rt = fast_app(
             rel="stylesheet"
         ),
         ft.Script(src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"),
-        ft.Script(src="/static/js/multiselect.js"),
+        # Core utilities and libraries
+        ft.Script(src="/static/js/multiselect.js"),  # Base select functionality
+        # Page utilities
         ft.Script(src="/static/js/sidebar.js"),
     ],
     static_path='op_tcg/frontend_fasthtml/'
@@ -60,9 +62,13 @@ def home():
         layout(home_page(), filter_component=home_filters())
     )
 
+@rt("/leader")
+def leader_default():
+    return layout(leader_page(), filter_component=leader_filters())
+
 @rt("/leader/{leader_id}")
 def leader(leader_id: str):
-    return layout(leader_page(leader_id), filter_component=None)
+    return layout(leader_page(leader_id), filter_component=leader_filters())
 
 @rt("/tournaments")
 def tournaments():

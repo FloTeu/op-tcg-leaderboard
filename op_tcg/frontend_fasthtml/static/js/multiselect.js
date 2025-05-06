@@ -268,13 +268,34 @@ function initializeSelect(selectId) {
     updateDisplay(selectedOption ? selectedOption.text : 'Select an option...');
 }
 
-// Initialize all multi-selects and normal selects on page load
-document.addEventListener('DOMContentLoaded', () => {
+// Initialize all selects in a container
+function initializeAllSelects(container = document) {
     // Initialize multi-selects
-    initializeMultiSelect('release-meta-formats-select');
-    
-    // Initialize normal selects with class 'styled-select'
-    document.querySelectorAll('select.styled-select').forEach(select => {
-        initializeSelect(select.id);
+    container.querySelectorAll('select.multiselect').forEach(select => {
+        if (select.id) {
+            initializeMultiSelect(select.id);
+        }
     });
-}); 
+    
+    // Initialize styled selects
+    container.querySelectorAll('select.styled-select').forEach(select => {
+        if (select.id) {
+            initializeSelect(select.id);
+        }
+    });
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+    initializeAllSelects();
+});
+
+// Re-initialize after HTMX content swaps
+document.body.addEventListener('htmx:afterSwap', (evt) => {
+    initializeAllSelects(evt.detail.target);
+});
+
+// Export functions for use in other files
+window.initializeMultiSelect = initializeMultiSelect;
+window.initializeSelect = initializeSelect;
+window.initializeAllSelects = initializeAllSelects; 

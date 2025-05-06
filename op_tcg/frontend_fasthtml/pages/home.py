@@ -36,7 +36,7 @@ def create_filter_components(max_match_count: int = 10000):
         name="release_meta_formats",
         multiple=True,
         size=1,
-        cls=SELECT_CLS + " relative",
+        cls=SELECT_CLS + " multiselect",
         *[ft.Option(mf, value=mf) for mf in reversed(MetaFormat.to_list())],
         **FILTER_HX_ATTRS,
     )

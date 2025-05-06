@@ -8,6 +8,7 @@ from op_tcg.frontend_fasthtml.pages.home import create_leaderboard_table
 from op_tcg.frontend_fasthtml.utils.launch import init_load_data
 from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended
 from op_tcg.frontend_fasthtml.utils.charts import create_line_chart
+from op_tcg.frontend_fasthtml.pages.leader import leader_page, create_leader_select
 
 DATA_IS_LOADED = False
 
@@ -41,6 +42,19 @@ def setup_api_routes(rt):
             init_load_data()
             DATA_IS_LOADED = True
         return {"data_is_loaded": DATA_IS_LOADED}
+
+    @rt("/api/leader-select")
+    def get_leader_select(request: Request):
+        # Get selected meta formats from request
+        meta_formats = request.query_params.getlist("meta_format")
+        if not meta_formats:
+            meta_formats = [MetaFormat.latest_meta_format]
+        else:
+            # Convert string values to MetaFormat enum
+            meta_formats = [MetaFormat(mf) for mf in meta_formats]
+        
+        # Create and return the updated leader select
+        return create_leader_select(meta_formats)
 
     @rt("/api/leader-chart/{leader_id}")
     def leader_chart(request: Request, leader_id: str):
@@ -120,3 +134,33 @@ def setup_api_routes(rt):
             filtered_leaders,
             meta_format
         )
+
+    @rt("/api/leader-data")
+    async def get_leader_data(request: Request):
+        # Get query parameters from request
+        meta_formats = request.query_params.getlist("meta_format")
+        if not meta_formats:
+            meta_formats = [MetaFormat.latest_meta_format]
+        leader_id = request.query_params.get("leader_id")
+        only_official = request.query_params.get("only_official", "true").lower() == "true"
+        
+        # Get leader data
+        leader_data = get_leader_extended(leader_ids=[leader_id] if leader_id else None)
+        
+        # Filter by meta format
+        leader_data = [l for l in leader_data if l.meta_format in meta_formats]
+        
+        # Apply filters
+        filtered_data = filter_leader_extended(
+            leaders=leader_data,
+            only_official=only_official
+        )
+        
+        if filtered_data:
+            # If we have multiple versions of the same leader (from different meta formats),
+            # use the most recent one
+            if len(filtered_data) > 1:
+                # Sort by meta format index (higher index = more recent)
+                filtered_data.sort(key=lambda x: MetaFormat.to_list().index(x.meta_format), reverse=True)
+            return leader_page(leader_id, filtered_data[0])
+        return ft.P("No data available for this leader.", cls="text-red-400")
