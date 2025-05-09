@@ -133,37 +133,6 @@ def create_leader_select(selected_meta_formats=None, selected_leader_id=None):
         cls="relative"  # Required for proper styling
     )
 
-def get_leader_win_rate_data(leader_data: LeaderExtended) -> list[dict]:
-    """Create win rate history data for the chart."""
-    # Get all meta formats up to the current one
-    all_meta_formats = MetaFormat.to_list()
-    current_meta_index = all_meta_formats.index(leader_data.meta_format)
-    relevant_meta_formats = all_meta_formats[max(0, current_meta_index - 4):current_meta_index + 1]
-    
-    # Get leader data for all relevant meta formats
-    all_leader_data = get_leader_extended(meta_formats=relevant_meta_formats)
-    leader_history = [l for l in all_leader_data if l.id == leader_data.id]
-    
-    # Create a lookup for existing data points
-    meta_to_leader = {l.meta_format: l for l in leader_history}
-    
-    # Prepare data for the chart, including null values for missing meta formats
-    chart_data = []
-    for meta_format in relevant_meta_formats:
-        if meta_format in meta_to_leader:
-            leader = meta_to_leader[meta_format]
-            chart_data.append({
-                "meta": str(meta_format),
-                "winRate": round(leader.win_rate * 100, 2) if leader.win_rate is not None else None
-            })
-        else:
-            chart_data.append({
-                "meta": str(meta_format),
-                "winRate": None
-            })
-    
-    return chart_data
-
 def create_leader_content(leader_data: LeaderExtended):
     """
     Create the content for a leader page.
@@ -179,63 +148,82 @@ def create_leader_content(leader_data: LeaderExtended):
         ft.H1(f"Leader: {leader_data.name} ({leader_data.id})", 
               cls="text-3xl font-bold text-white mb-6"),
         
-        # Header section with leader info
+        # Main content: two-column layout for desktop, single column for mobile
         ft.Div(
+            # First column (3/10) - Leader image and stats
             ft.Div(
-                # Left column - Leader image and basic stats
+                # Leader image
                 ft.Div(
                     ft.Img(src=leader_data.aa_image_url, cls="w-full rounded-lg shadow-lg"),
-                    ft.Div(
-                        ft.Div(
-                            ft.P(f"Win Rate: {leader_data.win_rate * 100:.1f}%" if leader_data.win_rate is not None else "Win Rate: N/A", 
-                                 cls="text-green-400"),
-                            ft.P(f"Total Matches: {leader_data.total_matches}" if leader_data.total_matches is not None else "Total Matches: N/A", 
-                                 cls="text-blue-400"),
-                            ft.P(f"Tournament Wins: {leader_data.tournament_wins}", cls="text-purple-400"),
-                            ft.P(f"ELO Rating: {leader_data.elo}" if leader_data.elo is not None else "ELO Rating: N/A", 
-                                 cls="text-yellow-400"),
-                            cls="space-y-2 mt-4"
-                        ),
-                        cls="mt-4"
-                    ),
-                    cls="w-1/3"
+                    cls="mb-4"
                 ),
-                # Right column - Win rate chart
+                
+                # Stats section
+                ft.Div(
+                    ft.Div(
+                        ft.P(f"Win Rate: {leader_data.win_rate * 100:.1f}%" if leader_data.win_rate is not None else "Win Rate: N/A", 
+                             cls="text-green-400"),
+                        ft.P(f"Total Matches: {leader_data.total_matches}" if leader_data.total_matches is not None else "Total Matches: N/A", 
+                             cls="text-blue-400"),
+                        ft.P(f"Tournament Wins: {leader_data.tournament_wins}", cls="text-purple-400"),
+                        ft.P(f"ELO Rating: {leader_data.elo}" if leader_data.elo is not None else "ELO Rating: N/A", 
+                             cls="text-yellow-400"),
+                        cls="space-y-2"
+                    ),
+                    cls="bg-gray-700 rounded-lg p-4"
+                ),
+                cls="w-1/4 flex-shrink-0 mb-6"
+            ),
+            
+            # Second column (7/10) - Charts
+            ft.Div(
+                # Win rate chart
                 ft.Div(
                     ft.H3("Win Rate History", cls="text-xl font-bold text-white mb-4"),
-                    create_line_chart(
-                        container_id=f"win-rate-chart-{leader_data.id}",
-                        data=get_leader_win_rate_data(leader_data),
-                        show_x_axis=True,
-                        show_y_axis=True
+                    # Loading indicator for win rate chart
+                    create_loading_spinner(
+                        id="win-rate-chart-loading-indicator",
+                        size="w-8 h-8",
+                        container_classes="min-h-[100px]"
                     ),
-                    cls="w-2/3 pl-8"
+                    # Win rate chart container with HTMX
+                    ft.Div(
+                        hx_get=f"/api/leader-chart/{leader_data.id}",
+                        hx_trigger="load",
+                        hx_include=HX_INCLUDE,
+                        hx_target="#win-rate-chart-container",
+                        hx_indicator="#win-rate-chart-loading-indicator",
+                        hx_vals=f'{{"last_n": "10", "color": "neutral"}}',
+                        id="win-rate-chart-container",
+                        cls="min-h-[150px] flex items-center justify-center w-full"
+                    ),
+                    cls="bg-gray-800 rounded-lg p-6 shadow-xl mb-6"
                 ),
-                cls="flex gap-8"
+                
+                # Color matchup radar chart
+                ft.Div(
+                    ft.H3("Color Matchups", cls="text-xl font-bold text-white mb-4"),
+                    # Loading indicator
+                    create_loading_spinner(
+                        id="radar-chart-loading-indicator",
+                        size="w-8 h-8",
+                        container_classes="min-h-[100px]"
+                    ),
+                    ft.Div(
+                        hx_get="/api/leader-radar-chart",
+                        hx_trigger="load",
+                        hx_include=HX_INCLUDE,
+                        hx_target="#leader-radar-chart",
+                        hx_indicator="#radar-chart-loading-indicator",
+                        hx_vals=f'{{"lid": "{leader_data.id}"}}',
+                        id="leader-radar-chart",
+                        cls="min-h-[300px] flex items-center justify-center w-full"
+                    ),
+                    cls="bg-gray-800 rounded-lg p-6 shadow-xl"
+                ),
+                cls="w-3/4 pl-6 flex-grow"
             ),
-            cls="bg-gray-800 rounded-lg p-6 shadow-xl"
-        ),
-        
-        # Color matchup radar chart
-        ft.Div(
-            ft.H3("Color Matchups", cls="text-xl font-bold text-white mb-4"),
-            # Loading indicator
-            create_loading_spinner(
-                id="radar-chart-loading-indicator",
-                size="w-8 h-8",
-                container_classes="min-h-[100px]"
-            ),
-            ft.Div(
-                hx_get="/api/leader-radar-chart",
-                hx_trigger="load",
-                hx_include=HX_INCLUDE,
-                hx_target="#leader-radar-chart",
-                hx_indicator="#radar-chart-loading-indicator",
-                hx_vals=f'{{"lid": "{leader_data.id}"}}',
-                id="leader-radar-chart",
-                cls="min-h-[300px] flex items-center justify-center"
-            ),
-            cls="bg-gray-800 rounded-lg p-6 shadow-xl mt-6"
+            cls="flex flex-row gap-4"
         ),
         
         # Tabs section
@@ -259,7 +247,7 @@ def create_leader_content(leader_data: LeaderExtended):
                 ),
                 cls="grid grid-cols-1 md:grid-cols-3 gap-4"
             ),
-            cls="bg-gray-800 rounded-lg p-6 shadow-xl mt-6"
+            cls="bg-gray-800 rounded-lg p-6 shadow-xl w-full mt-6"
         ),
         id="leader-content-inner"
     )

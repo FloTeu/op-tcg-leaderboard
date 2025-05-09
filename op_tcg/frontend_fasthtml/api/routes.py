@@ -9,7 +9,7 @@ from op_tcg.frontend_fasthtml.utils.launch import init_load_data
 from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended
 from op_tcg.frontend_fasthtml.utils.charts import create_line_chart, create_leader_win_rate_radar_chart
 from op_tcg.frontend_fasthtml.utils.win_rate import get_radar_chart_data
-from op_tcg.frontend_fasthtml.pages.leader import create_leader_select, get_leader_win_rate_data, create_leader_content
+from op_tcg.frontend_fasthtml.pages.leader import create_leader_select, create_leader_content
 
 DATA_IS_LOADED = False
 
@@ -61,11 +61,21 @@ def setup_api_routes(rt):
 
     @rt("/api/leader-chart/{leader_id}")
     def leader_chart(request: Request, leader_id: str):
+        # Get query parameters
         all_meta_formats = MetaFormat.to_list()
-        meta_format = MetaFormat(request.query_params.get("meta_format", MetaFormat.latest_meta_format))
+        meta_format = MetaFormat(request.query_params.get("meta_format", MetaFormat.latest_meta_format()))
         meta_format_index = all_meta_formats.index(meta_format)
         latest_meta_format_index = all_meta_formats.index(MetaFormat.latest_meta_format())
-
+        
+        # Get the last_n parameter (default to 5)
+        try:
+            last_n = int(request.query_params.get("last_n", "5"))
+        except ValueError:
+            last_n = 5
+        
+        # Get color parameter (default to neutral for leader page)
+        color_param = request.query_params.get("color", "neutral")
+        
         # Get leader data for all meta formats
         filtered_leaders = get_filtered_leaders(request)
         
@@ -81,14 +91,19 @@ def setup_api_routes(rt):
         # Create a lookup for existing data points
         meta_to_leader = {l.meta_format: l for l in leader_history}
         
+        # Determine range of meta formats to include based on last_n
+        end_index = meta_format_index + 1 - start_index  # Exclusive end index
+        start_index = max(0, end_index - last_n)  # Take at most last_n meta formats
+        relevant_meta_formats = meta_formats_between[start_index:end_index]
+        
         # Prepare data for the chart, including null values for missing meta formats
         chart_data = []
-        for meta_format in meta_formats_between[-5-(latest_meta_format_index-meta_format_index):meta_format_index]:
+        for meta_format in relevant_meta_formats:
             if meta_format in meta_to_leader:
                 leader = meta_to_leader[meta_format]
                 chart_data.append({
                     "meta": str(meta_format),
-                    "winRate": round(leader.win_rate * 100, 2),
+                    "winRate": round(leader.win_rate * 100, 2) if leader.win_rate is not None else None,
                     "elo": leader.elo,
                     "matches": leader.total_matches
                 })
@@ -99,15 +114,22 @@ def setup_api_routes(rt):
                     "elo": None,
                     "matches": None
                 })
-        win_rate_values = [d["winRate"] for d in chart_data if d["winRate"] is not None]
-        color = ChartColors.POSITIVE if len(win_rate_values) < 2 or (len(win_rate_values) >= 2 and win_rate_values[-1] > win_rate_values[-2]) else ChartColors.NEGATIVE
+        
+        # Determine chart color based on parameter or trend
+        if color_param == "neutral":
+            color = ChartColors.NEUTRAL
+        else:
+            # Default behavior: determine color based on win rate trend
+            win_rate_values = [d["winRate"] for d in chart_data if d["winRate"] is not None]
+            color = ChartColors.POSITIVE if len(win_rate_values) < 2 or (len(win_rate_values) >= 2 and win_rate_values[-1] > win_rate_values[-2]) else ChartColors.NEGATIVE
 
+        # Create and return the chart
         return create_line_chart(
-            container_id=f"chart-container-{leader_id}",
+            container_id=f"win-rate-chart-{leader_id}",
             data=chart_data,
             color=color,
-            show_x_axis=False,
-            show_y_axis=False
+            show_x_axis=True,
+            show_y_axis=True
         )
 
     @rt("/api/leaderboard")
@@ -208,7 +230,7 @@ def setup_api_routes(rt):
             if not leader_data:
                 return ft.P("No data available for this leader in the selected meta format.", cls="text-red-400")
         
-        # Return the leader content using the shared function
+        # Use the shared create_leader_content function
         return create_leader_content(leader_data)
 
     @rt("/api/leader-radar-chart")
