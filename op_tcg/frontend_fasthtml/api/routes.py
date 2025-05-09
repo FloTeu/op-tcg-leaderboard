@@ -7,8 +7,9 @@ from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended
 from op_tcg.frontend_fasthtml.pages.home import create_leaderboard_table
 from op_tcg.frontend_fasthtml.utils.launch import init_load_data
 from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended
-from op_tcg.frontend_fasthtml.utils.charts import create_line_chart
-from op_tcg.frontend_fasthtml.pages.leader import create_leader_select, get_leader_win_rate_data
+from op_tcg.frontend_fasthtml.utils.charts import create_line_chart, create_leader_win_rate_radar_chart
+from op_tcg.frontend_fasthtml.utils.win_rate import get_radar_chart_data
+from op_tcg.frontend_fasthtml.pages.leader import create_leader_select, get_leader_win_rate_data, create_leader_content
 
 DATA_IS_LOADED = False
 
@@ -207,64 +208,49 @@ def setup_api_routes(rt):
             if not leader_data:
                 return ft.P("No data available for this leader in the selected meta format.", cls="text-red-400")
         
-        # Return only the inner content, not the whole page
-        return ft.Div(
-            # Header section with leader info
-            ft.Div(
-                ft.Div(
-                    # Left column - Leader image and basic stats
-                    ft.Div(
-                        ft.Img(src=leader_data.aa_image_url, cls="w-full rounded-lg shadow-lg"),
-                        ft.Div(
-                            ft.H2(leader_data.name, cls="text-2xl font-bold text-white mt-4"),
-                            ft.P(f"Set: {leader_data.id}", cls="text-gray-400"),
-                            ft.Div(
-                                ft.P(f"Win Rate: {leader_data.win_rate * 100:.1f}%" if leader_data.win_rate is not None else "Win Rate: N/A", 
-                                    cls="text-green-400"),
-                                ft.P(f"Total Matches: {leader_data.total_matches}" if leader_data.total_matches is not None else "Total Matches: N/A", 
-                                    cls="text-blue-400"),
-                                ft.P(f"Tournament Wins: {leader_data.tournament_wins}", cls="text-purple-400"),
-                                ft.P(f"ELO Rating: {leader_data.elo}" if leader_data.elo is not None else "ELO Rating: N/A", 
-                                    cls="text-yellow-400"),
-                                cls="space-y-2 mt-4"
-                            ),
-                            cls="mt-4"
-                        ),
-                        cls="w-1/3"
-                    ),
-                    # Right column - Win rate chart
-                    ft.Div(
-                        ft.H3("Win Rate History", cls="text-xl font-bold text-white mb-4"),
-                        create_line_chart(
-                            container_id=f"win-rate-chart-{leader_data.id}",
-                            data=get_leader_win_rate_data(leader_data),
-                            show_x_axis=True,
-                            show_y_axis=True
-                        ),
-                        cls="w-2/3 pl-8"
-                    ),
-                    cls="flex gap-8"
-                ),
-                cls="bg-gray-800 rounded-lg p-6 shadow-xl"
-            ),
+        # Return the leader content using the shared function
+        return create_leader_content(leader_data)
+
+    @rt("/api/leader-radar-chart")
+    def leader_radar_chart(request: Request):
+        leader_id = request.query_params.get("lid")
+        
+        # Get meta formats from request
+        meta_formats = request.query_params.getlist("meta_format")
+        if not meta_formats:
+            meta_formats = [MetaFormat.latest_meta_format()]
+        else:
+            # Convert string values to MetaFormat enum
+            meta_formats = [MetaFormat(mf) for mf in meta_formats]
             
-            # Tabs section
-            ft.Div(
-                ft.Div(
-                    ft.H3("Recent Tournaments", cls="text-xl font-bold text-white"),
-                    ft.P("Coming soon...", cls="text-gray-400 mt-2"),
-                    cls="bg-gray-800 rounded-lg p-6 mt-6"
-                ),
-                ft.Div(
-                    ft.H3("Popular Decklists", cls="text-xl font-bold text-white"),
-                    ft.P("Coming soon...", cls="text-gray-400 mt-2"),
-                    cls="bg-gray-800 rounded-lg p-6 mt-6"
-                ),
-                ft.Div(
-                    ft.H3("Matchup Analysis", cls="text-xl font-bold text-white"),
-                    ft.P("Coming soon...", cls="text-gray-400 mt-2"),
-                    cls="bg-gray-800 rounded-lg p-6 mt-6"
-                ),
-                cls="space-y-6"
-            )
+        only_official = request.query_params.get("only_official", "true").lower() == "true"
+        
+        if not leader_id:
+            return ft.Div(ft.P("No leader selected", cls="text-red-400"))
+        
+        # Get leader data to determine color
+        leader_data = get_leader_extended(leader_ids=[leader_id])
+        if not leader_data:
+            return ft.Div(ft.P("Leader data not found", cls="text-red-400"))
+            
+        # Get filtered leader data
+        leader = next((l for l in leader_data if l.meta_format in meta_formats), None)
+        if not leader:
+            return ft.Div(ft.P("Leader not found in selected meta format", cls="text-red-400"))
+        
+        # Get radar chart data
+        radar_data = get_radar_chart_data([leader_id], meta_formats, only_official)
+        if not radar_data:
+            return ft.Div(ft.P("No matchup data available", cls="text-gray-400"))
+        
+        # Create a unique ID for this chart instance to avoid conflicts
+        chart_id = f"radar-chart-{leader_id}-{hash(str(meta_formats))}"
+        
+        # Create radar chart
+        return create_leader_win_rate_radar_chart(
+            container_id=chart_id,
+            data=radar_data,
+            leader_ids=[leader_id],
+            colors=[leader.to_hex_color()],
+            show_legend=False,
         )

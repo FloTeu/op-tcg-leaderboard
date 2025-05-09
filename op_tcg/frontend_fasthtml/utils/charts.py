@@ -143,3 +143,144 @@ def create_line_chart(container_id: str, data: List[dict[str, Any]],
         """),
         style="height: 120px; width: 100%;"  # Explicit height in style attribute
     ) 
+
+def create_leader_win_rate_radar_chart(container_id, data, leader_ids, colors=None, show_legend=True):
+    """
+    Create a radar chart to display leader win rates against different color matchups.
+    
+    Args:
+        container_id: HTML ID for the chart container
+        data: Radar chart data with color matchups
+        leader_ids: List of leader IDs to include in the chart
+        colors: List of colors for each leader
+        show_legend: Whether to show the chart legend
+    """
+    if not data or not leader_ids:
+        return ft.Div(ft.P("No data available for radar chart.", cls="text-gray-400"))
+    
+    # Filter data for the specified leaders
+    filtered_data = []
+    for item in data:
+        if item.get('leader_id') in leader_ids:
+            filtered_data.append(item)
+    
+    # Default colors if none provided
+    if not colors or len(colors) != len(leader_ids):
+        colors = ["#3498db", "#e74c3c", "#2ecc71", "#f39c12", "#9b59b6"][:len(leader_ids)]
+    
+    # Convert data to the format needed for the radar chart
+    radar_data = []
+    for item in filtered_data:
+        leader_data = {"leader": item.get('leader_id', '')}
+        
+        # Add color win rate data
+        for key, value in item.items():
+            if key != 'leader_id' and not key.startswith('__'):
+                leader_data[key] = value
+        
+        radar_data.append(leader_data)
+    
+    # Convert Python data to JSON safely
+    import json
+    json_radar_data = json.dumps(radar_data)
+    json_leader_ids = json.dumps(leader_ids)
+    json_colors = json.dumps(colors)
+    
+    return ft.Div(
+        # Chart container with canvas
+        ft.Div(
+            ft.Canvas(id=container_id),
+            cls="h-full w-full"  # Use full height and width
+        ),
+        ft.Script(f"""
+            (function() {{
+                const chartId = '{container_id}';
+                const container = document.getElementById(chartId);
+                
+                if (!container) {{
+                    console.error('Chart container not found:', chartId);
+                    return;
+                }}
+                
+                // Destroy existing chart if it exists
+                const existingChart = Chart.getChart(chartId);
+                if (existingChart) {{
+                    existingChart.destroy();
+                }}
+                
+                // Prepare data
+                const data = {json_radar_data};
+                const leaders = {json_leader_ids};
+                const colors = {json_colors};
+                
+                if (data.length === 0 || !data[0]) {{
+                    console.error('No valid data for chart');
+                    return;
+                }}
+                
+                // Extract labels from first data object
+                const labels = Object.keys(data[0]).filter(key => key !== 'leader');
+                
+                // Prepare datasets
+                const datasets = data.map((item, index) => {{
+                    return {{
+                        label: item.leader,
+                        data: labels.map(label => item[label]),
+                        backgroundColor: colors[index] + '33', // Add transparency
+                        borderColor: colors[index],
+                        pointBackgroundColor: colors[index],
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: colors[index]
+                    }};
+                }});
+                
+                // Create chart
+                new Chart(container, {{
+                    type: 'radar',
+                    data: {{
+                        labels: labels,
+                        datasets: datasets
+                    }},
+                    options: {{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {{
+                            legend: {{
+                                display: {str(show_legend).lower()},
+                                position: 'bottom',
+                                labels: {{
+                                    color: '#ffffff',
+                                    font: {{
+                                        size: 16 // Increased font size
+                                    }}
+                                }}
+                            }}
+                        }},
+                        scales: {{
+                            r: {{
+                                angleLines: {{
+                                    color: 'rgba(255, 255, 255, 0.2)'
+                                }},
+                                grid: {{
+                                    color: 'rgba(255, 255, 255, 0.2)'
+                                }},
+                                pointLabels: {{
+                                    color: '#ffffff',
+                                    font: {{
+                                        size: 16 // Increased font size
+                                    }}
+                                }},
+                                ticks: {{
+                                    color: '#ffffff',
+                                    backdropColor: 'transparent'
+                                }}
+                            }}
+                        }}
+                    }}
+                }});
+            }})();
+        """),
+        cls="radar-chart-container bg-gray-800 rounded-lg p-4 shadow-lg",
+        style="height: 300px; width: 100%;"  # Explicit height and width
+    ) 

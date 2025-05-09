@@ -164,6 +164,106 @@ def get_leader_win_rate_data(leader_data: LeaderExtended) -> list[dict]:
     
     return chart_data
 
+def create_leader_content(leader_data: LeaderExtended):
+    """
+    Create the content for a leader page.
+    
+    Args:
+        leader_data: Leader data to display
+        
+    Returns:
+        A Div containing the leader page content
+    """
+    return ft.Div(
+        # Page title
+        ft.H1(f"Leader: {leader_data.name} ({leader_data.id})", 
+              cls="text-3xl font-bold text-white mb-6"),
+        
+        # Header section with leader info
+        ft.Div(
+            ft.Div(
+                # Left column - Leader image and basic stats
+                ft.Div(
+                    ft.Img(src=leader_data.aa_image_url, cls="w-full rounded-lg shadow-lg"),
+                    ft.Div(
+                        ft.Div(
+                            ft.P(f"Win Rate: {leader_data.win_rate * 100:.1f}%" if leader_data.win_rate is not None else "Win Rate: N/A", 
+                                 cls="text-green-400"),
+                            ft.P(f"Total Matches: {leader_data.total_matches}" if leader_data.total_matches is not None else "Total Matches: N/A", 
+                                 cls="text-blue-400"),
+                            ft.P(f"Tournament Wins: {leader_data.tournament_wins}", cls="text-purple-400"),
+                            ft.P(f"ELO Rating: {leader_data.elo}" if leader_data.elo is not None else "ELO Rating: N/A", 
+                                 cls="text-yellow-400"),
+                            cls="space-y-2 mt-4"
+                        ),
+                        cls="mt-4"
+                    ),
+                    cls="w-1/3"
+                ),
+                # Right column - Win rate chart
+                ft.Div(
+                    ft.H3("Win Rate History", cls="text-xl font-bold text-white mb-4"),
+                    create_line_chart(
+                        container_id=f"win-rate-chart-{leader_data.id}",
+                        data=get_leader_win_rate_data(leader_data),
+                        show_x_axis=True,
+                        show_y_axis=True
+                    ),
+                    cls="w-2/3 pl-8"
+                ),
+                cls="flex gap-8"
+            ),
+            cls="bg-gray-800 rounded-lg p-6 shadow-xl"
+        ),
+        
+        # Color matchup radar chart
+        ft.Div(
+            ft.H3("Color Matchups", cls="text-xl font-bold text-white mb-4"),
+            # Loading indicator
+            create_loading_spinner(
+                id="radar-chart-loading-indicator",
+                size="w-8 h-8",
+                container_classes="min-h-[100px]"
+            ),
+            ft.Div(
+                hx_get="/api/leader-radar-chart",
+                hx_trigger="load",
+                hx_include=HX_INCLUDE,
+                hx_target="#leader-radar-chart",
+                hx_indicator="#radar-chart-loading-indicator",
+                hx_vals=f'{{"lid": "{leader_data.id}"}}',
+                id="leader-radar-chart",
+                cls="min-h-[300px] flex items-center justify-center"
+            ),
+            cls="bg-gray-800 rounded-lg p-6 shadow-xl mt-6"
+        ),
+        
+        # Tabs section
+        ft.Div(
+            ft.H3("Additional Information", cls="text-xl font-bold text-white mb-4"),
+            ft.Div(
+                ft.Div(
+                    ft.H4("Recent Tournaments", cls="text-lg font-bold text-white"),
+                    ft.P("Coming soon...", cls="text-gray-400 mt-2"),
+                    cls="bg-gray-700 rounded-lg p-4"
+                ),
+                ft.Div(
+                    ft.H4("Popular Decklists", cls="text-lg font-bold text-white"),
+                    ft.P("Coming soon...", cls="text-gray-400 mt-2"),
+                    cls="bg-gray-700 rounded-lg p-4"
+                ),
+                ft.Div(
+                    ft.H4("Matchup Analysis", cls="text-lg font-bold text-white"),
+                    ft.P("Coming soon...", cls="text-gray-400 mt-2"),
+                    cls="bg-gray-700 rounded-lg p-4"
+                ),
+                cls="grid grid-cols-1 md:grid-cols-3 gap-4"
+            ),
+            cls="bg-gray-800 rounded-lg p-6 shadow-xl mt-6"
+        ),
+        id="leader-content-inner"
+    )
+
 def leader_page(leader_id: str | None = None, filtered_leader_data: LeaderExtended | None = None, selected_meta_format: list | None = None):
     """
     Display detailed information about a specific leader.
@@ -218,68 +318,8 @@ def leader_page(leader_id: str | None = None, filtered_leader_data: LeaderExtend
             id="leader-content"
         )
     
-    # Leader content
-    leader_content = ft.Div(
-        # Header section with leader info
-        ft.Div(
-            ft.Div(
-                # Left column - Leader image and basic stats
-                ft.Div(
-                    ft.Img(src=leader_data.aa_image_url, cls="w-full rounded-lg shadow-lg"),
-                    ft.Div(
-                        ft.H2(leader_data.name, cls="text-2xl font-bold text-white mt-4"),
-                        ft.P(f"Set: {leader_data.id}", cls="text-gray-400"),
-                        ft.Div(
-                            ft.P(f"Win Rate: {leader_data.win_rate * 100:.1f}%" if leader_data.win_rate is not None else "Win Rate: N/A", 
-                                 cls="text-green-400"),
-                            ft.P(f"Total Matches: {leader_data.total_matches}" if leader_data.total_matches is not None else "Total Matches: N/A", 
-                                 cls="text-blue-400"),
-                            ft.P(f"Tournament Wins: {leader_data.tournament_wins}", cls="text-purple-400"),
-                            ft.P(f"ELO Rating: {leader_data.elo}" if leader_data.elo is not None else "ELO Rating: N/A", 
-                                 cls="text-yellow-400"),
-                            cls="space-y-2 mt-4"
-                        ),
-                        cls="mt-4"
-                    ),
-                    cls="w-1/3"
-                ),
-                # Right column - Win rate chart
-                ft.Div(
-                    ft.H3("Win Rate History", cls="text-xl font-bold text-white mb-4"),
-                    create_line_chart(
-                        container_id=f"win-rate-chart-{leader_data.id}",
-                        data=get_leader_win_rate_data(leader_data),
-                        show_x_axis=True,
-                        show_y_axis=True
-                    ),
-                    cls="w-2/3 pl-8"
-                ),
-                cls="flex gap-8"
-            ),
-            cls="bg-gray-800 rounded-lg p-6 shadow-xl"
-        ),
-        
-        # Tabs section
-        ft.Div(
-            ft.Div(
-                ft.H3("Recent Tournaments", cls="text-xl font-bold text-white"),
-                ft.P("Coming soon...", cls="text-gray-400 mt-2"),
-                cls="bg-gray-800 rounded-lg p-6 mt-6"
-            ),
-            ft.Div(
-                ft.H3("Popular Decklists", cls="text-xl font-bold text-white"),
-                ft.P("Coming soon...", cls="text-gray-400 mt-2"),
-                cls="bg-gray-800 rounded-lg p-6 mt-6"
-            ),
-            ft.Div(
-                ft.H3("Matchup Analysis", cls="text-xl font-bold text-white"),
-                ft.P("Coming soon...", cls="text-gray-400 mt-2"),
-                cls="bg-gray-800 rounded-lg p-6 mt-6"
-            ),
-            cls="space-y-6"
-        ),
-        id="leader-content-inner"
-    )
+    # Get leader content
+    leader_content = create_leader_content(leader_data)
     
     # Return the complete leader page
     return ft.Div(
