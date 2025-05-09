@@ -19,11 +19,12 @@ FILTER_HX_ATTRS = {
 # Common CSS classes for select components
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
-def create_filter_components(selected_meta_formats=None):
+def create_filter_components(selected_meta_formats=None, selected_leader_id=None):
     """Create filter components for the leader page.
     
     Args:
         selected_meta_formats: Optional list of meta formats to select
+        selected_leader_id: Optional leader ID to pre-select
     """
     latest_meta = MetaFormat.latest_meta_format()
     
@@ -51,7 +52,7 @@ def create_filter_components(selected_meta_formats=None):
     
     # Leader select wrapper with initial content
     leader_select_wrapper = ft.Div(
-        create_leader_select(selected_meta_formats),
+        create_leader_select(selected_meta_formats, selected_leader_id),
         id="leader-select-wrapper",
         cls="relative"  # Required for proper styling
     )
@@ -76,10 +77,15 @@ def create_filter_components(selected_meta_formats=None):
         cls="space-y-4"
     )
 
-def create_leader_select(selected_meta_formats=None):
-    """Create the leader select component based on selected meta formats."""
+def create_leader_select(selected_meta_formats=None, selected_leader_id=None):
+    """Create the leader select component based on selected meta formats.
+    
+    Args:
+        selected_meta_formats: Optional list of meta formats to filter leaders
+        selected_leader_id: Optional leader ID to pre-select
+    """
     if not selected_meta_formats:
-        selected_meta_formats = [MetaFormat.latest_meta_format]
+        selected_meta_formats = [MetaFormat.latest_meta_format()]
     
     # Get leader data and filter by meta formats and only official matches
     leader_data = get_leader_extended()
@@ -115,7 +121,11 @@ def create_leader_select(selected_meta_formats=None):
             id="leader-select",
             name="lid",
             cls=SELECT_CLS + " styled-select",
-            *[ft.Option(f"{l.name} ({l.id})", value=l.id) for l in sorted_leaders],
+            *[ft.Option(
+                f"{l.name} ({l.id})", 
+                value=l.id, 
+                selected=(l.id == selected_leader_id)
+            ) for l in sorted_leaders],
             **{
                 **FILTER_HX_ATTRS,
             }
@@ -157,55 +167,50 @@ def get_leader_win_rate_data(leader_data: LeaderExtended) -> list[dict]:
 def leader_page(leader_id: str | None = None, filtered_leader_data: LeaderExtended | None = None, selected_meta_format: list | None = None):
     """
     Display detailed information about a specific leader.
-    If no leader_id is provided, show the leader with the highest d_score.
     
     Args:
         leader_id: Optional leader ID to display
         filtered_leader_data: Optional pre-filtered leader data
         selected_meta_format: Optional list of meta formats to select
     """
-    # Get leader data if not provided
-    leader_data = filtered_leader_data
-    if not leader_data:
-        if leader_id:
-            leader_extended_data = get_leader_extended(leader_ids=[leader_id])
-        else:
-            # Get all leaders and find the one with highest d_score
-            leader_extended_data = get_leader_extended()
-            
-            # Filter by meta format if specified
-            selected_meta_formats = selected_meta_format or [MetaFormat.latest_meta_format()]  # Default to latest
-            leader_extended_data = [l for l in leader_extended_data if l.meta_format in selected_meta_formats]
-            
-            if leader_extended_data:
-                # Sort by d_score and elo, handling None values
-                def sort_key(leader):
-                    d_score = leader.d_score if leader.d_score is not None else 0
-                    elo = leader.elo if leader.elo is not None else 0
-                    return (-d_score, -elo)
-                
-                # Create unique leader mapping using only the most recent version from selected meta formats
-                unique_leaders = {}
-                for leader in leader_extended_data:
-                    if leader.id not in unique_leaders:
-                        unique_leaders[leader.id] = leader
-                    else:
-                        # If we already have this leader, keep the one from the most recent meta format
-                        existing_meta_idx = MetaFormat.to_list().index(unique_leaders[leader.id].meta_format)
-                        current_meta_idx = MetaFormat.to_list().index(leader.meta_format)
-                        if current_meta_idx > existing_meta_idx:
-                            unique_leaders[leader.id] = leader
-                
-                sorted_leaders = sorted(unique_leaders.values(), key=sort_key)
-                if sorted_leaders:
-                    leader_id = sorted_leaders[0].id
-        
-        if leader_extended_data:
-            # Filter for official matches
-            filtered_data = filter_leader_extended(leader_extended_data, only_official=True)
-            if filtered_data:
-                leader_data = next((l for l in filtered_data if l.id == leader_id), None)
     
+    # If we already have leader data, use it
+    if filtered_leader_data:
+        leader_data = filtered_leader_data
+    else:
+        # Set up attributes for HTMX request
+        htmx_attrs = {
+            "hx_get": "/api/leader-data",
+            "hx_trigger": "load",
+            "hx_include": HX_INCLUDE,
+            "hx_target": "#leader-content-inner",
+            "hx_swap": "innerHTML"
+        }
+        
+        # If leader_id is provided directly, add it as a param to ensure
+        # it's included even if not present in the form
+        if leader_id:
+            htmx_attrs["hx_vals"] = f'{{"lid": "{leader_id}"}}'
+        
+        # Otherwise, create a container that will be populated via HTMX
+        return ft.Div(
+            # Loading indicator
+            create_loading_spinner(
+                id="loading-indicator",
+                size="w-8 h-8",
+                container_classes="min-h-[100px]"
+            ),
+            # Empty container for leader content that will be loaded via HTMX
+            ft.Div(
+                **htmx_attrs,
+                id="leader-content-inner",
+                cls="mt-8"
+            ),
+            cls="min-h-screen p-8",
+            id="leader-content"
+        )
+    
+    # If leader data isn't available, show error message
     if not leader_data:
         return ft.Div(
             ft.P("No data available for this leader.", cls="text-red-400"),
@@ -213,6 +218,70 @@ def leader_page(leader_id: str | None = None, filtered_leader_data: LeaderExtend
             id="leader-content"
         )
     
+    # Leader content
+    leader_content = ft.Div(
+        # Header section with leader info
+        ft.Div(
+            ft.Div(
+                # Left column - Leader image and basic stats
+                ft.Div(
+                    ft.Img(src=leader_data.aa_image_url, cls="w-full rounded-lg shadow-lg"),
+                    ft.Div(
+                        ft.H2(leader_data.name, cls="text-2xl font-bold text-white mt-4"),
+                        ft.P(f"Set: {leader_data.id}", cls="text-gray-400"),
+                        ft.Div(
+                            ft.P(f"Win Rate: {leader_data.win_rate * 100:.1f}%" if leader_data.win_rate is not None else "Win Rate: N/A", 
+                                 cls="text-green-400"),
+                            ft.P(f"Total Matches: {leader_data.total_matches}" if leader_data.total_matches is not None else "Total Matches: N/A", 
+                                 cls="text-blue-400"),
+                            ft.P(f"Tournament Wins: {leader_data.tournament_wins}", cls="text-purple-400"),
+                            ft.P(f"ELO Rating: {leader_data.elo}" if leader_data.elo is not None else "ELO Rating: N/A", 
+                                 cls="text-yellow-400"),
+                            cls="space-y-2 mt-4"
+                        ),
+                        cls="mt-4"
+                    ),
+                    cls="w-1/3"
+                ),
+                # Right column - Win rate chart
+                ft.Div(
+                    ft.H3("Win Rate History", cls="text-xl font-bold text-white mb-4"),
+                    create_line_chart(
+                        container_id=f"win-rate-chart-{leader_data.id}",
+                        data=get_leader_win_rate_data(leader_data),
+                        show_x_axis=True,
+                        show_y_axis=True
+                    ),
+                    cls="w-2/3 pl-8"
+                ),
+                cls="flex gap-8"
+            ),
+            cls="bg-gray-800 rounded-lg p-6 shadow-xl"
+        ),
+        
+        # Tabs section
+        ft.Div(
+            ft.Div(
+                ft.H3("Recent Tournaments", cls="text-xl font-bold text-white"),
+                ft.P("Coming soon...", cls="text-gray-400 mt-2"),
+                cls="bg-gray-800 rounded-lg p-6 mt-6"
+            ),
+            ft.Div(
+                ft.H3("Popular Decklists", cls="text-xl font-bold text-white"),
+                ft.P("Coming soon...", cls="text-gray-400 mt-2"),
+                cls="bg-gray-800 rounded-lg p-6 mt-6"
+            ),
+            ft.Div(
+                ft.H3("Matchup Analysis", cls="text-xl font-bold text-white"),
+                ft.P("Coming soon...", cls="text-gray-400 mt-2"),
+                cls="bg-gray-800 rounded-lg p-6 mt-6"
+            ),
+            cls="space-y-6"
+        ),
+        id="leader-content-inner"
+    )
+    
+    # Return the complete leader page
     return ft.Div(
         # Loading indicator
         create_loading_spinner(
@@ -220,68 +289,8 @@ def leader_page(leader_id: str | None = None, filtered_leader_data: LeaderExtend
             size="w-8 h-8",
             container_classes="min-h-[100px]"
         ),
-        # Content container
-        ft.Div(
-            # Header section with leader info
-            ft.Div(
-                ft.Div(
-                    # Left column - Leader image and basic stats
-                    ft.Div(
-                        ft.Img(src=leader_data.aa_image_url, cls="w-full rounded-lg shadow-lg"),
-                        ft.Div(
-                            ft.H2(leader_data.name, cls="text-2xl font-bold text-white mt-4"),
-                            ft.P(f"Set: {leader_data.id}", cls="text-gray-400"),
-                            ft.Div(
-                                ft.P(f"Win Rate: {leader_data.win_rate * 100:.1f}%" if leader_data.win_rate is not None else "Win Rate: N/A", 
-                                     cls="text-green-400"),
-                                ft.P(f"Total Matches: {leader_data.total_matches}" if leader_data.total_matches is not None else "Total Matches: N/A", 
-                                     cls="text-blue-400"),
-                                ft.P(f"Tournament Wins: {leader_data.tournament_wins}", cls="text-purple-400"),
-                                ft.P(f"ELO Rating: {leader_data.elo}" if leader_data.elo is not None else "ELO Rating: N/A", 
-                                     cls="text-yellow-400"),
-                                cls="space-y-2 mt-4"
-                            ),
-                            cls="mt-4"
-                        ),
-                        cls="w-1/3"
-                    ),
-                    # Right column - Win rate chart
-                    ft.Div(
-                        ft.H3("Win Rate History", cls="text-xl font-bold text-white mb-4"),
-                        create_line_chart(
-                            container_id=f"win-rate-chart-{leader_id}",
-                            data=get_leader_win_rate_data(leader_data),
-                            show_x_axis=True,
-                            show_y_axis=True
-                        ),
-                        cls="w-2/3 pl-8"
-                    ),
-                    cls="flex gap-8"
-                ),
-                cls="bg-gray-800 rounded-lg p-6 shadow-xl"
-            ),
-            
-            # Tabs section
-            ft.Div(
-                ft.Div(
-                    ft.H3("Recent Tournaments", cls="text-xl font-bold text-white"),
-                    ft.P("Coming soon...", cls="text-gray-400 mt-2"),
-                    cls="bg-gray-800 rounded-lg p-6 mt-6"
-                ),
-                ft.Div(
-                    ft.H3("Popular Decklists", cls="text-xl font-bold text-white"),
-                    ft.P("Coming soon...", cls="text-gray-400 mt-2"),
-                    cls="bg-gray-800 rounded-lg p-6 mt-6"
-                ),
-                ft.Div(
-                    ft.H3("Matchup Analysis", cls="text-xl font-bold text-white"),
-                    ft.P("Coming soon...", cls="text-gray-400 mt-2"),
-                    cls="bg-gray-800 rounded-lg p-6 mt-6"
-                ),
-                cls="space-y-6"
-            ),
-            id="leader-content-inner"
-        ),
+        # Leader content
+        leader_content,
         cls="min-h-screen p-8",
         id="leader-content"
     ) 

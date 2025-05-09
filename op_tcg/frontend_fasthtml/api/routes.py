@@ -8,7 +8,7 @@ from op_tcg.frontend_fasthtml.pages.home import create_leaderboard_table
 from op_tcg.frontend_fasthtml.utils.launch import init_load_data
 from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended
 from op_tcg.frontend_fasthtml.utils.charts import create_line_chart
-from op_tcg.frontend_fasthtml.pages.leader import leader_page, create_leader_select
+from op_tcg.frontend_fasthtml.pages.leader import create_leader_select, get_leader_win_rate_data
 
 DATA_IS_LOADED = False
 
@@ -47,14 +47,16 @@ def setup_api_routes(rt):
     def get_leader_select(request: Request):
         # Get selected meta formats from request
         meta_formats = request.query_params.getlist("meta_format")
+        leader_id = request.query_params.get("lid")
+        
         if not meta_formats:
-            meta_formats = [MetaFormat.latest_meta_format]
+            meta_formats = [MetaFormat.latest_meta_format()]
         else:
             # Convert string values to MetaFormat enum
             meta_formats = [MetaFormat(mf) for mf in meta_formats]
         
         # Create and return the updated leader select
-        return create_leader_select(meta_formats)
+        return create_leader_select(meta_formats, leader_id)
 
     @rt("/api/leader-chart/{leader_id}")
     def leader_chart(request: Request, leader_id: str):
@@ -140,7 +142,7 @@ def setup_api_routes(rt):
         # Get query parameters from request
         meta_formats = request.query_params.getlist("meta_format")
         if not meta_formats:
-            meta_formats = [MetaFormat.latest_meta_format]
+            meta_formats = [MetaFormat.latest_meta_format()]
         else:
             # Convert string values to MetaFormat enum if needed
             meta_formats = [MetaFormat(mf) if isinstance(mf, str) else mf for mf in meta_formats]
@@ -149,22 +151,120 @@ def setup_api_routes(rt):
         only_official = request.query_params.get("only_official", "true").lower() == "true"
         
         # Get leader data
-        leader_data = get_leader_extended(leader_ids=[leader_id] if leader_id else None)
-        
+        if leader_id:
+            # If a leader ID is provided, get data for that specific leader
+            leader_data = get_leader_extended(leader_ids=[leader_id])
+        else:
+            # Otherwise, get all leaders and find the one with highest d_score
+            leader_data = get_leader_extended()
+            
         # Filter by meta format
-        leader_data = [l for l in leader_data if l.meta_format in meta_formats]
+        filtered_by_meta = [l for l in leader_data if l.meta_format in meta_formats]
         
         # Apply filters
         filtered_data = filter_leader_extended(
-            leaders=leader_data,
+            leaders=filtered_by_meta,
             only_official=only_official
         )
         
-        if filtered_data:
+        if not filtered_data:
+            return ft.P("No data available for this leader.", cls="text-red-400")
+            
+        # If no specific leader was requested, find the one with highest d_score
+        if not leader_id:
+            # Sort by d_score and elo, handling None values
+            def sort_key(leader):
+                d_score = leader.d_score if leader.d_score is not None else 0
+                elo = leader.elo if leader.elo is not None else 0
+                return (-d_score, -elo)
+            
+            # Create unique leader mapping using only the most recent version from selected meta formats
+            unique_leaders = {}
+            for leader in filtered_data:
+                if leader.id not in unique_leaders:
+                    unique_leaders[leader.id] = leader
+                else:
+                    # If we already have this leader, keep the one from the most recent meta format
+                    existing_meta_idx = MetaFormat.to_list().index(unique_leaders[leader.id].meta_format)
+                    current_meta_idx = MetaFormat.to_list().index(leader.meta_format)
+                    if current_meta_idx > existing_meta_idx:
+                        unique_leaders[leader.id] = leader
+            
+            sorted_leaders = sorted(unique_leaders.values(), key=sort_key)
+            if sorted_leaders:
+                leader_data = sorted_leaders[0]
+            else:
+                return ft.P("No data available for leaders in the selected meta format.", cls="text-red-400")
+        else:
             # If we have multiple versions of the same leader (from different meta formats),
             # use the most recent one
             if len(filtered_data) > 1:
                 # Sort by meta format index (higher index = more recent)
                 filtered_data.sort(key=lambda x: MetaFormat.to_list().index(x.meta_format), reverse=True)
-            return leader_page(leader_id, filtered_data[0], selected_meta_format=meta_formats)
-        return ft.P("No data available for this leader.", cls="text-red-400")
+            
+            leader_data = next((l for l in filtered_data if l.id == leader_id), None)
+            
+            if not leader_data:
+                return ft.P("No data available for this leader in the selected meta format.", cls="text-red-400")
+        
+        # Return only the inner content, not the whole page
+        return ft.Div(
+            # Header section with leader info
+            ft.Div(
+                ft.Div(
+                    # Left column - Leader image and basic stats
+                    ft.Div(
+                        ft.Img(src=leader_data.aa_image_url, cls="w-full rounded-lg shadow-lg"),
+                        ft.Div(
+                            ft.H2(leader_data.name, cls="text-2xl font-bold text-white mt-4"),
+                            ft.P(f"Set: {leader_data.id}", cls="text-gray-400"),
+                            ft.Div(
+                                ft.P(f"Win Rate: {leader_data.win_rate * 100:.1f}%" if leader_data.win_rate is not None else "Win Rate: N/A", 
+                                    cls="text-green-400"),
+                                ft.P(f"Total Matches: {leader_data.total_matches}" if leader_data.total_matches is not None else "Total Matches: N/A", 
+                                    cls="text-blue-400"),
+                                ft.P(f"Tournament Wins: {leader_data.tournament_wins}", cls="text-purple-400"),
+                                ft.P(f"ELO Rating: {leader_data.elo}" if leader_data.elo is not None else "ELO Rating: N/A", 
+                                    cls="text-yellow-400"),
+                                cls="space-y-2 mt-4"
+                            ),
+                            cls="mt-4"
+                        ),
+                        cls="w-1/3"
+                    ),
+                    # Right column - Win rate chart
+                    ft.Div(
+                        ft.H3("Win Rate History", cls="text-xl font-bold text-white mb-4"),
+                        create_line_chart(
+                            container_id=f"win-rate-chart-{leader_data.id}",
+                            data=get_leader_win_rate_data(leader_data),
+                            show_x_axis=True,
+                            show_y_axis=True
+                        ),
+                        cls="w-2/3 pl-8"
+                    ),
+                    cls="flex gap-8"
+                ),
+                cls="bg-gray-800 rounded-lg p-6 shadow-xl"
+            ),
+            
+            # Tabs section
+            ft.Div(
+                ft.Div(
+                    ft.H3("Recent Tournaments", cls="text-xl font-bold text-white"),
+                    ft.P("Coming soon...", cls="text-gray-400 mt-2"),
+                    cls="bg-gray-800 rounded-lg p-6 mt-6"
+                ),
+                ft.Div(
+                    ft.H3("Popular Decklists", cls="text-xl font-bold text-white"),
+                    ft.P("Coming soon...", cls="text-gray-400 mt-2"),
+                    cls="bg-gray-800 rounded-lg p-6 mt-6"
+                ),
+                ft.Div(
+                    ft.H3("Matchup Analysis", cls="text-xl font-bold text-white"),
+                    ft.P("Coming soon...", cls="text-gray-400 mt-2"),
+                    cls="bg-gray-800 rounded-lg p-6 mt-6"
+                ),
+                cls="space-y-6"
+            )
+        )
