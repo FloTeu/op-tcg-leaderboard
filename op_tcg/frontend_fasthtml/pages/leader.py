@@ -7,7 +7,7 @@ from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 
 # Common HTMX attributes for filter components
-HX_INCLUDE = "[name='meta_format'],[name='leader_id'],[name='only_official']"
+HX_INCLUDE = "[name='meta_format'],[name='lid'],[name='only_official']"
 FILTER_HX_ATTRS = {
     "hx_get": "/api/leader-data",
     "hx_trigger": "change", 
@@ -113,12 +113,11 @@ def create_leader_select(selected_meta_formats=None):
         ft.Label("Leader", cls="text-white font-medium block mb-2"),
         ft.Select(
             id="leader-select",
-            name="leader_id",
+            name="lid",
             cls=SELECT_CLS + " styled-select",
             *[ft.Option(f"{l.name} ({l.id})", value=l.id) for l in sorted_leaders],
             **{
                 **FILTER_HX_ATTRS,
-                "hx_push_url": "true"
             }
         ),
         cls="relative"  # Required for proper styling

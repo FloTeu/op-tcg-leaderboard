@@ -194,7 +194,7 @@ def create_leaderboard_table(leaders: list[LeaderExtended], meta_format: MetaFor
             ft.Td(
                 ft.A(
                     leader.name.replace('"', " ").replace('.', " "),
-                    href=f"/leader/{leader.id}",
+                    href=f"/leader?lid={leader.id}",
                     cls="text-blue-400 hover:text-blue-300"
                 ),
                 cls="px-4 py-2"

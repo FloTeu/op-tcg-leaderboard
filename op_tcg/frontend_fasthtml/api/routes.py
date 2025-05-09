@@ -145,7 +145,7 @@ def setup_api_routes(rt):
             # Convert string values to MetaFormat enum if needed
             meta_formats = [MetaFormat(mf) if isinstance(mf, str) else mf for mf in meta_formats]
             
-        leader_id = request.query_params.get("leader_id")
+        leader_id = request.query_params.get("lid")
         only_official = request.query_params.get("only_official", "true").lower() == "true"
         
         # Get leader data

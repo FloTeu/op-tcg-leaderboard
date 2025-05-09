@@ -67,22 +67,15 @@ def home():
 @rt("/leader")
 def leader_default(request: Request):
     # Get selected meta formats from query params (can be multiple)
-    selected_meta_format = request.query_params.getlist("selected_meta_format")
+    selected_meta_format = request.query_params.getlist("meta_format")
+    leader_id = request.query_params.get("lid")
+
     # Convert to MetaFormat enum if present
     if selected_meta_format:
         selected_meta_format = [MetaFormat(mf) for mf in selected_meta_format]
-    return layout(leader_page(selected_meta_format=selected_meta_format), 
+    return layout(leader_page(leader_id,selected_meta_format=selected_meta_format), 
                  filter_component=leader_filters(selected_meta_formats=selected_meta_format))
 
-@rt("/leader/{leader_id}")
-def leader(request: Request, leader_id: str):
-    # Get selected meta formats from query params (can be multiple)
-    selected_meta_format = request.query_params.getlist("selected_meta_format")
-    # Convert to MetaFormat enum if present
-    if selected_meta_format:
-        selected_meta_format = [MetaFormat(mf) for mf in selected_meta_format]
-    return layout(leader_page(leader_id, selected_meta_format=selected_meta_format), 
-                 filter_component=leader_filters(selected_meta_formats=selected_meta_format))
 
 @rt("/tournaments")
 def tournaments():
