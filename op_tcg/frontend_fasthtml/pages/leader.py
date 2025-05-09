@@ -19,9 +19,17 @@ FILTER_HX_ATTRS = {
 # Common CSS classes for select components
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
-def create_filter_components():
-    """Create filter components for the leader page."""
-    latest_meta = MetaFormat.latest_meta_format
+def create_filter_components(selected_meta_formats=None):
+    """Create filter components for the leader page.
+    
+    Args:
+        selected_meta_formats: Optional list of meta formats to select
+    """
+    latest_meta = MetaFormat.latest_meta_format()
+    
+    # If no selected formats provided, default to latest
+    if not selected_meta_formats:
+        selected_meta_formats = [latest_meta]
     
     # Meta format select
     meta_format_select = ft.Select(
@@ -31,7 +39,7 @@ def create_filter_components():
         multiple=True,
         size=1,
         cls=SELECT_CLS + " multiselect",
-        *[ft.Option(mf, value=mf, selected=(mf == latest_meta)) for mf in reversed(MetaFormat.to_list())],
+        *[ft.Option(mf, value=mf, selected=(mf in selected_meta_formats)) for mf in reversed(MetaFormat.to_list())],
         **{
             **FILTER_HX_ATTRS,
             "hx_get": "/api/leader-select",
@@ -43,7 +51,7 @@ def create_filter_components():
     
     # Leader select wrapper with initial content
     leader_select_wrapper = ft.Div(
-        create_leader_select([latest_meta]),
+        create_leader_select(selected_meta_formats),
         id="leader-select-wrapper",
         cls="relative"  # Required for proper styling
     )
@@ -147,10 +155,15 @@ def get_leader_win_rate_data(leader_data: LeaderExtended) -> list[dict]:
     
     return chart_data
 
-def leader_page(leader_id: str | None = None, filtered_leader_data: LeaderExtended | None = None):
+def leader_page(leader_id: str | None = None, filtered_leader_data: LeaderExtended | None = None, selected_meta_format: list | None = None):
     """
     Display detailed information about a specific leader.
     If no leader_id is provided, show the leader with the highest d_score.
+    
+    Args:
+        leader_id: Optional leader ID to display
+        filtered_leader_data: Optional pre-filtered leader data
+        selected_meta_format: Optional list of meta formats to select
     """
     # Get leader data if not provided
     leader_data = filtered_leader_data
@@ -162,7 +175,7 @@ def leader_page(leader_id: str | None = None, filtered_leader_data: LeaderExtend
             leader_extended_data = get_leader_extended()
             
             # Filter by meta format if specified
-            selected_meta_formats = [MetaFormat.latest_meta_format]  # Default to latest
+            selected_meta_formats = selected_meta_format or [MetaFormat.latest_meta_format()]  # Default to latest
             leader_extended_data = [l for l in leader_extended_data if l.meta_format in selected_meta_formats]
             
             if leader_extended_data:

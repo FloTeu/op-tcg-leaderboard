@@ -12,6 +12,8 @@ from op_tcg.frontend_fasthtml.pages.matchups import matchups_page
 from op_tcg.frontend_fasthtml.pages.card_popularity import card_popularity_page
 from op_tcg.frontend_fasthtml.pages.bug_report import bug_report_page
 from op_tcg.frontend_fasthtml.api.routes import setup_api_routes
+from op_tcg.backend.models.input import MetaFormat
+from starlette.requests import Request
 
 # Create main app
 app, rt = fast_app(
@@ -63,12 +65,24 @@ def home():
     )
 
 @rt("/leader")
-def leader_default():
-    return layout(leader_page(), filter_component=leader_filters())
+def leader_default(request: Request):
+    # Get selected meta formats from query params (can be multiple)
+    selected_meta_format = request.query_params.getlist("selected_meta_format")
+    # Convert to MetaFormat enum if present
+    if selected_meta_format:
+        selected_meta_format = [MetaFormat(mf) for mf in selected_meta_format]
+    return layout(leader_page(selected_meta_format=selected_meta_format), 
+                 filter_component=leader_filters(selected_meta_formats=selected_meta_format))
 
 @rt("/leader/{leader_id}")
-def leader(leader_id: str):
-    return layout(leader_page(leader_id), filter_component=leader_filters())
+def leader(request: Request, leader_id: str):
+    # Get selected meta formats from query params (can be multiple)
+    selected_meta_format = request.query_params.getlist("selected_meta_format")
+    # Convert to MetaFormat enum if present
+    if selected_meta_format:
+        selected_meta_format = [MetaFormat(mf) for mf in selected_meta_format]
+    return layout(leader_page(leader_id, selected_meta_format=selected_meta_format), 
+                 filter_component=leader_filters(selected_meta_formats=selected_meta_format))
 
 @rt("/tournaments")
 def tournaments():

@@ -141,6 +141,10 @@ def setup_api_routes(rt):
         meta_formats = request.query_params.getlist("meta_format")
         if not meta_formats:
             meta_formats = [MetaFormat.latest_meta_format]
+        else:
+            # Convert string values to MetaFormat enum if needed
+            meta_formats = [MetaFormat(mf) if isinstance(mf, str) else mf for mf in meta_formats]
+            
         leader_id = request.query_params.get("leader_id")
         only_official = request.query_params.get("only_official", "true").lower() == "true"
         
@@ -162,5 +166,5 @@ def setup_api_routes(rt):
             if len(filtered_data) > 1:
                 # Sort by meta format index (higher index = more recent)
                 filtered_data.sort(key=lambda x: MetaFormat.to_list().index(x.meta_format), reverse=True)
-            return leader_page(leader_id, filtered_data[0])
+            return leader_page(leader_id, filtered_data[0], selected_meta_format=meta_formats)
         return ft.P("No data available for this leader.", cls="text-red-400")
