@@ -110,6 +110,21 @@ function initializeMultiSelect(selectId) {
             searchInput.classList.toggle('show');
             if (dropdown.classList.contains('show')) {
                 searchInput.focus();
+                
+                // Ensure dropdown is visible in sidebar
+                setTimeout(() => {
+                    const dropdownRect = dropdown.getBoundingClientRect();
+                    const viewportHeight = window.innerHeight;
+                    
+                    if (dropdownRect.bottom > viewportHeight) {
+                        // Dropdown extends beyond viewport
+                        const scrollParent = findScrollParent(dropdown);
+                        if (scrollParent) {
+                            const scrollAmount = dropdownRect.bottom - viewportHeight + 20; // Add padding
+                            scrollParent.scrollBy({ top: scrollAmount, behavior: 'smooth' });
+                        }
+                    }
+                }, 10); // Small delay to ensure DOM is updated
             }
         }
     });
@@ -233,6 +248,21 @@ function initializeSelect(selectId) {
         searchInput.classList.toggle('show');
         if (searchInput.classList.contains('show')) {
             searchInput.focus();
+            
+            // Ensure dropdown is visible in sidebar
+            setTimeout(() => {
+                const dropdownRect = dropdown.getBoundingClientRect();
+                const viewportHeight = window.innerHeight;
+                
+                if (dropdownRect.bottom > viewportHeight) {
+                    // Dropdown extends beyond viewport
+                    const scrollParent = findScrollParent(dropdown);
+                    if (scrollParent) {
+                        const scrollAmount = dropdownRect.bottom - viewportHeight + 20; // Add padding
+                        scrollParent.scrollBy({ top: scrollAmount, behavior: 'smooth' });
+                    }
+                }
+            }, 10); // Small delay to ensure DOM is updated
         }
     });
 
@@ -343,6 +373,30 @@ document.addEventListener('DOMContentLoaded', () => {
         newNodesObserver.observe(evt.detail.target, { childList: true, subtree: true });
     });
 });
+
+// Add helper function to find scrollable parent
+function findScrollParent(element) {
+    if (!element) return null;
+    
+    // Start from the element's parent
+    let parent = element.parentElement;
+    
+    while (parent) {
+        // Check if the parent element is scrollable
+        const hasScrollableContent = parent.scrollHeight > parent.clientHeight;
+        const overflowYStyle = window.getComputedStyle(parent).overflowY;
+        const isScrollable = overflowYStyle === 'auto' || overflowYStyle === 'scroll';
+        
+        if (hasScrollableContent && isScrollable) {
+            return parent;
+        }
+        
+        parent = parent.parentElement;
+    }
+    
+    // If no scrollable parent was found, return the document.body
+    return document.body;
+}
 
 // Export functions for use in other files
 window.initializeMultiSelect = initializeMultiSelect;
