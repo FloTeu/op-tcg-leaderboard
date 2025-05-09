@@ -45,7 +45,7 @@ def layout(content, filter_component=None):
         sidebar(filter_component),
         ft.Div(
             content,
-            cls="p-4 ml-64 min-h-screen bg-gray-900 transition-all duration-300 ease-in-out mt-16",
+            cls="p-4 ml-80 min-h-screen bg-gray-900 transition-all duration-300 ease-in-out mt-16",
             id="main-content"
         ),
         cls="relative bg-gray-900"

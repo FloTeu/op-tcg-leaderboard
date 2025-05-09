@@ -36,7 +36,7 @@ function setInitialSidebarState() {
         toggleBurgerMenu(false);
     } else {
         sidebar.style.transform = 'translateX(0)';
-        mainContent.style.marginLeft = '256px';
+        mainContent.style.marginLeft = '320px';
         toggleBurgerMenu(true);
     }
 }
@@ -47,7 +47,7 @@ function toggleSidebar() {
     
     if (sidebar.style.transform === 'translateX(-100%)') {
         sidebar.style.transform = 'translateX(0)';
-        mainContent.style.marginLeft = '256px';
+        mainContent.style.marginLeft = '320px';
         toggleBurgerMenu(true);
     } else {
         sidebar.style.transform = 'translateX(-100%)';

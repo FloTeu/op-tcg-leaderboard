@@ -2,6 +2,12 @@ function initializeMultiSelect(selectId) {
     const select = document.getElementById(selectId);
     if (!select) return;
 
+    // Check if already initialized
+    if (select.parentNode && select.parentNode.classList.contains('multi-select-container')) {
+        select.style.setProperty('display', 'none', 'important'); 
+        return; 
+    }
+
     // Create container
     const container = document.createElement('div');
     container.className = 'multi-select-container';
@@ -67,7 +73,7 @@ function initializeMultiSelect(selectId) {
         if (!option) return;
 
         const value = option.dataset.value;
-        const text = option.textContent;
+        // const text = option.textContent; // text is not used
         
         // Toggle selection
         const selectOption = Array.from(select.options).find(o => o.value === value);
@@ -99,7 +105,7 @@ function initializeMultiSelect(selectId) {
 
     // Show/hide dropdown on click
     display.addEventListener('click', (e) => {
-        if (!e.target.classList.contains('remove-item')) {
+        if (!e.target.classList.contains('remove-item') && !e.target.closest('.remove-item')) {
             dropdown.classList.toggle('show');
             searchInput.classList.toggle('show');
             if (dropdown.classList.contains('show')) {
@@ -134,7 +140,7 @@ function initializeMultiSelect(selectId) {
     container.appendChild(dropdown);
     
     // Hide the original select but keep it functional
-    select.style.display = 'none';
+    select.style.setProperty('display', 'none', 'important');
     
     // Update on change
     select.addEventListener('change', updateDisplay);
@@ -144,6 +150,12 @@ function initializeMultiSelect(selectId) {
 function initializeSelect(selectId) {
     const select = document.getElementById(selectId);
     if (!select) return;
+
+    // Check if already initialized
+    if (select.parentNode && select.parentNode.classList.contains('multi-select-container')) {
+        select.style.setProperty('display', 'none', 'important');
+        return;
+    }
 
     // Create container
     const container = document.createElement('div');
@@ -250,7 +262,7 @@ function initializeSelect(selectId) {
     container.appendChild(dropdown);
     
     // Hide the original select but keep it functional
-    select.style.display = 'none';
+    select.style.setProperty('display', 'none', 'important');
     
     // Update on change
     select.addEventListener('change', () => {
@@ -288,11 +300,48 @@ function initializeAllSelects(container = document) {
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     initializeAllSelects();
-});
+    
+    // Re-initialize after HTMX content swaps
+    document.body.addEventListener('htmx:afterSwap', (evt) => {
+        initializeAllSelects(evt.detail.target); // Initialize any new custom selects
+        
+        // Observer for newly added select elements within the swapped content
+        const newNodesObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'childList') {
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.nodeType === 1) { // Element node
+                            // Handle direct node if it's a select, or find selects within it
+                            const newSelects = [];
+                            if (node.matches('select.styled-select, select.multiselect')) {
+                                newSelects.push(node);
+                            } else {
+                                node.querySelectorAll('select.styled-select, select.multiselect').forEach(s => newSelects.push(s));
+                            }
 
-// Re-initialize after HTMX content swaps
-document.body.addEventListener('htmx:afterSwap', (evt) => {
-    initializeAllSelects(evt.detail.target);
+                            newSelects.forEach(currentSelect => {
+                                // Ensure it's hidden initially
+                                currentSelect.style.setProperty('display', 'none', 'important');
+
+                                // Attach a style monitor to this specific select
+                                const styleChangeObserver = new MutationObserver((styleMutations) => {
+                                    styleMutations.forEach((styleMutation) => {
+                                        if (styleMutation.type === 'attributes' && styleMutation.attributeName === 'style') {
+                                            if (styleMutation.target.style.display !== 'none') {
+                                                styleMutation.target.style.setProperty('display', 'none', 'important');
+                                            }
+                                        }
+                                    });
+                                });
+                                styleChangeObserver.observe(currentSelect, { attributes: true, attributeFilter: ['style'] });
+                            });
+                        }
+                    });
+                }
+            });
+        });
+        newNodesObserver.observe(evt.detail.target, { childList: true, subtree: true });
+    });
 });
 
 // Export functions for use in other files
