@@ -2,7 +2,7 @@ from fasthtml import ft
 from starlette.requests import Request
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended, LeaderboardSortBy
-from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended
+from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended, get_tournament_decklist_data, get_card_id_card_data_lookup
 from op_tcg.frontend_fasthtml.pages.home import create_leaderboard_table
 from op_tcg.frontend_fasthtml.utils.launch import init_load_data
 from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended
@@ -10,6 +10,7 @@ from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict, get_fil
 from op_tcg.frontend_fasthtml.pages.leader import create_leader_select, create_leader_content
 from op_tcg.frontend_fasthtml.api.charts import setup_api_routes as setup_charts_api_routes
 from op_tcg.frontend_fasthtml.api.models import LeaderboardFilter, LeaderboardSort, LeaderSelectParams, LeaderDataParams
+from op_tcg.frontend_fasthtml.components.decklist import create_decklist_section
 DATA_IS_LOADED = False
 
 
@@ -125,3 +126,18 @@ def setup_api_routes(rt):
         
         # Use the shared create_leader_content function
         return create_leader_content(leader_data)
+
+    @rt("/api/leader-decklist")
+    async def get_leader_decklist(request: Request):
+        # Parse params using Pydantic model
+        params = LeaderDataParams(**get_query_params_as_dict(request))
+        
+        # Get decklist data
+        tournament_decklists = get_tournament_decklist_data(
+            meta_formats=params.meta_format, 
+            leader_ids=[params.lid]
+        )
+        card_id2card_data = get_card_id_card_data_lookup()
+        
+        # Create decklist section
+        return create_decklist_section(params.lid, tournament_decklists, card_id2card_data)

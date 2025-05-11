@@ -16,7 +16,6 @@ def setup_api_routes(rt):
         all_meta_formats = MetaFormat.to_list()
         meta_format = MetaFormat(request.query_params.get("meta_format", MetaFormat.latest_meta_format()))
         meta_format_index = all_meta_formats.index(meta_format)
-        latest_meta_format_index = all_meta_formats.index(MetaFormat.latest_meta_format())
         
         # Get the last_n parameter (default to 5)
         try:

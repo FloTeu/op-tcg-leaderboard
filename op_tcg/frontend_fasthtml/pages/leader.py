@@ -5,6 +5,7 @@ from op_tcg.frontend_fasthtml.utils.charts import create_line_chart
 from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended
 from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
+from op_tcg.frontend_fasthtml.components.decklist import create_decklist_section
 
 # Common HTMX attributes for filter components
 HX_INCLUDE = "[name='meta_format'],[name='lid'],[name='only_official']"
@@ -226,6 +227,29 @@ def create_leader_content(leader_data: LeaderExtended):
             cls="flex flex-row gap-4"
         ),
         
+        # Decklist Section - loaded asynchronously
+        ft.Div(
+            ft.H2("Decklist Analysis", cls="text-2xl font-bold text-white mb-4"),
+            # Loading indicator
+            create_loading_spinner(
+                id="decklist-loading-indicator",
+                size="w-8 h-8",
+                container_classes="min-h-[100px]"
+            ),
+            # Decklist container
+            ft.Div(
+                hx_get="/api/leader-decklist",
+                hx_trigger="load",
+                hx_include=HX_INCLUDE,
+                hx_target="#leader-decklist-container",
+                hx_indicator="#decklist-loading-indicator",
+                hx_vals=f'{{"lid": "{leader_data.id}"}}',
+                id="leader-decklist-container",
+                cls="min-h-[300px] w-full"
+            ),
+            cls="bg-gray-800 rounded-lg p-6 shadow-xl w-full mb-6"
+        ),
+        
         # Tabs section
         ft.Div(
             ft.H3("Additional Information", cls="text-xl font-bold text-white mb-4"),
@@ -236,16 +260,11 @@ def create_leader_content(leader_data: LeaderExtended):
                     cls="bg-gray-700 rounded-lg p-4"
                 ),
                 ft.Div(
-                    ft.H4("Popular Decklists", cls="text-lg font-bold text-white"),
-                    ft.P("Coming soon...", cls="text-gray-400 mt-2"),
-                    cls="bg-gray-700 rounded-lg p-4"
-                ),
-                ft.Div(
                     ft.H4("Matchup Analysis", cls="text-lg font-bold text-white"),
                     ft.P("Coming soon...", cls="text-gray-400 mt-2"),
                     cls="bg-gray-700 rounded-lg p-4"
                 ),
-                cls="grid grid-cols-1 md:grid-cols-3 gap-4"
+                cls="grid grid-cols-1 md:grid-cols-2 gap-4"
             ),
             cls="bg-gray-800 rounded-lg p-6 shadow-xl w-full mt-6"
         ),
