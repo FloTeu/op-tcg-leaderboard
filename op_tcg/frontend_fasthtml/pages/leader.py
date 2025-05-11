@@ -147,11 +147,11 @@ def create_leader_content(leader_data: LeaderExtended):
     return ft.Div(
         # Page title
         ft.H1(f"Leader: {leader_data.name} ({leader_data.id})", 
-              cls="text-3xl font-bold text-white mb-6"),
+              cls="text-3xl font-bold text-white mb-6 px-4 md:px-0"),
         
-        # Main content: two-column layout for desktop, single column for mobile
+        # Main content: single column for mobile, two-column layout for desktop
         ft.Div(
-            # First column (3/10) - Leader image and stats
+            # First section - Leader image and stats (full width on mobile)
             ft.Div(
                 # Leader image
                 ft.Div(
@@ -173,21 +173,19 @@ def create_leader_content(leader_data: LeaderExtended):
                     ),
                     cls="bg-gray-700 rounded-lg p-4"
                 ),
-                cls="w-1/4 flex-shrink-0 mb-6"
+                cls="w-full md:w-1/4 flex-shrink-0 mb-6 px-4 md:px-0"
             ),
             
-            # Second column (7/10) - Charts
+            # Second section - Charts (full width on mobile)
             ft.Div(
                 # Win rate chart
                 ft.Div(
                     ft.H3("Win Rate History", cls="text-xl font-bold text-white mb-4"),
-                    # Loading indicator for win rate chart
                     create_loading_spinner(
                         id="win-rate-chart-loading-indicator",
                         size="w-8 h-8",
                         container_classes="min-h-[100px]"
                     ),
-                    # Win rate chart container with HTMX
                     ft.Div(
                         hx_get=f"/api/leader-chart/{leader_data.id}",
                         hx_trigger="load",
@@ -204,7 +202,6 @@ def create_leader_content(leader_data: LeaderExtended):
                 # Color matchup radar chart
                 ft.Div(
                     ft.H3("Color Matchups", cls="text-xl font-bold text-white mb-4"),
-                    # Loading indicator
                     create_loading_spinner(
                         id="radar-chart-loading-indicator",
                         size="w-8 h-8",
@@ -222,21 +219,19 @@ def create_leader_content(leader_data: LeaderExtended):
                     ),
                     cls="bg-gray-800 rounded-lg p-6 shadow-xl"
                 ),
-                cls="w-3/4 pl-6 flex-grow"
+                cls="w-full md:w-3/4 md:pl-6 flex-grow px-4 md:px-0"
             ),
-            cls="flex flex-row gap-4"
+            cls="flex flex-col md:flex-row gap-4"
         ),
         
         # Decklist Section - loaded asynchronously
         ft.Div(
             ft.H2("Decklist Analysis", cls="text-2xl font-bold text-white mb-4"),
-            # Loading indicator
             create_loading_spinner(
                 id="decklist-loading-indicator",
                 size="w-8 h-8",
                 container_classes="min-h-[100px]"
             ),
-            # Decklist container
             ft.Div(
                 hx_get="/api/leader-decklist",
                 hx_trigger="load",
@@ -247,7 +242,7 @@ def create_leader_content(leader_data: LeaderExtended):
                 id="leader-decklist-container",
                 cls="min-h-[300px] w-full"
             ),
-            cls="bg-gray-800 rounded-lg p-6 shadow-xl w-full mb-6 mt-6"
+            cls="bg-gray-800 rounded-lg p-2 md:p-6 shadow-xl w-full mb-6 mt-6 mx-0"
         ),
         
         # Tabs section
@@ -266,7 +261,7 @@ def create_leader_content(leader_data: LeaderExtended):
                 ),
                 cls="grid grid-cols-1 md:grid-cols-2 gap-4"
             ),
-            cls="bg-gray-800 rounded-lg p-6 shadow-xl w-full mt-6"
+            cls="bg-gray-800 rounded-lg p-6 shadow-xl w-full mt-6 mx-4 md:mx-0"
         ),
         id="leader-content-inner"
     )
