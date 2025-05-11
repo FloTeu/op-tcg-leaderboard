@@ -7,10 +7,13 @@ from op_tcg.frontend_fasthtml.pages.home import create_leaderboard_table
 from op_tcg.frontend_fasthtml.utils.launch import init_load_data
 from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended
 from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict, get_filtered_leaders
-from op_tcg.frontend_fasthtml.pages.leader import create_leader_select, create_leader_content
+from op_tcg.frontend_fasthtml.pages.leader import create_leader_select, create_leader_content, HX_INCLUDE
 from op_tcg.frontend_fasthtml.api.charts import setup_api_routes as setup_charts_api_routes
 from op_tcg.frontend_fasthtml.api.models import LeaderboardFilter, LeaderboardSort, LeaderSelectParams, LeaderDataParams
 from op_tcg.frontend_fasthtml.components.decklist import create_decklist_section
+from op_tcg.frontend_fasthtml.components.matchup import create_matchup_analysis
+from op_tcg.frontend_fasthtml.api.leader_matchups import get_best_worst_matchups
+from op_tcg.frontend_fasthtml.utils.leader_data import lname_and_lid_to_lid
 DATA_IS_LOADED = False
 
 
@@ -141,3 +144,57 @@ def setup_api_routes(rt):
         
         # Create decklist section
         return create_decklist_section(params.lid, tournament_decklists, card_id2card_data)
+
+    @rt("/api/leader-matchups")
+    async def get_leader_matchups(request: Request):
+        # Parse params using Pydantic model
+        params = LeaderDataParams(**get_query_params_as_dict(request))
+        
+        # Get best and worst matchups
+        matchups = get_best_worst_matchups(params.lid, params.meta_format)
+        
+        # Get leader data
+        leader_data = next(iter(get_leader_extended(leader_ids=[params.lid])), None)
+        
+        if not leader_data:
+            return ft.P("No data available for this leader.", cls="text-red-400")
+            
+        # Create and return the matchup analysis component
+        return create_matchup_analysis(
+            leader_data=leader_data,
+            matchups=matchups,
+            hx_include=HX_INCLUDE
+        )
+
+    @rt("/api/leader-matchup-details")
+    async def get_leader_matchup_details(request: Request):
+        """Get details for a specific matchup."""
+        params = get_query_params_as_dict(request)
+        
+        # Check which matchup we're looking at (best or worst)
+        matchup_type = next((key.split('_')[1] for key in params.keys() if key.startswith('lid_')), None)
+        if not matchup_type:
+            return ft.P("Invalid matchup type", cls="text-red-400")
+            
+        # Get the selected leader ID
+        leader_id = lname_and_lid_to_lid(params[f'lid_{matchup_type}'])
+        if not leader_id:
+            return ft.P("No leader selected", cls="text-gray-400")
+            
+        # Get leader data
+        leader_data = next(iter(get_leader_extended(leader_ids=[leader_id])), None)
+        if not leader_data:
+            return ft.P("No data available for this leader", cls="text-red-400")
+            
+        # Create the matchup details view
+        return ft.Div(
+            ft.Img(
+                src=leader_data.aa_image_url,
+                cls="w-full rounded-lg shadow-lg mb-2"
+            ),
+            ft.P(
+                f"Win Rate: {leader_data.win_rate * 100:.1f}%" if leader_data.win_rate else "Win Rate: N/A",
+                cls=f"text-{'green' if matchup_type == 'best' else 'red'}-400 text-center"
+            ),
+            cls="w-full"
+        )

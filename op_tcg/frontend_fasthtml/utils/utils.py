@@ -4,7 +4,6 @@ from typing import Any
 from google.oauth2 import service_account
 from google.cloud import bigquery, storage
 from fastcore.xtras import timed_cache
-from op_tcg.backend.models.input import MetaFormat
 
 # Create API client.
 credentials = service_account.Credentials.from_service_account_file(

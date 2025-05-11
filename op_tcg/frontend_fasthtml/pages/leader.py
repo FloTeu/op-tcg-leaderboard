@@ -149,12 +149,20 @@ def create_tab_view():
                 "Matchup Analysis",
                 cls="tab-button bg-gray-600 text-gray-300 px-4 py-2 rounded-t-lg ml-1",
                 onclick="switchTab(event, 'matchup-tab')",
+                hx_get="/api/leader-matchups",
+                hx_trigger="click once",
+                hx_target="#matchup-tab",
+                hx_include=HX_INCLUDE,
                 id="matchup-button"
             ),
             ft.Button(
                 "Tournaments",
                 cls="tab-button bg-gray-600 text-gray-300 px-4 py-2 rounded-t-lg ml-1",
                 onclick="switchTab(event, 'tournaments-tab')",
+                hx_get="/api/leader-tournaments",
+                hx_trigger="click once",
+                hx_target="#tournaments-tab",
+                hx_include=HX_INCLUDE,
                 id="tournaments-button"
             ),
             cls="flex border-b border-gray-700"
@@ -162,8 +170,50 @@ def create_tab_view():
         
         # Tab content
         ft.Div(
-            cls="tab-content bg-gray-800 rounded-b-lg",
-            id="tab-content"
+            # Decklist Analysis Tab (shown by default)
+            ft.Div(
+                ft.H2("Decklist Analysis", cls="text-2xl font-bold text-white mb-4"),
+                create_loading_spinner(
+                    id="decklist-loading-indicator",
+                    size="w-8 h-8",
+                    container_classes="min-h-[100px]"
+                ),
+                ft.Div(
+                    hx_get="/api/leader-decklist",
+                    hx_trigger="load",
+                    hx_include=HX_INCLUDE,
+                    hx_target="#leader-decklist-container",
+                    hx_indicator="#decklist-loading-indicator",
+                    id="leader-decklist-container",
+                    cls="min-h-[300px] w-full"
+                ),
+                cls="tab-pane p-6",
+                id="decklist-tab",
+                style="display: block;"  # Show this tab by default
+            ),
+            
+            # Matchup Analysis Tab (loaded via HTMX)
+            ft.Div(
+                create_loading_spinner(
+                    id="matchup-loading-indicator",
+                    size="w-8 h-8",
+                    container_classes="min-h-[100px]"
+                ),
+                cls="tab-pane p-6",
+                id="matchup-tab"
+            ),
+            
+            # Tournaments Tab (loaded via HTMX)
+            ft.Div(
+                create_loading_spinner(
+                    id="tournament-loading-indicator",
+                    size="w-8 h-8",
+                    container_classes="min-h-[100px]"
+                ),
+                cls="tab-pane p-6",
+                id="tournaments-tab"
+            ),
+            cls="bg-gray-800 rounded-lg shadow-xl w-full mb-6 mt-6"
         ),
         
         # JavaScript for tab switching
@@ -187,11 +237,6 @@ def create_tab_view():
                 // Show selected tab content
                 document.getElementById(tabId).style.display = 'block';
             }
-            
-            // Initialize first tab as active
-            document.addEventListener('DOMContentLoaded', function() {
-                document.getElementById('decklist-button').click();
-            });
         """),
         
         # CSS for tabs
@@ -300,51 +345,7 @@ def create_leader_content(leader_data: LeaderExtended):
         # TabView section
         ft.Div(
             create_tab_view(),
-            
-            # Tab content containers
-            ft.Div(
-                # Decklist Analysis Tab
-                ft.Div(
-                    ft.H2("Decklist Analysis", cls="text-2xl font-bold text-white mb-4"),
-                    create_loading_spinner(
-                        id="decklist-loading-indicator",
-                        size="w-8 h-8",
-                        container_classes="min-h-[100px]"
-                    ),
-                    ft.Div(
-                        hx_get="/api/leader-decklist",
-                        hx_trigger="load",
-                        hx_include=HX_INCLUDE,
-                        hx_target="#leader-decklist-container",
-                        hx_indicator="#decklist-loading-indicator",
-                        hx_vals=f'{{"lid": "{leader_data.id}"}}',
-                        id="leader-decklist-container",
-                        cls="min-h-[300px] w-full"
-                    ),
-                    cls="tab-pane p-6",
-                    id="decklist-tab"
-                ),
-                
-                # Matchup Analysis Tab
-                ft.Div(
-                    ft.H2("Matchup Analysis", cls="text-2xl font-bold text-white mb-4"),
-                    ft.P("Detailed matchup statistics and analysis will be available here.", 
-                         cls="text-gray-400"),
-                    cls="tab-pane p-6",
-                    id="matchup-tab"
-                ),
-                
-                # Tournaments Tab
-                ft.Div(
-                    ft.H2("Tournaments", cls="text-2xl font-bold text-white mb-4"),
-                    ft.P("Recent tournament results and performance data will be displayed here.", 
-                         cls="text-gray-400"),
-                    cls="tab-pane p-6",
-                    id="tournaments-tab"
-                ),
-                cls="bg-gray-800 rounded-lg shadow-xl w-full mb-6 mt-6"
-            ),
-            cls="px-4 md:px-0"
+            cls="px-4 md:px-0 mt-4"
         ),
         id="leader-content-inner"
     )

@@ -125,3 +125,16 @@ class LeaderDataParams(BaseModel):
         if isinstance(value, str):
             return value.lower() in ("true", "on", "1", "yes")
         return bool(value)
+
+
+class Matchup(BaseModel):
+    leader_id: str
+    win_rate: float
+    total_matches: int
+    meta_formats: list[MetaFormat]
+    win_rate_chart_data: dict[MetaFormat, float]
+
+
+class OpponentMatchups(BaseModel):
+    easiest_matchups: list[Matchup]
+    hardest_matchups: list[Matchup]

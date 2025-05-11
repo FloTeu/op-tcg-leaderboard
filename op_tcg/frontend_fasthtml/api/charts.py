@@ -85,7 +85,17 @@ def setup_api_routes(rt):
 
     @rt("/api/leader-radar-chart")
     def leader_radar_chart(request: Request):
+        # Get the main leader ID and optional best/worst matchup IDs
         leader_id = request.query_params.get("lid")
+        best_matchup_id = request.query_params.get("lid_best")
+        worst_matchup_id = request.query_params.get("lid_worst")
+        
+        # Collect all leader IDs to display
+        leader_ids = [leader_id]
+        if best_matchup_id:
+            leader_ids.append(best_matchup_id)
+        if worst_matchup_id:
+            leader_ids.append(worst_matchup_id)
         
         # Get meta formats from request
         meta_formats = request.query_params.getlist("meta_format")
@@ -100,29 +110,36 @@ def setup_api_routes(rt):
         if not leader_id:
             return ft.Div(ft.P("No leader selected", cls="text-red-400"))
         
-        # Get leader data to determine color
-        leader_data = get_leader_extended(leader_ids=[leader_id])
+        # Get leader data to determine colors
+        leader_data = get_leader_extended(leader_ids=leader_ids)
         if not leader_data:
             return ft.Div(ft.P("Leader data not found", cls="text-red-400"))
             
-        # Get filtered leader data
-        leader = next((l for l in leader_data if l.meta_format in meta_formats), None)
-        if not leader:
-            return ft.Div(ft.P("Leader not found in selected meta format", cls="text-red-400"))
+        # Get filtered leader data and their colors
+        leaders = []
+        colors = []
+        for lid in leader_ids:
+            leader = next((l for l in leader_data if l.id == lid and l.meta_format in meta_formats), None)
+            if leader:
+                leaders.append(leader)
+                colors.append(leader.to_hex_color())
+        
+        if not leaders:
+            return ft.Div(ft.P("Leaders not found in selected meta format", cls="text-red-400"))
         
         # Get radar chart data
-        radar_data = get_radar_chart_data([leader_id], meta_formats, only_official)
+        radar_data = get_radar_chart_data(leader_ids, meta_formats, only_official)
         if not radar_data:
             return ft.Div(ft.P("No matchup data available", cls="text-gray-400"))
         
         # Create a unique ID for this chart instance to avoid conflicts
-        chart_id = f"radar-chart-{leader_id}-{hash(str(meta_formats))}"
+        chart_id = f"radar-chart-{'-'.join(leader_ids)}-{hash(str(meta_formats))}"
         
         # Create radar chart
         return create_leader_win_rate_radar_chart(
             container_id=chart_id,
             data=radar_data,
-            leader_ids=[leader_id],
-            colors=[leader.to_hex_color()],
-            show_legend=False,
+            leader_ids=leader_ids,
+            colors=colors,
+            show_legend=True,
         )
