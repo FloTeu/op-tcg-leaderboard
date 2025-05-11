@@ -8,11 +8,15 @@
 
 .decklist-modal {
   display: none;
-  position: fixed; /* Fixed position relative to viewport */
+  position: fixed;
   z-index: 1000;
   background-color: rgba(0, 0, 0, 0.5);
   padding: 10px;
-  cursor: pointer; /* Indicate clickable area */
+  cursor: pointer; /* Indicate clickable area for closing */
+  width: 100%; /* Take full width of the container */
+  height: 100%; /* Take full height of the container */
+  top: 0;
+  left: 0;
 }
 
 .decklist-modal-close {
@@ -37,8 +41,11 @@
   max-height: 400px;
   object-fit: contain;
   display: block;
-  cursor: default; /* Reset cursor for image */
-  pointer-events: none; /* Make image non-interactive */
+  cursor: pointer;
+  pointer-events: auto;
+  position: relative;
+  z-index: 1001;
+  margin: 0; /* Reset margin to ensure proper positioning */
 }
 
 /* List view styles */

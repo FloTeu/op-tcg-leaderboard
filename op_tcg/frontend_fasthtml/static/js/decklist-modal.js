@@ -19,16 +19,14 @@ function openDecklistModal(imgElement) {
     const container = document.querySelector('.decklist-list-container');
     
     if (modal && modalImg && container) {
-        // Get container position relative to viewport
+        // Get container position and dimensions
         const containerRect = container.getBoundingClientRect();
         
-        // Position modal at the top left of the container, but within viewport
-        const topPosition = Math.max(0, containerRect.top);
-        const leftPosition = Math.max(0, containerRect.left);
-        
-        // Set modal position
-        modal.style.top = `${topPosition}px`;
-        modal.style.left = `${leftPosition}px`;
+        // Set modal dimensions and position to match container
+        modal.style.width = `${containerRect.width}px`;
+        modal.style.height = `${containerRect.height}px`;
+        modal.style.top = `${containerRect.top}px`;
+        modal.style.left = `${containerRect.left}px`;
         
         // Set image source and display modal
         modal.style.display = "block";
@@ -42,19 +40,36 @@ function openDecklistModal(imgElement) {
         
         window.decklistCurrentIndex = parseInt(imgElement.dataset.index);
         
-        // Add click event listener to close modal when clicking anywhere
-        modal.onclick = function() {
-            closeDecklistModal();
+        // Add click event listener to close modal when clicking outside image
+        modal.onclick = function(event) {
+            // Only close if clicking the modal background (not the image)
+            if (event.target === modal) {
+                closeDecklistModal();
+            }
         };
         
-        // Update modal position on scroll
+        // Add click event listener for image navigation
+        modalImg.onclick = function(event) {
+            event.stopPropagation(); // Prevent modal close when clicking image
+            const imgWidth = this.getBoundingClientRect().width;
+            const clickX = event.clientX - this.getBoundingClientRect().left;
+            
+            if (clickX < imgWidth / 4) {
+                // Clicked on the left quarter
+                showPreviousImage();
+            } else if (clickX > (imgWidth * 3) / 4) {
+                // Clicked on the right quarter
+                showNextImage();
+            }
+        };
+        
+        // Update modal position and dimensions on scroll
         const updateModalPosition = () => {
             const newContainerRect = container.getBoundingClientRect();
-            const newTopPosition = Math.max(0, newContainerRect.top);
-            const newLeftPosition = Math.max(0, newContainerRect.left);
-            
-            modal.style.top = `${newTopPosition}px`;
-            modal.style.left = `${newLeftPosition}px`;
+            modal.style.width = `${newContainerRect.width}px`;
+            modal.style.height = `${newContainerRect.height}px`;
+            modal.style.top = `${newContainerRect.top}px`;
+            modal.style.left = `${newContainerRect.left}px`;
         };
         
         // Add scroll event listener

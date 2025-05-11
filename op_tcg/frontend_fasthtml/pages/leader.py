@@ -247,7 +247,7 @@ def create_leader_content(leader_data: LeaderExtended):
                 id="leader-decklist-container",
                 cls="min-h-[300px] w-full"
             ),
-            cls="bg-gray-800 rounded-lg p-6 shadow-xl w-full mb-6"
+            cls="bg-gray-800 rounded-lg p-6 shadow-xl w-full mb-6 mt-6"
         ),
         
         # Tabs section
@@ -313,7 +313,7 @@ def leader_page(leader_id: str | None = None, filtered_leader_data: LeaderExtend
                 id="leader-content-inner",
                 cls="mt-8"
             ),
-            cls="min-h-screen p-8",
+            cls="min-h-screen p-0 lg:p-8",  # Removed padding for mobile view only
             id="leader-content"
         )
     
