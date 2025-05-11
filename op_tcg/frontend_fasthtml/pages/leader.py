@@ -134,6 +134,79 @@ def create_leader_select(selected_meta_formats=None, selected_leader_id=None):
         cls="relative"  # Required for proper styling
     )
 
+def create_tab_view():
+    """Create a tabbed interface for the leader page content."""
+    return ft.Div(
+        # Tab buttons
+        ft.Div(
+            ft.Button(
+                "Decklist Analysis",
+                cls="tab-button active bg-gray-700 text-white px-4 py-2 rounded-t-lg",
+                onclick="switchTab(event, 'decklist-tab')",
+                id="decklist-button"
+            ),
+            ft.Button(
+                "Matchup Analysis",
+                cls="tab-button bg-gray-600 text-gray-300 px-4 py-2 rounded-t-lg ml-1",
+                onclick="switchTab(event, 'matchup-tab')",
+                id="matchup-button"
+            ),
+            ft.Button(
+                "Tournaments",
+                cls="tab-button bg-gray-600 text-gray-300 px-4 py-2 rounded-t-lg ml-1",
+                onclick="switchTab(event, 'tournaments-tab')",
+                id="tournaments-button"
+            ),
+            cls="flex border-b border-gray-700"
+        ),
+        
+        # Tab content
+        ft.Div(
+            cls="tab-content bg-gray-800 rounded-b-lg",
+            id="tab-content"
+        ),
+        
+        # JavaScript for tab switching
+        ft.Script("""
+            function switchTab(event, tabId) {
+                // Remove active class from all buttons
+                document.querySelectorAll('.tab-button').forEach(button => {
+                    button.classList.remove('active', 'bg-gray-700');
+                    button.classList.add('bg-gray-600', 'text-gray-300');
+                });
+                
+                // Add active class to clicked button
+                event.target.classList.remove('bg-gray-600', 'text-gray-300');
+                event.target.classList.add('active', 'bg-gray-700', 'text-white');
+                
+                // Hide all tab content
+                document.querySelectorAll('.tab-pane').forEach(pane => {
+                    pane.style.display = 'none';
+                });
+                
+                // Show selected tab content
+                document.getElementById(tabId).style.display = 'block';
+            }
+            
+            // Initialize first tab as active
+            document.addEventListener('DOMContentLoaded', function() {
+                document.getElementById('decklist-button').click();
+            });
+        """),
+        
+        # CSS for tabs
+        ft.Style("""
+            .tab-button.active {
+                border-bottom: 2px solid #4299e1;
+            }
+            .tab-pane {
+                display: none;
+            }
+        """),
+        
+        cls="w-full"
+    )
+
 def create_leader_content(leader_data: LeaderExtended):
     """
     Create the content for a leader page.
@@ -224,44 +297,54 @@ def create_leader_content(leader_data: LeaderExtended):
             cls="flex flex-col md:flex-row gap-4"
         ),
         
-        # Decklist Section - loaded asynchronously
+        # TabView section
         ft.Div(
-            ft.H2("Decklist Analysis", cls="text-2xl font-bold text-white mb-4"),
-            create_loading_spinner(
-                id="decklist-loading-indicator",
-                size="w-8 h-8",
-                container_classes="min-h-[100px]"
-            ),
+            create_tab_view(),
+            
+            # Tab content containers
             ft.Div(
-                hx_get="/api/leader-decklist",
-                hx_trigger="load",
-                hx_include=HX_INCLUDE,
-                hx_target="#leader-decklist-container",
-                hx_indicator="#decklist-loading-indicator",
-                hx_vals=f'{{"lid": "{leader_data.id}"}}',
-                id="leader-decklist-container",
-                cls="min-h-[300px] w-full"
-            ),
-            cls="bg-gray-800 rounded-lg p-2 md:p-6 shadow-xl w-full mb-6 mt-6 mx-0"
-        ),
-        
-        # Tabs section
-        ft.Div(
-            ft.H3("Additional Information", cls="text-xl font-bold text-white mb-4"),
-            ft.Div(
+                # Decklist Analysis Tab
                 ft.Div(
-                    ft.H4("Recent Tournaments", cls="text-lg font-bold text-white"),
-                    ft.P("Coming soon...", cls="text-gray-400 mt-2"),
-                    cls="bg-gray-700 rounded-lg p-4"
+                    ft.H2("Decklist Analysis", cls="text-2xl font-bold text-white mb-4"),
+                    create_loading_spinner(
+                        id="decklist-loading-indicator",
+                        size="w-8 h-8",
+                        container_classes="min-h-[100px]"
+                    ),
+                    ft.Div(
+                        hx_get="/api/leader-decklist",
+                        hx_trigger="load",
+                        hx_include=HX_INCLUDE,
+                        hx_target="#leader-decklist-container",
+                        hx_indicator="#decklist-loading-indicator",
+                        hx_vals=f'{{"lid": "{leader_data.id}"}}',
+                        id="leader-decklist-container",
+                        cls="min-h-[300px] w-full"
+                    ),
+                    cls="tab-pane p-6",
+                    id="decklist-tab"
                 ),
+                
+                # Matchup Analysis Tab
                 ft.Div(
-                    ft.H4("Matchup Analysis", cls="text-lg font-bold text-white"),
-                    ft.P("Coming soon...", cls="text-gray-400 mt-2"),
-                    cls="bg-gray-700 rounded-lg p-4"
+                    ft.H2("Matchup Analysis", cls="text-2xl font-bold text-white mb-4"),
+                    ft.P("Detailed matchup statistics and analysis will be available here.", 
+                         cls="text-gray-400"),
+                    cls="tab-pane p-6",
+                    id="matchup-tab"
                 ),
-                cls="grid grid-cols-1 md:grid-cols-2 gap-4"
+                
+                # Tournaments Tab
+                ft.Div(
+                    ft.H2("Tournaments", cls="text-2xl font-bold text-white mb-4"),
+                    ft.P("Recent tournament results and performance data will be displayed here.", 
+                         cls="text-gray-400"),
+                    cls="tab-pane p-6",
+                    id="tournaments-tab"
+                ),
+                cls="bg-gray-800 rounded-lg shadow-xl w-full mb-6 mt-6"
             ),
-            cls="bg-gray-800 rounded-lg p-6 shadow-xl w-full mt-6 mx-4 md:mx-0"
+            cls="px-4 md:px-0"
         ),
         id="leader-content-inner"
     )
