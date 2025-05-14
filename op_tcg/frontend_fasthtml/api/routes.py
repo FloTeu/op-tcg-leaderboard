@@ -168,7 +168,11 @@ def setup_api_routes(rt):
 
     @rt("/api/leader-matchup-details")
     async def get_leader_matchup_details(request: Request):
-        """Get details for a specific matchup."""
+        """Get details for a specific matchup.
+        Details include (best or worst opponent):
+        - Image
+        - Win rate chart
+        """
         params = get_query_params_as_dict(request)
         
         # Check which matchup we're looking at (best or worst)
@@ -177,7 +181,7 @@ def setup_api_routes(rt):
             return ft.P("Invalid matchup type", cls="text-red-400")
             
         # Get the selected leader ID
-        leader_id = lname_and_lid_to_lid(params[f'lid_{matchup_type}'])
+        leader_id = params[f'lid_{matchup_type}']
         if not leader_id:
             return ft.P("No leader selected", cls="text-gray-400")
             

@@ -1,10 +1,15 @@
 from fasthtml import ft
+from enum import StrEnum    
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 from op_tcg.frontend_fasthtml.api.models import Matchup, OpponentMatchups
 from op_tcg.frontend_fasthtml.utils.leader_data import lid_to_name_and_lid
 
-def create_leader_select_box(leader_ids: list[str], default_id: str | None = None, key: str = "", reverse: bool = False) -> ft.Div:
+class MatchupType(StrEnum):
+    BEST = "best"
+    WORST = "worst"
+
+def create_leader_select_box(leader_ids: list[str], default_id: str | None = None, key: MatchupType = "", reverse: bool = False) -> ft.Div:
     """Create a styled leader select box."""
     # Sort leader IDs by name
     leader_names = [lid_to_name_and_lid(lid) for lid in leader_ids]
@@ -46,15 +51,14 @@ def create_matchup_analysis(leader_data: LeaderExtended, matchups: OpponentMatch
             # Best Matchup
             ft.Div(
                 ft.H3("Best Matchup", cls="text-xl font-bold text-white mb-4"),
-                create_leader_select_box(best_matchup_ids, default_best, "best", reverse=False),
+                create_leader_select_box(best_matchup_ids, default_best, MatchupType.BEST, reverse=False),
                 ft.Div(
                     ft.Div(
                         id="best-matchup-content",
                         hx_get="/api/leader-matchup-details",
                         hx_trigger="load, change from:#leader-select-best",
                         hx_target="#best-matchup-content",
-                        hx_include=hx_include,
-                        hx_vals=f'{{"lid_best": "{default_best}"}}' if default_best else None,
+                        hx_include=hx_include + ",[name='lid_best']",
                         cls="w-full"
                     ),
                     cls="bg-gray-700 p-4 rounded-lg mt-4"
@@ -76,7 +80,7 @@ def create_matchup_analysis(leader_data: LeaderExtended, matchups: OpponentMatch
                     hx_include=f"{hx_include},[name='lid_best'],[name='lid_worst']",
                     hx_target="#matchup-radar-chart",
                     hx_indicator="#matchup-radar-loading",
-                    hx_vals=f'{{"lid": "{leader_data.id}", "lid_best": "{default_best}", "lid_worst": "{default_worst}"}}',
+                    hx_vals=f'{{"lid": "{leader_data.id}"}}',
                     id="matchup-radar-chart",
                     cls="min-h-[300px] flex items-center justify-center w-full"
                 ),
@@ -86,15 +90,14 @@ def create_matchup_analysis(leader_data: LeaderExtended, matchups: OpponentMatch
             # Worst Matchup
             ft.Div(
                 ft.H3("Worst Matchup", cls="text-xl font-bold text-white mb-4"),
-                create_leader_select_box(worst_matchup_ids, default_worst, "worst", reverse=True),
+                create_leader_select_box(worst_matchup_ids, default_worst, MatchupType.WORST, reverse=True),
                 ft.Div(
                     ft.Div(
                         id="worst-matchup-content",
                         hx_get="/api/leader-matchup-details",
                         hx_trigger="load, change from:#leader-select-worst",
                         hx_target="#worst-matchup-content",
-                        hx_include=hx_include,
-                        hx_vals=f'{{"lid_worst": "{default_worst}"}}' if default_worst else None,
+                        hx_include=hx_include + ",[name='lid_worst']",
                         cls="w-full"
                     ),
                     cls="bg-gray-700 p-4 rounded-lg mt-4"
