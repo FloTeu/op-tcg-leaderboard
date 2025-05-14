@@ -55,6 +55,6 @@ def get_best_worst_matchups(leader_id: str, meta_formats: list[MetaFormat]) -> O
     worst_matchups.sort(key=lambda x: x.win_rate)
     
     return OpponentMatchups(
-        easiest_matchups=best_matchups[:5],  # Top 5 best matchups
-        hardest_matchups=worst_matchups[:5]  # Top 5 worst matchups
+        easiest_matchups=best_matchups[:10],  # Top 5 best matchups
+        hardest_matchups=worst_matchups[:10]  # Top 5 worst matchups
     )

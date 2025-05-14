@@ -2,7 +2,7 @@ from fasthtml import ft
 from starlette.requests import Request
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended, LeaderboardSortBy
-from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended, get_tournament_decklist_data, get_card_id_card_data_lookup
+from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended, get_tournament_decklist_data, get_card_id_card_data_lookup, get_leader_win_rate
 from op_tcg.frontend_fasthtml.pages.home import create_leaderboard_table
 from op_tcg.frontend_fasthtml.utils.launch import init_load_data
 from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended
@@ -14,6 +14,8 @@ from op_tcg.frontend_fasthtml.components.decklist import create_decklist_section
 from op_tcg.frontend_fasthtml.components.matchup import create_matchup_analysis
 from op_tcg.frontend_fasthtml.api.leader_matchups import get_best_worst_matchups
 from op_tcg.frontend_fasthtml.utils.leader_data import lname_and_lid_to_lid
+from op_tcg.frontend_fasthtml.utils.charts import create_line_chart
+from op_tcg.frontend_fasthtml.utils.colors import ChartColors
 DATA_IS_LOADED = False
 
 
@@ -186,19 +188,38 @@ def setup_api_routes(rt):
             return ft.P("No leader selected", cls="text-gray-400")
             
         # Get leader data
-        leader_data = next(iter(get_leader_extended(leader_ids=[leader_id])), None)
+        leader_data = next(iter(get_leader_extended(meta_formats=[params.get("meta_format", None)], leader_ids=[leader_id])), None)
         if not leader_data:
             return ft.P("No data available for this leader", cls="text-red-400")
             
+        # Prepare win rate chart data
+        win_rate_data = get_leader_win_rate(meta_formats=MetaFormat.to_list(until_meta_format=params.get("meta_format", None)), leader_ids=[params[f'lid']])
+        chart_data = []
+        for wr in win_rate_data:
+            if wr.only_official != (params.get("only_official", "on") == "on"):
+                continue
+            if wr.opponent_id == leader_id:
+                chart_data.append({
+                    "meta": str(wr.meta_format),
+                    "winRate": round(wr.win_rate * 100, 2) if wr.win_rate is not None else None
+                })
+        
+        # Sort chart data by meta format
+        chart_data.sort(key=lambda x: MetaFormat(x["meta"]))
+        
         # Create the matchup details view
         return ft.Div(
             ft.Img(
                 src=leader_data.aa_image_url,
                 cls="w-full rounded-lg shadow-lg mb-2"
             ),
-            ft.P(
-                f"Win Rate: {leader_data.win_rate * 100:.1f}%" if leader_data.win_rate else "Win Rate: N/A",
-                cls=f"text-{'green' if matchup_type == 'best' else 'red'}-400 text-center"
+            # Win rate chart
+            create_line_chart(
+                container_id=f"win-rate-chart-{leader_id}",
+                data=chart_data,
+                color=ChartColors.POSITIVE if matchup_type == "best" else ChartColors.NEGATIVE,
+                show_x_axis=True,
+                show_y_axis=True
             ),
             cls="w-full"
         )
