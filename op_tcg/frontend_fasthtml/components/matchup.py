@@ -90,7 +90,7 @@ def create_matchup_analysis(leader_data: LeaderExtended, matchups: OpponentMatch
             # Worst Matchup
             ft.Div(
                 ft.H3("Worst Matchup", cls="text-xl font-bold text-white mb-4"),
-                create_leader_select_box(worst_matchup_ids, default_worst, MatchupType.WORST, reverse=True),
+                create_leader_select_box(worst_matchup_ids, default_worst, MatchupType.WORST, reverse=False),
                 ft.Div(
                     ft.Div(
                         id="worst-matchup-content",

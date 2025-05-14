@@ -284,3 +284,121 @@ def create_leader_win_rate_radar_chart(container_id, data, leader_ids, colors=No
         cls="radar-chart-container bg-gray-800 rounded-lg p-4 shadow-lg",
         style="height: 300px; width: 100%;"  # Explicit height and width
     ) 
+
+def create_bar_chart(container_id: str, data: List[dict[str, Any]], 
+                    y_key: str = "matches", x_key: str = "meta",
+                    y_label: str = "Matches", y_suffix: str = " matches",
+                    color: ChartColors = ChartColors.NEUTRAL,
+                    show_x_axis: bool = True,
+                    show_y_axis: bool = True) -> ft.Div:
+    """
+    Creates a bar chart using Chart.js
+    
+    Args:
+        container_id: Unique ID for the chart container
+        data: List of dictionaries containing the data points
+        y_key: Key for the y-axis values in the data dictionaries
+        x_key: Key for the x-axis values in the data dictionaries
+        y_label: Label for the y-axis values in tooltips
+        y_suffix: Suffix to add to y-axis values (e.g., " matches")
+        color: Color theme for the chart from ChartColors enum
+        show_x_axis: Whether to show the x-axis
+        show_y_axis: Whether to show the y-axis
+    """
+    # Convert Python data to JSON string
+    json_data = json.dumps(data)
+    
+    return ft.Div(
+        # Chart container with canvas
+        ft.Div(
+            ft.Canvas(id=container_id),
+            cls="h-full w-full"  # Use full height and width
+        ),
+        ft.Script(f"""
+            (function() {{
+                const chartId = '{container_id}';
+                const container = document.getElementById(chartId);
+                
+                if (!container) {{
+                    console.error('Chart container not found:', chartId);
+                    return;
+                }}
+                
+                // Destroy existing chart if it exists
+                const existingChart = Chart.getChart(chartId);
+                if (existingChart) {{
+                    existingChart.destroy();
+                }}
+                
+                const data = {json_data};
+                
+                new Chart(container, {{
+                    type: 'bar',
+                    data: {{
+                        labels: data.map(d => d['{x_key}']),
+                        datasets: [{{
+                            data: data.map(d => d['{y_key}']),
+                            backgroundColor: '{color}',
+                            borderColor: '{color}',
+                            borderWidth: 1
+                        }}]
+                    }},
+                    options: {{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {{
+                            legend: {{
+                                display: false
+                            }},
+                            tooltip: {{
+                                backgroundColor: '{ChartColors.TOOLTIP_BG}',
+                                titleColor: '#ffffff',
+                                bodyColor: '#ffffff',
+                                borderColor: '{ChartColors.TOOLTIP_BORDER}',
+                                borderWidth: 1,
+                                padding: 8,
+                                displayColors: false,
+                                callbacks: {{
+                                    label: function(context) {{
+                                        return context.raw + '{y_suffix}';
+                                    }}
+                                }}
+                            }}
+                        }},
+                        scales: {{
+                            x: {{
+                                display: {str(show_x_axis).lower()},
+                                grid: {{
+                                    display: false
+                                }},
+                                ticks: {{
+                                    color: '{ChartColors.TICK_TEXT}',
+                                    font: {{
+                                        size: 10
+                                    }},
+                                    maxRotation: 45,
+                                    minRotation: 45,
+                                    padding: 5
+                                }}
+                            }},
+                            y: {{
+                                display: {str(show_y_axis).lower()},
+                                grid: {{
+                                    display: {str(show_y_axis).lower()}
+                                }},
+                                ticks: {{
+                                    color: '{ChartColors.TICK_TEXT}',
+                                    font: {{
+                                        size: 10
+                                    }},
+                                    padding: 5,
+                                    stepSize: 1
+                                }}
+                            }}
+                        }}
+                    }}
+                }});
+            }})();
+        """),
+        style="height: 120px; width: 100%;"  # Explicit height in style attribute
+    ) 

@@ -9,12 +9,11 @@ from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended
 from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict, get_filtered_leaders
 from op_tcg.frontend_fasthtml.pages.leader import create_leader_select, create_leader_content, HX_INCLUDE
 from op_tcg.frontend_fasthtml.api.charts import setup_api_routes as setup_charts_api_routes
-from op_tcg.frontend_fasthtml.api.models import LeaderboardFilter, LeaderboardSort, LeaderSelectParams, LeaderDataParams
+from op_tcg.frontend_fasthtml.api.models import LeaderboardSort, LeaderSelectParams, LeaderDataParams
 from op_tcg.frontend_fasthtml.components.decklist import create_decklist_section
 from op_tcg.frontend_fasthtml.components.matchup import create_matchup_analysis
 from op_tcg.frontend_fasthtml.api.leader_matchups import get_best_worst_matchups
-from op_tcg.frontend_fasthtml.utils.leader_data import lname_and_lid_to_lid
-from op_tcg.frontend_fasthtml.utils.charts import create_line_chart
+from op_tcg.frontend_fasthtml.utils.charts import create_line_chart, create_bar_chart
 from op_tcg.frontend_fasthtml.utils.colors import ChartColors
 DATA_IS_LOADED = False
 
@@ -172,11 +171,14 @@ def setup_api_routes(rt):
     async def get_leader_matchup_details(request: Request):
         """Get details for a specific matchup.
         Details include (best or worst opponent):
-        - Image
+        - Image with hyperlink
         - Win rate chart
+        - Match count chart
         """
         params = get_query_params_as_dict(request)
-        
+        meta_format = params.get("meta_format", MetaFormat.latest_meta_format())
+        if isinstance(meta_format, list):
+            meta_format = meta_format[0]
         # Check which matchup we're looking at (best or worst)
         matchup_type = next((key.split('_')[1] for key in params.keys() if key.startswith('lid_')), None)
         if not matchup_type:
@@ -188,13 +190,14 @@ def setup_api_routes(rt):
             return ft.P("No leader selected", cls="text-gray-400")
             
         # Get leader data
-        leader_data = next(iter(get_leader_extended(meta_formats=[params.get("meta_format", None)], leader_ids=[leader_id])), None)
+        leader_data = next(iter(get_leader_extended(meta_formats=[meta_format], leader_ids=[leader_id])), None)
         if not leader_data:
             return ft.P("No data available for this leader", cls="text-red-400")
             
         # Prepare win rate chart data
-        win_rate_data = get_leader_win_rate(meta_formats=MetaFormat.to_list(until_meta_format=params.get("meta_format", None)), leader_ids=[params[f'lid']])
+        win_rate_data = get_leader_win_rate(meta_formats=MetaFormat.to_list(until_meta_format=meta_format), leader_ids=[params[f'lid']])
         chart_data = []
+        match_data = []
         for wr in win_rate_data:
             if wr.only_official != (params.get("only_official", "on") == "on"):
                 continue
@@ -203,23 +206,46 @@ def setup_api_routes(rt):
                     "meta": str(wr.meta_format),
                     "winRate": round(wr.win_rate * 100, 2) if wr.win_rate is not None else None
                 })
+                match_data.append({
+                    "meta": str(wr.meta_format),
+                    "matches": wr.total_matches
+                })
         
         # Sort chart data by meta format
         chart_data.sort(key=lambda x: MetaFormat(x["meta"]))
+        match_data.sort(key=lambda x: MetaFormat(x["meta"]))
         
         # Create the matchup details view
         return ft.Div(
-            ft.Img(
-                src=leader_data.aa_image_url,
-                cls="w-full rounded-lg shadow-lg mb-2"
+            # Image with hyperlink
+            ft.A(
+                ft.Img(
+                    src=leader_data.aa_image_url,
+                    cls="w-full rounded-lg shadow-lg mb-2"
+                ),
+                href=f"/leader?lid={leader_id}",
+                hx_include=HX_INCLUDE,  # Include necessary form values
             ),
             # Win rate chart
-            create_line_chart(
-                container_id=f"win-rate-chart-{leader_id}",
-                data=chart_data,
-                color=ChartColors.POSITIVE if matchup_type == "best" else ChartColors.NEGATIVE,
-                show_x_axis=True,
-                show_y_axis=True
+            ft.Div(
+                create_line_chart(
+                    container_id=f"win-rate-chart-{leader_id}",
+                    data=chart_data,
+                    color=ChartColors.POSITIVE if matchup_type == "best" else ChartColors.NEGATIVE,
+                    show_x_axis=True,
+                    show_y_axis=True
+                ),
+                cls="mb-4"  # Add margin bottom for spacing
+            ),
+            # Match count chart
+            ft.Div(
+                create_bar_chart(
+                    container_id=f"match-count-chart-{leader_id}",
+                    data=match_data,
+                    show_x_axis=True,
+                    show_y_axis=True
+                ),
+                cls="h-[120px] w-full"  # Match the height of the line chart
             ),
             cls="w-full"
         )
