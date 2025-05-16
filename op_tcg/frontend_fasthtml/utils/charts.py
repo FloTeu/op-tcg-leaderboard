@@ -402,3 +402,208 @@ def create_bar_chart(container_id: str, data: List[dict[str, Any]],
         """),
         style="height: 120px; width: 100%;"  # Explicit height in style attribute
     ) 
+
+def create_stream_chart(container_id: str, data: List[dict[str, Any]], 
+                       y_key: str = "wins", x_key: str = "date",
+                       y_label: str = "Tournament Wins", y_suffix: str = " wins",
+                       color: str = ChartColors.POSITIVE,
+                       show_x_axis: bool = True,
+                       show_y_axis: bool = True) -> ft.Div:
+    """
+    Creates a stream chart using Chart.js with gradient fill and smooth transitions.
+    Also includes a bar chart overlay for individual data points.
+    
+    Args:
+        container_id: Unique ID for the chart container
+        data: List of dictionaries containing the data points
+        y_key: Key for the y-axis values in the data dictionaries
+        x_key: Key for the x-axis values in the data dictionaries (should be date strings)
+        y_label: Label for the y-axis values in tooltips
+        y_suffix: Suffix to add to y-axis values (e.g., " wins")
+        color: Color for the chart line and gradient
+        show_x_axis: Whether to show the x-axis
+        show_y_axis: Whether to show the y-axis
+    """
+    # Convert Python data to JSON string
+    json_data = json.dumps(data)
+    
+    return ft.Div(
+        # Chart container with canvas
+        ft.Div(
+            ft.Canvas(id=container_id),
+            cls="h-full w-full"  # Use full height and width
+        ),
+        ft.Script(f"""
+            (function() {{
+                const chartId = '{container_id}';
+                const container = document.getElementById(chartId);
+                
+                if (!container) {{
+                    console.error('Chart container not found:', chartId);
+                    return;
+                }}
+                
+                // Destroy existing chart if it exists
+                const existingChart = Chart.getChart(chartId);
+                if (existingChart) {{
+                    existingChart.destroy();
+                }}
+                
+                const data = {json_data};
+                
+                // Get the chart context and create gradient
+                const ctx = container.getContext('2d');
+                const gradient = ctx.createLinearGradient(0, 0, 0, container.height);
+                gradient.addColorStop(0, '{color}');  // Start with full color
+                gradient.addColorStop(1, '{color}00'); // End with transparent
+                
+                // Create cumulative data for stream effect
+                let cumulativeData = [];
+                let runningTotal = 0;
+                data.forEach(d => {{
+                    runningTotal += d['{y_key}'];
+                    cumulativeData.push(runningTotal);
+                }});
+                
+                // Format dates for display - shorter format
+                const formatDate = (dateStr) => {{
+                    const date = new Date(dateStr);
+                    const month = date.toLocaleDateString('en-US', {{ month: 'short' }});
+                    const year = date.getFullYear().toString().slice(2); // Get last 2 digits of year
+                    return `${{month}} '${{year}}`;
+                }};
+                
+                // Calculate contrasting color for bars
+                const getContrastColor = (hexcolor) => {{
+                    // Convert hex to RGB
+                    const r = parseInt(hexcolor.slice(1,3), 16);
+                    const g = parseInt(hexcolor.slice(3,5), 16);
+                    const b = parseInt(hexcolor.slice(5,7), 16);
+                    
+                    // Calculate complementary color
+                    return `#${{(255-r).toString(16).padStart(2,'0')}}${{(255-g).toString(16).padStart(2,'0')}}${{(255-b).toString(16).padStart(2,'0')}}`;
+                }};
+                
+                const barColor = getContrastColor('{color}');
+                
+                new Chart(container, {{
+                    data: {{
+                        labels: data.map(d => formatDate(d['{x_key}'])),
+                        datasets: [
+                            // Bar chart for individual wins
+                            {{
+                                type: 'bar',
+                                data: data.map(d => d['{y_key}']),
+                                backgroundColor: barColor + '66',  // Contrasting color with 40% opacity
+                                borderColor: barColor,
+                                borderWidth: 1,
+                                barPercentage: 0.4,
+                                order: 2
+                            }},
+                            // Line chart for cumulative wins
+                            {{
+                                type: 'line',
+                                data: cumulativeData,
+                                borderColor: '{color}',
+                                backgroundColor: gradient,
+                                fill: true,
+                                tension: 0.4,
+                                pointRadius: 2,  // Smaller points
+                                pointHoverRadius: 4,  // Smaller hover points
+                                borderWidth: 2,
+                                pointStyle: 'circle',
+                                pointBackgroundColor: '{color}',
+                                pointBorderColor: '#fff',
+                                order: 1
+                            }}
+                        ]
+                    }},
+                    options: {{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {{
+                            duration: 1000,
+                            easing: 'easeInOutQuart'
+                        }},
+                        interaction: {{
+                            mode: 'nearest',
+                            axis: 'x',
+                            intersect: false
+                        }},
+                        plugins: {{
+                            legend: {{
+                                display: false
+                            }},
+                            tooltip: {{
+                                backgroundColor: '{ChartColors.TOOLTIP_BG}',
+                                titleColor: '#ffffff',
+                                bodyColor: '#ffffff',
+                                borderColor: '{ChartColors.TOOLTIP_BORDER}',
+                                borderWidth: 1,
+                                padding: 8,
+                                displayColors: false,
+                                callbacks: {{
+                                    title: function(context) {{
+                                        return data[context[0].dataIndex]['{x_key}'];
+                                    }},
+                                    label: function(context) {{
+                                        if (context.datasetIndex === 0) {{
+                                            return 'Wins on this day: ' + context.parsed.y + '{y_suffix}';
+                                        }} else {{
+                                            return 'Total wins: ' + context.parsed.y + '{y_suffix}';
+                                        }}
+                                    }}
+                                }}
+                            }}
+                        }},
+                        scales: {{
+                            x: {{
+                                display: {str(show_x_axis).lower()},
+                                grid: {{
+                                    display: false
+                                }},
+                                ticks: {{
+                                    color: '{ChartColors.TICK_TEXT}',
+                                    font: {{
+                                        size: 10
+                                    }},
+                                    maxRotation: 0,  // No rotation
+                                    minRotation: 0,  // No rotation
+                                    padding: 8,
+                                    autoSkip: true,
+                                    maxTicksLimit: 12  // Show more labels since they're horizontal now
+                                }}
+                            }},
+                            y: {{
+                                display: {str(show_y_axis).lower()},
+                                grid: {{
+                                    display: {str(show_y_axis).lower()},
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                }},
+                                ticks: {{
+                                    color: '{ChartColors.TICK_TEXT}',
+                                    font: {{
+                                        size: 10
+                                    }},
+                                    padding: 5,
+                                    callback: function(value) {{
+                                        return value + '{y_suffix}';
+                                    }}
+                                }},
+                                beginAtZero: true
+                            }}
+                        }},
+                        layout: {{
+                            padding: {{
+                                top: 20,
+                                right: 20,
+                                bottom: 20,  // Reduced since labels are horizontal now
+                                left: 20
+                            }}
+                        }}
+                    }}
+                }});
+            }})();
+        """),
+        style="height: 120px; width: 100%;"  # Explicit height in style attribute
+    ) 
