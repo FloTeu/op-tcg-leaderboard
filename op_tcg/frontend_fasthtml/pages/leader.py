@@ -152,6 +152,7 @@ def create_tab_view():
                 hx_get="/api/leader-matchups",
                 hx_trigger="click once",
                 hx_target="#matchup-tab",
+                hx_indicator="#matchup-loading-indicator",
                 hx_include=HX_INCLUDE,
                 id="matchup-button"
             ),
@@ -162,6 +163,7 @@ def create_tab_view():
                 hx_get="/api/leader-tournaments",
                 hx_trigger="click once",
                 hx_target="#tournaments-tab",
+                hx_indicator="#tournament-loading-indicator",
                 hx_include=HX_INCLUDE,
                 id="tournaments-button"
             ),
@@ -213,7 +215,7 @@ def create_tab_view():
                 cls="tab-pane p-6",
                 id="tournaments-tab"
             ),
-            cls="bg-gray-800 rounded-lg shadow-xl w-full mb-6 mt-6"
+            cls="bg-gray-800 rounded-lg shadow-xl w-full mb-6"
         ),
         
         # JavaScript for tab switching
