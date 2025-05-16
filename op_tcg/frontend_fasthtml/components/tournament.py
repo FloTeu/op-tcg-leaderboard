@@ -7,10 +7,19 @@ from op_tcg.backend.models.input import MetaFormatRegion
 from op_tcg.frontend_fasthtml.utils.charts import create_stream_chart
 from op_tcg.frontend_fasthtml.utils.colors import ChartColors
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
+from op_tcg.backend.models.cards import Card
 
 def create_leader_grid(leader_stats: Dict[str, float], leader_extended_dict: Dict[str, LeaderExtended], 
                       cid2cdata_dict: dict, max_leaders: int = 12) -> ft.Div:
     """Create a grid of leader images with participation percentages."""
+    # Calculate total share of known leaders
+    total_known_share = sum(leader_stats.values())
+    
+    # Add unknown leaders if there's remaining share
+    if total_known_share < 1.0:
+        unknown_share = 1.0 - total_known_share
+        leader_stats['unknown'] = unknown_share
+    
     # Sort leaders by participation
     sorted_leaders = sorted(leader_stats.items(), key=lambda x: x[1], reverse=True)[:max_leaders]
     
@@ -19,30 +28,49 @@ def create_leader_grid(leader_stats: Dict[str, float], leader_extended_dict: Dic
     current_row = []
     
     for lid, share in sorted_leaders:
-        leader_data = leader_extended_dict.get(lid)
-        if not leader_data:
-            continue
-            
-        # Create leader card with image and percentage
-        leader_card = ft.Div(
-            ft.A(
+        if lid == 'unknown':
+            # Create card for unknown leaders
+            cdata = cid2cdata_dict.get('default') or Card.from_default()
+            leader_card = ft.Div(
                 ft.Div(
                     ft.Img(
-                        src=leader_data.aa_image_url,
-                        cls="w-full h-full object-cover rounded-lg"
+                        src=cdata.image_url,
+                        cls="w-full h-full object-cover rounded-lg opacity-50"  # Added opacity for visual distinction
                     ),
                     # Overlay with percentage
                     ft.Div(
-                        f"{share * 100:.1f}%",
+                        f"Unknown {share * 100:.1f}%",
                         cls="absolute bottom-0 right-0 bg-black bg-opacity-70 px-2 py-1 rounded-bl-lg rounded-tr-lg text-white text-sm"
                     ),
                     cls="relative w-full pb-[100%]"  # Square aspect ratio
                 ),
-                href=f"/leader?lid={lid}",
-                cls="block w-full"
-            ),
-            cls="w-full transform transition-transform hover:scale-105"
-        )
+                cls="w-full transform transition-transform hover:scale-105"
+            )
+        else:
+            leader_data = leader_extended_dict.get(lid)
+            if not leader_data:
+                continue
+                
+            # Create leader card with image and percentage
+            leader_card = ft.Div(
+                ft.A(
+                    ft.Div(
+                        ft.Img(
+                            src=leader_data.aa_image_url,
+                            cls="w-full h-full object-cover rounded-lg"
+                        ),
+                        # Overlay with percentage
+                        ft.Div(
+                            f"{share * 100:.1f}%",
+                            cls="absolute bottom-0 right-0 bg-black bg-opacity-70 px-2 py-1 rounded-bl-lg rounded-tr-lg text-white text-sm"
+                        ),
+                        cls="relative w-full pb-[100%]"  # Square aspect ratio
+                    ),
+                    href=f"/leader?lid={lid}",
+                    cls="block w-full"
+                ),
+                cls="w-full transform transition-transform hover:scale-105"
+            )
         
         current_row.append(leader_card)
         
