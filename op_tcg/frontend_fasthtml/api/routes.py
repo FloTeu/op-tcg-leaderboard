@@ -2,7 +2,7 @@ from fasthtml import ft
 from starlette.requests import Request
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended, LeaderboardSortBy
-from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended, get_tournament_decklist_data, get_card_id_card_data_lookup, get_leader_win_rate
+from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended, get_tournament_decklist_data, get_card_id_card_data_lookup, get_leader_win_rate, get_all_tournament_extened_data
 from op_tcg.frontend_fasthtml.pages.home import create_leaderboard_table
 from op_tcg.frontend_fasthtml.utils.launch import init_load_data
 from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended
@@ -15,6 +15,7 @@ from op_tcg.frontend_fasthtml.components.matchup import create_matchup_analysis
 from op_tcg.frontend_fasthtml.api.leader_matchups import get_best_worst_matchups
 from op_tcg.frontend_fasthtml.utils.charts import create_line_chart, create_bar_chart
 from op_tcg.frontend_fasthtml.utils.colors import ChartColors
+from op_tcg.frontend_fasthtml.components.tournament import create_tournament_section, create_tournament_keyfacts
 DATA_IS_LOADED = False
 
 
@@ -175,10 +176,9 @@ def setup_api_routes(rt):
         - Win rate chart
         - Match count chart
         """
-        params = get_query_params_as_dict(request)
-        meta_format = params.get("meta_format", MetaFormat.latest_meta_format())
-        if isinstance(meta_format, list):
-            meta_format = meta_format[0]
+
+        params = LeaderDataParams(**get_query_params_as_dict(request))
+        meta_format = params.meta_format[0]
         # Check which matchup we're looking at (best or worst)
         matchup_type = next((key.split('_')[1] for key in params.keys() if key.startswith('lid_')), None)
         if not matchup_type:
@@ -248,4 +248,103 @@ def setup_api_routes(rt):
                 cls="h-[120px] w-full"  # Match the height of the line chart
             ),
             cls="w-full"
+        )
+
+    @rt("/api/leader-tournaments")
+    async def get_leader_tournaments(request: Request):
+        # Parse params using Pydantic model
+        params = LeaderDataParams(**get_query_params_as_dict(request))
+        
+        # Get tournament data
+        tournament_decklists = get_tournament_decklist_data(
+            meta_formats=params.meta_format,
+            leader_ids=[params.lid]
+        )
+        tournaments = get_all_tournament_extened_data(meta_formats=params.meta_format)
+        
+        # Get leader data
+        leader_data = get_leader_extended()
+        leader_extended_dict = {le.id: le for le in leader_data}
+        
+        # Get card data
+        card_id2card_data = get_card_id_card_data_lookup()
+        
+        # Create and return the tournament section
+        return create_tournament_section(
+            leader_id=params.lid,
+            tournament_decklists=tournament_decklists,
+            tournaments=tournaments,
+            leader_extended_dict=leader_extended_dict,
+            cid2cdata_dict=card_id2card_data,
+            hx_include=HX_INCLUDE
+        )
+
+    @rt("/api/tournament-details")
+    async def get_tournament_details(request: Request):
+        """Get details for a specific tournament."""
+        params_dict = get_query_params_as_dict(request)
+        tournament_id = params_dict.get("tournament_id")
+        params = LeaderDataParams(**params_dict)
+
+        if not tournament_id:
+            return ft.P("No tournament selected", cls="text-gray-400")
+            
+        # Get tournament data
+        tournaments = get_all_tournament_extened_data(
+            meta_formats=params.meta_format,
+        )
+        tournament = next((t for t in tournaments if t.id == tournament_id), None)
+        
+        if not tournament:
+            return ft.P("Tournament not found", cls="text-red-400")
+            
+        # Get card data
+        card_id2card_data = get_card_id_card_data_lookup()
+        
+        # Get tournament decklists
+        tournament_decklists = get_tournament_decklist_data(params.meta_format)
+        tournament_decklists = [td for td in tournament_decklists if td.tournament_id == tournament_id]
+        
+        # Get winner info
+        winner_decklist = next((td for td in tournament_decklists if td.placing == 1), None)
+        winner_name = "Unknown"
+        if winner_decklist:
+            winner_card = card_id2card_data.get(winner_decklist.leader_id)
+            if winner_card:
+                winner_name = f"{winner_card.name} ({winner_decklist.leader_id})"
+        
+        # Calculate leader participation stats
+        leader_stats = {}
+        if tournament.num_players:
+            for lid, placings in tournament.leader_ids_placings.items():
+                leader_stats[lid] = len(placings) / tournament.num_players
+                
+        # Sort leaders by participation
+        sorted_leaders = sorted(leader_stats.items(), key=lambda x: x[1], reverse=True)
+        
+        # Create the tournament details view
+        return ft.Div(
+            # Tournament facts
+            create_tournament_keyfacts(tournament, winner_name),
+            
+            # Leader participation chart
+            ft.Div(
+                ft.H4("Leader Participation", cls="text-lg font-bold text-white mb-4"),
+                create_bar_chart(
+                    container_id=f"participation-chart-{tournament_id}",
+                    data=[{
+                        "leader": card_id2card_data[lid].name if lid in card_id2card_data else lid,
+                        "share": round(share * 100, 2)
+                    } for lid, share in sorted_leaders[:10]],  # Show top 10 leaders
+                    y_key="share",
+                    x_key="leader",
+                    y_label="Share",
+                    y_suffix="%",
+                    show_x_axis=True,
+                    show_y_axis=True
+                ),
+                cls="mt-4 h-[200px]"
+            ),
+            
+            cls="space-y-6"
         )
