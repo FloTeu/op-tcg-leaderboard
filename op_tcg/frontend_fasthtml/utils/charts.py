@@ -473,18 +473,27 @@ def create_stream_chart(container_id: str, data: List[dict[str, Any]],
                     return `${{month}} '${{year}}`;
                 }};
                 
-                // Calculate contrasting color for bars
-                const getContrastColor = (hexcolor) => {{
-                    // Convert hex to RGB
-                    const r = parseInt(hexcolor.slice(1,3), 16);
-                    const g = parseInt(hexcolor.slice(3,5), 16);
-                    const b = parseInt(hexcolor.slice(5,7), 16);
-                    
-                    // Calculate complementary color
-                    return `#${{(255-r).toString(16).padStart(2,'0')}}${{(255-g).toString(16).padStart(2,'0')}}${{(255-b).toString(16).padStart(2,'0')}}`;
+                // Group data points by month to avoid duplicate labels
+                const monthLabels = new Map();
+                data.forEach((d, i) => {{
+                    const date = new Date(d['{x_key}']);
+                    const monthKey = `${{date.getFullYear()}}-${{date.getMonth()}}`;
+                    if (!monthLabels.has(monthKey)) {{
+                        monthLabels.set(monthKey, i);
+                    }}
+                }});
+                
+                // Define consistent colors for dark mode
+                const COLORS = {{
+                    BAR: '#9CA3AF',  // A medium gray that's visible but not too bright
+                    BAR_BORDER: '#D1D5DB',  // Slightly lighter gray for bar borders
+                    AXIS_TEXT: '#E5E7EB',  // Light gray for axis text
+                    GRID: 'rgba(255, 255, 255, 0.1)'  // Subtle grid lines
                 }};
                 
-                const barColor = getContrastColor('{color}');
+                // Find max values for scaling
+                const maxWins = Math.max(...data.map(d => d['{y_key}']));
+                const maxCumulative = Math.max(...cumulativeData);
                 
                 new Chart(container, {{
                     data: {{
@@ -494,11 +503,14 @@ def create_stream_chart(container_id: str, data: List[dict[str, Any]],
                             {{
                                 type: 'bar',
                                 data: data.map(d => d['{y_key}']),
-                                backgroundColor: barColor + '66',  // Contrasting color with 40% opacity
-                                borderColor: barColor,
+                                backgroundColor: COLORS.BAR,
+                                borderColor: COLORS.BAR_BORDER,
                                 borderWidth: 1,
                                 barPercentage: 0.4,
-                                order: 2
+                                order: 2,
+                                yAxisID: 'y-axis-bars',
+                                barThickness: 'flex',
+                                minBarLength: 10
                             }},
                             // Line chart for cumulative wins
                             {{
@@ -508,13 +520,14 @@ def create_stream_chart(container_id: str, data: List[dict[str, Any]],
                                 backgroundColor: gradient,
                                 fill: true,
                                 tension: 0.4,
-                                pointRadius: 2,  // Smaller points
-                                pointHoverRadius: 4,  // Smaller hover points
+                                pointRadius: 2,
+                                pointHoverRadius: 4,
                                 borderWidth: 2,
                                 pointStyle: 'circle',
                                 pointBackgroundColor: '{color}',
                                 pointBorderColor: '#fff',
-                                order: 1
+                                order: 1,
+                                yAxisID: 'y-axis-line'
                             }}
                         ]
                     }},
@@ -563,25 +576,53 @@ def create_stream_chart(container_id: str, data: List[dict[str, Any]],
                                     display: false
                                 }},
                                 ticks: {{
-                                    color: '{ChartColors.TICK_TEXT}',
+                                    color: COLORS.AXIS_TEXT,
                                     font: {{
                                         size: 10
                                     }},
-                                    maxRotation: 0,  // No rotation
-                                    minRotation: 0,  // No rotation
+                                    maxRotation: 0,
+                                    minRotation: 0,
                                     padding: 8,
-                                    autoSkip: true,
-                                    maxTicksLimit: 12  // Show more labels since they're horizontal now
+                                    autoSkip: false,
+                                    callback: function(value, index) {{
+                                        const date = new Date(data[index]['{x_key}']);
+                                        const monthKey = `${{date.getFullYear()}}-${{date.getMonth()}}`;
+                                        return monthLabels.get(monthKey) === index ? this.getLabelForValue(value) : '';
+                                    }}
                                 }}
                             }},
-                            y: {{
+                            'y-axis-bars': {{
                                 display: {str(show_y_axis).lower()},
+                                position: 'left',
                                 grid: {{
-                                    display: {str(show_y_axis).lower()},
-                                    color: 'rgba(255, 255, 255, 0.1)'
+                                    display: false
                                 }},
                                 ticks: {{
-                                    color: '{ChartColors.TICK_TEXT}',
+                                    color: COLORS.AXIS_TEXT,
+                                    font: {{
+                                        size: 10
+                                    }},
+                                    padding: 5,
+                                    callback: function(value) {{
+                                        return value + '{y_suffix}';
+                                    }},
+                                    stepSize: 1
+                                }},
+                                min: 0,
+                                max: Math.max(maxWins * 1.2, 4),
+                                border: {{
+                                    color: COLORS.BAR_BORDER
+                                }}
+                            }},
+                            'y-axis-line': {{
+                                display: {str(show_y_axis).lower()},
+                                position: 'right',
+                                grid: {{
+                                    display: {str(show_y_axis).lower()},
+                                    color: COLORS.GRID
+                                }},
+                                ticks: {{
+                                    color: COLORS.AXIS_TEXT,
                                     font: {{
                                         size: 10
                                     }},
@@ -590,15 +631,19 @@ def create_stream_chart(container_id: str, data: List[dict[str, Any]],
                                         return value + '{y_suffix}';
                                     }}
                                 }},
-                                beginAtZero: true
+                                min: 0,
+                                max: Math.ceil(maxCumulative * 1.1),
+                                border: {{
+                                    color: COLORS.BAR_BORDER
+                                }}
                             }}
                         }},
                         layout: {{
                             padding: {{
                                 top: 20,
-                                right: 20,
-                                bottom: 20,  // Reduced since labels are horizontal now
-                                left: 20
+                                right: 30,
+                                bottom: 20,
+                                left: 30
                             }}
                         }}
                     }}

@@ -15,7 +15,7 @@ from op_tcg.frontend_fasthtml.components.matchup import create_matchup_analysis
 from op_tcg.frontend_fasthtml.api.leader_matchups import get_best_worst_matchups
 from op_tcg.frontend_fasthtml.utils.charts import create_line_chart, create_bar_chart
 from op_tcg.frontend_fasthtml.utils.colors import ChartColors
-from op_tcg.frontend_fasthtml.components.tournament import create_tournament_section, create_tournament_keyfacts
+from op_tcg.frontend_fasthtml.components.tournament import create_tournament_section, create_tournament_keyfacts, create_leader_grid
 DATA_IS_LOADED = False
 
 
@@ -306,12 +306,8 @@ def setup_api_routes(rt):
         tournament_decklists = [td for td in tournament_decklists if td.tournament_id == tournament_id]
         
         # Get winner info
-        winner_decklist = next((td for td in tournament_decklists if td.placing == 1), None)
-        winner_name = "Unknown"
-        if winner_decklist:
-            winner_card = card_id2card_data.get(winner_decklist.leader_id)
-            if winner_card:
-                winner_name = f"{winner_card.name} ({winner_decklist.leader_id})"
+        winner_card = card_id2card_data.get(params.lid)
+        winner_name = f"{winner_card.name} ({params.lid})"
         
         # Calculate leader participation stats
         leader_stats = {}
@@ -319,31 +315,20 @@ def setup_api_routes(rt):
             for lid, placings in tournament.leader_ids_placings.items():
                 leader_stats[lid] = len(placings) / tournament.num_players
                 
-        # Sort leaders by participation
-        sorted_leaders = sorted(leader_stats.items(), key=lambda x: x[1], reverse=True)
+        # Get leader data for images
+        leader_data = get_leader_extended()
+        leader_extended_dict = {le.id: le for le in leader_data}
         
         # Create the tournament details view
         return ft.Div(
             # Tournament facts
             create_tournament_keyfacts(tournament, winner_name),
             
-            # Leader participation chart
+            # Leader participation section
             ft.Div(
                 ft.H4("Leader Participation", cls="text-lg font-bold text-white mb-4"),
-                create_bar_chart(
-                    container_id=f"participation-chart-{tournament_id}",
-                    data=[{
-                        "leader": card_id2card_data[lid].name if lid in card_id2card_data else lid,
-                        "share": round(share * 100, 2)
-                    } for lid, share in sorted_leaders[:10]],  # Show top 10 leaders
-                    y_key="share",
-                    x_key="leader",
-                    y_label="Share",
-                    y_suffix="%",
-                    show_x_axis=True,
-                    show_y_axis=True
-                ),
-                cls="mt-4 h-[200px]"
+                create_leader_grid(leader_stats, leader_extended_dict, card_id2card_data),
+                cls="mt-6"
             ),
             
             cls="space-y-6"
