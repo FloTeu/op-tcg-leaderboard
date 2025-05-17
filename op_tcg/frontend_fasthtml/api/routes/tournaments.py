@@ -1,9 +1,9 @@
 from fasthtml import ft
 from starlette.requests import Request
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
+from op_tcg.frontend.utils.extract import get_tournament_decklist_data, get_all_tournament_extened_data
 from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict
 from op_tcg.frontend_fasthtml.utils.extract import (
-    get_tournament_decklist_data,
-    get_all_tournament_extened_data,
     get_leader_extended,
     get_card_id_card_data_lookup
 )
@@ -12,10 +12,53 @@ from op_tcg.frontend_fasthtml.components.tournament import (
     create_tournament_keyfacts,
     create_leader_grid
 )
-from op_tcg.frontend_fasthtml.api.models import LeaderDataParams
+from op_tcg.frontend_fasthtml.api.models import LeaderDataParams, TournamentPageParams
 from op_tcg.frontend_fasthtml.pages.leader import HX_INCLUDE
+from op_tcg.frontend_fasthtml.utils.charts import create_bubble_chart
+import json
 
 def setup_api_routes(rt):
+
+    @rt("/api/tournaments/chart")
+    def get_tournament_chart(request: Request):
+        """Return the tournament statistics chart."""
+        # Parse params using Pydantic model
+        params = TournamentPageParams(**get_query_params_as_dict(request))
+        
+        # Get leader data
+        leader_data = get_leader_extended(meta_format_region=params.region)
+        card_data = get_card_id_card_data_lookup()
+        
+        # Filter by meta formats
+        leader_data = [ld for ld in leader_data if ld.meta_format in params.meta_format]
+        
+        # Process data for bubble chart
+        chart_data = []
+        colors = []
+        
+        for ld in leader_data:
+            if ld.total_matches is None:
+                continue
+            if ld.total_matches > 0:  # Only include leaders with matches
+                card = card_data.get(ld.id)
+                color = card.to_hex_color() if card else "#808080"
+                
+                chart_data.append({
+                    "x": ld.total_matches,  # Number of tournaments on x-axis
+                    "y": ld.win_rate,       # Win rate on y-axis
+                    "r": ld.tournament_wins * 2 + 5,  # Bubble size based on tournament wins
+                    "name": card.name if card else ld.id,
+                })
+                colors.append(color)
+        
+        # Create and return the chart
+        return create_bubble_chart(
+            container_id="tournament-chart",
+            data=chart_data,
+            colors=colors,
+            title="Leader Tournament Statistics"
+        )
+
     @rt("/api/leader-tournaments")
     async def get_leader_tournaments(request: Request):
         # Parse params using Pydantic model

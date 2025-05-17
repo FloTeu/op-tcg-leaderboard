@@ -1,5 +1,5 @@
 from fasthtml import ft
-from typing import Any, List
+from typing import Any, List, Dict
 from op_tcg.frontend_fasthtml.utils.colors import ChartColors
 import json
 
@@ -651,4 +651,133 @@ def create_stream_chart(container_id: str, data: List[dict[str, Any]],
             }})();
         """),
         style="height: 120px; width: 100%;"  # Explicit height in style attribute
+    ) 
+
+def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: List[str], title: str = "Leader Tournament Statistics"):
+    """
+    Create a bubble chart for leader tournament statistics.
+    
+    Args:
+        container_id: Unique ID for the chart container
+        data: List of dictionaries containing the data points
+        colors: List of color strings for each bubble
+        title: Chart title
+    """
+    # Convert data to JSON strings
+    data_json = json.dumps(data)
+    colors_json = json.dumps(colors)
+    
+    return ft.Div(
+        # Chart container with canvas
+        ft.Div(
+            ft.Canvas(id=container_id),
+            cls="h-full w-full"  # Use full height and width
+        ),
+        ft.Script(f"""
+            (function() {{
+                const chartId = '{container_id}';
+                const container = document.getElementById(chartId);
+                
+                if (!container) {{
+                    console.error('Chart container not found:', chartId);
+                    return;
+                }}
+                
+                // Destroy existing chart if it exists
+                const existingChart = Chart.getChart(chartId);
+                if (existingChart) {{
+                    existingChart.destroy();
+                }}
+                
+                const data = {data_json};
+                const colors = {colors_json};
+                
+                new Chart(container, {{
+                    type: 'bubble',
+                    data: {{
+                        datasets: [{{
+                            data: data,
+                            backgroundColor: colors,
+                            borderColor: 'white',
+                            borderWidth: 1
+                        }}]
+                    }},
+                    options: {{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {{
+                            title: {{
+                                display: true,
+                                text: '{title}',
+                                color: 'white',
+                                font: {{ size: 16 }}
+                            }},
+                            legend: {{
+                                display: false
+                            }},
+                            tooltip: {{
+                                backgroundColor: '{ChartColors.TOOLTIP_BG}',
+                                titleColor: '#ffffff',
+                                bodyColor: '#ffffff',
+                                borderColor: '{ChartColors.TOOLTIP_BORDER}',
+                                borderWidth: 1,
+                                padding: 8,
+                                displayColors: false,
+                                callbacks: {{
+                                    label: function(context) {{
+                                        const data = context.raw;
+                                        return [
+                                            `Leader: ${{data.name}}`,
+                                            `Win Rate: ${{(data.y * 100).toFixed(1)}}%`,
+                                            `Tournaments: ${{data.x}}`,
+                                            `Tournament Wins: ${{Math.floor((data.r - 5) / 2)}}`
+                                        ];
+                                    }}
+                                }}
+                            }}
+                        }},
+                        scales: {{
+                            x: {{
+                                title: {{
+                                    display: true,
+                                    text: 'Number of Tournaments',
+                                    color: 'white'
+                                }},
+                                ticks: {{
+                                    color: '{ChartColors.TICK_TEXT}',
+                                    font: {{
+                                        size: 10
+                                    }},
+                                    padding: 5
+                                }},
+                                grid: {{
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                }}
+                            }},
+                            y: {{
+                                title: {{
+                                    display: true,
+                                    text: 'Win Rate',
+                                    color: 'white'
+                                }},
+                                ticks: {{
+                                    color: '{ChartColors.TICK_TEXT}',
+                                    font: {{
+                                        size: 10
+                                    }},
+                                    padding: 5,
+                                    callback: function(value) {{
+                                        return (value * 100).toFixed(0) + '%';
+                                    }}
+                                }},
+                                grid: {{
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                }}
+                            }}
+                        }}
+                    }}
+                }});
+            }})();
+        """),
+        style="height: 600px; width: 100%;"  # Explicit height and width
     ) 

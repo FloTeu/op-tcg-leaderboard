@@ -141,3 +141,25 @@ class Matchup(BaseModel):
 class OpponentMatchups(BaseModel):
     easiest_matchups: list[Matchup]
     hardest_matchups: list[Matchup]
+
+
+class TournamentPageParams(BaseModel):
+    """Parameters for tournament page requests"""
+    meta_format: list[MetaFormat]
+    region: MetaFormatRegion = MetaFormatRegion.ALL
+    
+    @field_validator('meta_format', mode='before')
+    def validate_meta_formats(cls, value):
+        if value is None or (isinstance(value, list) and len(value) == 0):
+            return [MetaFormat.latest_meta_format()]
+        if isinstance(value, list):
+            return [MetaFormat(item) if isinstance(item, str) else item for item in value]
+        return [MetaFormat(value) if isinstance(value, str) else value]
+    
+    @field_validator('region', mode='before')
+    def validate_region(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if isinstance(value, str):
+            return MetaFormatRegion(value)
+        return value

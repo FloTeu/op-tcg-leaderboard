@@ -6,7 +6,7 @@ from fasthtml.common import fast_app, serve
 from op_tcg.frontend_fasthtml.components.layout import layout
 from op_tcg.frontend_fasthtml.pages.home import home_page, create_filter_components as home_filters
 from op_tcg.frontend_fasthtml.pages.leader import leader_page, create_filter_components as leader_filters
-from op_tcg.frontend_fasthtml.pages.tournaments import tournaments_page
+from op_tcg.frontend_fasthtml.pages.tournaments import tournaments_page, create_filter_components as tournament_filters
 from op_tcg.frontend_fasthtml.pages.card_movement import card_movement_page
 from op_tcg.frontend_fasthtml.pages.matchups import matchups_page
 from op_tcg.frontend_fasthtml.pages.card_popularity import card_popularity_page
@@ -82,7 +82,7 @@ def leader_default(request: Request):
 
 @rt("/tournaments")
 def tournaments():
-    return layout(tournaments_page(), filter_component=None)
+    return layout(tournaments_page(), filter_component=tournament_filters())
 
 @rt("/card-movement")
 def card_movement():

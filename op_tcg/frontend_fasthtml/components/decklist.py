@@ -322,7 +322,6 @@ def create_decklist_section(leader_id: str, tournament_decklists, card_id2card_d
             tournament_decklist_select_component,
             
             ft.Details(
-                ft.Summary("View Tournament Decklist", cls="text-lg font-semibold text-white cursor-pointer hover:text-blue-400"),
                 ft.Div(
                     initial_decklist_content,
                     id="selected-tournament-decklist-content"
