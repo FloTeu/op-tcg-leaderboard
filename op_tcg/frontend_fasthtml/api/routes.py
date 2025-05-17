@@ -12,15 +12,30 @@ from op_tcg.frontend_fasthtml.api.charts import setup_api_routes as setup_charts
 from op_tcg.frontend_fasthtml.api.models import LeaderboardSort, LeaderSelectParams, LeaderDataParams
 from op_tcg.frontend_fasthtml.components.decklist import create_decklist_section
 from op_tcg.frontend_fasthtml.components.matchup import create_matchup_analysis
-from op_tcg.frontend_fasthtml.api.leader_matchups import get_best_worst_matchups
+
 from op_tcg.frontend_fasthtml.utils.charts import create_line_chart, create_bar_chart
 from op_tcg.frontend_fasthtml.utils.colors import ChartColors
 from op_tcg.frontend_fasthtml.components.tournament import create_tournament_section, create_tournament_keyfacts, create_leader_grid
+
+# Import route setups from other modules
+from op_tcg.frontend_fasthtml.api import (
+    tournaments,
+    decklists,
+    filters,
+    matchups,
+    charts
+)
+
 DATA_IS_LOADED = False
 
 
 def setup_api_routes(rt):
-    setup_charts_api_routes(rt)
+    # Setup routes from other modules
+    charts.setup_api_routes(rt)
+    tournaments.setup_api_routes(rt)
+    decklists.setup_api_routes(rt)
+    filters.setup_api_routes(rt)
+    matchups.setup_api_routes(rt)
 
     @rt("/api/launch")
     def launch_data(request: Request):
@@ -29,14 +44,6 @@ def setup_api_routes(rt):
             init_load_data()
             DATA_IS_LOADED = True
         return {"data_is_loaded": DATA_IS_LOADED}
-
-    @rt("/api/leader-select")
-    def get_leader_select(request: Request):
-        # Parse params using Pydantic model
-        params = LeaderSelectParams(**get_query_params_as_dict(request))
-        
-        # Create and return the updated leader select
-        return create_leader_select(params.meta_format, params.lid)
 
     @rt("/api/leaderboard")
     def api_leaderboard(request: Request):
@@ -100,30 +107,12 @@ def setup_api_routes(rt):
                 elo = leader.elo if leader.elo is not None else 0
                 return (-d_score, -elo)
             
-            # Create unique leader mapping using only the most recent version from selected meta formats
-            unique_leaders = {}
-            for leader in filtered_data:
-                if leader.id not in unique_leaders:
-                    unique_leaders[leader.id] = leader
-                else:
-                    # If we already have this leader, keep the one from the most recent meta format
-                    existing_meta_idx = MetaFormat.to_list().index(unique_leaders[leader.id].meta_format)
-                    current_meta_idx = MetaFormat.to_list().index(leader.meta_format)
-                    if current_meta_idx > existing_meta_idx:
-                        unique_leaders[leader.id] = leader
-            
-            sorted_leaders = sorted(unique_leaders.values(), key=sort_key)
-            if sorted_leaders:
-                leader_data = sorted_leaders[0]
+            filtered_data.sort(key=sort_key)
+            if filtered_data:
+                leader_data = filtered_data[0]
             else:
                 return ft.P("No data available for leaders in the selected meta format.", cls="text-red-400")
         else:
-            # If we have multiple versions of the same leader (from different meta formats),
-            # use the most recent one
-            if len(filtered_data) > 1:
-                # Sort by meta format index (higher index = more recent)
-                filtered_data.sort(key=lambda x: MetaFormat.to_list().index(x.meta_format), reverse=True)
-            
             leader_data = next((l for l in filtered_data if l.id == params.lid), None)
             
             if not leader_data:
@@ -131,205 +120,3 @@ def setup_api_routes(rt):
         
         # Use the shared create_leader_content function
         return create_leader_content(leader_data)
-
-    @rt("/api/leader-decklist")
-    async def get_leader_decklist(request: Request):
-        # Parse params using Pydantic model
-        params = LeaderDataParams(**get_query_params_as_dict(request))
-        
-        # Get decklist data
-        tournament_decklists = get_tournament_decklist_data(
-            meta_formats=params.meta_format, 
-            leader_ids=[params.lid]
-        )
-        card_id2card_data = get_card_id_card_data_lookup()
-        
-        # Create decklist section
-        return create_decklist_section(params.lid, tournament_decklists, card_id2card_data)
-
-    @rt("/api/leader-matchups")
-    async def get_leader_matchups(request: Request):
-        # Parse params using Pydantic model
-        params = LeaderDataParams(**get_query_params_as_dict(request))
-        
-        # Get best and worst matchups
-        matchups = get_best_worst_matchups(params.lid, params.meta_format)
-        
-        # Get leader data
-        leader_data = next(iter(get_leader_extended(leader_ids=[params.lid])), None)
-        
-        if not leader_data:
-            return ft.P("No data available for this leader.", cls="text-red-400")
-            
-        # Create and return the matchup analysis component
-        return create_matchup_analysis(
-            leader_data=leader_data,
-            matchups=matchups,
-            hx_include=HX_INCLUDE
-        )
-
-    @rt("/api/leader-matchup-details")
-    async def get_leader_matchup_details(request: Request):
-        """Get details for a specific matchup.
-        Details include (best or worst opponent):
-        - Image with hyperlink
-        - Win rate chart
-        - Match count chart
-        """
-
-        params = LeaderDataParams(**get_query_params_as_dict(request))
-        meta_format = params.meta_format[0]
-        # Check which matchup we're looking at (best or worst)
-        matchup_type = next((key.split('_')[1] for key in params.keys() if key.startswith('lid_')), None)
-        if not matchup_type:
-            return ft.P("Invalid matchup type", cls="text-red-400")
-            
-        # Get the selected leader ID
-        leader_id = params[f'lid_{matchup_type}']
-        if not leader_id:
-            return ft.P("No leader selected", cls="text-gray-400")
-            
-        # Get leader data
-        leader_data = next(iter(get_leader_extended(meta_formats=[meta_format], leader_ids=[leader_id])), None)
-        if not leader_data:
-            return ft.P("No data available for this leader", cls="text-red-400")
-            
-        # Prepare win rate chart data
-        win_rate_data = get_leader_win_rate(meta_formats=MetaFormat.to_list(until_meta_format=meta_format), leader_ids=[params[f'lid']])
-        chart_data = []
-        match_data = []
-        for wr in win_rate_data:
-            if wr.only_official != (params.get("only_official", "on") == "on"):
-                continue
-            if wr.opponent_id == leader_id:
-                chart_data.append({
-                    "meta": str(wr.meta_format),
-                    "winRate": round(wr.win_rate * 100, 2) if wr.win_rate is not None else None
-                })
-                match_data.append({
-                    "meta": str(wr.meta_format),
-                    "matches": wr.total_matches
-                })
-        
-        # Sort chart data by meta format
-        chart_data.sort(key=lambda x: MetaFormat(x["meta"]))
-        match_data.sort(key=lambda x: MetaFormat(x["meta"]))
-        
-        # Create the matchup details view
-        return ft.Div(
-            # Image with hyperlink
-            ft.A(
-                ft.Img(
-                    src=leader_data.aa_image_url,
-                    cls="w-full rounded-lg shadow-lg mb-2"
-                ),
-                href=f"/leader?lid={leader_id}",
-                hx_include=HX_INCLUDE,  # Include necessary form values
-            ),
-            # Win rate chart
-            ft.Div(
-                create_line_chart(
-                    container_id=f"win-rate-chart-{leader_id}",
-                    data=chart_data,
-                    color=ChartColors.POSITIVE if matchup_type == "best" else ChartColors.NEGATIVE,
-                    show_x_axis=True,
-                    show_y_axis=True
-                ),
-                cls="mb-4"  # Add margin bottom for spacing
-            ),
-            # Match count chart
-            ft.Div(
-                create_bar_chart(
-                    container_id=f"match-count-chart-{leader_id}",
-                    data=match_data,
-                    show_x_axis=True,
-                    show_y_axis=True
-                ),
-                cls="h-[120px] w-full"  # Match the height of the line chart
-            ),
-            cls="w-full"
-        )
-
-    @rt("/api/leader-tournaments")
-    async def get_leader_tournaments(request: Request):
-        # Parse params using Pydantic model
-        params = LeaderDataParams(**get_query_params_as_dict(request))
-        
-        # Get tournament data
-        tournament_decklists = get_tournament_decklist_data(
-            meta_formats=params.meta_format,
-            leader_ids=[params.lid]
-        )
-        tournaments = get_all_tournament_extened_data(meta_formats=params.meta_format)
-        
-        # Get leader data
-        leader_data = get_leader_extended()
-        leader_extended_dict = {le.id: le for le in leader_data}
-        
-        # Get card data
-        card_id2card_data = get_card_id_card_data_lookup()
-        
-        # Create and return the tournament section
-        return create_tournament_section(
-            leader_id=params.lid,
-            tournament_decklists=tournament_decklists,
-            tournaments=tournaments,
-            leader_extended_dict=leader_extended_dict,
-            cid2cdata_dict=card_id2card_data,
-            hx_include=HX_INCLUDE
-        )
-
-    @rt("/api/tournament-details")
-    async def get_tournament_details(request: Request):
-        """Get details for a specific tournament."""
-        params_dict = get_query_params_as_dict(request)
-        tournament_id = params_dict.get("tournament_id")
-        params = LeaderDataParams(**params_dict)
-
-        if not tournament_id:
-            return ft.P("No tournament selected", cls="text-gray-400")
-            
-        # Get tournament data
-        tournaments = get_all_tournament_extened_data(
-            meta_formats=params.meta_format,
-        )
-        tournament = next((t for t in tournaments if t.id == tournament_id), None)
-        
-        if not tournament:
-            return ft.P("Tournament not found", cls="text-red-400")
-            
-        # Get card data
-        card_id2card_data = get_card_id_card_data_lookup()
-        
-        # Get tournament decklists
-        tournament_decklists = get_tournament_decklist_data(params.meta_format)
-        tournament_decklists = [td for td in tournament_decklists if td.tournament_id == tournament_id]
-        
-        # Get winner info
-        winner_card = card_id2card_data.get(params.lid)
-        winner_name = f"{winner_card.name} ({params.lid})"
-        
-        # Calculate leader participation stats
-        leader_stats = {}
-        if tournament.num_players:
-            for lid, placings in tournament.leader_ids_placings.items():
-                leader_stats[lid] = len(placings) / tournament.num_players
-                
-        # Get leader data for images
-        leader_data = get_leader_extended()
-        leader_extended_dict = {le.id: le for le in leader_data}
-        
-        # Create the tournament details view
-        return ft.Div(
-            # Tournament facts
-            create_tournament_keyfacts(tournament, winner_name),
-            
-            # Leader participation section
-            ft.Div(
-                ft.H4("Leader Participation", cls="text-lg font-bold text-white mb-4"),
-                create_leader_grid(leader_stats, leader_extended_dict, card_id2card_data),
-                cls="mt-6"
-            ),
-            
-            cls="space-y-6"
-        )
