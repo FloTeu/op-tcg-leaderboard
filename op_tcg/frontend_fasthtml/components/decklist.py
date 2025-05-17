@@ -291,10 +291,7 @@ def create_decklist_section(leader_id: str, tournament_decklists, card_id2card_d
                 hx_include="[name='lid'], [name='meta_format']",
                 hx_trigger="change",
                 hx_swap="innerHTML",
-                hx_vals='''js:{
-                    "tournament_id": event.target.value.split(":")[0],
-                    "player_id": event.target.value.split(":")[1]
-                }''',
+                hx_vals='''{"tournament_id": "this.value.split(':')[0]", "player_id": "this.value.split(':')[1]"}''',
             ),
             cls="mb-4"
         )
