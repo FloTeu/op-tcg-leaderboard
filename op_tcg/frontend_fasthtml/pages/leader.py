@@ -297,16 +297,20 @@ def create_leader_content(leader_data: LeaderExtended):
                     cls="mb-4"
                 ),
                 
-                # Stats section
+                # Stats section with HTMX
                 ft.Div(
+                    create_loading_spinner(
+                        id="stats-loading-indicator",
+                        size="w-8 h-8",
+                        container_classes="min-h-[100px]"
+                    ),
                     ft.Div(
-                        ft.P(f"Win Rate: {leader_data.win_rate * 100:.1f}%" if leader_data.win_rate is not None else "Win Rate: N/A", 
-                             cls="text-green-400"),
-                        ft.P(f"Total Matches: {leader_data.total_matches}" if leader_data.total_matches is not None else "Total Matches: N/A", 
-                             cls="text-blue-400"),
-                        ft.P(f"Tournament Wins: {leader_data.tournament_wins}", cls="text-purple-400"),
-                        ft.P(f"ELO Rating: {leader_data.elo}" if leader_data.elo is not None else "ELO Rating: N/A", 
-                             cls="text-yellow-400"),
+                        hx_get="/api/leader-stats",
+                        hx_trigger="load",
+                        hx_include=HX_INCLUDE,
+                        hx_target="#leader-stats-container",
+                        hx_indicator="#stats-loading-indicator",
+                        id="leader-stats-container",
                         cls="space-y-2"
                     ),
                     cls="bg-gray-700 rounded-lg p-4"

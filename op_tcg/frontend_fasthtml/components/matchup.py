@@ -50,7 +50,7 @@ def create_matchup_analysis(leader_data: LeaderExtended, matchups: OpponentMatch
         ft.Div(
             # Best Matchup
             ft.Div(
-                ft.H3("Best Matchup", cls="text-xl font-bold text-white mb-4"),
+                ft.H3("Easiest Matchup", cls="text-xl font-bold text-white mb-4"),
                 create_leader_select_box(best_matchup_ids, default_best, MatchupType.BEST, reverse=False),
                 ft.Div(
                     ft.Div(
@@ -89,7 +89,7 @@ def create_matchup_analysis(leader_data: LeaderExtended, matchups: OpponentMatch
             
             # Worst Matchup
             ft.Div(
-                ft.H3("Worst Matchup", cls="text-xl font-bold text-white mb-4"),
+                ft.H3("Hardest Matchup", cls="text-xl font-bold text-white mb-4"),
                 create_leader_select_box(worst_matchup_ids, default_worst, MatchupType.WORST, reverse=False),
                 ft.Div(
                     ft.Div(
