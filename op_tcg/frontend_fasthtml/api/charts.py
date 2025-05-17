@@ -14,7 +14,8 @@ def setup_api_routes(rt):
     def leader_line_chart(request: Request, leader_id: str):
         # Get query parameters
         all_meta_formats = MetaFormat.to_list()
-        meta_format = MetaFormat(request.query_params.get("meta_format", MetaFormat.latest_meta_format()))
+        meta_format_list = request.query_params.getlist("meta_format")
+        meta_format = MetaFormat(meta_format_list[0] if meta_format_list else MetaFormat.latest_meta_format())
         meta_format_index = all_meta_formats.index(meta_format)
         
         # Get the last_n parameter (default to 5)

@@ -43,13 +43,29 @@ def create_filter_components(selected_meta_formats=None, selected_leader_id=None
         cls=SELECT_CLS + " multiselect",
         *[ft.Option(mf, value=mf, selected=(mf in selected_meta_formats)) for mf in reversed(MetaFormat.to_list())],
         **{
-            **FILTER_HX_ATTRS,
             "hx_get": "/api/leader-select",
             "hx_target": "#leader-select-wrapper",
+            "hx_include": HX_INCLUDE,
             "hx_trigger": "change",
             "hx_swap": "innerHTML"
         }
     )
+    
+    # Add a hidden div that will trigger the content update
+    content_trigger = ft.Div(
+        id="content-trigger",
+        **FILTER_HX_ATTRS,
+        style="display: none;"
+    )
+    
+    # Add JavaScript to trigger the content update after leader select is updated
+    trigger_script = ft.Script("""
+        document.addEventListener('htmx:afterSettle', function(evt) {
+            if (evt.target.id === 'leader-select-wrapper') {
+                htmx.trigger('#content-trigger', 'change');
+            }
+        });
+    """)
     
     # Leader select wrapper with initial content
     leader_select_wrapper = ft.Div(
@@ -75,6 +91,8 @@ def create_filter_components(selected_meta_formats=None, selected_leader_id=None
         meta_format_select,
         leader_select_wrapper,
         official_toggle,
+        content_trigger,
+        trigger_script,
         cls="space-y-4"
     )
 
