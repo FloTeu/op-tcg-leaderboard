@@ -2,6 +2,9 @@ from fasthtml import ft
 from op_tcg.backend.models.cards import OPTcgLanguage, LatestCardPrice
 from op_tcg.frontend_fasthtml.utils.decklist import DecklistData, decklist_to_export_str, ensure_leader_id
 
+# Added for styling the select component, consider moving to a common utils/constants
+SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+
 def add_card_modal():
     """Add a card modal to the page for displaying card images with navigation."""
     return ft.Div(
@@ -149,7 +152,7 @@ def display_decklist(decklist: dict[str, int], leader_id: str = None):
         ft.Div(
             ft.Div(
                 *card_items,
-                cls="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
+                cls="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 gap-4"
             ),
             style="max-height: 500px; overflow-y: auto;"  # Make it scrollable
         ),
@@ -242,57 +245,93 @@ def create_decklist_section(leader_id: str, tournament_decklists, card_id2card_d
         get_best_matching_decklist
     )
     
-    # If no decklists, show message
     if not tournament_decklists:
         return ft.P("No decklist data available for this leader.", cls="text-red-400")
     
-    # Create decklist data
     decklist_data = tournament_standings2decklist_data(tournament_decklists, card_id2card_data)
-    
-    # Get most common cards (excluding leader)
     common_card_ids = decklist_data_to_card_ids(
         decklist_data,
-        occurrence_threshold=0.02,  # Show cards that appear in at least 2% of decklists
+        occurrence_threshold=0.02,
         exclude_card_ids=[leader_id]
     )
-    
-    # Create a fictive decklist based on the most common cards
     fictive_decklist = decklist_data_to_fictive_decklist(decklist_data, leader_id)
+    best_matching_decklist_dict = get_best_matching_decklist(tournament_decklists, decklist_data)
     
-    # Find a real decklist that most closely matches the fictive one
-    best_matching_decklist = get_best_matching_decklist(tournament_decklists, decklist_data)
+    # Sort tournament decklists by placing (None placings at the end)
+    tournament_decklists.sort(key=lambda x: (x.placing is None, x.placing))
     
-    # Create the decklist section
+    decklist_options = []
+    for td_obj in tournament_decklists:
+        if not td_obj.tournament_id or not td_obj.player_id:
+            continue  # Skip if we don't have both IDs
+            
+        option_text = []
+        if td_obj.player_id:
+            option_text.append(f"Player: {td_obj.player_id}")
+        if td_obj.tournament_id:
+            option_text.append(f"Tournament: {td_obj.tournament_id[:20]}{'...' if len(td_obj.tournament_id) > 20 else ''}")
+        if td_obj.placing:
+            option_text.append(f"#{td_obj.placing}")
+            
+        # Create a composite value using both IDs
+        value = f"{td_obj.tournament_id}:{td_obj.player_id}"
+        
+        decklist_options.append(ft.Option(" - ".join(option_text), value=value))
+
+    tournament_decklist_select_component = ft.Div()  # Default to empty div
+    if decklist_options:
+        tournament_decklist_select_component = ft.Div(
+            ft.Label("Select Tournament Decklist:", cls="text-white font-medium block mb-2"),
+            ft.Select(
+                *decklist_options,
+                id="tournament-decklist-select",
+                cls=SELECT_CLS + " styled-select mb-2",
+                hx_get="/api/decklist/tournament-decklist",
+                hx_target="#selected-tournament-decklist-content",
+                hx_include="[name='lid'], [name='meta_format']",
+                hx_trigger="change",
+                hx_swap="innerHTML",
+                hx_vals='''js:{
+                    "tournament_id": event.target.value.split(":")[0],
+                    "player_id": event.target.value.split(":")[1]
+                }''',
+            ),
+            cls="mb-4"
+        )
+    
+    # Find the best matching decklist in the tournament_decklists
+    best_matching_td = next(
+        (td for td in tournament_decklists if td.decklist == best_matching_decklist_dict),
+        None
+    ) if best_matching_decklist_dict else None
+    
+    # If we found the best matching tournament decklist, pre-select it in the dropdown
+    if best_matching_td and best_matching_td.tournament_id and best_matching_td.player_id:
+        # Update the select's value to match the best decklist
+        tournament_decklist_select_component.children[1].value = f"{best_matching_td.tournament_id}:{best_matching_td.player_id}"
+    
+    initial_decklist_content = display_decklist(best_matching_decklist_dict, leader_id) if best_matching_decklist_dict else ft.P("Select a decklist from the dropdown to view details.", cls="text-white p-4")
+
     return ft.Div(
-        # Resources needed for the decklist component
         ft.Link(rel="stylesheet", href="/static/css/decklist.css", id="decklist-css"),
         ft.Script(src="/static/js/decklist-modal.js", id="decklist-modal-js"),
-    
-        # Summary
         ft.P(f"Based on {decklist_data.num_decklists} decklists", cls="text-gray-400 mb-6"),
-        
-        # Display most common cards with improved styling
-        display_card_list(decklist_data, common_card_ids),  # Show all cards with >2% occurrence
-        
-        # Display the exportable decklist
+        display_card_list(decklist_data, common_card_ids),
         display_decklist_export(fictive_decklist, leader_id),
         
-        # Container for expandable sections
         ft.Div(
-            # Full decklist section
-            ft.Details(
-                ft.Summary("View Complete Decklist", cls="text-lg font-semibold text-white cursor-pointer hover:text-blue-400"),
-                display_decklist(fictive_decklist, leader_id),
-                cls="mb-6"
-            ),
+            tournament_decklist_select_component,
             
-            # If we have a best matching decklist, show it too
             ft.Details(
                 ft.Summary("View Tournament Decklist", cls="text-lg font-semibold text-white cursor-pointer hover:text-blue-400"),
-                display_decklist(best_matching_decklist, leader_id),
-                cls="mb-6"
-            ) if best_matching_decklist else ft.Div(),
+                ft.Div(
+                    initial_decklist_content,
+                    id="selected-tournament-decklist-content"
+                ),
+                open=(True if best_matching_decklist_dict else False),
+                cls="mb-6 bg-gray-750 p-3 rounded-lg shadow"
+            ) if tournament_decklists else ft.Div(),
             
-            cls="space-y-6"  # Increased spacing
+            cls="space-y-6"
         )
     ) 
