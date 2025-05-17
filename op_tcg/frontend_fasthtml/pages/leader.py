@@ -47,7 +47,9 @@ def create_filter_components(selected_meta_formats=None, selected_leader_id=None
             "hx_target": "#leader-select-wrapper",
             "hx_include": HX_INCLUDE,
             "hx_trigger": "change",
-            "hx_swap": "innerHTML"
+            "hx_swap": "innerHTML",
+            "hx_params": "*",  # Include all parameters in the request
+            "hx_push-url": "true"  # Update the URL when changing meta format
         }
     )
     

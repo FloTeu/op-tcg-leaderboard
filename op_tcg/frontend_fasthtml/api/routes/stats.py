@@ -27,7 +27,7 @@ def setup_api_routes(rt):
         total_win_rate = sum(ld.win_rate for ld in leader_data_list if ld.win_rate is not None) / len(leader_data_list)
         total_matches = sum(ld.total_matches for ld in leader_data_list if ld.total_matches is not None)
         total_tournament_wins = sum(ld.tournament_wins for ld in leader_data_list)
-        total_elo = sum(ld.elo for ld in leader_data_list if ld.elo is not None) / len(leader_data_list)
+        total_elo = int(sum(ld.elo for ld in leader_data_list if ld.elo is not None) / len(leader_data_list))
 
         return ft.Div(
             ft.P(f"Win Rate: {total_win_rate * 100:.1f}%" if total_win_rate is not None else "Win Rate: N/A", 
