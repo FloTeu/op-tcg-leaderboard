@@ -62,6 +62,7 @@ class LeaderboardFilter(BaseModel):
 class LeaderboardSort(BaseModel):
     sort_by: LeaderboardSortBy = LeaderboardSortBy.WIN_RATE
     meta_format: MetaFormat = MetaFormat.latest_meta_format
+    ascending: bool = False
     
     @field_validator('sort_by', mode='before')
     def validate_sort_by(cls, value):
@@ -100,8 +101,10 @@ class LeaderSelectParams(BaseModel):
 
 
 class LeaderDataParams(BaseModel):
-    meta_format: Optional[List[MetaFormat]] = None
+    """Parameters for leader data requests"""
     lid: Optional[str] = None
+    similar_lid: Optional[str] = None
+    meta_format: list[MetaFormat]
     only_official: bool = True
     
     @field_validator('meta_format', mode='before')

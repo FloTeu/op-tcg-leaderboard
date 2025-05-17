@@ -17,7 +17,8 @@ from op_tcg.frontend_fasthtml.api.routes import (
     matchups,
     charts,
     pages,
-    stats
+    stats,
+    similar
 )
 
 DATA_IS_LOADED = False
@@ -32,6 +33,7 @@ def setup_api_routes(rt):
     filters.setup_api_routes(rt)
     matchups.setup_api_routes(rt)
     stats.setup_api_routes(rt)
+    similar.setup_api_routes(rt)
 
     @rt("/api/launch")
     def launch_data(request: Request):

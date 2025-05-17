@@ -195,19 +195,46 @@ def create_tab_view():
             # Decklist Analysis Tab (shown by default)
             ft.Div(
                 ft.H2("Decklist Analysis", cls="text-2xl font-bold text-white mb-4"),
-                create_loading_spinner(
-                    id="decklist-loading-indicator",
-                    size="w-8 h-8",
-                    container_classes="min-h-[100px]"
-                ),
+                # Two-column layout for decklist and similar leader
                 ft.Div(
-                    hx_get="/api/leader-decklist",
-                    hx_trigger="load",
-                    hx_include=HX_INCLUDE,
-                    hx_target="#leader-decklist-container",
-                    hx_indicator="#decklist-loading-indicator",
-                    id="leader-decklist-container",
-                    cls="min-h-[300px] w-full"
+                    # Left column - Decklist
+                    ft.Div(
+                        create_loading_spinner(
+                            id="decklist-loading-indicator",
+                            size="w-8 h-8",
+                            container_classes="min-h-[100px]"
+                        ),
+                        ft.Div(
+                            hx_get="/api/leader-decklist",
+                            hx_trigger="load",
+                            hx_include=HX_INCLUDE,
+                            hx_target="#leader-decklist-container",
+                            hx_indicator="#decklist-loading-indicator",
+                            id="leader-decklist-container",
+                            cls="min-h-[300px] w-full"
+                        ),
+                        cls="w-full md:w-1/2 bg-gray-800 rounded-lg p-6 shadow-xl"
+                    ),
+                    
+                    # Right column - Similar Leader
+                    ft.Div(
+                        create_loading_spinner(
+                            id="similar-loading-indicator",
+                            size="w-8 h-8",
+                            container_classes="min-h-[100px]"
+                        ),
+                        ft.Div(
+                            hx_get="/api/leader-similar",
+                            hx_trigger="load",
+                            hx_include=HX_INCLUDE,
+                            hx_target="#leader-similar-container",
+                            hx_indicator="#similar-loading-indicator",
+                            id="leader-similar-container",
+                            cls="min-h-[300px] w-full"
+                        ),
+                        cls="w-full md:w-1/2 md:pl-6"
+                    ),
+                    cls="flex flex-col md:flex-row gap-6"
                 ),
                 cls="tab-pane p-6",
                 id="decklist-tab",
