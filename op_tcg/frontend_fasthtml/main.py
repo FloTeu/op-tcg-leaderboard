@@ -11,7 +11,7 @@ from op_tcg.frontend_fasthtml.pages.card_movement import card_movement_page
 from op_tcg.frontend_fasthtml.pages.matchups import matchups_page
 from op_tcg.frontend_fasthtml.pages.card_popularity import card_popularity_page
 from op_tcg.frontend_fasthtml.pages.bug_report import bug_report_page
-from op_tcg.frontend_fasthtml.api.routes import setup_api_routes
+from op_tcg.frontend_fasthtml.api.routes.main import setup_api_routes
 from op_tcg.backend.models.input import MetaFormat
 from starlette.requests import Request
 

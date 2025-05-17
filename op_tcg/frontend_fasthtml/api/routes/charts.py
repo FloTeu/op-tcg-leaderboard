@@ -143,4 +143,4 @@ def setup_api_routes(rt):
             leader_ids=leader_ids,
             colors=colors,
             show_legend=True,
-        )
+        ) 

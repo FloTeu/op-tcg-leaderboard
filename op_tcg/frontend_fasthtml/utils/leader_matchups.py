@@ -4,6 +4,21 @@ from op_tcg.backend.models.input import MetaFormat
 from op_tcg.frontend_fasthtml.api.models import Matchup, OpponentMatchups
 import pandas as pd
 
+def get_opponent_win_rate_chart(leader_id: str, opponent_id: str, meta_formats: list[MetaFormat], only_official: bool = True) -> tuple[dict[str, float], dict[str, int]]:
+    """Get the win rate chart data for opponents of a specific leader."""
+    # Get win rate data
+    win_rate_chart_data = {}
+    total_matches = {}
+    win_rate_data: list[LeaderWinRate] = get_leader_win_rate(meta_formats=meta_formats)
+    
+    for wr in win_rate_data:
+        if wr.leader_id == leader_id and wr.opponent_id == opponent_id and wr.only_official == only_official:
+            win_rate_chart_data[wr.meta_format] = wr.win_rate
+            total_matches[wr.meta_format] = wr.total_matches
+
+    return win_rate_chart_data, total_matches
+
+
 def get_best_worst_matchups(leader_id: str, meta_formats: list[MetaFormat]) -> OpponentMatchups | None:
     """Get the best and worst matchups for a leader."""
     # Get win rate data

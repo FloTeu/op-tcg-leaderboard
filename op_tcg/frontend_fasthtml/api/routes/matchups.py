@@ -1,7 +1,8 @@
 from fasthtml import ft
 from starlette.requests import Request
+from op_tcg.backend.models.input import MetaFormat
 from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict
-from op_tcg.frontend_fasthtml.utils.leader_matchups import get_best_worst_matchups
+from op_tcg.frontend_fasthtml.utils.leader_matchups import get_best_worst_matchups, get_opponent_win_rate_chart
 from op_tcg.frontend_fasthtml.components.matchup import create_matchup_analysis
 from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended
 from op_tcg.frontend_fasthtml.utils.charts import create_line_chart, create_bar_chart
@@ -39,16 +40,17 @@ def setup_api_routes(rt):
         - Win rate chart
         - Match count chart
         """
-        params = LeaderDataParams(**get_query_params_as_dict(request))
-        meta_format = params.meta_format[0]
+        params_dict = get_query_params_as_dict(request)
+        params = LeaderDataParams(**params_dict)
+        chart_meta_formats = MetaFormat.to_list(until_meta_format=params.meta_format[0])
         
         # Check which matchup we're looking at (best or worst)
-        matchup_type = next((key.split('_')[1] for key in params.keys() if key.startswith('lid_')), None)
+        matchup_type = next((key.split('_')[1] for key in params_dict.keys() if key.startswith('lid_')), None)
         if not matchup_type:
             return ft.P("Invalid matchup type", cls="text-red-400")
             
         # Get the selected leader ID
-        leader_id = params[f'lid_{matchup_type}']
+        leader_id = params_dict[f'lid_{matchup_type}']
         if not leader_id:
             return ft.P("No leader selected", cls="text-gray-400")
             
@@ -58,31 +60,22 @@ def setup_api_routes(rt):
             return ft.P("No data available for this leader", cls="text-red-400")
             
         # Get matchup data
-        matchups = get_best_worst_matchups(params.lid, params.meta_format)
-        if not matchups:
-            return ft.P("No matchup data available", cls="text-gray-400")
-            
-        # Find the specific matchup
-        matchup = None
-        if matchup_type == 'best':
-            matchup = next((m for m in matchups.easiest_matchups if m.leader_id == leader_id), None)
-        else:
-            matchup = next((m for m in matchups.hardest_matchups if m.leader_id == leader_id), None)
-            
-        if not matchup:
+        chart_data, match_data = get_opponent_win_rate_chart(params.lid, leader_id, chart_meta_formats)
+        
+        if not chart_data:
             return ft.P("No matchup data available for this leader", cls="text-gray-400")
             
         # Create chart data
         chart_data = [
             {"meta": str(meta), "winRate": round(wr * 100, 2)}
-            for meta, wr in matchup.win_rate_chart_data.items()
+            for meta, wr in chart_data.items()
         ]
         chart_data.sort(key=lambda x: x["meta"])
         
         # Create match count data
         match_data = [
-            {"meta": str(meta), "matches": matchup.total_matches}
-            for meta in matchup.meta_formats
+            {"meta": str(meta), "matches": total_matches}
+            for meta, total_matches in match_data.items()
         ]
         match_data.sort(key=lambda x: x["meta"])
         
