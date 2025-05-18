@@ -11,6 +11,8 @@ from op_tcg.frontend_fasthtml.pages.leader import HX_INCLUDE
 from op_tcg.frontend_fasthtml.pages.matchups import create_filter_components, create_matchup_content
 from op_tcg.frontend_fasthtml.api.models import LeaderDataParams, MatchupParams
 from op_tcg.frontend_fasthtml.utils.win_rate import get_radar_chart_data
+from op_tcg.frontend_fasthtml.utils.table import create_leader_image_cell, create_win_rate_cell
+import pandas as pd
 
 def setup_api_routes(rt):
     @rt("/api/leader-matchups")
@@ -153,12 +155,15 @@ def setup_api_routes(rt):
         # Get colors for each leader
         colors = [leader_dict[lid].to_hex_color() for lid in params.leader_ids if lid in leader_dict]
 
-        # Create and return the radar chart
-        return create_leader_win_rate_radar_chart(
-            container_id="matchup-radar-chart",
-            data=radar_data,
-            leader_ids=params.leader_ids,
-            colors=colors
+        # Create and return the radar chart with responsive container
+        return ft.Div(
+            create_leader_win_rate_radar_chart(
+                container_id="matchup-radar-chart",
+                data=radar_data,
+                leader_ids=params.leader_ids,
+                colors=colors
+            ),
+            cls="w-full h-[500px] md:h-[600px]"  # Increased height, responsive
         )
 
     @rt("/api/matchups/table")
@@ -182,60 +187,133 @@ def setup_api_routes(rt):
         if not win_rate_data:
             return ft.P("No matchup data available for the selected criteria", cls="text-red-400")
 
-        # Create table header
+        # Create DataFrame for win rates
+        df_data = []
+        for wr in win_rate_data:
+            if wr.leader_id in params.leader_ids and wr.opponent_id in params.leader_ids:
+                df_data.append({
+                    'leader_id': wr.leader_id,
+                    'opponent_id': wr.opponent_id,
+                    'win_rate': round(wr.win_rate * 100, 1),
+                    'total_matches': wr.total_matches
+                })
+        
+        df = pd.DataFrame(df_data)
+        
+        # Calculate overall win rates for each leader
+        leader_overall_wr = {}
+        for leader_id in params.leader_ids:
+            leader_matches = df[df['leader_id'] == leader_id]
+            if not leader_matches.empty:
+                weighted_wr = (leader_matches['win_rate'] * leader_matches['total_matches']).sum() / leader_matches['total_matches'].sum()
+                leader_overall_wr[leader_id] = round(weighted_wr, 1)
+            else:
+                leader_overall_wr[leader_id] = 0.0
+
+        # Sort leaders by win rate
+        sorted_leader_ids = sorted(leader_overall_wr.keys(), key=lambda x: leader_overall_wr[x], reverse=True)
+
+        # Create pivot table for win rates
+        df_pivot = df.pivot(index='leader_id', columns='opponent_id', values=['win_rate', 'total_matches'])
+        df_pivot = df_pivot.fillna(0)
+
+        # Create header cells
         header_cells = [
-            ft.Th("Leader", cls="text-left py-2 px-4"),
-            ft.Th("Win Rate", cls="text-left py-2 px-4"),
-            ft.Th("Total Matches", cls="text-left py-2 px-4")
+            ft.Th("Leader", cls="text-left py-2 px-4 w-[200px]"),  # Fixed width for leader column
+            ft.Th("Win Rate", cls="text-left py-2 px-4 w-[120px]")  # Fixed width for win rate column
         ]
+        
+        # Add leader columns to header
+        for leader_id in sorted_leader_ids:
+            if leader_id in leader_dict:
+                leader = leader_dict[leader_id]
+                header_cells.append(
+                    ft.Th(
+                        ft.Div(
+                            create_leader_image_cell(
+                                image_url=leader.image_url,
+                                name=f"{leader.name}\n({leader.get_color_short_name()})",
+                                color=leader.to_hex_color(),
+                                horizontal=False
+                            ),
+                            cls="w-[120px]"  # Fixed width for matchup columns
+                        ),
+                        cls="p-0"
+                    )
+                )
 
         # Create table rows
         rows = []
-        for leader_id in params.leader_ids:
+        for leader_id in sorted_leader_ids:
             if leader_id in leader_dict:
                 leader = leader_dict[leader_id]
-                leader_win_rates = [wr for wr in win_rate_data if wr.leader_id == leader_id]
-                if leader_win_rates:
-                    avg_win_rate = sum(wr.win_rate for wr in leader_win_rates) / len(leader_win_rates)
-                    total_matches = sum(wr.total_matches for wr in leader_win_rates)
-                    
-                    rows.append(
-                        ft.Tr(
-                            ft.Td(
-                                ft.Div(
-                                    ft.Img(
-                                        src=leader.image_url,
-                                        cls="w-8 h-8 rounded-full mr-2"
-                                    ),
-                                    ft.Span(leader.name),
-                                    cls="flex items-center"
-                                ),
-                                cls="py-2 px-4"
+                row_cells = [
+                    # Leader image cell
+                    ft.Td(
+                        ft.Div(
+                            create_leader_image_cell(
+                                image_url=leader.aa_image_url,
+                                name=f"{leader.name}\n({leader.get_color_short_name()})",
+                                color=leader.to_hex_color()
                             ),
-                            ft.Td(
-                                f"{avg_win_rate:.1%}",
-                                cls="py-2 px-4"
-                            ),
-                            ft.Td(
-                                str(total_matches),
-                                cls="py-2 px-4"
-                            ),
-                            cls="hover:bg-gray-700"
-                        )
+                            cls="w-[200px]"  # Fixed width for leader column
+                        ),
+                        cls="p-0"
+                    ),
+                    # Overall win rate cell
+                    create_win_rate_cell(
+                        win_rate=leader_overall_wr[leader_id],
+                        tooltip=f"Overall Win Rate"
                     )
+                ]
+                
+                # Add matchup cells
+                for opponent_id in sorted_leader_ids:
+                    if opponent_id in leader_dict:
+                        # Check if both leader_id and opponent_id exist in df_pivot
+                        has_data = (
+                            leader_id in df_pivot.index and 
+                            ('win_rate', opponent_id) in df_pivot.columns and
+                            ('total_matches', opponent_id) in df_pivot.columns
+                        )
+                        
+                        if has_data:
+                            win_rate = df_pivot.loc[leader_id, ('win_rate', opponent_id)]
+                            total_matches = df_pivot.loc[leader_id, ('total_matches', opponent_id)]
+                        else:
+                            win_rate = None
+                            total_matches = 0
+                        
+                        # If it's a mirror match, show 50%
+                        if leader_id == opponent_id:
+                            win_rate = 50.0
+                            
+                        row_cells.append(
+                            create_win_rate_cell(
+                                win_rate=win_rate,
+                                tooltip=f"Match Count: {int(total_matches)}"
+                            )
+                        )
+                rows.append(ft.Tr(*row_cells, cls="hover:bg-gray-700"))
 
         if not rows:
             return ft.P("No matchup data available for the selected leaders", cls="text-red-400")
 
-        # Return the complete table
-        return ft.Table(
-            ft.Thead(
-                ft.Tr(*header_cells, cls="bg-gray-800"),
-                cls="text-white"
+        # Return the complete table with a container for proper styling
+        return ft.Div(
+            ft.Div(
+                ft.Table(
+                    ft.Thead(
+                        ft.Tr(*header_cells, cls="bg-gray-800"),
+                        cls="text-white"
+                    ),
+                    ft.Tbody(
+                        *rows,
+                        cls="text-gray-300"
+                    ),
+                    cls="w-full text-left border-collapse"
+                ),
+                cls="min-w-[1024px] w-full"  # Inner container with minimum width
             ),
-            ft.Tbody(
-                *rows,
-                cls="text-gray-300"
-            ),
-            cls="w-full text-left border-collapse"
+            cls="overflow-x-auto w-full"  # Outer container with scroll
         ) 

@@ -122,23 +122,26 @@ def create_matchup_content(selected_meta_formats=None, selected_leader_ids=None,
             hx_trigger="load",
             hx_indicator="#matchup-loading-indicator",
             hx_include=FILTER_HX_ATTRS["hx_include"],
-            cls="mt-8"
+            cls="mt-8 w-full overflow-hidden"
         ),
         
         # Matchup Table Section
         ft.Div(
             ft.H2("Matchup Details", cls="text-2xl font-bold text-white mb-6"),
             ft.Div(
-                id="matchup-table-container",
-                hx_get="/api/matchups/table",
-                hx_trigger="load",
-                hx_indicator="#matchup-loading-indicator",
-                hx_include=FILTER_HX_ATTRS["hx_include"],
+                ft.Div(
+                    id="matchup-table-container",
+                    hx_get="/api/matchups/table",
+                    hx_trigger="load",
+                    hx_indicator="#matchup-loading-indicator",
+                    hx_include=FILTER_HX_ATTRS["hx_include"],
+                ),
+                cls="w-full overflow-x-auto"
             ),
-            cls="mt-8"
+            cls="mt-8 w-full"
         ),
         
-        cls="min-h-screen p-6 max-w-7xl mx-auto",
+        cls="min-h-screen p-4 md:p-6 w-full",
         id="matchup-content"
     )
 
