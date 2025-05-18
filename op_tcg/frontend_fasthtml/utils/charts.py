@@ -716,6 +716,10 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                             borderColor: colors,
                             borderWidth: 1,
                             hoverBackgroundColor: colors,
+                            radius: (context) => {{
+                                // Get the bubble size from the data
+                                return context.raw.r;
+                            }}
                         }}]
                     }},
                     options: {{
@@ -788,7 +792,7 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                                         <div style="font-weight: bold; margin-bottom: 8px; font-size: 1.1em;">${{data.name}}</div>
                                         <div style="margin: 4px 0;">Win Rate: ${{(data.y * 100).toFixed(1)}}%</div>
                                         <div style="margin: 4px 0;">Tournaments: ${{data.x}}</div>
-                                        <div style="margin: 4px 0;">Tournament Wins: ${{Math.floor((data.r - 5) / 2)}}</div>
+                                        <div style="margin: 4px 0;">Tournament Wins: ${{data.raw_wins}}</div>
                                     </div>
                                 </div>
                             `;
