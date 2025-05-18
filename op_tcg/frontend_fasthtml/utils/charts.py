@@ -580,15 +580,6 @@ def create_stream_chart(container_id: str, data: List[dict[str, Any]],
                                     }}
                                 }}
                             }},
-                            subtitle: {
-                                display: true,
-                                text: 'Size of the bubbles increases with the tournament wins',
-                                color: 'rgba(255, 255, 255, 0.7)',
-                                font: { size: 12, style: 'italic' },
-                                padding: {
-                                    bottom: 10
-                                }
-                            }
                         }},
                         scales: {{
                             x: {{
@@ -826,7 +817,7 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                                     ">
                                         <div style="font-weight: bold; margin-bottom: 12px; font-size: 1.2em; white-space: normal;">${{data.name}}</div>
                                         <div style="margin: 4px 0;">Win Rate: ${{(data.y * 100).toFixed(1)}}%</div>
-                                        <div style="margin: 4px 0;">Tournaments: ${{data.x}}</div>
+                                        <div style="margin: 4px 0;">Tournament Matches: ${{data.x}}</div>
                                         <div style="margin: 4px 0;">Tournament Wins: ${{data.raw_wins}}</div>
                                     </div>
                                 </div>
@@ -910,5 +901,5 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                 }});
             }})();
         """),
-        style="height: 600px; width: 100%;"  # Explicit height and width
+        style="height: 400px; width: 100%;"  # Explicit height and width
     ) 

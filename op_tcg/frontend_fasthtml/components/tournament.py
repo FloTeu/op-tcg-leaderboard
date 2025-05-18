@@ -10,7 +10,7 @@ from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 from op_tcg.backend.models.cards import Card
 
 def create_leader_grid(leader_stats: Dict[str, float], leader_extended_dict: Dict[str, LeaderExtended], 
-                      cid2cdata_dict: dict, max_leaders: int = 12) -> ft.Div:
+                      cid2cdata_dict: dict, max_leaders: int | None=None) -> ft.Div:
     """Create a grid of leader images with participation percentages."""
     # Calculate total share of known leaders
     total_known_share = sum(leader_stats.values())
@@ -21,7 +21,9 @@ def create_leader_grid(leader_stats: Dict[str, float], leader_extended_dict: Dic
         leader_stats['unknown'] = unknown_share
     
     # Sort leaders by participation
-    sorted_leaders = sorted(leader_stats.items(), key=lambda x: x[1], reverse=True)[:max_leaders]
+    sorted_leaders = sorted(leader_stats.items(), key=lambda x: x[1], reverse=True)
+    if max_leaders is not None:
+        sorted_leaders = sorted_leaders[:max_leaders]
     
     # Create rows of 4 leaders each
     rows = []
@@ -141,7 +143,7 @@ def create_tournament_section(leader_id: str, tournament_decklists: List[Tournam
                     show_x_axis=True,
                     show_y_axis=True
                 ) if chart_data else ft.P("No tournament wins found", cls="text-gray-400"),
-                cls="mb-8 h-[400px] bg-gray-800 rounded-lg p-6 shadow-lg"
+                cls="mb-8 h-[400px] bg-gray-800 rounded-lg p-0 md:p-6 shadow-lg"
             ),
             cls="mb-8"
         ),

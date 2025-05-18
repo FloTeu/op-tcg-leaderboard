@@ -71,6 +71,19 @@ def create_tournament_content():
             cls="mt-8"
         ),
         
+        # Tournament List Section
+        ft.Div(
+            ft.H2("Tournament List", cls="text-2xl font-bold text-white mb-6"),
+            ft.Div(
+                id="tournament-list-container",
+                hx_get="/api/tournaments/all",
+                hx_trigger="load",
+                hx_indicator="#tournament-loading-indicator",
+                hx_include=FILTER_HX_ATTRS["hx_include"],
+            ),
+            cls="mt-32"
+        ),
+        
         cls="min-h-screen p-6 max-w-7xl mx-auto",
         id="tournament-content"
     )

@@ -14,6 +14,7 @@ from op_tcg.frontend_fasthtml.components.tournament import (
     create_tournament_keyfacts,
     create_leader_grid
 )
+from op_tcg.frontend_fasthtml.components.tournament_decklist import create_decklist_view
 from op_tcg.frontend_fasthtml.api.models import LeaderDataParams, TournamentPageParams
 from op_tcg.frontend_fasthtml.pages.leader import HX_INCLUDE
 from op_tcg.frontend_fasthtml.utils.charts import create_bubble_chart
@@ -142,12 +143,70 @@ def setup_api_routes(rt):
             hx_include=HX_INCLUDE
         )
 
+    @rt("/api/tournaments/all")
+    def get_all_tournaments(request: Request):
+        """Return all tournaments with basic information."""
+        # Parse params using Pydantic model
+        params = TournamentPageParams(**get_query_params_as_dict(request))
+        
+        # Get tournament data
+        tournaments = get_all_tournament_extened_data(meta_formats=params.meta_format)
+        
+        # Filter by region if specified
+        if params.region != MetaFormatRegion.ALL:
+            tournaments = [t for t in tournaments if t.meta_format_region == params.region]
+            
+        # Sort tournaments by date, newest first
+        tournaments.sort(key=lambda x: x.tournament_timestamp, reverse=True)
+        
+        # Create tournament select options
+        tournament_options = []
+        for t in tournaments:
+            tournament_options.append(
+                ft.Option(
+                    f"{t.name} ({t.tournament_timestamp.strftime('%Y-%m-%d')})",
+                    value=t.id,
+                    cls="text-white"
+                )
+            )
+
+        # Get the first tournament's details for initial display
+        first_tournament_id = tournaments[0].id if tournaments else None
+        
+        return ft.Div(
+            # Tournament selector
+            ft.Div(
+                ft.Select(
+                    *tournament_options,
+                    id="tournament-select",
+                    name="tournament_id",
+                    cls="styled-select",
+                    hx_get="/api/tournament-details",
+                    hx_target="#tournament-details",
+                    hx_trigger="change",
+                    hx_include="[name='meta_format'],[name='region']"
+                ),
+                cls="mb-8"
+            ),
+            # Tournament details container
+            ft.Div(
+                # Initial content for the first tournament
+                hx_get="/api/tournament-details",
+                hx_trigger="load",
+                hx_include="[name='meta_format'],[name='region']",
+                hx_vals={"tournament_id": first_tournament_id} if first_tournament_id else None,
+                id="tournament-details",
+                cls="space-y-6"
+            ),
+            cls="space-y-8"
+        )
+
     @rt("/api/tournament-details")
     async def get_tournament_details(request: Request):
         """Get details for a specific tournament."""
         params_dict = get_query_params_as_dict(request)
         tournament_id = params_dict.get("tournament_id")
-        params = LeaderDataParams(**params_dict)
+        params = TournamentPageParams(**params_dict)
 
         if not tournament_id:
             return ft.P("No tournament selected", cls="text-gray-400")
@@ -168,9 +227,8 @@ def setup_api_routes(rt):
         tournament_decklists = get_tournament_decklist_data(params.meta_format)
         tournament_decklists = [td for td in tournament_decklists if td.tournament_id == tournament_id]
         
-        # Get winner info
-        winner_card = card_id2card_data.get(params.lid)
-        winner_name = f"{winner_card.name} ({params.lid})"
+        # Get winner decklist
+        winner_decklist = next((td for td in tournament_decklists if td.placing == 1), None)
         
         # Calculate leader participation stats
         leader_stats = {}
@@ -181,18 +239,53 @@ def setup_api_routes(rt):
         # Get leader data for images
         leader_data = get_leader_extended()
         leader_extended_dict = {le.id: le for le in leader_data}
-        
-        # Create the tournament details view
+        if winner_decklist and winner_decklist.leader_id in leader_extended_dict:
+            leader_image_url = leader_extended_dict[winner_decklist.leader_id].aa_image_url if leader_extended_dict[winner_decklist.leader_id].aa_image_url else leader_extended_dict[winner_decklist.leader_id].image_url
+        else:
+            leader_image_url = None
+            
+        # Create the tournament details view with two columns
         return ft.Div(
-            # Tournament facts
-            create_tournament_keyfacts(tournament, winner_name),
-            
-            # Leader participation section
             ft.Div(
-                ft.H4("Leader Participation", cls="text-lg font-bold text-white mb-4"),
-                create_leader_grid(leader_stats, leader_extended_dict, card_id2card_data),
-                cls="mt-6"
+                # Tournament Facts and Winner Image Section
+                ft.Div(
+                    # Tournament facts
+                    create_tournament_keyfacts(
+                        tournament,
+                        winner_name=winner_decklist.leader_id if winner_decklist else "Unknown"
+                    ),
+                    
+                    # Winner Leader Image (if available)
+                    ft.Div(
+                        ft.Img(
+                            src=leader_image_url if winner_decklist else None,
+                            cls="w-full h-auto rounded-lg shadow-lg max-w-[300px] mx-auto"
+                        ) if winner_decklist and winner_decklist.leader_id in card_id2card_data else ft.P("No winner image available", cls="text-gray-400"),
+                        cls="mt-6"
+                    ),
+                    cls="w-full lg:w-1/3"
+                ),
+                
+                # Leader Stats and Decklist Section
+                ft.Div(
+                    # Leader participation section
+                    ft.Div(
+                        ft.H4("Leader Participation", cls="text-lg font-bold text-white mb-4"),
+                        create_leader_grid(leader_stats, leader_extended_dict, card_id2card_data)
+                    ),
+                    
+                    # Winner decklist section
+                    ft.Div(
+                        create_decklist_view(
+                            winner_decklist.decklist if winner_decklist else {},
+                            card_id2card_data,
+                            title="Winner's Decklist"
+                        ) if winner_decklist else ft.P("No winner decklist available", cls="text-gray-400"),
+                        cls="mt-8"
+                    ),
+                    cls="w-full lg:w-2/3 lg:pl-8 mt-8 lg:mt-0"
+                ),
+                cls="flex flex-col lg:flex-row gap-8"
             ),
-            
             cls="space-y-6"
         ) 
