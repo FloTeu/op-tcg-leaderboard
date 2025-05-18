@@ -255,6 +255,18 @@ def create_leader_win_rate_radar_chart(container_id, data, leader_ids, colors=No
                                         size: 16 // Increased font size
                                     }}
                                 }}
+                            }},
+                            tooltip: {{
+                                enabled: false,  // Disable default tooltip
+                            }},
+                            subtitle: {{
+                                display: true,
+                                text: 'Size of the bubbles increases with the tournament wins',
+                                color: 'rgba(255, 255, 255, 0.7)',
+                                font: {{ size: 12, style: 'italic' }},
+                                padding: {{ 
+                                    bottom: 10
+                                }}
                             }}
                         }},
                         scales: {{
@@ -276,7 +288,7 @@ def create_leader_win_rate_radar_chart(container_id, data, leader_ids, colors=No
                                     backdropColor: 'transparent'
                                 }}
                             }}
-                        }}
+                        }},
                     }}
                 }});
             }})();
@@ -567,7 +579,16 @@ def create_stream_chart(container_id: str, data: List[dict[str, Any]],
                                         }}
                                     }}
                                 }}
-                            }}
+                            }},
+                            subtitle: {
+                                display: true,
+                                text: 'Size of the bubbles increases with the tournament wins',
+                                color: 'rgba(255, 255, 255, 0.7)',
+                                font: { size: 12, style: 'italic' },
+                                padding: {
+                                    bottom: 10
+                                }
+                            }
                         }},
                         scales: {{
                             x: {{
@@ -653,7 +674,7 @@ def create_stream_chart(container_id: str, data: List[dict[str, Any]],
         style="height: 120px; width: 100%;"  # Explicit height in style attribute
     ) 
 
-def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: List[str], title: str = "Leader Tournament Statistics"):
+def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: List[str], title: str = "Leader Tournament Popularity"):
     """
     Create a bubble chart for leader tournament statistics.
     
@@ -668,6 +689,19 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
     colors_json = json.dumps(colors)
     
     return ft.Div(
+        # Header with tooltip
+        ft.Div(
+            ft.H2(
+                "Tournament Statistics Overview",
+                ft.Span(
+                    "ⓘ",
+                    cls="ml-2 cursor-help",
+                    data_tooltip="Size of the bubbles increases with the tournament wins"
+                ),
+                cls="text-2xl font-bold text-white mb-4 flex items-center"
+            ),
+            cls="mb-6"
+        ),
         # Chart container with canvas
         ft.Div(
             ft.Canvas(id=container_id),
@@ -730,14 +764,15 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                                 display: true,
                                 text: '{title}',
                                 color: 'white',
-                                font: {{ size: 16 }}
+                                font: {{ size: 16 }},
+                                padding: {{ bottom: 10 }}
                             }},
                             legend: {{
                                 display: false
                             }},
                             tooltip: {{
                                 enabled: false,  // Disable default tooltip
-                            }}
+                            }},
                         }},
                         hover: {{
                             mode: 'nearest',
@@ -766,12 +801,12 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                                 <div style="
                                     display: flex;
                                     gap: 16px;
-                                    min-width: 300px;
+                                    min-width: 400px;
                                     height: 150px;
                                     padding: 0;
                                 ">
                                     <div style="
-                                        flex: 0 0 150px;
+                                        flex: 0 0 30%;
                                         height: 100%;
                                         display: flex;
                                         align-items: center;
@@ -783,13 +818,13 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                                         ${{data.image ? `<img src="${{data.image}}" style="width: 100%; height: 100%; object-fit: contain; display: block;">` : ''}}
                                     </div>
                                     <div style="
-                                        flex: 1;
-                                        padding: 8px 8px 8px 0;
+                                        flex: 0 0 70%;
+                                        padding: 12px 16px 12px 0;
                                         display: flex;
                                         flex-direction: column;
                                         justify-content: center;
                                     ">
-                                        <div style="font-weight: bold; margin-bottom: 8px; font-size: 1.1em;">${{data.name}}</div>
+                                        <div style="font-weight: bold; margin-bottom: 12px; font-size: 1.2em; white-space: normal;">${{data.name}}</div>
                                         <div style="margin: 4px 0;">Win Rate: ${{(data.y * 100).toFixed(1)}}%</div>
                                         <div style="margin: 4px 0;">Tournaments: ${{data.x}}</div>
                                         <div style="margin: 4px 0;">Tournament Wins: ${{data.raw_wins}}</div>
@@ -825,7 +860,7 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                                 type: 'logarithmic',
                                 title: {{
                                     display: true,
-                                    text: 'Number of Tournaments',
+                                    text: 'Number of Tournament Matches',
                                     color: 'white'
                                 }},
                                 ticks: {{

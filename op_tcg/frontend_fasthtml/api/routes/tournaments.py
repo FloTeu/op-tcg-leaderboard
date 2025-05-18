@@ -2,6 +2,7 @@ from collections import defaultdict
 from fasthtml import ft
 from starlette.requests import Request
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
+from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.frontend.utils.extract import get_tournament_decklist_data, get_all_tournament_extened_data
 from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict
 from op_tcg.frontend_fasthtml.utils.extract import (
@@ -18,19 +19,20 @@ from op_tcg.frontend_fasthtml.pages.leader import HX_INCLUDE
 from op_tcg.frontend_fasthtml.utils.charts import create_bubble_chart
 import json
 
-def aggregate_leader_data(leader_data):
+def aggregate_leader_data(leader_data: list[LeaderExtended]):
     """Aggregate leader data by leader_id and calculate relative mean win rate."""
     aggregated_data = defaultdict(lambda: {
         "total_matches": [],
         "total_wins": [],
         "win_rate": [],
+        "image_url": ""
     })
     
     for ld in leader_data:
         aggregated_data[ld.id]["total_matches"].append(ld.total_matches)
         aggregated_data[ld.id]["total_wins"].append(ld.tournament_wins)
         aggregated_data[ld.id]["win_rate"].append(ld.win_rate)
-
+        aggregated_data[ld.id]["image_url"] = ld.aa_image_url if ld.aa_image_url else ld.image_url
 
     # Calculate relative mean win rate and prepare final data for chart
     final_leader_data = []
@@ -46,7 +48,8 @@ def aggregate_leader_data(leader_data):
                 "leader_id": leader_id,
                 "total_matches": sum(data["total_matches"]),
                 "total_wins": sum(data["total_wins"]),
-                "relative_mean_win_rate": relative_mean_win_rate
+                "relative_mean_win_rate": relative_mean_win_rate,
+                "image_url": data["image_url"]
             })
     
     return final_leader_data
@@ -97,7 +100,7 @@ def setup_api_routes(rt):
                     "y": ld.get("relative_mean_win_rate", 0),       # Win rate on y-axis
                     "r": bubble_size,       # Scaled bubble size
                     "name": card.name if card else ld.get("leader_id"),
-                    "image": card.image_url if card else None,  # Add leader image URL
+                    "image": ld.get("image_url"),  # Add leader image URL
                     "raw_wins": ld.get("total_wins", 0)  # Store raw wins for tooltip
                 })
                 colors.append(color)
@@ -107,7 +110,7 @@ def setup_api_routes(rt):
             container_id="tournament-chart",
             data=chart_data,
             colors=colors,
-            title="Leader Tournament Statistics"
+            title="Leader Tournament Popularity"
         )
 
     @rt("/api/leader-tournaments")

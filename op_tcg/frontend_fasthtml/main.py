@@ -43,6 +43,7 @@ app, rt = fast_app(
         ),
         ft.Script(src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"),
         # Core utilities and libraries
+        ft.Script(src="/static/js/utils.js"),  # Global utilities
         ft.Script(src="/static/js/multiselect.js"),  # Base select functionality
         # Page utilities
         ft.Script(src="/static/js/sidebar.js"),
