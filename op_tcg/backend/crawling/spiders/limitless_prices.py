@@ -113,7 +113,7 @@ class LimitlessPricesSpider(scrapy.Spider):
         base_url = f"{urlparse(response.url).scheme}://{urlparse(response.url).netloc}"
 
         # index must match the right table, as each table has different date format
-        date_formats = ["%d %b %y", "%b %y"]
+        date_formats = ["%d %b %y"]
         # Parse the HTML content
         soup = BeautifulSoup(response.text, 'html.parser')
         # Find the table with the class 'data-table striped highlight card-list'
