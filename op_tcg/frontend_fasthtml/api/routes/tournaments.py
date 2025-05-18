@@ -30,7 +30,7 @@ def setup_api_routes(rt):
         card_data = get_card_id_card_data_lookup()
         
         # Filter by meta formats
-        leader_data = [ld for ld in leader_data if ld.meta_format in params.meta_format]
+        leader_data = [ld for ld in leader_data if ld.meta_format in params.meta_format and ld.only_official]
         
         # Process data for bubble chart
         chart_data = []
@@ -48,6 +48,7 @@ def setup_api_routes(rt):
                     "y": ld.win_rate,       # Win rate on y-axis
                     "r": ld.tournament_wins * 2 + 5,  # Bubble size based on tournament wins
                     "name": card.name if card else ld.id,
+                    "image": card.image_url if card else None,  # Add leader image URL
                 })
                 colors.append(color)
         

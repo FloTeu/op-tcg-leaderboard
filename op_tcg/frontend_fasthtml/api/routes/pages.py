@@ -6,10 +6,18 @@ from op_tcg.frontend_fasthtml.pages.home import create_leaderboard_table
 from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended
 from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict, get_filtered_leaders
 from op_tcg.frontend_fasthtml.pages.leader import create_leader_content, HX_INCLUDE
-from op_tcg.frontend_fasthtml.api.models import LeaderboardSort, LeaderDataParams
+from op_tcg.frontend_fasthtml.pages.tournaments import create_tournament_content
+from op_tcg.frontend_fasthtml.api.models import LeaderboardSort, LeaderDataParams, TournamentPageParams
 
 
 def setup_api_routes(rt):
+    @rt("/api/tournament-content")
+    def get_tournament_content(request: Request):
+        """Return the tournament page content."""
+        # Parse params using Pydantic model
+        params = TournamentPageParams(**get_query_params_as_dict(request))
+        return create_tournament_content()
+
     @rt("/api/leaderboard")
     def api_leaderboard(request: Request):
         # Parse the sort and meta format parameters

@@ -676,8 +676,14 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
         ft.Script(f"""
             (function() {{
                 const chartId = '{container_id}';
-                const container = document.getElementById(chartId);
                 
+                // Clean up old tooltip if it exists
+                const oldTooltip = document.getElementById('chartjs-tooltip');
+                if (oldTooltip) {{
+                    oldTooltip.remove();
+                }}
+                
+                const container = document.getElementById(chartId);
                 if (!container) {{
                     console.error('Chart container not found:', chartId);
                     return;
@@ -692,14 +698,24 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                 const data = {data_json};
                 const colors = {colors_json};
                 
-                new Chart(container, {{
+                // Add transparency to colors
+                const transparentColors = colors.map(color => {{
+                    // Convert hex to rgba with 0.7 opacity
+                    const r = parseInt(color.slice(1,3), 16);
+                    const g = parseInt(color.slice(3,5), 16);
+                    const b = parseInt(color.slice(5,7), 16);
+                    return `rgba(${{r}},${{g}},${{b}},0.7)`;
+                }});
+                
+                const chart = new Chart(container, {{
                     type: 'bubble',
                     data: {{
                         datasets: [{{
                             data: data,
-                            backgroundColor: colors,
-                            borderColor: 'white',
-                            borderWidth: 1
+                            backgroundColor: transparentColors,
+                            borderColor: colors,
+                            borderWidth: 1,
+                            hoverBackgroundColor: colors,
                         }}]
                     }},
                     options: {{
@@ -716,28 +732,93 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                                 display: false
                             }},
                             tooltip: {{
-                                backgroundColor: '{ChartColors.TOOLTIP_BG}',
-                                titleColor: '#ffffff',
-                                bodyColor: '#ffffff',
-                                borderColor: '{ChartColors.TOOLTIP_BORDER}',
-                                borderWidth: 1,
-                                padding: 8,
-                                displayColors: false,
-                                callbacks: {{
-                                    label: function(context) {{
-                                        const data = context.raw;
-                                        return [
-                                            `Leader: ${{data.name}}`,
-                                            `Win Rate: ${{(data.y * 100).toFixed(1)}}%`,
-                                            `Tournaments: ${{data.x}}`,
-                                            `Tournament Wins: ${{Math.floor((data.r - 5) / 2)}}`
-                                        ];
-                                    }}
-                                }}
+                                enabled: false,  // Disable default tooltip
                             }}
+                        }},
+                        hover: {{
+                            mode: 'nearest',
+                            intersect: true
+                        }},
+                        events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'],
+                        onHover: function(event, chartElements) {{
+                            const tooltipEl = document.getElementById('chartjs-tooltip');
+                            
+                            if (!tooltipEl) {{
+                                const div = document.createElement('div');
+                                div.id = 'chartjs-tooltip';
+                                document.body.appendChild(div);
+                            }}
+                            
+                            if (!chartElements || chartElements.length === 0) {{
+                                tooltipEl.style.opacity = 0;
+                                return;
+                            }}
+                            
+                            const element = chartElements[0];
+                            const data = element.element.$context.raw;
+                            
+                            // Create tooltip content with flex layout
+                            const tooltipContent = `
+                                <div style="
+                                    display: flex;
+                                    gap: 16px;
+                                    min-width: 300px;
+                                    height: 150px;
+                                    padding: 0;
+                                ">
+                                    <div style="
+                                        flex: 0 0 150px;
+                                        height: 100%;
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        overflow: hidden;
+                                        padding: 0;
+                                        margin: 0;
+                                    ">
+                                        ${{data.image ? `<img src="${{data.image}}" style="width: 100%; height: 100%; object-fit: contain; display: block;">` : ''}}
+                                    </div>
+                                    <div style="
+                                        flex: 1;
+                                        padding: 8px 8px 8px 0;
+                                        display: flex;
+                                        flex-direction: column;
+                                        justify-content: center;
+                                    ">
+                                        <div style="font-weight: bold; margin-bottom: 8px; font-size: 1.1em;">${{data.name}}</div>
+                                        <div style="margin: 4px 0;">Win Rate: ${{(data.y * 100).toFixed(1)}}%</div>
+                                        <div style="margin: 4px 0;">Tournaments: ${{data.x}}</div>
+                                        <div style="margin: 4px 0;">Tournament Wins: ${{Math.floor((data.r - 5) / 2)}}</div>
+                                    </div>
+                                </div>
+                            `;
+                            
+                            tooltipEl.innerHTML = tooltipContent;
+                            tooltipEl.style.opacity = 1;
+                            tooltipEl.style.position = 'absolute';
+                            tooltipEl.style.backgroundColor = '{ChartColors.TOOLTIP_BG}';
+                            tooltipEl.style.color = '#ffffff';
+                            tooltipEl.style.borderRadius = '4px';
+                            tooltipEl.style.border = '1px solid {ChartColors.TOOLTIP_BORDER}';
+                            tooltipEl.style.pointerEvents = 'none';
+                            tooltipEl.style.zIndex = 9999;
+                            tooltipEl.style.transform = 'translate(-50%, -100%)';
+                            tooltipEl.style.transition = 'all .1s ease';
+                            tooltipEl.style.padding = '0';
+                            tooltipEl.style.overflow = 'hidden';
+                            
+                            // Position the tooltip
+                            const position = element.element.tooltipPosition();
+                            const chartPosition = container.getBoundingClientRect();
+                            const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+                            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                            
+                            tooltipEl.style.left = (chartPosition.left + scrollLeft + position.x) + 'px';
+                            tooltipEl.style.top = (chartPosition.top + scrollTop + position.y - 10) + 'px';
                         }},
                         scales: {{
                             x: {{
+                                type: 'logarithmic',
                                 title: {{
                                     display: true,
                                     text: 'Number of Tournaments',
@@ -775,6 +856,17 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                                 }}
                             }}
                         }}
+                    }}
+                }});
+                
+                // Clean up on HTMX request
+                container.addEventListener('htmx:beforeSwap', function() {{
+                    const tooltipEl = document.getElementById('chartjs-tooltip');
+                    if (tooltipEl) {{
+                        tooltipEl.remove();
+                    }}
+                    if (chart) {{
+                        chart.destroy();
                     }}
                 }});
             }})();

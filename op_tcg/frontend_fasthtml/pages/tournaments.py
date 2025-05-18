@@ -1,8 +1,15 @@
 from fasthtml import ft
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
+from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 
 SELECT_CLS = "bg-gray-700 text-white p-2 rounded"
-HX_INCLUDE = "[name='meta_format'],[name='region']"
+FILTER_HX_ATTRS = {
+    "hx_get": "/api/tournament-content",
+    "hx_trigger": "change",
+    "hx_target": "#tournament-content",
+    "hx_include": "[name='meta_format'],[name='region']",
+    "hx_indicator": "#tournament-loading-indicator"
+}
 
 def create_filter_components(selected_meta_formats=None):
     latest_meta = MetaFormat.latest_meta_format()
@@ -20,10 +27,7 @@ def create_filter_components(selected_meta_formats=None):
         size=1,
         cls=SELECT_CLS + " multiselect",
         *[ft.Option(mf, value=mf, selected=(mf in selected_meta_formats)) for mf in reversed(MetaFormat.to_list())],
-        hx_get="/api/tournaments/chart",
-        hx_trigger="change",
-        hx_target="#tournament-chart-container",
-        hx_include=HX_INCLUDE
+        **FILTER_HX_ATTRS
     )
 
     regions = MetaFormatRegion.to_list()
@@ -33,10 +37,7 @@ def create_filter_components(selected_meta_formats=None):
         name="region",
         cls=SELECT_CLS + " styled-select",
         *[ft.Option(r, value=r, selected=(r == MetaFormatRegion.ALL)) for r in regions],
-        hx_get="/api/tournaments/chart",
-        hx_trigger="change",
-        hx_target="#tournament-chart-container",
-        hx_include=HX_INCLUDE
+        **FILTER_HX_ATTRS
     )
 
     return ft.Div(
@@ -45,22 +46,36 @@ def create_filter_components(selected_meta_formats=None):
         cls="space-y-4"
     )
 
-def tournaments_page():
+def create_tournament_content():
     return ft.Div(
         # Header and Filters Section
         ft.Div(
             ft.H1("Tournament Statistics", cls="text-3xl font-bold text-white"),
             cls="mb-8"
         ),
-        
+
+        # Loading Spinner
+        create_loading_spinner(
+            id="tournament-loading-indicator",
+            size="w-8 h-8",
+            container_classes="min-h-[100px]"
+        ),
+
         # Chart Container
         ft.Div(
             id="tournament-chart-container",
             hx_get="/api/tournaments/chart",
             hx_trigger="load",
-            hx_include=HX_INCLUDE,
+            hx_indicator="#tournament-loading-indicator",
+            hx_include=FILTER_HX_ATTRS["hx_include"],
             cls="mt-8"
         ),
         
-        cls="min-h-screen p-6 max-w-7xl mx-auto"
+        cls="min-h-screen p-6 max-w-7xl mx-auto",
+        id="tournament-content"
+    )
+
+def tournaments_page():
+    return ft.Div(
+        create_tournament_content()
     ) 
