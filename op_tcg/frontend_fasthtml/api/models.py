@@ -163,3 +163,34 @@ class TournamentPageParams(BaseModel):
         if isinstance(value, str):
             return MetaFormatRegion(value)
         return value
+
+
+class MatchupParams(BaseModel):
+    """Parameters for matchup page requests"""
+    meta_format: list[MetaFormat]
+    leader_ids: list[str]
+    only_official: bool = True
+    
+    @field_validator('meta_format', mode='before')
+    def validate_meta_formats(cls, value):
+        if value is None or (isinstance(value, list) and len(value) == 0):
+            return [MetaFormat.latest_meta_format()]
+        if isinstance(value, list):
+            return [MetaFormat(item) if isinstance(item, str) else item for item in value]
+        return [MetaFormat(value) if isinstance(value, str) else value]
+    
+    @field_validator('leader_ids', mode='before')
+    def validate_leader_ids(cls, value):
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return value
+        return [value]
+    
+    @field_validator('only_official', mode='before')
+    def validate_only_official(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if isinstance(value, str):
+            return value.lower() in ("true", "on", "1", "yes")
+        return bool(value)

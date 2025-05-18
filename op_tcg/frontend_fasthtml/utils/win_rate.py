@@ -95,7 +95,8 @@ def get_radar_chart_data(leader_ids: list[str], meta_formats, only_official: boo
         only_official: Whether to only include official matches
         
     Returns:
-        List of dictionaries with radar chart data
+        List of dictionaries with radar chart data in the format:
+        [{'leader_id': 'leader1', 'RED': 60.5, 'BLUE': 55.2, ...}, ...]
     """
     # Get card data lookup
     cid2cdata_dict = get_card_id_card_data_lookup()
@@ -111,4 +112,15 @@ def get_radar_chart_data(leader_ids: list[str], meta_formats, only_official: boo
         all_win_rate_data.extend(leader_data)
     
     # Get color win rates
-    return get_color_win_rates(leader_ids, all_win_rate_data, cid2cdata_dict) 
+    color_win_rates = get_color_win_rates(leader_ids, all_win_rate_data, cid2cdata_dict)
+    
+    # Convert to the format expected by create_leader_win_rate_radar_chart
+    formatted_data = []
+    for leader_data in color_win_rates:
+        formatted_leader_data = {'leader_id': leader_data['leader_id']}
+        for color in OPTcgColor.to_list():
+            if color in leader_data:
+                formatted_leader_data[color] = leader_data[color]
+        formatted_data.append(formatted_leader_data)
+    
+    return formatted_data 

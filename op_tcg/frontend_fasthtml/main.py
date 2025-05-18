@@ -8,7 +8,7 @@ from op_tcg.frontend_fasthtml.pages.home import home_page, create_filter_compone
 from op_tcg.frontend_fasthtml.pages.leader import leader_page, create_filter_components as leader_filters
 from op_tcg.frontend_fasthtml.pages.tournaments import tournaments_page, create_filter_components as tournament_filters
 from op_tcg.frontend_fasthtml.pages.card_movement import card_movement_page
-from op_tcg.frontend_fasthtml.pages.matchups import matchups_page
+from op_tcg.frontend_fasthtml.pages.matchups import matchups_page, create_filter_components as matchups_filters
 from op_tcg.frontend_fasthtml.pages.card_popularity import card_popularity_page
 from op_tcg.frontend_fasthtml.pages.bug_report import bug_report_page
 from op_tcg.frontend_fasthtml.api.routes.main import setup_api_routes
@@ -91,7 +91,7 @@ def card_movement():
 
 @rt("/matchups")
 def matchups():
-    return layout(matchups_page(), filter_component=None)
+    return layout(matchups_page(), filter_component=matchups_filters())
 
 # Card pages
 @rt("/card-popularity")

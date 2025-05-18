@@ -256,18 +256,6 @@ def create_leader_win_rate_radar_chart(container_id, data, leader_ids, colors=No
                                     }}
                                 }}
                             }},
-                            tooltip: {{
-                                enabled: false,  // Disable default tooltip
-                            }},
-                            subtitle: {{
-                                display: true,
-                                text: 'Size of the bubbles increases with the tournament wins',
-                                color: 'rgba(255, 255, 255, 0.7)',
-                                font: {{ size: 12, style: 'italic' }},
-                                padding: {{ 
-                                    bottom: 10
-                                }}
-                            }}
                         }},
                         scales: {{
                             r: {{
