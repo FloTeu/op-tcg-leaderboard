@@ -57,13 +57,7 @@ setup_api_routes(rt)
 # Leader pages
 @rt("/")
 def home():
-    return ft.Div(
-        ft.Div(
-            hx_trigger="load",
-            hx_swap="none"
-        ),
-        layout(home_page(), filter_component=home_filters())
-    )
+    return layout(home_page(), filter_component=home_filters(), current_path="/")
 
 @rt("/leader")
 def leader_default(request: Request):
@@ -78,30 +72,31 @@ def leader_default(request: Request):
     # Pass to leader_page which will handle HTMX loading
     return layout(
         leader_page(leader_id, selected_meta_format=selected_meta_format),
-        filter_component=leader_filters(selected_meta_formats=selected_meta_format, selected_leader_id=leader_id)
+        filter_component=leader_filters(selected_meta_formats=selected_meta_format, selected_leader_id=leader_id),
+        current_path="/leader"
     )
 
 @rt("/tournaments")
 def tournaments():
-    return layout(tournaments_page(), filter_component=tournament_filters())
+    return layout(tournaments_page(), filter_component=tournament_filters(), current_path="/tournaments")
 
 @rt("/card-movement")
 def card_movement():
-    return layout(card_movement_page(), filter_component=None)
+    return layout(card_movement_page(), filter_component=None, current_path="/card-movement")
 
 @rt("/matchups")
 def matchups():
-    return layout(matchups_page(), filter_component=matchups_filters())
+    return layout(matchups_page(), filter_component=matchups_filters(), current_path="/matchups")
 
 # Card pages
 @rt("/card-popularity")
 def card_popularity():
-    return layout(card_popularity_page(), filter_component=None)
+    return layout(card_popularity_page(), filter_component=None, current_path="/card-popularity")
 
 # Support pages
 @rt("/bug-report")
 def bug_report():
-    return layout(bug_report_page(), filter_component=None)
+    return layout(bug_report_page(), filter_component=None, current_path="/bug-report")
 
 if __name__ == "__main__":
     serve()

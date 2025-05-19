@@ -3,12 +3,12 @@ from fasthtml import ft
 
 def create_nav_link(href: str, text: str, icon: str, is_active: bool = False) -> ft.A:
     """Create a navigation link with an icon."""
-    active_classes = "bg-gray-800" if is_active else ""
+    active_classes = "bg-gray-700 text-white font-semibold border-l-4 border-blue-500" if is_active else "text-gray-300 hover:bg-gray-700"
     return ft.A(
         ft.Div(
             ft.Span(icon, cls="mr-3"),  # Icon
             ft.Span(text),  # Text
-            cls=f"flex items-center px-4 py-2 text-gray-300 rounded-lg hover:bg-gray-700 {active_classes}"
+            cls=f"flex items-center px-4 py-2 rounded-lg {active_classes}"
         ),
         href=href,
         cls="block"
@@ -54,7 +54,7 @@ def sidebar_content(filter_component=None, current_path="/"):
         cls="space-y-2"
     )
 
-def sidebar(filter_component=None):
+def sidebar(filter_component=None, current_path="/"):
     return ft.Div(
         ft.Div(
             ft.Div(
@@ -72,7 +72,7 @@ def sidebar(filter_component=None):
                 ),
                 cls="flex justify-between items-center mb-4"
             ),
-            sidebar_content(filter_component),
+            sidebar_content(filter_component, current_path),
             cls="p-4"
         ),
         cls="fixed left-0 top-0 h-full w-80 bg-gray-800 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800 hover:scrollbar-thumb-gray-500",

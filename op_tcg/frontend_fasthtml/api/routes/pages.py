@@ -8,6 +8,7 @@ from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict, get_fil
 from op_tcg.frontend_fasthtml.pages.leader import create_leader_content, HX_INCLUDE
 from op_tcg.frontend_fasthtml.pages.tournaments import create_tournament_content
 from op_tcg.frontend_fasthtml.api.models import LeaderboardSort, LeaderDataParams, TournamentPageParams
+from op_tcg.frontend_fasthtml.components.sidebar import sidebar
 
 
 def setup_api_routes(rt):
@@ -25,6 +26,7 @@ def setup_api_routes(rt):
         
         # Get filtered leaders
         filtered_leaders = get_filtered_leaders(request)
+        
         display_name2df_col_name = {
             "Name": "name",
             "Set": "id",

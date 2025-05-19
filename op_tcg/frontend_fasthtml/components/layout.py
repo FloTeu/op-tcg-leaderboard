@@ -1,13 +1,14 @@
 from fasthtml import ft
 from op_tcg.frontend_fasthtml.components.sidebar import sidebar
 
-def layout(content, filter_component=None):
+def layout(content, filter_component=None, current_path="/"):
     """
     Main layout component that includes the sidebar navigation and content area.
     
     Args:
         content: The main content to display
         filter_component: Optional filter component to show in the sidebar
+        current_path: The current path of the page, used for highlighting active navigation items
     """
     # Create filter section if filter component is provided
     filter_section = None
@@ -42,7 +43,7 @@ def layout(content, filter_component=None):
             cls="fixed top-0 left-0 right-0 bg-gray-900",
             id="top-bar",
         ),
-        sidebar(filter_component),
+        sidebar(filter_component, current_path),
         ft.Div(
             content,
             cls="p-4 ml-80 min-h-screen bg-gray-900 transition-all duration-300 ease-in-out mt-16",

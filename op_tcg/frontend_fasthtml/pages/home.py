@@ -129,7 +129,6 @@ def create_filter_components(max_match_count: int = 10000):
 def create_leaderboard_table(leaders: list[LeaderExtended], meta_format: MetaFormat):
     # Filter leaders for the selected meta format
     relevant_meta_formats = MetaFormat.to_list()[:MetaFormat.to_list().index(meta_format) + 1]
-    visible_meta_formats = relevant_meta_formats[max(0, len(relevant_meta_formats) - 5):]
     
     # Filter leaders for the selected meta format and relevant meta formats
     selected_meta_leaders = [
@@ -171,12 +170,15 @@ def create_leaderboard_table(leaders: list[LeaderExtended], meta_format: MetaFor
     
     # Create table body
     rows = []
-    max_elo = max(leader.elo for leader in selected_meta_leaders)
+    max_elo = max(leader.elo for leader in selected_meta_leaders if leader.elo)
     
     for idx, leader in enumerate(selected_meta_leaders):
         
         # Calculate color class for Elo
-        elo_color_class = "text-green-400" if leader.elo > (max_elo * 0.7) else "text-yellow-400" if leader.elo > (max_elo * 0.4) else "text-red-400"
+        if leader.elo:
+            elo_color_class = "text-green-400" if leader.elo > (max_elo * 0.7) else "text-yellow-400" if leader.elo > (max_elo * 0.4) else "text-red-400"
+        else:
+            elo_color_class = "text-gray-400"
         
         cells = [
             ft.Td(
