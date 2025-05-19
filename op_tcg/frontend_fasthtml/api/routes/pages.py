@@ -1,7 +1,7 @@
 from fasthtml import ft
 from starlette.requests import Request
 from op_tcg.backend.models.leader import LeaderboardSortBy
-from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended, get_card_popularity_data, get_card_id_card_data_lookup
+from op_tcg.frontend_fasthtml.utils.extract import get_card_data, get_leader_extended, get_card_popularity_data, get_card_id_card_data_lookup
 from op_tcg.frontend_fasthtml.pages.home import create_leaderboard_table
 from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended
 from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict, get_filtered_leaders
@@ -10,8 +10,8 @@ from op_tcg.frontend_fasthtml.pages.tournaments import create_tournament_content
 from op_tcg.frontend_fasthtml.pages.card_popularity import create_card_popularity_content
 from op_tcg.frontend_fasthtml.api.models import LeaderboardSort, LeaderDataParams, TournamentPageParams, CardPopularityParams
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.cards import OPTcgColor, OPTcgCardCatagory, OPTcgAbility, CardCurrency, OPTcgAttribute
-from op_tcg.frontend_fasthtml.components.sidebar import sidebar
+from op_tcg.backend.models.cards import CardCurrency
+from op_tcg.frontend_fasthtml.components.card_modal import create_card_modal
 
 def filter_cards(cards_data: list, params: CardPopularityParams) -> list:
     """Filter cards based on the provided parameters.
@@ -205,4 +205,60 @@ def setup_api_routes(rt):
         )
         
         # Create and return the card popularity content
-        return create_card_popularity_content(filtered_cards, card_popularity_dict, params.page, search_term=params.search_term, currency=params.currency) 
+        return create_card_popularity_content(filtered_cards, card_popularity_dict, params.page, search_term=params.search_term, currency=params.currency)
+
+    @rt("/api/card-modal")
+    def get_card_modal(request: Request):
+        """Return the card modal content."""
+        card_id = request.query_params.get("card_id")
+        meta_format = request.query_params.get("meta_format")
+        currency = request.query_params.get("currency")
+        
+        if not card_id:
+            return ft.Div("No card ID provided", cls="text-red-400")
+            
+        if not meta_format:
+            return ft.Div("No meta format provided", cls="text-red-400")
+            
+        # Get all versions of the card
+        card_data = get_card_data()
+        base_card = None
+        card_versions = []
+        for card in card_data:
+            if card.id == card_id:
+                if card.aa_version == 0:
+                    base_card = card
+                    continue
+                card_versions.append(card)
+
+        if not base_card:
+            return ft.Div("Card not found", cls="text-red-400")
+        
+        # Sort versions by ID to ensure consistent order
+        card_versions.sort(key=lambda x: x.aa_version)
+            
+        # Get card popularity for the specific meta format
+        card_popularity_list = get_card_popularity_data()
+        popularity = 0
+        for cp in card_popularity_list:
+            if cp.card_id == card_id and cp.meta_format == meta_format:
+                popularity = max(popularity, cp.popularity)
+
+        # Find adjacent cards in the grid
+        card_elements = request.query_params.getlist("card_elements")
+        current_index = -1
+        prev_card_id = None
+        next_card_id = None
+
+        if card_elements:
+            try:
+                current_index = card_elements.index(card_id)
+                if current_index > 0:
+                    prev_card_id = card_elements[current_index - 1]
+                if current_index < len(card_elements) - 1:
+                    next_card_id = card_elements[current_index + 1]
+            except ValueError:
+                pass
+        
+        # Create and return modal using the component
+        return create_card_modal(base_card, card_versions, popularity, currency, prev_card_id, next_card_id, card_elements) 
