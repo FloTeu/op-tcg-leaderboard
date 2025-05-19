@@ -205,4 +205,4 @@ def setup_api_routes(rt):
         )
         
         # Create and return the card popularity content
-        return create_card_popularity_content(filtered_cards, card_popularity_dict, params.page, search_term=params.search_term) 
+        return create_card_popularity_content(filtered_cards, card_popularity_dict, params.page, search_term=params.search_term, currency=params.currency) 

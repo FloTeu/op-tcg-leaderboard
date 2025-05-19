@@ -283,13 +283,15 @@ def create_filter_components():
         cls="space-y-4"
     )
 
-def create_card_popularity_content(cards_data: list[ExtendedCardData], card_popularities: dict[str, float], page: int = 1, search_term: str = None):
+def create_card_popularity_content(cards_data: list[ExtendedCardData], card_popularities: dict[str, float], page: int = 1, search_term: str = None, currency: CardCurrency = CardCurrency.EURO):
     """Create the card popularity content with a grid of cards and popularity bars.
     
     Args:
         cards_data: List of card data objects
         card_popularities: Dictionary mapping card IDs to their popularity (0-1)
         page: Current page number (1-based)
+        search_term: Current search term
+        currency: Selected currency for price display
     """
     # Search bar
     search_bar = ft.Div(
@@ -333,11 +335,28 @@ def create_card_popularity_content(cards_data: list[ExtendedCardData], card_popu
                     ),
                     cls="relative"
                 ),
-                # Card name and popularity bar
+                # Card name, price and popularity bar
                 ft.Div(
-                    ft.H3(
-                        card.name,
-                        cls="text-white font-medium mb-2 truncate"
+                    # Name and price container
+                    ft.Div(
+                        # Card name
+                        ft.H3(
+                            card.name,
+                            cls="text-white font-medium break-words"
+                        ),
+                        # Price information
+                        ft.Div(
+                            ft.Span(
+                                f"{card.latest_eur_price:.2f} €" if currency == CardCurrency.EURO else f"${card.latest_usd_price:.2f}",
+                                cls="text-white text-sm font-medium whitespace-nowrap"
+                            ) if (currency == CardCurrency.EURO and card.latest_eur_price) or (currency == CardCurrency.US_DOLLAR and card.latest_usd_price) else
+                            ft.Span(
+                                "Price N/A",
+                                cls="text-gray-400 text-sm whitespace-nowrap"
+                            ),
+                            cls="ml-2"
+                        ),
+                        cls="flex justify-between items-start mb-2"
                     ),
                     ft.Div(
                         ft.Div(
@@ -346,7 +365,8 @@ def create_card_popularity_content(cards_data: list[ExtendedCardData], card_popu
                                 cls="text-white text-sm ml-5"
                             ),
                             cls="progress-bar",
-                            style=f"width: {max(card_popularities.get(card.id, 0) * 100, 5)}%"
+                            style=f"width: {max(card_popularities.get(card.id, 0) * 100, 5)}%",
+                            data_tooltip="Percentage of same color decks playing this card."
                         ),
                         cls="progress-container"
                     ),
