@@ -30,6 +30,12 @@ def filter_cards(cards_data: list, params: CardPopularityParams) -> list:
         if card.meta_format and MetaFormat.to_list().index(card.meta_format) > MetaFormat.to_list().index(params.meta_format):
             continue
             
+        # Filter by search term
+        if params.search_term:
+            search_terms = [term.strip().lower() for term in params.search_term.split(";")]
+            if not all(term in card.get_searchable_string().lower() for term in search_terms):
+                continue
+            
         # Filter by colors
         if not any(color in params.card_colors for color in card.colors):
             continue
@@ -199,4 +205,4 @@ def setup_api_routes(rt):
         )
         
         # Create and return the card popularity content
-        return create_card_popularity_content(filtered_cards, card_popularity_dict, params.page) 
+        return create_card_popularity_content(filtered_cards, card_popularity_dict, params.page, search_term=params.search_term) 

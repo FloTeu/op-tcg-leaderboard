@@ -6,7 +6,7 @@ from op_tcg.frontend_fasthtml.utils.extract import get_card_popularity_data, get
 from op_tcg.backend.models.cards import ExtendedCardData
 
 # Common HTMX attributes for filter components
-HX_INCLUDE = "[name='meta_format'],[name='card_colors'],[name='card_attributes'],[name='card_counter'],[name='card_category'],[name='card_types'],[name='currency'],[name='min_price'],[name='max_price'],[name='min_cost'],[name='max_cost'],[name='min_power'],[name='max_power'],[name='card_abilities'],[name='ability_text'],[name='filter_operator']"
+HX_INCLUDE = "[name='meta_format'],[name='card_colors'],[name='card_attributes'],[name='card_counter'],[name='card_category'],[name='card_types'],[name='currency'],[name='min_price'],[name='max_price'],[name='min_cost'],[name='max_cost'],[name='min_power'],[name='max_power'],[name='card_abilities'],[name='ability_text'],[name='filter_operator'],[name='search_term']"
 FILTER_HX_ATTRS = {
     "hx_get": "/api/card-popularity",
     "hx_trigger": "change",
@@ -283,7 +283,7 @@ def create_filter_components():
         cls="space-y-4"
     )
 
-def create_card_popularity_content(cards_data: list[ExtendedCardData], card_popularities: dict[str, float], page: int = 1):
+def create_card_popularity_content(cards_data: list[ExtendedCardData], card_popularities: dict[str, float], page: int = 1, search_term: str = None):
     """Create the card popularity content with a grid of cards and popularity bars.
     
     Args:
@@ -291,10 +291,27 @@ def create_card_popularity_content(cards_data: list[ExtendedCardData], card_popu
         card_popularities: Dictionary mapping card IDs to their popularity (0-1)
         page: Current page number (1-based)
     """
+    # Search bar
+    search_bar = ft.Div(
+        ft.Label("Search Cards", cls="text-white font-medium block mb-2"),
+        ft.Input(
+            type="text",
+            name="search_term",
+            placeholder="Search by name, type, release meta etc. (use ';' to combine conditions)",
+            cls="w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg",
+            value=search_term,
+            **FILTER_HX_ATTRS
+        ),
+        cls="mb-6"
+    )
+
     if not cards_data:
         return ft.Div(
-            ft.P("No cards found matching the criteria.", cls="text-gray-300"),
-            cls="min-h-[200px] flex items-center justify-center"
+            search_bar,
+            ft.Div(
+                ft.P("No cards found matching the criteria.", cls="text-gray-300"),
+                cls="min-h-[200px] flex items-center justify-center"
+            )
         )
 
     CARDS_PER_PAGE = 32
@@ -326,7 +343,7 @@ def create_card_popularity_content(cards_data: list[ExtendedCardData], card_popu
                         ft.Div(
                             ft.Span(
                                 f"{int(card_popularities.get(card.id, 0) * 100)}%",
-                                cls="text-white text-sm"
+                                cls="text-white text-sm ml-5"
                             ),
                             cls="progress-bar",
                             style=f"width: {max(card_popularities.get(card.id, 0) * 100, 5)}%"
@@ -379,6 +396,7 @@ def create_card_popularity_content(cards_data: list[ExtendedCardData], card_popu
         return ft.Div(
             styles,
             ft.Div(
+                search_bar,
                 card_grid,
                 # Add infinite scroll trigger at the bottom
                 ft.Div(

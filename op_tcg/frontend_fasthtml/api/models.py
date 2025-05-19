@@ -216,6 +216,13 @@ class CardPopularityParams(BaseModel):
     ability_text: Optional[str] = None
     filter_operator: str = "OR"
     page: int = 1
+    search_term: Optional[str] = None
+
+    @field_validator('search_term', mode='before')
+    def validate_search_term(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        return value
 
     @field_validator('meta_format', mode='before')
     def validate_meta_format(cls, value):
