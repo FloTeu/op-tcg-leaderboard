@@ -9,7 +9,7 @@ from op_tcg.frontend_fasthtml.pages.leader import leader_page, create_filter_com
 from op_tcg.frontend_fasthtml.pages.tournaments import tournaments_page, create_filter_components as tournament_filters
 from op_tcg.frontend_fasthtml.pages.card_movement import card_movement_page
 from op_tcg.frontend_fasthtml.pages.matchups import matchups_page, create_filter_components as matchups_filters
-from op_tcg.frontend_fasthtml.pages.card_popularity import card_popularity_page
+from op_tcg.frontend_fasthtml.pages.card_popularity import card_popularity_page, create_filter_components as card_popularity_filters
 from op_tcg.frontend_fasthtml.pages.bug_report import bug_report_page
 from op_tcg.frontend_fasthtml.api.routes.main import setup_api_routes
 from op_tcg.backend.models.input import MetaFormat
@@ -91,7 +91,7 @@ def matchups():
 # Card pages
 @rt("/card-popularity")
 def card_popularity():
-    return layout(card_popularity_page(), filter_component=None, current_path="/card-popularity")
+    return layout(card_popularity_page(), filter_component=card_popularity_filters(), current_path="/card-popularity")
 
 # Support pages
 @rt("/bug-report")
