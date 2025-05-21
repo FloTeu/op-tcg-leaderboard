@@ -1,6 +1,5 @@
 import json
-import pandera as pa
-from abc import ABC, abstractmethod
+from abc import ABC
 from datetime import datetime
 
 from google.cloud import bigquery
