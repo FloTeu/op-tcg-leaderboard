@@ -1,6 +1,0 @@
-{
-  "handler": "index.py",
-  "environment": {
-    "PYTHONPATH": "."
-  }
-}
