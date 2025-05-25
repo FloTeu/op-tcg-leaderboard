@@ -48,7 +48,7 @@ app, rt = fast_app(
         # Page utilities
         ft.Script(src="/static/js/sidebar.js"),
     ],
-    static_path='op_tcg/frontend_fasthtml/'
+    static_path='public/'
 )
 
 # Setup API routes
