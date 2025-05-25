@@ -1,11 +1,6 @@
 {
   "version": 2,
   "buildCommand": "cp -r op_tcg/frontend_fasthtml/static ./static",
-  "functions": {
-    "api/index.py": {
-      "runtime": "python3.11"
-    }
-  },
   "routes": [
     {
       "src": "/((?!static).*)$",
