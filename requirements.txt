@@ -5,6 +5,7 @@ python-dotenv
 starlette
 pydantic
 pandas
+pandera
 numpy
 requests
 google-cloud-bigquery
