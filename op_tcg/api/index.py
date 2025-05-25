@@ -1,1 +1,0 @@
-from op_tcg.frontend_fasthtml.main import app # help vercel find the entrypoint

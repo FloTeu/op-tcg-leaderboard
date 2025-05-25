@@ -98,6 +98,11 @@ def card_movement_page():
                     if (leaderSelect && window.initializeSelect) {
                         window.initializeSelect('leader-select');
                     }
+                    
+                    // If a leader is selected (default top leader), trigger content load
+                    if (leaderSelect && leaderSelect.value && leaderSelect.value !== '') {
+                        htmx.trigger(leaderSelect, 'change');
+                    }
                 }
             });
         """),
