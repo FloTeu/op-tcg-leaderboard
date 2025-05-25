@@ -4,6 +4,7 @@ uvicorn==0.30.1
 python-dotenv
 pydantic
 requests
+pandera
 google-cloud-bigquery
 google-cloud-storage
 pathlib2
