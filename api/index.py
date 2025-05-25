@@ -1,42 +1,112 @@
-import os
-import sys
-from pathlib import Path
+from dotenv import load_dotenv
 
-# Add the project root to Python path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+load_dotenv()
 
-try:
-    # Check if required environment variables are set
-    if not os.environ.get("GOOGLE_SERVICE_KEY"):
-        print("Warning: GOOGLE_SERVICE_KEY environment variable not set")
-        
-    if not os.environ.get("GOOGLE_CLOUD_PROJECT"):
-        print("Warning: GOOGLE_CLOUD_PROJECT environment variable not set")
-        
-    from op_tcg.frontend_fasthtml.main import app
-    
-    # This is the entry point for Vercel
-    # Vercel expects the ASGI app to be available as a variable
-    # FastHTML apps are ASGI compatible
-    handler = app
-    
-except Exception as e:
-    print(f"Error importing application: {e}")
-    # Create a simple fallback app for debugging
-    from fasthtml.common import fast_app, Div, H1, P
-    
-    fallback_app, rt = fast_app()
-    
-    @rt("/")
-    def home():
-        return Div(
-            H1("OP TCG Leaderboard"),
-            P(f"Application failed to start: {str(e)}"),
-            P("Please check your environment configuration."),
-            P("Required environment variables:"),
-            P("- GOOGLE_SERVICE_KEY (base64 encoded service account JSON)"),
-            P("- GOOGLE_CLOUD_PROJECT (your GCP project ID)")
-        )
-    
-    handler = fallback_app 
+from fasthtml import ft
+from fasthtml.common import fast_app, serve
+from op_tcg.frontend_fasthtml.components.layout import layout
+from op_tcg.frontend_fasthtml.pages.home import home_page, create_filter_components as home_filters
+from op_tcg.frontend_fasthtml.pages.leader import leader_page, create_filter_components as leader_filters
+from op_tcg.frontend_fasthtml.pages.tournaments import tournaments_page, create_filter_components as tournament_filters
+from op_tcg.frontend_fasthtml.pages.card_movement import card_movement_page, \
+    create_filter_components as card_movement_filters
+from op_tcg.frontend_fasthtml.pages.matchups import matchups_page, create_filter_components as matchups_filters
+from op_tcg.frontend_fasthtml.pages.card_popularity import card_popularity_page, \
+    create_filter_components as card_popularity_filters
+from op_tcg.frontend_fasthtml.pages.bug_report import bug_report_page
+from op_tcg.frontend_fasthtml.api.routes.main import setup_api_routes
+from op_tcg.backend.models.input import MetaFormat
+from starlette.requests import Request
+
+# Create main app
+app, rt = fast_app(
+    pico=False,
+    hdrs=[
+        ft.Style(':root { --pico-font-size: 100%; }'),
+        ft.Style('body { background-color: rgb(17, 24, 39); }'),
+        ft.Link(
+            href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css",
+            rel="stylesheet"
+        ),
+        ft.Link(
+            href="/static/css/loading.css",
+            rel="stylesheet"
+        ),
+        ft.Link(
+            href="/static/css/multiselect.css",
+            rel="stylesheet"
+        ),
+        ft.Link(
+            href="/static/css/double_range_slider.css",
+            rel="stylesheet"
+        ),
+        ft.Link(
+            href="/static/css/tooltip.css",
+            rel="stylesheet"
+        ),
+        ft.Script(src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"),
+        # Core utilities and libraries
+        ft.Script(src="/static/js/utils.js"),  # Global utilities
+        ft.Script(src="/static/js/multiselect.js"),  # Base select functionality
+        # Page utilities
+        ft.Script(src="/static/js/sidebar.js"),
+    ],
+    static_path='op_tcg/frontend_fasthtml/'
+)
+
+# Setup API routes
+setup_api_routes(rt)
+
+
+# Leader pages
+@rt("/")
+def home():
+    return layout(home_page(), filter_component=home_filters(), current_path="/")
+
+
+@rt("/leader")
+def leader_default(request: Request):
+    # Get selected meta formats from query params (can be multiple)
+    selected_meta_format = request.query_params.getlist("meta_format")
+    leader_id = request.query_params.get("lid")
+
+    # Convert to MetaFormat enum if present
+    if selected_meta_format:
+        selected_meta_format = [MetaFormat(mf) for mf in selected_meta_format]
+
+    # Pass to leader_page which will handle HTMX loading
+    return layout(
+        leader_page(leader_id, selected_meta_format=selected_meta_format),
+        filter_component=leader_filters(selected_meta_formats=selected_meta_format, selected_leader_id=leader_id),
+        current_path="/leader"
+    )
+
+
+@rt("/tournaments")
+def tournaments():
+    return layout(tournaments_page(), filter_component=tournament_filters(), current_path="/tournaments")
+
+
+@rt("/card-movement")
+def card_movement():
+    return layout(card_movement_page(), filter_component=card_movement_filters(), current_path="/card-movement")
+
+
+@rt("/matchups")
+def matchups():
+    return layout(matchups_page(), filter_component=matchups_filters(), current_path="/matchups")
+
+
+# Card pages
+@rt("/card-popularity")
+def card_popularity():
+    return layout(card_popularity_page(), filter_component=card_popularity_filters(), current_path="/card-popularity")
+
+
+# Support pages
+@rt("/bug-report")
+def bug_report():
+    return layout(bug_report_page(), filter_component=None, current_path="/bug-report")
+
+
+serve()
