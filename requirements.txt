@@ -2,10 +2,12 @@ python-fasthtml==0.4.4
 sqlite_minutils==4.0.3
 uvicorn==0.30.1
 python-dotenv
+starlette
 pydantic
-requests
 pandas
-pandera
+numpy
+requests
 google-cloud-bigquery
 google-cloud-storage
-pathlib2
+cachetools
+fastcore

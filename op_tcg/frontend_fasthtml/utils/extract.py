@@ -1,6 +1,6 @@
+import os
 from collections import Counter
 
-import streamlit as st
 from cachetools import TTLCache
 
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
@@ -19,14 +19,12 @@ from op_tcg.frontend_fasthtml.utils.utils import run_bq_query
 # maxsize: Number of elements the cache can hold
 CACHE = TTLCache(maxsize=10, ttl=60 * 60 * 24)
 
-def get_leader_data() -> list[Leader]:
-    # cached for each session
-    leader_data_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(Leader)}`""")
-    bq_leaders = [Leader(**d) for d in leader_data_rows]
-    return bq_leaders
-
 def get_bq_table_id(table: type[BQTableBaseModel]) -> str:
-    return f'{st.secrets["gcp_service_account"]["project_id"]}.{table.get_dataset_id()}.{table.__tablename__}'
+    # Get project ID from environment variable instead of streamlit secrets
+    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
+    if not project_id:
+        raise ValueError("GOOGLE_CLOUD_PROJECT environment variable is not set")
+    return f'{project_id}.{table.get_dataset_id()}.{table.__tablename__}'
 
 def get_leader_data() -> list[Leader]:
     # cached for each session
@@ -197,7 +195,6 @@ def get_card_popularity_by_meta(card_id: str, until_meta_format: MetaFormat | No
             card_popularity_by_meta[meta_format] = 0.0
     return card_popularity_by_meta
 
-@st.cache_data
 def get_meta_format_to_num_decklists() -> dict[MetaFormat, int]:
     decklists = get_all_tournament_decklist_data()
     # Use a Counter to count occurrences of each meta_format
