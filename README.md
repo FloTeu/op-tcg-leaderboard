@@ -70,8 +70,28 @@ This script copies all static files from `op_tcg/frontend_fasthtml/static/` to t
 ### Deployment Configuration
 The `vercel.json` file is configured to:
 - Copy static files during build: `cp -r op_tcg/frontend_fasthtml/static ./static`
-- Serve static files from `/static/*` routes
-- Route all other requests to the FastHTML application in `api/index.py`
+- Serve static files directly from `/static/*` routes (handled by Vercel)
+- Route all non-static requests to the FastHTML application in `api/index.py`
+- Use Python 3.11 runtime for the serverless function
+
+### Route Configuration
+The key configuration uses a negative lookahead regex to exclude static files from being processed by the Python handler:
+```json
+{
+  "src": "/((?!static).*)$",
+  "dest": "api/index.py"
+}
+```
+
+This ensures that:
+- `/static/*` requests are served directly as static files
+- All other requests go to your FastHTML application
+
+### Testing Static Files
+After deployment, you can test static file serving by visiting:
+- `https://your-app.vercel.app/static/test.txt`
+- `https://your-app.vercel.app/static/css/loading.css`
+- `https://your-app.vercel.app/static/js/utils.js`
 
 ### Environment Variables
 Make sure to set the following environment variables in your Vercel project:
