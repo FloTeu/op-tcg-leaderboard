@@ -48,7 +48,7 @@ app, rt = fast_app(
         # Page utilities
         ft.Script(src="/static/js/sidebar.js"),
     ],
-    static_path='public/'
+    static_path='.vercel/public/'
 )
 
 # Setup API routes
