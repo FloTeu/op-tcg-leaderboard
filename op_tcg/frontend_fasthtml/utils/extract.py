@@ -20,7 +20,7 @@ from op_tcg.frontend_fasthtml.utils.utils import run_bq_query
 CACHE = TTLCache(maxsize=10, ttl=60 * 60 * 24)
 
 def get_bq_table_id(table: type[BQTableBaseModel]) -> str:
-    # Get project ID from environment variable instead of streamlit secrets
+    # Get project ID from environment variable
     project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
     if not project_id:
         raise ValueError("GOOGLE_CLOUD_PROJECT environment variable is not set")

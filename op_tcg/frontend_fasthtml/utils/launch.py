@@ -1,7 +1,6 @@
 from op_tcg.frontend_fasthtml.utils.extract import get_leader_elo_data, get_leader_win_rate, \
     get_card_data, get_card_popularity_data, get_leader_extended, \
     get_all_tournament_decklist_data, get_all_tournament_extened_data
-#from op_tcg.frontend.utils.meta_format import get_latest_released_meta_format_with_data
 from op_tcg.backend.models.input import MetaFormat
 
 
