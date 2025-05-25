@@ -54,6 +54,29 @@ optcg etl upload-matches
 optcg frontend start
 ```
 
+## Vercel Deployment
+
+The FastHTML application can be deployed to Vercel. The deployment is configured to serve static files (CSS and JavaScript) from the `/static` route.
+
+### Static Files Setup
+Static files are automatically copied during deployment via the `buildCommand` in `vercel.json`. You can also manually prepare static files for deployment:
+
+```shell
+python prepare_deployment.py
+```
+
+This script copies all static files from `op_tcg/frontend_fasthtml/static/` to the root `static/` directory where Vercel can serve them.
+
+### Deployment Configuration
+The `vercel.json` file is configured to:
+- Copy static files during build: `cp -r op_tcg/frontend_fasthtml/static ./static`
+- Serve static files from `/static/*` routes
+- Route all other requests to the FastHTML application in `api/index.py`
+
+### Environment Variables
+Make sure to set the following environment variables in your Vercel project:
+- `GOOGLE_SERVICE_KEY` (base64 encoded service account JSON)
+- `GOOGLE_CLOUD_PROJECT` (your GCP project ID)
 
 ## Cloud Setup
 The app is running in Google cloud and can be initialized by terraform. 
