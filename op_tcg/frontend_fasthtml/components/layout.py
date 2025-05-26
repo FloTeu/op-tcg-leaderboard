@@ -22,7 +22,7 @@ def layout(content, filter_component=None, current_path="/"):
     # Main layout
     return ft.Div(
         # Include external CSS files
-        ft.Link(rel="stylesheet", href="static/css/leaderboard.css"),
+        ft.Link(rel="stylesheet", href="public/css/leaderboard.css"),
         
         # Top bar that appears when sidebar is collapsed
         ft.Div(

@@ -111,8 +111,8 @@ def create_filter_components(max_match_count: int = 10000):
             ),
             cls="relative w-full"
         ),
-        ft.Script(src="/static/js/double_range_slider.js"),
-        ft.Link(rel="stylesheet", href="/static/css/double_range_slider.css"),
+        ft.Script(src="/public/js/double_range_slider.js"),
+        ft.Link(rel="stylesheet", href="/public/css/double_range_slider.css"),
         cls="mb-6"
     )
     
