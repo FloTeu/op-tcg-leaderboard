@@ -26,29 +26,29 @@ app, rt = fast_app(
             rel="stylesheet"
         ),
         ft.Link(
-            href="/loading.css",
+            href="/public/css/loading.css",
             rel="stylesheet"
         ),
         ft.Link(
-            href="/static/css/multiselect.css",
+            href="/public/css/multiselect.css",
             rel="stylesheet"
         ),
         ft.Link(
-            href="/static/css/double_range_slider.css",
+            href="/public/css/double_range_slider.css",
             rel="stylesheet"
         ),
         ft.Link(
-            href="/static/css/tooltip.css",
+            href="/public/css/tooltip.css",
             rel="stylesheet"
         ),
         ft.Script(src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"),
         # Core utilities and libraries
-        ft.Script(src="/static/js/utils.js"),  # Global utilities
-        ft.Script(src="/static/js/multiselect.js"),  # Base select functionality
+        ft.Script(src="/public/js/utils.js"),  # Global utilities
+        ft.Script(src="/public/js/multiselect.js"),  # Base select functionality
         # Page utilities
-        ft.Script(src="/static/js/sidebar.js"),
+        ft.Script(src="/public/js/sidebar.js"),
     ],
-    static_path='public/'
+    #static_path=''
 )
 
 # Setup API routes
