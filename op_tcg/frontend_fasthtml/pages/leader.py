@@ -1,11 +1,7 @@
 from fasthtml import ft
 from op_tcg.backend.models.leader import LeaderExtended
-from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
-from op_tcg.frontend_fasthtml.utils.charts import create_line_chart
-from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended
-from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended
+from op_tcg.backend.models.input import MetaFormat
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
-from op_tcg.frontend_fasthtml.components.decklist import create_decklist_section
 from op_tcg.frontend_fasthtml.components.filters import create_leader_select_component
 
 # Common HTMX attributes for filter components
@@ -162,7 +158,7 @@ def create_tab_view():
                             id="leader-decklist-container",
                             cls="min-h-[300px] w-full"
                         ),
-                        cls="w-full md:w-1/2 bg-gray-800 rounded-lg p-6 shadow-xl"
+                        cls="w-full md:w-1/2 bg-gray-800 rounded-lg shadow-xl"
                     ),
                     
                     # Right column - Similar Leader
@@ -185,7 +181,7 @@ def create_tab_view():
                     ),
                     cls="flex flex-col md:flex-row gap-6"
                 ),
-                cls="tab-pane p-6",
+                cls="tab-pane md:p-6 p-2",
                 id="decklist-tab",
                 style="display: block;"  # Show this tab by default
             ),
