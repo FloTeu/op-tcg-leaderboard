@@ -334,7 +334,7 @@ def home_page():
                 ),
                 cls="relative"
             ),
-            cls="space-y-4"
+            cls="space-y-4 overflow-x-auto"
         ),
-        cls="min-h-screen"
+        cls="relative"  # Changed from min-h-screen to relative to work with layout
     ) 

@@ -9,17 +9,12 @@ function isMobileDevice() {
 }
 
 function getCurrentSidebarState() {
-    // Detect the actual current state of the sidebar from DOM
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return false;
     
-    const transform = sidebar.style.transform;
-    // If transform contains translateX(-100%) or similar, sidebar is closed
-    // If transform is empty, translateX(0), or translateX(0px), sidebar is open
-    if (transform && (transform.includes('translateX(-100%)') || transform.includes('translateX(-100'))) {
-        return false;
-    }
-    return !transform || transform === 'translateX(0px)' || transform === 'translateX(0)';
+    // Check if sidebar is visible by checking its transform
+    const transform = window.getComputedStyle(sidebar).transform;
+    return transform === 'none' || transform === 'matrix(1, 0, 0, 1, 0, 0)';
 }
 
 function toggleBurgerMenu(isOpen) {
@@ -61,10 +56,12 @@ function setSidebarState(isOpen) {
             sidebar.style.transform = 'translateX(0)';
             mainContent.style.marginLeft = '0';
             topBar.style.display = 'none';
+            document.body.style.overflow = 'hidden'; // Prevent scrolling when sidebar is open
         } else {
             sidebar.style.transform = 'translateX(-100%)';
             mainContent.style.marginLeft = '0';
             topBar.style.display = 'block';
+            document.body.style.overflow = ''; // Restore scrolling
         }
         toggleBurgerMenu(isOpen);
     } else {
@@ -73,10 +70,12 @@ function setSidebarState(isOpen) {
             sidebar.style.transform = 'translateX(0)';
             mainContent.style.marginLeft = '320px';
             topBar.style.display = 'none';
+            document.body.style.overflow = ''; // Always allow scrolling on desktop
         } else {
             sidebar.style.transform = 'translateX(-100%)';
             mainContent.style.marginLeft = '0';
             topBar.style.display = 'block';
+            document.body.style.overflow = ''; // Always allow scrolling on desktop
         }
         toggleBurgerMenu(isOpen);
     }
