@@ -40,14 +40,16 @@ def layout(content, filter_component=None, current_path="/"):
                 ),
                 cls="flex items-center h-16 px-4"
             ),
-            cls="fixed top-0 left-0 right-0 bg-gray-900",
+            cls="fixed top-0 left-0 right-0 bg-gray-900 z-30",
             id="top-bar",
+            style="display: block;"  # Start with top bar visible (mobile state)
         ),
         sidebar(filter_component, current_path),
         ft.Div(
             content,
-            cls="p-4 ml-80 min-h-screen bg-gray-900 transition-all duration-300 ease-in-out mt-16",
-            id="main-content"
+            cls="p-4 min-h-screen bg-gray-900 transition-all duration-300 ease-in-out mt-16",
+            id="main-content",
+            style="margin-left: 0;"  # Start with no left margin (mobile state)
         ),
         cls="relative bg-gray-900"
     ) 
