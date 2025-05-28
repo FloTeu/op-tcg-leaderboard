@@ -1,6 +1,6 @@
 from fasthtml import ft
 from starlette.requests import Request
-from op_tcg.backend.models.leader import LeaderboardSortBy
+from op_tcg.backend.models.leader import LeaderExtended, LeaderboardSortBy
 from op_tcg.frontend_fasthtml.utils.extract import get_card_data, get_leader_extended, get_card_popularity_data, get_card_id_card_data_lookup
 from op_tcg.frontend_fasthtml.pages.home import create_leaderboard_table
 from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended
@@ -101,7 +101,8 @@ def setup_api_routes(rt):
         sort_params = LeaderboardSort(**get_query_params_as_dict(request))
         
         # Get filtered leaders
-        filtered_leaders = get_filtered_leaders(request)
+        leader_extended_data: list[LeaderExtended] = get_leader_extended(meta_format_region=get_query_params_as_dict(request).get("region"))
+        filtered_leaders = get_filtered_leaders(request, leader_extended_data=leader_extended_data)
         
         display_name2df_col_name = {
             "Name": "name",
@@ -122,6 +123,7 @@ def setup_api_routes(rt):
         # Create the leaderboard table
         return create_leaderboard_table(
             filtered_leaders,
+            leader_extended_data,
             sort_params.meta_format
         )
 

@@ -34,11 +34,12 @@ def get_query_params_as_dict(request: Request) -> Dict[str, Any]:
     return query_params_dict
 
 
-def get_filtered_leaders(request: Request):
+def get_filtered_leaders(request: Request, leader_extended_data: list[LeaderExtended] | None = None):
     query_params = LeaderboardFilter(**get_query_params_as_dict(request))
     
     # Get leader extended data
-    leader_extended_data: list[LeaderExtended] = get_leader_extended(meta_format_region=query_params.region)
+    if leader_extended_data is None:
+        leader_extended_data: list[LeaderExtended] = get_leader_extended(meta_format_region=query_params.region)
     
     # Apply filters
     return filter_leader_extended(

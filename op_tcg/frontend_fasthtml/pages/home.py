@@ -1,3 +1,5 @@
+import json
+import html
 from fasthtml import ft
 
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
@@ -126,13 +128,59 @@ def create_filter_components(max_match_count: int = 10000):
         cls="space-y-4"
     )
 
-def create_leaderboard_table(leaders: list[LeaderExtended], meta_format: MetaFormat):
+def create_chart_data_for_leader(leader: LeaderExtended, all_leaders: list[LeaderExtended], meta_format: MetaFormat, last_n: int = 5) -> list[dict]:
+    """Create chart data for a specific leader from the already loaded leader data."""
+    # Get all meta formats and find the current meta format index
+    all_meta_formats = MetaFormat.to_list()
+    meta_format_index = all_meta_formats.index(meta_format)
+    
+    # Get leader history from all_leaders
+    leader_history = [l for l in all_leaders if l.id == leader.id and l.only_official == leader.only_official]
+    
+    # Sort by meta format to ensure chronological order
+    leader_history.sort(key=lambda x: all_meta_formats.index(x.meta_format))
+    
+    # Find the first meta format where this leader has data
+    first_meta_format = leader_history[0].meta_format if leader_history else None
+    start_index = all_meta_formats.index(first_meta_format) if first_meta_format in all_meta_formats else 0
+    meta_formats_between = all_meta_formats[start_index:]
+    
+    # Create a lookup for existing data points
+    meta_to_leader = {l.meta_format: l for l in leader_history}
+    
+    # Determine range of meta formats to include based on last_n
+    end_index = meta_format_index + 1 - start_index  # Exclusive end index
+    start_index = max(0, end_index - last_n)  # Take at most last_n meta formats
+    relevant_meta_formats = meta_formats_between[start_index:end_index]
+    
+    # Prepare data for the chart, including null values for missing meta formats
+    chart_data = []
+    for meta_format in relevant_meta_formats:
+        if meta_format in meta_to_leader:
+            leader_data = meta_to_leader[meta_format]
+            chart_data.append({
+                "meta": str(meta_format),
+                "winRate": round(leader_data.win_rate * 100, 2) if leader_data.win_rate is not None else None,
+                "elo": leader_data.elo,
+                "matches": leader_data.total_matches
+            })
+        else:
+            chart_data.append({
+                "meta": str(meta_format),
+                "winRate": None,
+                "elo": None,
+                "matches": None
+            })
+    
+    return chart_data
+
+def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders: list[LeaderExtended], meta_format: MetaFormat):
     # Filter leaders for the selected meta format
     relevant_meta_formats = MetaFormat.to_list()[:MetaFormat.to_list().index(meta_format) + 1]
     
     # Filter leaders for the selected meta format and relevant meta formats
     selected_meta_leaders = [
-        leader for leader in leaders 
+        leader for leader in filtered_leaders 
         if leader.meta_format == meta_format and leader.meta_format in relevant_meta_formats
     ]
     
@@ -180,6 +228,12 @@ def create_leaderboard_table(leaders: list[LeaderExtended], meta_format: MetaFor
         else:
             elo_color_class = "text-gray-400"
         
+        # Create chart data for this leader
+        chart_data = create_chart_data_for_leader(leader, all_leaders, meta_format)
+        chart_data_json = json.dumps(chart_data)
+        # Escape the JSON for safe HTML attribute usage
+        chart_data_escaped = html.escape(chart_data_json)
+        
         cells = [
             ft.Td(
                 ft.Div(
@@ -214,16 +268,18 @@ def create_leaderboard_table(leaders: list[LeaderExtended], meta_format: MetaFor
                         id=f"chart-loading-{leader.id}",
                         size="w-8 h-8"
                     ),
-                    # Chart container
+                    # Chart container with embedded chart data
                     ft.Div(
                         id=f"leader-chart-{leader.id}",
-                        hx_get=f"/api/leader-chart/{leader.id}",
+                        hx_post=f"/api/leader-chart/{leader.id}",
                         hx_trigger="load",
                         hx_swap="innerHTML",
                         hx_target=f"#leader-chart-{leader.id}",
                         hx_include=HX_INCLUDE,
                         hx_indicator=f"#chart-loading-{leader.id}",
-                        cls="w-[200px] h-[120px]"
+                        hx_vals=f'{{"chart_data": "{chart_data_escaped}"}}',
+                        cls="w-[200px] h-[120px]",
+                        data_chart_data=chart_data_json
                     ),
                     cls="relative w-[200px] h-[120px]"
                 ),

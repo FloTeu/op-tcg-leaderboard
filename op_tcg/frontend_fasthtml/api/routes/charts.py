@@ -1,3 +1,5 @@
+import json
+import html
 from fasthtml import ft
 from starlette.requests import Request
 from op_tcg.backend.models.input import MetaFormat
@@ -8,10 +10,41 @@ from op_tcg.frontend_fasthtml.utils.win_rate import get_radar_chart_data
 from op_tcg.frontend_fasthtml.utils.api import get_filtered_leaders
 
 
+
 def setup_api_routes(rt):
 
-    @rt("/api/leader-chart/{leader_id}")
-    def leader_line_chart(request: Request, leader_id: str):
+    @rt("/api/leader-chart/{leader_id}", methods=["GET", "POST"])
+    async def leader_line_chart(request: Request, leader_id: str):
+        # Check if this is a POST request with chart data
+        if request.method == "POST":
+            try:
+                # Try to get chart data from the request body
+                body = await request.body()
+                if body:
+                    form_data = await request.form()
+                    chart_data_str = form_data.get("chart_data")
+                    if chart_data_str:
+                        # Unescape HTML entities and parse the provided chart data
+                        chart_data_unescaped = html.unescape(chart_data_str)
+                        chart_data = json.loads(chart_data_unescaped)
+                        
+                        # Determine chart color based on win rate trend
+                        win_rate_values = [d["winRate"] for d in chart_data if d["winRate"] is not None]
+                        color = ChartColors.POSITIVE if len(win_rate_values) < 2 or (len(win_rate_values) >= 2 and win_rate_values[-1] > win_rate_values[-2]) else ChartColors.NEGATIVE
+                        
+                        # Create and return the chart using provided data
+                        return create_line_chart(
+                            container_id=f"win-rate-chart-{leader_id}",
+                            data=chart_data,
+                            color=color,
+                            show_x_axis=False,
+                            show_y_axis=False
+                        )
+            except (json.JSONDecodeError, KeyError, TypeError):
+                # If parsing fails, fall through to the original logic
+                pass
+        
+        # Original logic - fetch data from database
         # Get query parameters
         all_meta_formats = MetaFormat.to_list()
         meta_format_list = request.query_params.getlist("meta_format")
