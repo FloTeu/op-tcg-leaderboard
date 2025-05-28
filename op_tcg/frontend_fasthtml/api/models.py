@@ -148,6 +148,8 @@ class TournamentPageParams(BaseModel):
     """Parameters for tournament page requests"""
     meta_format: list[MetaFormat]
     region: MetaFormatRegion = MetaFormatRegion.ALL
+    min_matches: int = 0
+    max_matches: int | None = None
     
     @field_validator('meta_format', mode='before')
     def validate_meta_formats(cls, value):
@@ -164,6 +166,14 @@ class TournamentPageParams(BaseModel):
         if isinstance(value, str):
             return MetaFormatRegion(value)
         return value
+    
+    @field_validator('min_matches', 'max_matches', mode='before')
+    def validate_matches(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if isinstance(value, str):
+            return int(value)
+        return value if value is not None else None
 
 
 class MatchupParams(BaseModel):

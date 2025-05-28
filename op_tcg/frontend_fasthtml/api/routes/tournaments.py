@@ -58,6 +58,26 @@ def aggregate_leader_data(leader_data: list[LeaderExtended]):
 
 def setup_api_routes(rt):
 
+    @rt("/api/tournaments/max-matches")
+    def get_max_matches(request: Request):
+        """Return the maximum match count for setting slider bounds."""
+        # Parse params using Pydantic model
+        params = TournamentPageParams(**get_query_params_as_dict(request))
+        
+        # Get leader data
+        leader_data = get_leader_extended(meta_format_region=params.region)
+        
+        # Filter by meta formats
+        leader_data = [ld for ld in leader_data if ld.meta_format in params.meta_format and ld.only_official]
+
+        # Calculate relative mean win rate and prepare final data for chart
+        final_leader_data = aggregate_leader_data(leader_data)
+        
+        # Get maximum match count
+        max_matches = max((ld.get("total_matches", 0) for ld in final_leader_data), default=1000)
+        
+        return {"max_matches": max_matches}
+
     @rt("/api/tournaments/chart")
     def get_tournament_chart(request: Request):
         """Return the tournament statistics chart."""
@@ -73,6 +93,16 @@ def setup_api_routes(rt):
 
         # Calculate relative mean win rate and prepare final data for chart
         final_leader_data = aggregate_leader_data(leader_data)
+        
+        # Get max matches for slider bounds and set default if not provided
+        max_matches = max((ld.get("total_matches", 0) for ld in final_leader_data), default=1000)
+        if params.max_matches is None:
+            effective_max_matches = max_matches
+        else:
+            effective_max_matches = params.max_matches
+        
+        # Filter by match count range
+        final_leader_data = [ld for ld in final_leader_data if params.min_matches <= ld.get("total_matches", 0) <= effective_max_matches]
         
         # Process data for bubble chart
         chart_data = []
@@ -106,12 +136,97 @@ def setup_api_routes(rt):
                 })
                 colors.append(color)
         
-        # Create and return the chart
-        return create_bubble_chart(
+        # Create the chart with slider
+        chart_div = create_bubble_chart(
             container_id="tournament-chart",
             data=chart_data,
             colors=colors,
             title="Leader Tournament Popularity"
+        )
+        
+        # Add the slider below the chart
+        slider_div = ft.Div(
+            ft.Label("Tournament Match Count Range", cls="text-white font-medium block mb-2"),
+            ft.Div(
+                ft.Div(
+                    ft.Div(cls="slider-track"),
+                    ft.Input(
+                        type="range",
+                        min="0",
+                        max=str(max_matches),
+                        value=str(params.min_matches),
+                        name="min_matches",
+                        cls="slider-range min-range",
+                        hx_get="/api/tournaments/chart",
+                        hx_trigger="change",
+                        hx_target="#tournament-chart-container",
+                        hx_include="[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']",
+                        hx_indicator="#tournament-loading-indicator"
+                    ),
+                    ft.Input(
+                        type="range",
+                        min="0",
+                        max=str(max_matches),
+                        value=str(effective_max_matches),
+                        name="max_matches",
+                        cls="slider-range max-range",
+                        hx_get="/api/tournaments/chart",
+                        hx_trigger="change",
+                        hx_target="#tournament-chart-container",
+                        hx_include="[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']",
+                        hx_indicator="#tournament-loading-indicator"
+                    ),
+                    ft.Div(
+                        ft.Span(str(params.min_matches), cls="min-value text-white"),
+                        ft.Span(" - ", cls="text-white mx-2"),
+                        ft.Span(str(effective_max_matches), cls="max-value text-white"),
+                        cls="slider-values"
+                    ),
+                    cls="double-range-slider",
+                    id="tournament-match-slider",
+                    data_double_range_slider="true"
+                ),
+                cls="relative w-full"
+            ),
+            ft.Script(src="/public/js/double_range_slider.js"),
+            ft.Link(rel="stylesheet", href="/public/css/double_range_slider.css"),
+            ft.Script(f"""
+                // Ensure chart recreation after HTMX swap
+                document.addEventListener('htmx:afterSwap', function(event) {{
+                    if (event.target.id === 'tournament-chart-container') {{
+                        // Force chart recreation with a small delay
+                        setTimeout(() => {{
+                            if (window.recreateBubbleChart) {{
+                                console.log('Recreating bubble chart after slider change');
+                                window.recreateBubbleChart();
+                            }}
+                        }}, 150);
+                    }}
+                }});
+                
+                // Also trigger on slider change for immediate feedback
+                document.addEventListener('DOMContentLoaded', function() {{
+                    const sliders = document.querySelectorAll('#tournament-match-slider input[type="range"]');
+                    sliders.forEach(slider => {{
+                        slider.addEventListener('input', function() {{
+                            // Small delay to allow HTMX to process
+                            setTimeout(() => {{
+                                if (window.recreateBubbleChart) {{
+                                    console.log('Recreating bubble chart after slider input');
+                                    window.recreateBubbleChart();
+                                }}
+                            }}, 200);
+                        }});
+                    }});
+                }});
+            """),
+            cls="mt-6"
+        )
+        
+        return ft.Div(
+            chart_div,
+            slider_div,
+            cls="space-y-6"
         )
 
     @rt("/api/leader-tournaments")

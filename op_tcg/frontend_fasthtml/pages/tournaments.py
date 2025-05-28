@@ -7,7 +7,7 @@ FILTER_HX_ATTRS = {
     "hx_get": "/api/tournament-content",
     "hx_trigger": "change",
     "hx_target": "#tournament-content",
-    "hx_include": "[name='meta_format'],[name='region']",
+    "hx_include": "[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']",
     "hx_indicator": "#tournament-loading-indicator"
 }
 
@@ -67,7 +67,7 @@ def create_tournament_content():
             hx_get="/api/tournaments/chart",
             hx_trigger="load",
             hx_indicator="#tournament-loading-indicator",
-            hx_include=FILTER_HX_ATTRS["hx_include"],
+            hx_include="[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']",
             cls="mt-8"
         ),
         
@@ -79,7 +79,7 @@ def create_tournament_content():
                 hx_get="/api/tournaments/all",
                 hx_trigger="load",
                 hx_indicator="#tournament-loading-indicator",
-                hx_include=FILTER_HX_ATTRS["hx_include"],
+                hx_include="[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']",
             ),
             cls="mt-32"
         ),

@@ -689,204 +689,226 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
         ft.Script(f"""
             (function() {{
                 const chartId = '{container_id}';
+                const chartData = {data_json};
+                const chartColors = {colors_json};
+                const chartTitle = '{title}';
                 
-                // Clean up old tooltip if it exists
-                const oldTooltip = document.getElementById('chartjs-tooltip');
-                if (oldTooltip) {{
-                    oldTooltip.remove();
-                }}
+                // Store data globally for recreation
+                window.bubbleChartData = {{
+                    data: chartData,
+                    colors: chartColors,
+                    title: chartTitle,
+                    containerId: chartId
+                }};
                 
-                const container = document.getElementById(chartId);
-                if (!container) {{
-                    console.error('Chart container not found:', chartId);
-                    return;
-                }}
-                
-                // Destroy existing chart if it exists
-                const existingChart = Chart.getChart(chartId);
-                if (existingChart) {{
-                    existingChart.destroy();
-                }}
-                
-                const data = {data_json};
-                const colors = {colors_json};
-                
-                // Add transparency to colors
-                const transparentColors = colors.map(color => {{
-                    // Convert hex to rgba with 0.7 opacity
-                    const r = parseInt(color.slice(1,3), 16);
-                    const g = parseInt(color.slice(3,5), 16);
-                    const b = parseInt(color.slice(5,7), 16);
-                    return `rgba(${{r}},${{g}},${{b}},0.7)`;
-                }});
-                
-                const chart = new Chart(container, {{
-                    type: 'bubble',
-                    data: {{
-                        datasets: [{{
-                            data: data,
-                            backgroundColor: transparentColors,
-                            borderColor: colors,
-                            borderWidth: 1,
-                            hoverBackgroundColor: colors,
-                            radius: (context) => {{
-                                // Get the bubble size from the data
-                                return context.raw.r;
-                            }}
-                        }}]
-                    }},
-                    options: {{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {{
-                            title: {{
-                                display: true,
-                                text: '{title}',
-                                color: 'white',
-                                font: {{ size: 16 }},
-                                padding: {{ bottom: 10 }}
-                            }},
-                            legend: {{
-                                display: false
-                            }},
-                            tooltip: {{
-                                enabled: false,  // Disable default tooltip
-                            }},
-                        }},
-                        hover: {{
-                            mode: 'nearest',
-                            intersect: true
-                        }},
-                        events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'],
-                        onHover: function(event, chartElements) {{
-                            const tooltipEl = document.getElementById('chartjs-tooltip');
-                            
-                            if (!tooltipEl) {{
-                                const div = document.createElement('div');
-                                div.id = 'chartjs-tooltip';
-                                document.body.appendChild(div);
-                            }}
-                            
-                            if (!chartElements || chartElements.length === 0) {{
-                                tooltipEl.style.opacity = 0;
-                                return;
-                            }}
-                            
-                            const element = chartElements[0];
-                            const data = element.element.$context.raw;
-                            
-                            // Create tooltip content with flex layout
-                            const tooltipContent = `
-                                <div style="
-                                    display: flex;
-                                    gap: 16px;
-                                    min-width: 400px;
-                                    height: 150px;
-                                    padding: 0;
-                                ">
-                                    <div style="
-                                        flex: 0 0 30%;
-                                        height: 100%;
-                                        display: flex;
-                                        align-items: center;
-                                        justify-content: center;
-                                        overflow: hidden;
-                                        padding: 0;
-                                        margin: 0;
-                                    ">
-                                        ${{data.image ? `<img src="${{data.image}}" style="width: 100%; height: 100%; object-fit: contain; display: block;">` : ''}}
-                                    </div>
-                                    <div style="
-                                        flex: 0 0 70%;
-                                        padding: 12px 16px 12px 0;
-                                        display: flex;
-                                        flex-direction: column;
-                                        justify-content: center;
-                                    ">
-                                        <div style="font-weight: bold; margin-bottom: 12px; font-size: 1.2em; white-space: normal;">${{data.name}}</div>
-                                        <div style="margin: 4px 0;">Win Rate: ${{(data.y * 100).toFixed(1)}}%</div>
-                                        <div style="margin: 4px 0;">Tournament Matches: ${{data.x}}</div>
-                                        <div style="margin: 4px 0;">Tournament Wins: ${{data.raw_wins}}</div>
-                                    </div>
-                                </div>
-                            `;
-                            
-                            tooltipEl.innerHTML = tooltipContent;
-                            tooltipEl.style.opacity = 1;
-                            tooltipEl.style.position = 'absolute';
-                            tooltipEl.style.backgroundColor = '{ChartColors.TOOLTIP_BG}';
-                            tooltipEl.style.color = '#ffffff';
-                            tooltipEl.style.borderRadius = '4px';
-                            tooltipEl.style.border = '1px solid {ChartColors.TOOLTIP_BORDER}';
-                            tooltipEl.style.pointerEvents = 'none';
-                            tooltipEl.style.zIndex = 9999;
-                            tooltipEl.style.transform = 'translate(-50%, -100%)';
-                            tooltipEl.style.transition = 'all .1s ease';
-                            tooltipEl.style.padding = '0';
-                            tooltipEl.style.overflow = 'hidden';
-                            
-                            // Position the tooltip
-                            const position = element.element.tooltipPosition();
-                            const chartPosition = container.getBoundingClientRect();
-                            const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-                            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                            
-                            tooltipEl.style.left = (chartPosition.left + scrollLeft + position.x) + 'px';
-                            tooltipEl.style.top = (chartPosition.top + scrollTop + position.y - 10) + 'px';
-                        }},
-                        scales: {{
-                            x: {{
-                                type: 'logarithmic',
-                                title: {{
-                                    display: true,
-                                    text: 'Number of Tournament Matches',
-                                    color: 'white'
-                                }},
-                                ticks: {{
-                                    color: '{ChartColors.TICK_TEXT}',
-                                    font: {{
-                                        size: 10
-                                    }},
-                                    padding: 5
-                                }},
-                                grid: {{
-                                    color: 'rgba(255, 255, 255, 0.1)'
+                function createBubbleChart() {{
+                    // Clean up old tooltip if it exists
+                    const oldTooltip = document.getElementById('chartjs-tooltip');
+                    if (oldTooltip) {{
+                        oldTooltip.remove();
+                    }}
+                    
+                    const container = document.getElementById(chartId);
+                    if (!container) {{
+                        console.error('Chart container not found:', chartId);
+                        return null;
+                    }}
+                    
+                    // Destroy existing chart if it exists
+                    const existingChart = Chart.getChart(chartId);
+                    if (existingChart) {{
+                        existingChart.destroy();
+                    }}
+                    
+                    // Clear the canvas
+                    const ctx = container.getContext('2d');
+                    ctx.clearRect(0, 0, container.width, container.height);
+                    
+                    // Add transparency to colors
+                    const transparentColors = chartColors.map(color => {{
+                        // Convert hex to rgba with 0.7 opacity
+                        const r = parseInt(color.slice(1,3), 16);
+                        const g = parseInt(color.slice(3,5), 16);
+                        const b = parseInt(color.slice(5,7), 16);
+                        return `rgba(${{r}},${{g}},${{b}},0.7)`;
+                    }});
+                    
+                    const chart = new Chart(container, {{
+                        type: 'bubble',
+                        data: {{
+                            datasets: [{{
+                                data: chartData,
+                                backgroundColor: transparentColors,
+                                borderColor: chartColors,
+                                borderWidth: 1,
+                                hoverBackgroundColor: chartColors,
+                                radius: (context) => {{
+                                    // Get the bubble size from the data
+                                    return context.raw.r;
                                 }}
-                            }},
-                            y: {{
+                            }}]
+                        }},
+                        options: {{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {{
                                 title: {{
                                     display: true,
-                                    text: 'Win Rate',
-                                    color: 'white'
+                                    text: chartTitle,
+                                    color: 'white',
+                                    font: {{ size: 16 }},
+                                    padding: {{ bottom: 10 }}
                                 }},
-                                ticks: {{
-                                    color: '{ChartColors.TICK_TEXT}',
-                                    font: {{
-                                        size: 10
+                                legend: {{
+                                    display: false
+                                }},
+                                tooltip: {{
+                                    enabled: false,  // Disable default tooltip
+                                }},
+                            }},
+                            hover: {{
+                                mode: 'nearest',
+                                intersect: true
+                            }},
+                            events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'],
+                            onHover: function(event, chartElements) {{
+                                const tooltipEl = document.getElementById('chartjs-tooltip');
+                                
+                                if (!tooltipEl) {{
+                                    const div = document.createElement('div');
+                                    div.id = 'chartjs-tooltip';
+                                    document.body.appendChild(div);
+                                }}
+                                
+                                if (!chartElements || chartElements.length === 0) {{
+                                    tooltipEl.style.opacity = 0;
+                                    return;
+                                }}
+                                
+                                const element = chartElements[0];
+                                const data = element.element.$context.raw;
+                                
+                                // Create tooltip content with flex layout
+                                const tooltipContent = `
+                                    <div style="
+                                        display: flex;
+                                        gap: 16px;
+                                        min-width: 400px;
+                                        height: 150px;
+                                        padding: 0;
+                                    ">
+                                        <div style="
+                                            flex: 0 0 30%;
+                                            height: 100%;
+                                            display: flex;
+                                            align-items: center;
+                                            justify-content: center;
+                                            overflow: hidden;
+                                            padding: 0;
+                                            margin: 0;
+                                        ">
+                                            ${{data.image ? `<img src="${{data.image}}" style="width: 100%; height: 100%; object-fit: contain; display: block;">` : ''}}
+                                        </div>
+                                        <div style="
+                                            flex: 0 0 70%;
+                                            padding: 12px 16px 12px 0;
+                                            display: flex;
+                                            flex-direction: column;
+                                            justify-content: center;
+                                        ">
+                                            <div style="font-weight: bold; margin-bottom: 12px; font-size: 1.2em; white-space: normal;">${{data.name}}</div>
+                                            <div style="margin: 4px 0;">Win Rate: ${{(data.y * 100).toFixed(1)}}%</div>
+                                            <div style="margin: 4px 0;">Tournament Matches: ${{data.x}}</div>
+                                            <div style="margin: 4px 0;">Tournament Wins: ${{data.raw_wins}}</div>
+                                        </div>
+                                    </div>
+                                `;
+                                
+                                tooltipEl.innerHTML = tooltipContent;
+                                tooltipEl.style.opacity = 1;
+                                tooltipEl.style.position = 'absolute';
+                                tooltipEl.style.backgroundColor = '{ChartColors.TOOLTIP_BG}';
+                                tooltipEl.style.color = '#ffffff';
+                                tooltipEl.style.borderRadius = '4px';
+                                tooltipEl.style.border = '1px solid {ChartColors.TOOLTIP_BORDER}';
+                                tooltipEl.style.pointerEvents = 'none';
+                                tooltipEl.style.zIndex = 9999;
+                                tooltipEl.style.transform = 'translate(-50%, -100%)';
+                                tooltipEl.style.transition = 'all .1s ease';
+                                tooltipEl.style.padding = '0';
+                                tooltipEl.style.overflow = 'hidden';
+                                
+                                // Position the tooltip
+                                const position = element.element.tooltipPosition();
+                                const chartPosition = container.getBoundingClientRect();
+                                const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+                                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                                
+                                tooltipEl.style.left = (chartPosition.left + scrollLeft + position.x) + 'px';
+                                tooltipEl.style.top = (chartPosition.top + scrollTop + position.y - 10) + 'px';
+                            }},
+                            scales: {{
+                                x: {{
+                                    type: 'logarithmic',
+                                    title: {{
+                                        display: true,
+                                        text: 'Number of Tournament Matches',
+                                        color: 'white'
                                     }},
-                                    padding: 5,
-                                    callback: function(value) {{
-                                        return (value * 100).toFixed(0) + '%';
+                                    ticks: {{
+                                        color: '{ChartColors.TICK_TEXT}',
+                                        font: {{
+                                            size: 10
+                                        }},
+                                        padding: 5
+                                    }},
+                                    grid: {{
+                                        color: 'rgba(255, 255, 255, 0.1)'
                                     }}
                                 }},
-                                grid: {{
-                                    color: 'rgba(255, 255, 255, 0.1)'
+                                y: {{
+                                    title: {{
+                                        display: true,
+                                        text: 'Win Rate',
+                                        color: 'white'
+                                    }},
+                                    ticks: {{
+                                        color: '{ChartColors.TICK_TEXT}',
+                                        font: {{
+                                            size: 10
+                                        }},
+                                        padding: 5,
+                                        callback: function(value) {{
+                                            return (value * 100).toFixed(0) + '%';
+                                        }}
+                                    }},
+                                    grid: {{
+                                        color: 'rgba(255, 255, 255, 0.1)'
+                                    }}
                                 }}
                             }}
                         }}
-                    }}
-                }});
+                    }});
+                    
+                    // Store chart reference for cleanup
+                    window.currentBubbleChart = chart;
+                    
+                    return chart;
+                }}
                 
-                // Clean up on HTMX request
-                container.addEventListener('htmx:beforeSwap', function() {{
-                    const tooltipEl = document.getElementById('chartjs-tooltip');
-                    if (tooltipEl) {{
-                        tooltipEl.remove();
+                // Global function to recreate chart with current data
+                window.recreateBubbleChart = function() {{
+                    if (window.bubbleChartData) {{
+                        console.log('Recreating bubble chart with stored data');
+                        return createBubbleChart();
+                    }} else {{
+                        console.warn('No bubble chart data available for recreation');
+                        return null;
                     }}
-                    if (chart) {{
-                        chart.destroy();
-                    }}
-                }});
+                }};
+                
+                // Create the initial chart
+                createBubbleChart();
             }})();
         """),
         style="height: 400px; width: 100%;"  # Explicit height and width
