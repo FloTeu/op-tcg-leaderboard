@@ -55,101 +55,6 @@ def get_leader_price_data(leader_id: str, current_meta: MetaFormat, previous_met
         'previous_decklists_count': len(previous_decklists)
     }
 
-def create_leader_select_dropdown(selected_meta_format: MetaFormat, selected_leader_id: str = None):
-    """Create a dropdown for leader selection"""
-    # Get leader extended data and filter by meta formats and only official matches
-    leader_data = get_leader_extended()
-    
-    # Get current and previous meta formats
-    meta_formats_list = MetaFormat.to_list()
-    current_meta_index = meta_formats_list.index(selected_meta_format)
-    previous_meta = meta_formats_list[current_meta_index - 1] if current_meta_index > 0 else selected_meta_format
-    
-    # Filter leaders by meta format (only show leaders available in or before the selected meta)
-    selected_meta_index = meta_formats_list.index(selected_meta_format)
-    available_meta_formats = meta_formats_list[:selected_meta_index + 1]
-    
-    filtered_leaders = filter_leader_extended(
-        leaders=[l for l in leader_data if l.meta_format in available_meta_formats],
-        only_official=True
-    )
-    
-    # Create unique leader mapping using only the most recent version from selected meta formats
-    unique_leaders = {}
-    for leader in filtered_leaders:
-        if leader.id not in unique_leaders:
-            unique_leaders[leader.id] = leader
-        else:
-            # If we already have this leader, keep the one from the most recent meta format
-            existing_meta_idx = MetaFormat.to_list().index(unique_leaders[leader.id].meta_format)
-            current_meta_idx = MetaFormat.to_list().index(leader.meta_format)
-            if current_meta_idx > existing_meta_idx:
-                unique_leaders[leader.id] = leader
-    
-    # Filter leaders to only include those with decklists in both current and previous meta formats
-    leaders_with_decklists = []
-    for leader in unique_leaders.values():
-        # Check if leader has decklists in current meta format
-        current_decklists = get_tournament_decklist_data(
-            meta_formats=[selected_meta_format], 
-            leader_ids=[leader.id]
-        )
-        
-        # Check if leader has decklists in previous meta format (skip if same as current)
-        if previous_meta != selected_meta_format:
-            previous_decklists = get_tournament_decklist_data(
-                meta_formats=[previous_meta], 
-                leader_ids=[leader.id]
-            )
-        else:
-            previous_decklists = current_decklists
-        
-        # Only include leaders that have decklists in both meta formats
-        if current_decklists and previous_decklists:
-            leaders_with_decklists.append(leader)
-    
-    # Sort leaders by d_score and elo, handling None values (same as leader page)
-    def sort_key(leader):
-        d_score = leader.d_score if leader.d_score is not None else 0
-        elo = leader.elo if leader.elo is not None else 0
-        return (-d_score, -elo)
-    
-    sorted_leaders = sorted(leaders_with_decklists, key=sort_key)
-    
-    # If no leader is selected and we have leaders available, select the top one
-    if not selected_leader_id and sorted_leaders:
-        selected_leader_id = sorted_leaders[0].id
-    
-    # Common CSS classes for select components
-    SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-    
-    # Create options list starting with default option
-    options = [ft.Option("Select a leader...", value="", selected=(selected_leader_id is None or selected_leader_id == ""))]
-    options.extend([
-        ft.Option(
-            f"{l.name} ({l.id})", 
-            value=l.id, 
-            selected=(l.id == selected_leader_id)
-        ) for l in sorted_leaders
-    ])
-    
-    return ft.Div(
-        ft.Label("Leader Card", cls="text-white font-medium block mb-2"),
-        ft.Select(
-            *options,
-            id="leader-select",
-            name="leader_id",
-            cls=SELECT_CLS + " styled-select",
-            **{
-                "hx_get": "/api/card-movement-content",
-                "hx_trigger": "change",
-                "hx_target": "#card-movement-content",
-                "hx_include": "[name='meta_format'],[name='leader_id']",
-                "hx_indicator": "#card-movement-loading-indicator"
-            }
-        ),
-        id="leader-select-wrapper"
-    )
 
 def create_card_movement_content(leader_id: str, current_meta: MetaFormat):
     """Create the main content showing leader price comparison with progressive loading"""
@@ -309,12 +214,6 @@ def create_price_data_content(leader_id: str, current_meta: MetaFormat):
     )
 
 def setup_api_routes(rt):
-    @rt("/api/card-movement-leader-select")
-    def get_card_movement_leader_select(request: Request):
-        """Return updated leader select dropdown based on meta format"""
-        params = CardMovementParams(**get_query_params_as_dict(request))
-        return create_leader_select_dropdown(params.meta_format, params.leader_id)
-    
     @rt("/api/card-movement-content")
     def get_card_movement_content(request: Request):
         """Return the card movement content for selected leader and meta format"""

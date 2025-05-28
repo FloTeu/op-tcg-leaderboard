@@ -6,6 +6,7 @@ from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended
 from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 from op_tcg.frontend_fasthtml.components.decklist import create_decklist_section
+from op_tcg.frontend_fasthtml.components.filters import create_leader_select_component
 
 # Common HTMX attributes for filter components
 HX_INCLUDE = "[name='meta_format'],[name='lid'],[name='only_official']"
@@ -69,9 +70,13 @@ def create_filter_components(selected_meta_formats=None, selected_leader_id=None
         });
     """)
     
-    # Leader select wrapper with initial content
+    # Leader select wrapper with initial content using the modular component
     leader_select_wrapper = ft.Div(
-        create_leader_select(selected_meta_formats, selected_leader_id),
+        create_leader_select_component(
+            selected_meta_formats=selected_meta_formats,
+            selected_leader_id=selected_leader_id,
+            htmx_attrs=FILTER_HX_ATTRS
+        ),
         id="leader-select-wrapper",
         cls="relative"  # Required for proper styling
     )
@@ -96,62 +101,6 @@ def create_filter_components(selected_meta_formats=None, selected_leader_id=None
         content_trigger,
         trigger_script,
         cls="space-y-4"
-    )
-
-def create_leader_select(selected_meta_formats=None, selected_leader_id=None):
-    """Create the leader select component based on selected meta formats.
-    
-    Args:
-        selected_meta_formats: Optional list of meta formats to filter leaders
-        selected_leader_id: Optional leader ID to pre-select
-    """
-    if not selected_meta_formats:
-        selected_meta_formats = [MetaFormat.latest_meta_format()]
-    
-    # Get leader data and filter by meta formats and only official matches
-    leader_data = get_leader_extended()
-    filtered_leaders = filter_leader_extended(
-        leaders=[l for l in leader_data if l.meta_format in selected_meta_formats],
-        only_official=True
-    )
-    
-    # Create unique leader mapping using only the most recent version from selected meta formats
-    unique_leaders = {}
-    for leader in filtered_leaders:
-        if leader.id not in unique_leaders:
-            unique_leaders[leader.id] = leader
-        else:
-            # If we already have this leader, keep the one from the most recent meta format
-            existing_meta_idx = MetaFormat.to_list().index(unique_leaders[leader.id].meta_format)
-            current_meta_idx = MetaFormat.to_list().index(leader.meta_format)
-            if current_meta_idx > existing_meta_idx:
-                unique_leaders[leader.id] = leader
-    
-    # Sort leaders by d_score and elo, handling None values
-    def sort_key(leader):
-        d_score = leader.d_score if leader.d_score is not None else 0
-        elo = leader.elo if leader.elo is not None else 0
-        return (-d_score, -elo)
-    
-    sorted_leaders = sorted(unique_leaders.values(), key=sort_key)
-    
-    # Leader select with sorted options
-    return ft.Div(
-        ft.Label("Leader", cls="text-white font-medium block mb-2"),
-        ft.Select(
-            id="leader-select",
-            name="lid",
-            cls=SELECT_CLS + " styled-select",
-            *[ft.Option(
-                f"{l.name} ({l.id})", 
-                value=l.id, 
-                selected=(l.id == selected_leader_id)
-            ) for l in sorted_leaders],
-            **{
-                **FILTER_HX_ATTRS,
-            }
-        ),
-        cls="relative"  # Required for proper styling
     )
 
 def create_tab_view():
