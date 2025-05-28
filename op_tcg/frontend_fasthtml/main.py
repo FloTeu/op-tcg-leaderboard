@@ -41,6 +41,8 @@ app, rt = fast_app(
             href="/public/css/tooltip.css",
             rel="stylesheet"
         ),
+        # GoatCounter script
+        ft.Script(data_goatcounter="https://op-leaderboard.goatcounter.com/count", src="//gc.zgo.at/count.js"),
         ft.Script(src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"),
         # Core utilities and libraries
         ft.Script(src="/public/js/utils.js"),  # Global utilities
