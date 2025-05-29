@@ -3,6 +3,7 @@ from fasthtml import ft
 from starlette.requests import Request
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended
+from op_tcg.backend.models.cards import CardCurrency
 from op_tcg.frontend_fasthtml.utils.extract import get_tournament_decklist_data, get_all_tournament_extened_data
 from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict
 from op_tcg.frontend_fasthtml.utils.extract import (
@@ -394,7 +395,9 @@ def setup_api_routes(rt):
                         create_decklist_view(
                             winner_decklist.decklist if winner_decklist else {},
                             card_id2card_data,
-                            title="Winner's Decklist"
+                            title="Winner's Decklist",
+                            meta_format=winner_decklist.meta_format if winner_decklist else params.meta_format[0],
+                            currency=CardCurrency.EURO
                         ) if winner_decklist else ft.P("No winner decklist available", cls="text-gray-400"),
                         cls="mt-8"
                     ),

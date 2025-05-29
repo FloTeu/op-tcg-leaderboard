@@ -2,9 +2,10 @@ from fasthtml import ft
 from collections import Counter
 from typing import Dict
 
-from op_tcg.backend.models.cards import Card, OPTcgCardCatagory
+from op_tcg.backend.models.cards import Card, OPTcgCardCatagory, CardCurrency
+from op_tcg.backend.models.input import MetaFormat
 
-def create_decklist_view(decklist: Dict[str, int], cid2card_data: Dict[str, Card], title: str = "Decklist"):
+def create_decklist_view(decklist: Dict[str, int], cid2card_data: Dict[str, Card], title: str = "Decklist", meta_format: MetaFormat = None, currency: CardCurrency = CardCurrency.EURO):
     """
     Create a view of a decklist showing each card and its occurrence count in a grid layout.
     Mobile view shows 1 card per row, desktop shows up to 6 cards per row.
@@ -13,6 +14,8 @@ def create_decklist_view(decklist: Dict[str, int], cid2card_data: Dict[str, Card
         decklist: Dictionary mapping card IDs to their count
         cid2card_data: Dictionary mapping card IDs to their data
         title: Title for the decklist section
+        meta_format: Meta format for card popularity data
+        currency: Currency for price display
     """
     # Group cards by their type
     card_types = {
@@ -34,6 +37,14 @@ def create_decklist_view(decklist: Dict[str, int], cid2card_data: Dict[str, Card
     for type_cards in card_types.values():
         type_cards.sort(key=lambda x: x[0].name)
     
+    # Get all card IDs for the modal navigation
+    all_card_ids = [card_id for card_id in decklist.keys() if card_id in cid2card_data]
+    card_elements_param = '&card_elements='.join(all_card_ids)
+    
+    # Use latest meta format if none provided
+    if meta_format is None:
+        meta_format = MetaFormat.latest_meta_format()
+    
     # Create the decklist view
     decklist_sections = []
     for card_type, cards in card_types.items():
@@ -45,7 +56,10 @@ def create_decklist_view(decklist: Dict[str, int], cid2card_data: Dict[str, Card
                         ft.Div(
                             ft.Img(
                                 src=card.image_url,
-                                cls="w-full h-auto rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-200"
+                                cls="w-full h-auto rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-200 cursor-pointer hover:opacity-90 transition-opacity",
+                                hx_get=f"/api/card-modal?card_id={card.id}&card_elements={card_elements_param}&meta_format={meta_format}&currency={currency}",
+                                hx_target="body",
+                                hx_swap="beforeend"
                             ),
                             cls="relative aspect-[2.5/3.5] overflow-hidden max-w-[200px] mx-auto"
                         ),
