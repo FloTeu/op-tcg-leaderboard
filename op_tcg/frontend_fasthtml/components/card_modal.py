@@ -1,6 +1,7 @@
 from fasthtml import ft
 from op_tcg.backend.models.cards import CardCurrency, ExtendedCardData
 from op_tcg.frontend_fasthtml.pages.card_popularity import HX_INCLUDE
+from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 
 def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardData], popularity: float, currency: CardCurrency, prev_card_id: str = None, next_card_id: str = None, card_elements: list[str] = None) -> ft.Div:
     """Create a modal dialog for displaying card details.
@@ -227,7 +228,50 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 *card_nav,
                 cls="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 flex flex-col md:flex-row gap-6 relative"
             ),
-            cls="modal-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 overflow-y-auto py-4",
+            # Card occurrence chart section - full width at bottom
+            ft.Div(
+                ft.Div(
+                    ft.H3("Card Occurrence by Leader", cls="text-lg font-semibold text-white mb-4"),
+                    # Toggle for absolute vs normalized data
+                    ft.Div(
+                        ft.Label(
+                            ft.Input(
+                                type="checkbox",
+                                id=f"normalize-toggle-{card.id}",
+                                cls="sr-only",
+                                hx_get=f"/api/card-occurrence-chart?card_id={card.id}&meta_format={card.meta_format}",
+                                hx_target=f"#occurrence-chart-container-{card.id}",
+                                hx_include=f"#{f'normalize-toggle-{card.id}'}",
+                                hx_indicator=f"#occurrence-chart-loading-{card.id}",
+                                hx_vals='js:{"normalized": document.getElementById("normalize-toggle-' + card.id + '").checked.toString()}'
+                            ),
+                            ft.Div(
+                                ft.Div(cls="toggle-thumb"),
+                                cls="toggle-track"
+                            ),
+                            ft.Span("Show normalized data", cls="text-white ml-3 text-sm"),
+                            cls="flex items-center cursor-pointer",
+                            for_=f"normalize-toggle-{card.id}"
+                        ),
+                        cls="flex justify-end mb-4"
+                    ),
+                    cls="flex justify-between items-start mb-4"
+                ),
+                ft.Div(
+                    id=f"occurrence-chart-container-{card.id}",
+                    hx_get=f"/api/card-occurrence-chart?card_id={card.id}&meta_format={card.meta_format}",
+                    hx_trigger="load",
+                    hx_indicator=f"#occurrence-chart-loading-{card.id}",
+                    cls="min-h-[300px]"
+                ),
+                create_loading_spinner(
+                    id=f"occurrence-chart-loading-{card.id}",
+                    size="w-8 h-8",
+                    container_classes="min-h-[300px]"
+                ),
+                cls="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 mt-4"
+            ),
+            cls="modal-backdrop fixed inset-0 bg-black bg-opacity-80 flex flex-col items-center justify-center z-50 overflow-y-auto py-4",
             onclick="if (event.target === this) document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove())"
         ),
         # Carousel JavaScript
@@ -340,6 +384,37 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 font-size: 1.5rem;
                 text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
                 pointer-events: none;
+            }
+            
+            /* Toggle switch styles */
+            .toggle-track {
+                width: 44px;
+                height: 24px;
+                background-color: #4B5563;
+                border-radius: 12px;
+                position: relative;
+                transition: background-color 0.3s ease;
+            }
+            
+            .toggle-thumb {
+                width: 20px;
+                height: 20px;
+                background-color: white;
+                border-radius: 50%;
+                position: absolute;
+                top: 2px;
+                left: 2px;
+                transition: transform 0.3s ease;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            }
+            
+            /* Toggle checked state */
+            input[type="checkbox"]:checked + .toggle-track {
+                background-color: #10B981;
+            }
+            
+            input[type="checkbox"]:checked + .toggle-track .toggle-thumb {
+                transform: translateX(20px);
             }
             
             /* Mobile-specific styles */

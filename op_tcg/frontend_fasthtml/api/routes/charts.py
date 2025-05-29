@@ -3,11 +3,17 @@ import html
 from fasthtml import ft
 from starlette.requests import Request
 from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.cards import OPTcgCardCatagory
 from op_tcg.frontend_fasthtml.utils.colors import ChartColors
-from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended
-from op_tcg.frontend_fasthtml.utils.charts import create_line_chart, create_leader_win_rate_radar_chart
+from op_tcg.frontend_fasthtml.utils.extract import (
+    get_leader_extended, 
+    get_card_id_card_data_lookup,
+    get_tournament_decklist_data
+)
+from op_tcg.frontend_fasthtml.utils.charts import create_line_chart, create_leader_win_rate_radar_chart, create_card_occurrence_streaming_chart
 from op_tcg.frontend_fasthtml.utils.win_rate import get_radar_chart_data
 from op_tcg.frontend_fasthtml.utils.api import get_filtered_leaders
+from op_tcg.frontend_fasthtml.utils.leader_data import lid_to_name_and_lid
 
 
 
@@ -176,4 +182,98 @@ def setup_api_routes(rt):
             leader_ids=leader_ids,
             colors=colors,
             show_legend=True,
-        ) 
+        )
+
+    @rt("/api/card-occurrence-chart")
+    def get_card_occurrence_chart(request: Request):
+        """Return the card occurrence streaming chart data."""
+        card_id = request.query_params.get("card_id")
+        meta_format = request.query_params.get("meta_format")
+        normalized = request.query_params.get("normalized", "false").lower() == "true"
+        
+        if not card_id:
+            return ft.Div("No card ID provided", cls="text-red-400")
+            
+        if not meta_format:
+            return ft.Div("No meta format provided", cls="text-red-400")
+            
+        try:
+            # Get card data to determine colors and release meta
+            card_data_lookup = get_card_id_card_data_lookup()
+            card_data = card_data_lookup.get(card_id)
+            if not card_data:
+                return ft.Div("Card not found", cls="text-red-400")
+            
+            # Get release meta and subsequent metas (last 10)
+            release_meta = card_data.meta_format
+            start_meta = release_meta if release_meta != MetaFormat.OP01 else MetaFormat.OP02
+            meta_formats = MetaFormat.to_list()[MetaFormat.to_list().index(start_meta):]
+            meta_formats = meta_formats[-10:]  # Last 10 meta formats
+            
+            # Get leaders of the same color
+            leaders_of_same_color = {
+                cid: cdata for cid, cdata in card_data_lookup.items() 
+                if (cdata.card_category == OPTcgCardCatagory.LEADER and 
+                    any(c in cdata.colors for c in card_data.colors))
+            }
+            
+            # Get tournament decklist data
+            decklist_data = get_tournament_decklist_data(
+                meta_formats, 
+                leader_ids=list(leaders_of_same_color.keys())
+            )
+            
+            # Initialize occurrence count dictionary
+            init_lid2card_occ_dict = {lid: 0 for lid in leaders_of_same_color.keys()}
+            meta_leader_id2card_occurrence_count = {
+                mf: init_lid2card_occ_dict.copy() for mf in meta_formats
+            }
+            
+            # Count card occurrences by meta format and leader
+            for ddata in decklist_data:
+                if (ddata.meta_format in meta_leader_id2card_occurrence_count and 
+                    card_id in ddata.decklist):
+                    meta_leader_id2card_occurrence_count[ddata.meta_format][ddata.leader_id] += 1
+            
+            # Get top N leaders by occurrence across last 3 meta formats
+            top_n_leaders = 5
+            leader_id_to_highest_value = {}
+            last_3_metas = meta_formats[-3:] if len(meta_formats) >= 3 else meta_formats
+            
+            for meta in last_3_metas:
+                for lid, occurrence in meta_leader_id2card_occurrence_count[meta].items():
+                    if lid not in leader_id_to_highest_value:
+                        leader_id_to_highest_value[lid] = occurrence
+                    elif leader_id_to_highest_value[lid] < occurrence:
+                        leader_id_to_highest_value[lid] = occurrence
+            
+            most_occurring_leader_ids = [
+                k for k, v in sorted(
+                    leader_id_to_highest_value.items(), 
+                    key=lambda item: item[1], 
+                    reverse=True
+                )
+            ][:top_n_leaders]
+            
+            # Prepare chart data - only include leaders with occurrences > 0
+            chart_data = []
+            for meta in meta_formats:
+                meta_data = {}
+                for lid in most_occurring_leader_ids:
+                    occ_count = meta_leader_id2card_occurrence_count[meta][lid]
+                    if occ_count > 0:  # Only include leaders with occurrences
+                        leader_name = lid_to_name_and_lid(lid)
+                        meta_data[leader_name] = occ_count
+                chart_data.append(meta_data)
+            
+            # Create the streaming chart
+            return create_card_occurrence_streaming_chart(
+                container_id=f"card-occurrence-chart-{card_id}",
+                data=chart_data,
+                meta_formats=[str(mf) for mf in meta_formats],
+                card_name=card_data.name,
+                normalized=normalized
+            )
+            
+        except Exception as e:
+            return ft.Div(f"Error loading chart: {str(e)}", cls="text-red-400") 

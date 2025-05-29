@@ -2,6 +2,7 @@ from fasthtml import ft
 from typing import Any, List, Dict
 from op_tcg.frontend_fasthtml.utils.colors import ChartColors
 import json
+import time
 
 def create_line_chart(container_id: str, data: List[dict[str, Any]], 
                      y_key: str = "winRate", x_key: str = "meta", 
@@ -912,4 +913,300 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
             }})();
         """),
         style="height: 400px; width: 100%;"  # Explicit height and width
+    ) 
+
+def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[str, Any]], 
+                                        meta_formats: List[str], card_name: str, normalized: bool = False) -> ft.Div:
+    """
+    Creates a streaming chart showing card occurrences across meta formats and leaders using Chart.js.
+    
+    Args:
+        container_id: Unique ID for the chart container
+        data: List of dictionaries, each containing leader names as keys and occurrence counts as values
+        meta_formats: List of meta format strings for x-axis labels
+        card_name: Name of the card being displayed
+        normalized: If True, normalize data so each meta format sums to 1 and create stacked chart
+    """
+    if not data or not any(data):
+        return ft.Div(
+            ft.P("No occurrence data available for this card.", cls="text-gray-400 text-center py-8"),
+            cls="w-full"
+        )
+    
+    # Extract all unique leader names from the data
+    all_leaders = set()
+    for meta_data in data:
+        all_leaders.update(meta_data.keys())
+    
+    if not all_leaders:
+        return ft.Div(
+            ft.P("No leader data available for this card.", cls="text-gray-400 text-center py-8"),
+            cls="w-full"
+        )
+    
+    all_leaders = sorted(list(all_leaders))
+    
+    # Ensure all meta formats have all leaders (fill missing with 0)
+    normalized_data = []
+    for meta_data in data:
+        normalized_meta = {}
+        for leader in all_leaders:
+            normalized_meta[leader] = meta_data.get(leader, 0)
+        normalized_data.append(normalized_meta)
+    
+    # Apply normalization if requested
+    if normalized:
+        for i, meta_data in enumerate(normalized_data):
+            total = sum(meta_data.values())
+            if total > 0:
+                normalized_data[i] = {leader: value / total for leader, value in meta_data.items()}
+            else:
+                normalized_data[i] = {leader: 0 for leader in all_leaders}
+    
+    # Generate distinct colors for each leader
+    color_palette = [
+        "#3B82F6", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6",
+        "#06B6D4", "#F97316", "#84CC16", "#EC4899", "#6366F1"
+    ]
+    
+    # Create a unique container ID to avoid conflicts
+    unique_container_id = f"{container_id}-{int(time.time() * 1000)}"
+    
+    # Convert Python data to JSON strings
+    data_json = json.dumps(normalized_data)
+    meta_formats_json = json.dumps(meta_formats)
+    leaders_json = json.dumps(all_leaders)
+    colors_json = json.dumps(color_palette[:len(all_leaders)])
+    
+    # Chart type and configuration based on normalization
+    chart_type = "line"
+    y_axis_config = {
+        "display": True,
+        "stacked": normalized,  # Enable stacking for normalized mode
+        "grid": {
+            "display": True,
+            "color": "rgba(255, 255, 255, 0.1)"
+        },
+        "ticks": {
+            "color": "#9CA3AF",
+            "font": {
+                "size": 11
+            },
+            "padding": 8,
+            "stepSize": 0.1 if normalized else 1,
+            "callback": "function(value) { return " + (
+                "(value * 100).toFixed(1) + '%'" if normalized else 
+                'value + (value === 1 ? " occurrence" : " occurrences")'
+            ) + "; }"
+        },
+        "beginAtZero": True
+    }
+    
+    if normalized:
+        y_axis_config["max"] = 1
+    
+    return ft.Div(
+        ft.H3(
+            f"Leader Occurrence for {card_name} ({'Normalized' if normalized else 'Absolute'})",
+            cls="text-lg font-semibold text-white mb-4 text-center"
+        ),
+        # Chart container with canvas
+        ft.Div(
+            ft.Canvas(id=unique_container_id),
+            cls="h-full w-full"
+        ),
+        # Script to clean up previous charts before this one loads
+        ft.Script(f"""
+            // Clean up any existing card occurrence charts first
+            (function() {{
+                // Destroy all existing Chart.js instances for card occurrence charts
+                if (window.Chart && window.Chart.instances) {{
+                    Object.keys(window.Chart.instances).forEach(key => {{
+                        const chart = window.Chart.instances[key];
+                        if (chart && chart.canvas && chart.canvas.id && chart.canvas.id.includes('card-occurrence-chart')) {{
+                            chart.destroy();
+                        }}
+                    }});
+                }}
+                
+                // Alternative cleanup for newer Chart.js versions
+                if (window.Chart && window.Chart.registry) {{
+                    const chartInstances = window.Chart.getChart ? 
+                        document.querySelectorAll('canvas[id*="card-occurrence-chart"]') : [];
+                    chartInstances.forEach(canvas => {{
+                        const chart = window.Chart.getChart(canvas);
+                        if (chart) {{
+                            chart.destroy();
+                        }}
+                    }});
+                }}
+                
+                // Clean up global storage
+                if (window.cardOccurrenceChartInstances) {{
+                    Object.keys(window.cardOccurrenceChartInstances).forEach(key => {{
+                        if (key.includes('card-occurrence-chart')) {{
+                            delete window.cardOccurrenceChartInstances[key];
+                        }}
+                    }});
+                }}
+            }})();
+        """),
+        ft.Script(f"""
+            (function() {{
+                const chartId = '{unique_container_id}';
+                const container = document.getElementById(chartId);
+                
+                if (!container) {{
+                    console.error('Chart container not found:', chartId);
+                    return;
+                }}
+                
+                // Clean up any existing tooltips
+                const oldTooltips = document.querySelectorAll('#chartjs-tooltip');
+                oldTooltips.forEach(tooltip => tooltip.remove());
+                
+                // Destroy existing chart if it exists
+                const existingChart = Chart.getChart(chartId);
+                if (existingChart) {{
+                    existingChart.destroy();
+                }}
+                
+                // Clear the canvas completely
+                const ctx = container.getContext('2d');
+                ctx.clearRect(0, 0, container.width, container.height);
+                
+                const rawData = {data_json};
+                const metaFormats = {meta_formats_json};
+                const leaders = {leaders_json};
+                const colors = {colors_json};
+                const isNormalized = {str(normalized).lower()};
+                
+                // Store chart data globally for potential recreation
+                window.cardOccurrenceChartData = window.cardOccurrenceChartData || {{}};
+                window.cardOccurrenceChartData[chartId] = {{
+                    rawData: rawData,
+                    metaFormats: metaFormats,
+                    leaders: leaders,
+                    colors: colors,
+                    isNormalized: isNormalized,
+                    containerId: chartId
+                }};
+                
+                function createChart() {{
+                    // Create datasets for each leader
+                    const datasets = leaders.map((leader, index) => {{
+                        const leaderData = rawData.map(meta => meta[leader] || 0);
+                        
+                        return {{
+                            label: leader,
+                            data: leaderData,
+                            borderColor: colors[index],
+                            backgroundColor: colors[index] + (isNormalized ? '60' : '40'), // More opacity for stacked areas
+                            fill: isNormalized ? 'stack' : true, // Use 'stack' for proper stacking in normalized mode
+                            tension: 0.4,
+                            pointRadius: isNormalized ? 2 : 3,
+                            pointHoverRadius: isNormalized ? 4 : 5,
+                            borderWidth: isNormalized ? 1 : 2,
+                            stack: isNormalized ? 'Stack 0' : undefined // Enable stacking for normalized mode
+                        }};
+                    }});
+                    
+                    const chart = new Chart(container, {{
+                        type: 'line',
+                        data: {{
+                            labels: metaFormats,
+                            datasets: datasets
+                        }},
+                        options: {{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            animation: {{
+                                duration: 800,
+                                easing: 'easeInOutQuart'
+                            }},
+                            interaction: {{
+                                mode: 'index',
+                                intersect: false
+                            }},
+                            scales: {{
+                                x: {{
+                                    display: true,
+                                    grid: {{
+                                        display: false
+                                    }},
+                                    ticks: {{
+                                        color: '#9CA3AF',
+                                        font: {{
+                                            size: 11
+                                        }},
+                                        maxRotation: 45,
+                                        minRotation: 0,
+                                        padding: 8
+                                    }}
+                                }},
+                                y: {json.dumps(y_axis_config)}
+                            }},
+                            plugins: {{
+                                legend: {{
+                                    display: true,
+                                    position: 'bottom',
+                                    labels: {{
+                                        color: '#E5E7EB',
+                                        font: {{
+                                            size: 10
+                                        }},
+                                        usePointStyle: true,
+                                        pointStyle: 'circle',
+                                        padding: 15,
+                                        boxWidth: 8,
+                                        boxHeight: 8
+                                    }}
+                                }},
+                                tooltip: {{
+                                    backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                                    titleColor: '#ffffff',
+                                    bodyColor: '#ffffff',
+                                    borderColor: '#374151',
+                                    borderWidth: 1,
+                                    padding: 12,
+                                    displayColors: true,
+                                    callbacks: {{
+                                        title: function(context) {{
+                                            return 'Meta Format: ' + context[0].label;
+                                        }},
+                                        label: function(context) {{
+                                            const value = context.parsed.y;
+                                            if (isNormalized) {{
+                                                return context.dataset.label + ': ' + (value * 100).toFixed(1) + '%';
+                                            }} else {{
+                                                return context.dataset.label + ': ' + value + ' occurrences';
+                                            }}
+                                        }}
+                                    }}
+                                }}
+                            }},
+                            layout: {{
+                                padding: {{
+                                    top: 10,
+                                    right: 10,
+                                    bottom: 10,
+                                    left: 10
+                                }}
+                            }}
+                        }}
+                    }});
+                    
+                    // Store chart reference for cleanup
+                    window.cardOccurrenceChartInstances = window.cardOccurrenceChartInstances || {{}};
+                    window.cardOccurrenceChartInstances[chartId] = chart;
+                    
+                    return chart;
+                }}
+                
+                // Create the chart
+                createChart();
+            }})();
+        """),
+        style="height: 300px; width: 100%;",
+        cls="bg-gray-800/30 rounded-lg p-4"
     ) 

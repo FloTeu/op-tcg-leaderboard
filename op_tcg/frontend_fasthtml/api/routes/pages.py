@@ -1,7 +1,15 @@
+from collections import defaultdict
 from fasthtml import ft
 from starlette.requests import Request
 from op_tcg.backend.models.leader import LeaderExtended, LeaderboardSortBy
-from op_tcg.frontend_fasthtml.utils.extract import get_card_data, get_leader_extended, get_card_popularity_data, get_card_id_card_data_lookup
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
+from op_tcg.backend.models.cards import CardCurrency
+from op_tcg.frontend_fasthtml.utils.extract import (
+    get_card_data, 
+    get_leader_extended, 
+    get_card_popularity_data, 
+    get_card_id_card_data_lookup
+)
 from op_tcg.frontend_fasthtml.pages.home import create_leaderboard_table
 from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended
 from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict, get_filtered_leaders
@@ -9,8 +17,6 @@ from op_tcg.frontend_fasthtml.pages.leader import create_leader_content, HX_INCL
 from op_tcg.frontend_fasthtml.pages.tournaments import create_tournament_content
 from op_tcg.frontend_fasthtml.pages.card_popularity import create_card_popularity_content
 from op_tcg.frontend_fasthtml.api.models import LeaderboardSort, LeaderDataParams, TournamentPageParams, CardPopularityParams
-from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.cards import CardCurrency
 from op_tcg.frontend_fasthtml.components.card_modal import create_card_modal
 
 def filter_cards(cards_data: list, params: CardPopularityParams) -> list:
