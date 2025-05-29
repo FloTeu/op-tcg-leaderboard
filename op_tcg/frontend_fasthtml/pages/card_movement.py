@@ -54,7 +54,7 @@ def card_movement_page():
     """Create the card movement page with filters and content area"""
     return ft.Div(
         ft.H1("Card Movement", cls="text-3xl font-bold text-white mb-6"),
-        ft.P("Track price changes of leader cards between meta formats.", cls="text-gray-300 mb-8"),
+        ft.P("Track card play frequency changes of leader cards between meta formats.", cls="text-gray-300 mb-8"),
         
         # Loading indicator
         ft.Div(
