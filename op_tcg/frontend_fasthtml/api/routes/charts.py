@@ -266,10 +266,44 @@ def setup_api_routes(rt):
                         meta_data[leader_name] = occ_count
                 chart_data.append(meta_data)
             
+            # Get all unique leader names from the filtered data
+            all_leader_names = set()
+            for meta_data in chart_data:
+                all_leader_names.update(meta_data.keys())
+            
+            if not all_leader_names:
+                return ft.Div("No leader data available for this card.", cls="text-gray-400 text-center py-8")
+            
+            # Calculate total occurrences for each leader in last 2 meta formats for ordering
+            last_two_meta_indices = max(0, len(chart_data) - 2)
+            leader_occurrences = {}
+            
+            for leader_name in all_leader_names:
+                total_occurrences = 0
+                for i in range(last_two_meta_indices, len(chart_data)):
+                    total_occurrences += chart_data[i].get(leader_name, 0)
+                leader_occurrences[leader_name] = total_occurrences
+            
+            # Sort by total occurrences (descending) and take top 5
+            top_leaders = sorted(leader_occurrences.items(), key=lambda x: x[1], reverse=True)[:5]
+            filtered_leader_names = [leader for leader, _ in top_leaders]
+            
+            # For normalized stacking, reverse order so top leader appears at top visually
+            if normalized:
+                filtered_leader_names = filtered_leader_names[::-1]
+            
+            # Filter chart data to only include the top leaders in the correct order
+            filtered_chart_data = []
+            for meta_data in chart_data:
+                filtered_meta = {}
+                for leader in filtered_leader_names:
+                    filtered_meta[leader] = meta_data.get(leader, 0)
+                filtered_chart_data.append(filtered_meta)
+            
             # Create the streaming chart
             return create_card_occurrence_streaming_chart(
                 container_id=f"card-occurrence-chart-{card_id}",
-                data=chart_data,
+                data=filtered_chart_data,
                 meta_formats=[str(mf) for mf in meta_formats],
                 card_name=card_data.name,
                 normalized=normalized

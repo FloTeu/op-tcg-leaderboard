@@ -933,7 +933,7 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
             cls="w-full"
         )
     
-    # Extract all unique leader names from the data
+    # Extract all unique leader names from the data (already filtered by API)
     all_leaders = set()
     for meta_data in data:
         all_leaders.update(meta_data.keys())
@@ -944,13 +944,17 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
             cls="w-full"
         )
     
-    all_leaders = sorted(list(all_leaders))
+    # Convert to sorted list to maintain consistent ordering from API
+    filtered_leaders = []
+    if data:
+        # Use the order from the first meta format data to preserve API ordering
+        filtered_leaders = list(data[0].keys())
     
     # Ensure all meta formats have all leaders (fill missing with 0)
     normalized_data = []
     for meta_data in data:
         normalized_meta = {}
-        for leader in all_leaders:
+        for leader in filtered_leaders:
             normalized_meta[leader] = meta_data.get(leader, 0)
         normalized_data.append(normalized_meta)
     
@@ -961,7 +965,7 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
             if total > 0:
                 normalized_data[i] = {leader: value / total for leader, value in meta_data.items()}
             else:
-                normalized_data[i] = {leader: 0 for leader in all_leaders}
+                normalized_data[i] = {leader: 0 for leader in filtered_leaders}
     
     # Generate distinct colors for each leader
     color_palette = [
@@ -975,8 +979,8 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
     # Convert Python data to JSON strings
     data_json = json.dumps(normalized_data)
     meta_formats_json = json.dumps(meta_formats)
-    leaders_json = json.dumps(all_leaders)
-    colors_json = json.dumps(color_palette[:len(all_leaders)])
+    leaders_json = json.dumps(filtered_leaders)
+    colors_json = json.dumps(color_palette[:len(filtered_leaders)])
     
     # Chart type and configuration based on normalization
     chart_type = "line"
@@ -1102,8 +1106,8 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
                             data: leaderData,
                             borderColor: colors[index],
                             backgroundColor: colors[index] + (isNormalized ? '60' : '40'), // More opacity for stacked areas
-                            fill: isNormalized ? 'stack' : true, // Use 'stack' for proper stacking in normalized mode
-                            tension: 0.4,
+                            fill: isNormalized ? (index === 0 ? 'origin' : '-1') : true, // Proper stacking: fill to previous dataset
+                            tension: isNormalized ? 0.2 : 0.4, // Less curve for normalized to avoid overlap appearance
                             pointRadius: isNormalized ? 2 : 3,
                             pointHoverRadius: isNormalized ? 4 : 5,
                             borderWidth: isNormalized ? 1 : 2,
@@ -1189,7 +1193,7 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
                                 padding: {{
                                     top: 10,
                                     right: 10,
-                                    bottom: 10,
+                                    bottom: 60, // Increased bottom padding for legend
                                     left: 10
                                 }}
                             }}
@@ -1207,6 +1211,6 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
                 createChart();
             }})();
         """),
-        style="height: 300px; width: 100%;",
+        style="height: 400px; width: 100%;",
         cls="bg-gray-800/30 rounded-lg p-4"
     ) 

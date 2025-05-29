@@ -148,7 +148,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
     return ft.Div(
         # Modal backdrop
         ft.Div(
-            # Modal content
+            # Single modal content container
             ft.Div(
                 # Close button
                 ft.Button(
@@ -156,122 +156,129 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     cls="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors z-10",
                     onclick="document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove())"
                 ),
-                # Card image carousel
+                
+                # Main card content section
                 ft.Div(
-                    *carousel_items,
-                    *carousel_nav,
-                    cls="md:w-1/2 relative"
-                ),
-                # Card details
-                ft.Div(
-                    # Card name and ID
-                    ft.H2(
-                        ft.Span(card.name, cls="text-2xl font-bold text-white"),
-                        ft.Span(f" ({card.id})", cls="text-gray-400 text-lg"),
-                        cls="mb-6"
-                    ),
-                    # Key facts container
+                    # Card image carousel
                     ft.Div(
-                        # Type
-                        create_key_fact("Type", card.card_category, "🎴"),
-                        # Colors
-                        create_key_fact("Colors", ", ".join(card.colors), "🎨"),
-                        # Attributes
-                        create_key_fact("Attributes", ", ".join(card.attributes) if card.attributes else None, "⚡"),
-                        # Cost
-                        create_key_fact("Cost", str(card.cost) if card.cost is not None else None, "💎"),
-                        # Power
-                        create_key_fact("Power", str(card.power) if card.power is not None else None, "💪"),
-                        # Counter
-                        create_key_fact("Counter", str(card.counter) if card.counter is not None else None, "🛡️"),
-                        # Price
-                        ft.Div(
-                            ft.Div(
-                                ft.I(price_symbol, cls="text-gray-400"),
-                                ft.Span(price_label, cls="text-gray-400 ml-2 mr-2"),
-                                cls="flex items-center"
-                            ),
-                            ft.Span(
-                                initial_price,
-                                cls="text-white font-medium",
-                                id="card-price"
-                            ),
-                            cls="flex justify-between items-center py-2 border-b border-gray-700"
+                        *carousel_items,
+                        *carousel_nav,
+                        cls="md:w-1/2 relative"
+                    ),
+                    # Card details
+                    ft.Div(
+                        # Card name and ID
+                        ft.H2(
+                            ft.Span(card.name, cls="text-2xl font-bold text-white"),
+                            ft.Span(f" ({card.id})", cls="text-gray-400 text-lg"),
+                            cls="mb-6"
                         ),
-                        # Ability
-                        create_key_fact("Ability", card.ability, "✨"),
-                        # Popularity
+                        # Key facts container
                         ft.Div(
-                            ft.Div(
-                                ft.I("📊", cls="text-gray-400"),
-                                ft.Span("Popularity", cls="text-gray-400 ml-2 mr-2"),
-                                cls="flex items-center"
-                            ),
+                            # Type
+                            create_key_fact("Type", card.card_category, "🎴"),
+                            # Colors
+                            create_key_fact("Colors", ", ".join(card.colors), "🎨"),
+                            # Attributes
+                            create_key_fact("Attributes", ", ".join(card.attributes) if card.attributes else None, "⚡"),
+                            # Cost
+                            create_key_fact("Cost", str(card.cost) if card.cost is not None else None, "💎"),
+                            # Power
+                            create_key_fact("Power", str(card.power) if card.power is not None else None, "💪"),
+                            # Counter
+                            create_key_fact("Counter", str(card.counter) if card.counter is not None else None, "🛡️"),
+                            # Price
                             ft.Div(
                                 ft.Div(
-                                    ft.Span(
-                                        f"{int(popularity * 100)}%",
-                                        cls="text-white text-sm ml-5"
-                                    ),
-                                    cls="progress-bar",
-                                    style=f"width: {max(popularity * 100, 5)}%"
+                                    ft.I(price_symbol, cls="text-gray-400"),
+                                    ft.Span(price_label, cls="text-gray-400 ml-2 mr-2"),
+                                    cls="flex items-center"
                                 ),
-                                cls="progress-container"
+                                ft.Span(
+                                    initial_price,
+                                    cls="text-white font-medium",
+                                    id="card-price"
+                                ),
+                                cls="flex justify-between items-center py-2 border-b border-gray-700"
                             ),
-                            cls="flex justify-between items-center py-2"
+                            # Ability
+                            create_key_fact("Ability", card.ability, "✨"),
+                            # Popularity
+                            ft.Div(
+                                ft.Div(
+                                    ft.I("📊", cls="text-gray-400"),
+                                    ft.Span("Popularity", cls="text-gray-400 ml-2 mr-2"),
+                                    cls="flex items-center"
+                                ),
+                                ft.Div(
+                                    ft.Div(
+                                        ft.Span(
+                                            f"{int(popularity * 100)}%",
+                                            cls="text-white text-sm ml-5"
+                                        ),
+                                        cls="progress-bar",
+                                        style=f"width: {max(popularity * 100, 5)}%"
+                                    ),
+                                    cls="progress-container"
+                                ),
+                                cls="flex justify-between items-center py-2"
+                            ),
+                            cls="space-y-2 bg-gray-800/50 rounded-lg p-4"
                         ),
-                        cls="space-y-2 bg-gray-800/50 rounded-lg p-4"
+                        cls="md:w-1/2 text-white space-y-6"
                     ),
-                    cls="md:w-1/2 text-white space-y-6"
+                    cls="flex flex-col md:flex-row gap-6 mb-6"
                 ),
+                
+                # Card occurrence chart section
+                ft.Div(
+                    ft.Div(
+                        ft.H3("Card Occurrence by Leader", cls="text-lg font-semibold text-white mb-4"),
+                        # Toggle for absolute vs normalized data
+                        ft.Div(
+                            ft.Label(
+                                ft.Input(
+                                    type="checkbox",
+                                    id=f"normalize-toggle-{card.id}",
+                                    cls="sr-only",
+                                    hx_get=f"/api/card-occurrence-chart?card_id={card.id}&meta_format={card.meta_format}",
+                                    hx_target=f"#occurrence-chart-container-{card.id}",
+                                    hx_include=f"#{f'normalize-toggle-{card.id}'}",
+                                    hx_indicator=f"#occurrence-chart-loading-{card.id}",
+                                    hx_vals='js:{"normalized": document.getElementById("normalize-toggle-' + card.id + '").checked.toString()}'
+                                ),
+                                ft.Div(
+                                    ft.Div(cls="toggle-thumb"),
+                                    cls="toggle-track"
+                                ),
+                                ft.Span("Show normalized data", cls="text-white ml-3 text-sm"),
+                                cls="flex items-center cursor-pointer",
+                                for_=f"normalize-toggle-{card.id}"
+                            ),
+                            cls="flex justify-end mb-4"
+                        ),
+                        cls="flex justify-between items-start mb-4"
+                    ),
+                    ft.Div(
+                        id=f"occurrence-chart-container-{card.id}",
+                        hx_get=f"/api/card-occurrence-chart?card_id={card.id}&meta_format={card.meta_format}",
+                        hx_trigger="load",
+                        hx_indicator=f"#occurrence-chart-loading-{card.id}",
+                        cls="min-h-[300px]"
+                    ),
+                    create_loading_spinner(
+                        id=f"occurrence-chart-loading-{card.id}",
+                        size="w-8 h-8",
+                        container_classes="min-h-[300px]"
+                    ),
+                    cls="w-full"
+                ),
+                
                 # Navigation buttons for previous/next card
                 *card_nav,
-                cls="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 flex flex-col md:flex-row gap-6 relative"
+                cls="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 relative"
             ),
-            # Card occurrence chart section - full width at bottom
-            ft.Div(
-                ft.Div(
-                    ft.H3("Card Occurrence by Leader", cls="text-lg font-semibold text-white mb-4"),
-                    # Toggle for absolute vs normalized data
-                    ft.Div(
-                        ft.Label(
-                            ft.Input(
-                                type="checkbox",
-                                id=f"normalize-toggle-{card.id}",
-                                cls="sr-only",
-                                hx_get=f"/api/card-occurrence-chart?card_id={card.id}&meta_format={card.meta_format}",
-                                hx_target=f"#occurrence-chart-container-{card.id}",
-                                hx_include=f"#{f'normalize-toggle-{card.id}'}",
-                                hx_indicator=f"#occurrence-chart-loading-{card.id}",
-                                hx_vals='js:{"normalized": document.getElementById("normalize-toggle-' + card.id + '").checked.toString()}'
-                            ),
-                            ft.Div(
-                                ft.Div(cls="toggle-thumb"),
-                                cls="toggle-track"
-                            ),
-                            ft.Span("Show normalized data", cls="text-white ml-3 text-sm"),
-                            cls="flex items-center cursor-pointer",
-                            for_=f"normalize-toggle-{card.id}"
-                        ),
-                        cls="flex justify-end mb-4"
-                    ),
-                    cls="flex justify-between items-start mb-4"
-                ),
-                ft.Div(
-                    id=f"occurrence-chart-container-{card.id}",
-                    hx_get=f"/api/card-occurrence-chart?card_id={card.id}&meta_format={card.meta_format}",
-                    hx_trigger="load",
-                    hx_indicator=f"#occurrence-chart-loading-{card.id}",
-                    cls="min-h-[300px]"
-                ),
-                create_loading_spinner(
-                    id=f"occurrence-chart-loading-{card.id}",
-                    size="w-8 h-8",
-                    container_classes="min-h-[300px]"
-                ),
-                cls="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 mt-4"
-            ),
-            cls="modal-backdrop fixed inset-0 bg-black bg-opacity-80 flex flex-col items-center justify-center z-50 overflow-y-auto py-4",
+            cls="modal-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 overflow-y-auto py-4",
             onclick="if (event.target === this) document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove())"
         ),
         # Carousel JavaScript
@@ -420,13 +427,44 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
             /* Mobile-specific styles */
             @media (max-width: 768px) {
                 .modal-backdrop {
-                    align-items: flex-start;
+                    align-items: flex-start !important;
+                    padding: 1rem 0;
                 }
                 .modal-backdrop > div {
-                    margin: 1rem;
-                    max-height: calc(100vh - 2rem);
+                    margin: 0 1rem;
+                    max-height: none;
+                    min-height: calc(100vh - 2rem);
+                    width: calc(100% - 2rem);
+                }
+                .modal-backdrop > div > div:first-of-type {
+                    flex-direction: column;
+                }
+                .modal-backdrop > div > div:first-of-type .md\\:w-1\\/2 {
+                    width: 100%;
+                }
+            }
+            
+            /* Desktop-specific styles */
+            @media (min-width: 769px) {
+                .modal-backdrop {
+                    align-items: center;
+                    justify-content: center;
+                }
+                .modal-backdrop > div {
+                    max-height: 90vh;
                     overflow-y: auto;
                 }
+            }
+            
+            /* Chart container overflow prevention */
+            .bg-gray-800\\/30 {
+                overflow: hidden;
+            }
+            
+            /* Ensure chart legend stays within bounds */
+            canvas {
+                max-width: 100% !important;
+                height: auto !important;
             }
         """)
     ) 
