@@ -38,7 +38,19 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 alt=f"{card.name} ({card.id})",
                 cls="w-full h-auto rounded-lg shadow-lg"
             ),
-            cls="carousel-item active",
+            # Left click area (invisible overlay)
+            ft.Div(
+                cls="absolute left-0 top-0 w-1/3 h-full cursor-pointer z-10",
+                onclick="previousCarouselItem(this)",
+                title="Previous version"
+            ) if len(card_versions) > 0 else None,
+            # Right click area (invisible overlay)
+            ft.Div(
+                cls="absolute right-0 top-0 w-1/3 h-full cursor-pointer z-10",
+                onclick="nextCarouselItem(this)",
+                title="Next version"
+            ) if len(card_versions) > 0 else None,
+            cls="carousel-item active relative",
             id="carousel-item-base",
             data_price=f"{card.latest_eur_price:.2f}" if currency == CardCurrency.EURO and card.latest_eur_price else 
                       f"{card.latest_usd_price:.2f}" if currency == CardCurrency.US_DOLLAR and card.latest_usd_price else "N/A",
@@ -55,7 +67,19 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     alt=f"{version.name} ({version.id})",
                     cls="w-full h-auto rounded-lg shadow-lg"
                 ),
-                cls="carousel-item",
+                # Left click area (invisible overlay)
+                ft.Div(
+                    cls="absolute left-0 top-0 w-1/3 h-full cursor-pointer z-10",
+                    onclick="previousCarouselItem(this)",
+                    title="Previous version"
+                ),
+                # Right click area (invisible overlay)
+                ft.Div(
+                    cls="absolute right-0 top-0 w-1/3 h-full cursor-pointer z-10",
+                    onclick="nextCarouselItem(this)",
+                    title="Next version"
+                ),
+                cls="carousel-item relative",
                 id=f"carousel-item-{i}",
                 data_price=f"{version.latest_eur_price:.2f}" if currency == CardCurrency.EURO and version.latest_eur_price else 
                           f"{version.latest_usd_price:.2f}" if currency == CardCurrency.US_DOLLAR and version.latest_usd_price else "N/A",
@@ -67,18 +91,6 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
     carousel_nav = []
     if len(card_versions) > 0:  # Changed condition since we always have at least the base card
         carousel_nav = [
-            # Previous button
-            ft.Button(
-                ft.I("←", cls="text-2xl"),
-                cls="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/75 transition-colors",
-                onclick="previousCarouselItem(this)"
-            ),
-            # Next button
-            ft.Button(
-                ft.I("→", cls="text-2xl"),
-                cls="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/75 transition-colors",
-                onclick="nextCarouselItem(this)"
-            ),
             # Dots navigation
             ft.Div(
                 *[
@@ -297,6 +309,37 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
             .carousel-item.active {
                 display: block;
                 opacity: 1;
+            }
+            
+            /* Click area hover effects */
+            .carousel-item .cursor-pointer:hover {
+                background: rgba(255, 255, 255, 0.1);
+                transition: background 0.2s ease;
+            }
+            
+            /* Add subtle visual indicators on hover */
+            .carousel-item .cursor-pointer:first-of-type:hover::after {
+                content: '◀';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                color: white;
+                font-size: 1.5rem;
+                text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+                pointer-events: none;
+            }
+            
+            .carousel-item .cursor-pointer:last-of-type:hover::after {
+                content: '▶';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                color: white;
+                font-size: 1.5rem;
+                text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+                pointer-events: none;
             }
             
             /* Mobile-specific styles */
