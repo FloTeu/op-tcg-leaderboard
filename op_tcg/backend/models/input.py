@@ -23,6 +23,7 @@ class MetaFormat(EnumBase, StrEnum):
     OP12 = "OP12"
     OP13 = "OP13"
     OP14 = "OP14"
+    OP15 = "OP15"
 
     @classmethod
     def to_list(cls, only_after_release: bool = True, until_meta_format: str | None = None) -> list[str]:
@@ -94,8 +95,10 @@ def meta_format2release_datetime(meta_format: MetaFormat) -> datetime | None:
         return datetime(2024, 12, 13)
     if meta_format == MetaFormat.OP10:
         return datetime(2025, 3, 21)
-    # if meta_format == MetaFormat.OP11:
-    #     return datetime(2024, 6, 14)
+    if meta_format == MetaFormat.OP11:
+        return datetime(2025, 6, 6)
+    if meta_format == MetaFormat.OP12:
+        return datetime(2025, 8, 29)
     else:
         return None
 
