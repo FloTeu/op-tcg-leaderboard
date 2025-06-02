@@ -17,6 +17,10 @@ def setup_api_routes(rt):
         
         if 'only_official' not in query_params:
             query_params['only_official'] = True
+        
+        # Check for initial_lid if lid is not provided (for initial page load)
+        if not query_params.get('lid') and query_params.get('initial_lid'):
+            query_params['lid'] = query_params['initial_lid']
             
         params = LeaderDataParams(**query_params)
         

@@ -61,10 +61,45 @@ def create_filter_components(selected_meta_formats=None, selected_leader_id=None
     trigger_script = ft.Script("""
         document.addEventListener('htmx:afterSettle', function(evt) {
             if (evt.target.id === 'leader-select-wrapper') {
-                htmx.trigger('#content-trigger', 'change');
+                // Small delay to ensure the select element is fully ready
+                setTimeout(function() {
+                    const leaderSelect = document.querySelector('[name="lid"]');
+                    if (leaderSelect && leaderSelect.value) {
+                        htmx.trigger('#content-trigger', 'change');
+                    }
+                }, 50);
             }
         });
+        
+        // Also trigger initial load if we have a selected leader
+        document.addEventListener('DOMContentLoaded', function() {
+            // Small delay to ensure all elements are ready
+            setTimeout(function() {
+                const leaderSelect = document.querySelector('[name="lid"]');
+                if (leaderSelect && leaderSelect.value) {
+                    htmx.trigger('#content-trigger', 'change');
+                }
+            }, 100);
+        });
     """)
+    
+    # Hidden input for initial leader selection (will be updated by JavaScript)
+    initial_leader_input = ft.Input(
+        type="hidden",
+        name="initial_lid",
+        value=selected_leader_id or "",
+        id="initial-leader-id"
+    ) if selected_leader_id else None
+    
+    # Prepare HTMX attributes for leader select wrapper (NO hx-vals)
+    leader_select_htmx_attrs = {
+        "hx_get": "/api/leader-select",
+        "hx_trigger": "load",
+        "hx_include": HX_INCLUDE + ",[name='initial_lid']",  # Include the initial leader ID input
+        "hx_target": "this",
+        "hx_swap": "innerHTML",
+        "hx_indicator": "#leader-select-loading"
+    }
     
     # Leader select wrapper with initial content loaded via HTMX
     leader_select_wrapper = ft.Div(
@@ -75,12 +110,7 @@ def create_filter_components(selected_meta_formats=None, selected_leader_id=None
             container_classes="min-h-[60px]"
         ),
         # Load the initial component via HTMX
-        hx_get="/api/leader-select",
-        hx_trigger="load",
-        hx_include=HX_INCLUDE,
-        hx_target="this",
-        hx_swap="innerHTML",
-        hx_indicator="#leader-select-loading",
+        **leader_select_htmx_attrs,
         id="leader-select-wrapper",
         cls="relative"  # Required for proper styling
     )
@@ -98,12 +128,21 @@ def create_filter_components(selected_meta_formats=None, selected_leader_id=None
         cls="flex items-center space-x-2"
     )
     
-    return ft.Div(
+    # Components to return
+    components = [
         meta_format_select,
         leader_select_wrapper,
         official_toggle,
         content_trigger,
-        trigger_script,
+        trigger_script
+    ]
+    
+    # Add initial leader input if provided
+    if initial_leader_input:
+        components.append(initial_leader_input)
+    
+    return ft.Div(
+        *components,
         cls="space-y-4"
     )
 

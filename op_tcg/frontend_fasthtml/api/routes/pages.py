@@ -137,7 +137,7 @@ def setup_api_routes(rt):
     async def get_leader_data(request: Request):
         # Parse params using Pydantic model
         params = LeaderDataParams(**get_query_params_as_dict(request))
-            
+        
         # Get leader data
         if params.lid:
             # If a leader ID is provided, get data for that specific leader
