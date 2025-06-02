@@ -2,7 +2,7 @@ from fasthtml import ft
 from starlette.requests import Request
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict
-from op_tcg.frontend_fasthtml.components.filters import create_leader_select_component, create_leader_multiselect_component
+from op_tcg.frontend_fasthtml.components.filters import create_leader_select_component, create_leader_multiselect_component, create_card_subtype_select_component
 from op_tcg.frontend_fasthtml.api.models import LeaderDataParams, MatchupParams
 
 def setup_api_routes(rt):
@@ -143,4 +143,44 @@ def setup_api_routes(rt):
             auto_select_top=auto_select_top,
             include_label=include_label,
             use_win_rate_filtering=use_win_rate_filtering
+        )
+
+    @rt("/api/card-subtype-select")
+    async def get_card_subtype_select(request: Request):
+        """Generic card subtype select endpoint that can be customized via query parameters."""
+        # Get query params as dict
+        query_params = get_query_params_as_dict(request)
+        
+        # Get selected subtypes from query params
+        selected_subtypes = query_params.get('card_types', [])
+        if isinstance(selected_subtypes, str):
+            selected_subtypes = [selected_subtypes]
+        
+        # Get additional customization parameters
+        wrapper_id = request.query_params.get("wrapper_id", "card-subtype-wrapper")
+        select_id = request.query_params.get("select_id", "card-subtype-select")
+        select_name = request.query_params.get("select_name", "card_types")
+        label = request.query_params.get("label", "Card Subtype")
+        include_label = request.query_params.get("include_label", "true").lower() == "true"
+        multiple = request.query_params.get("multiple", "true").lower() == "true"
+        
+        # Determine HTMX attributes based on context (card popularity page)
+        htmx_attrs = {
+            "hx_get": "/api/card-popularity",
+            "hx_trigger": "change",
+            "hx_target": "#card-popularity-content",
+            "hx_include": "[name='meta_format'],[name='card_colors'],[name='card_attributes'],[name='card_counter'],[name='card_category'],[name='card_types'],[name='currency'],[name='min_price'],[name='max_price'],[name='min_cost'],[name='max_cost'],[name='min_power'],[name='max_power'],[name='card_abilities'],[name='ability_text'],[name='filter_operator'],[name='search_term']",
+            "hx_indicator": "#card-popularity-loading-indicator"
+        }
+        
+        # Use the modular card subtype select component with custom parameters
+        return create_card_subtype_select_component(
+            selected_subtypes=selected_subtypes,
+            wrapper_id=wrapper_id,
+            select_id=select_id,
+            select_name=select_name,
+            label=label,
+            htmx_attrs=htmx_attrs,
+            include_label=include_label,
+            multiple=multiple
         ) 

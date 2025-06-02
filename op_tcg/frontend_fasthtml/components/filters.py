@@ -1,7 +1,7 @@
 from fasthtml import ft
 from typing import List, Optional, Dict, Any
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended, get_leader_win_rate
+from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended, get_leader_win_rate, get_card_id_card_data_lookup
 from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended
 
 # Common CSS classes for select components
@@ -215,6 +215,86 @@ def create_leader_multiselect_component(
         "size": 1,
         "cls": css_classes
     }
+    
+    # Add HTMX attributes if provided
+    if htmx_attrs:
+        select_attrs.update(htmx_attrs)
+    
+    # Create the select element
+    select_element = ft.Select(*options, **select_attrs)
+    
+    # Create the component
+    components = []
+    if include_label:
+        components.append(ft.Label(label, cls="text-white font-medium block mb-2"))
+    components.append(select_element)
+    
+    return ft.Div(
+        *components,
+        id=wrapper_id,
+        cls="relative"  # Required for proper styling
+    ) 
+
+def create_card_subtype_select_component(
+    selected_subtypes: Optional[List[str]] = None,
+    wrapper_id: str = "card-subtype-wrapper",
+    select_id: str = "card-subtype-select",
+    select_name: str = "card_types",
+    label: str = "Card Subtype",
+    htmx_attrs: Optional[Dict[str, Any]] = None,
+    include_label: bool = True,
+    css_classes: str = SELECT_CLS + " multiselect",
+    multiple: bool = True
+) -> ft.Div:
+    """
+    Create a reusable card subtype select component.
+    
+    Args:
+        selected_subtypes: Optional list of subtypes to pre-select
+        wrapper_id: ID for the wrapper div (default: "card-subtype-wrapper")
+        select_id: ID for the select element (default: "card-subtype-select")
+        select_name: Name attribute for the select element (default: "card_types")
+        label: Label text for the select (default: "Card Subtype")
+        htmx_attrs: Optional HTMX attributes to add to the select element
+        include_label: Whether to include the label (default: True)
+        css_classes: CSS classes for the select element
+        multiple: Whether to allow multiple selections (default: True)
+        
+    Returns:
+        A Div containing the card subtype select component
+    """
+    # Get all available card types
+    card_data_lookup = get_card_id_card_data_lookup()
+    all_types = set()
+    for card in card_data_lookup.values():
+        all_types.update(card.types)
+    all_types = sorted(list(all_types))
+    
+    # Ensure selected_subtypes is not None for comparison
+    if selected_subtypes is None:
+        selected_subtypes = []
+    
+    # Create select options
+    options = [
+        ft.Option(
+            subtype, 
+            value=subtype,
+            selected=(subtype in selected_subtypes)
+        ) 
+        for subtype in all_types
+    ]
+    
+    # Build select element attributes
+    select_attrs = {
+        "id": select_id,
+        "name": select_name,
+        "cls": css_classes
+    }
+    
+    # Add multiple attribute if needed
+    if multiple:
+        select_attrs["multiple"] = True
+        select_attrs["size"] = 1
     
     # Add HTMX attributes if provided
     if htmx_attrs:

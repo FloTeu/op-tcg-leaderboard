@@ -55,7 +55,7 @@ def filter_cards(cards_data: list, params: CardPopularityParams) -> list:
             continue
             
         # Filter by card category
-        if card.card_category not in params.card_category:
+        if params.card_category and card.card_category not in params.card_category:
             continue
             
         # Filter by card types

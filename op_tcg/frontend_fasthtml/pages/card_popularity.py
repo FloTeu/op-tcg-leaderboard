@@ -19,13 +19,6 @@ FILTER_HX_ATTRS = {
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
 def create_filter_components():
-    # Get all available card types
-    card_data_lookup = get_card_id_card_data_lookup()
-    all_types = set()
-    for card in card_data_lookup.values():
-        all_types.update(card.types)
-    all_types = sorted(list(all_types))
-
     # Meta format select
     meta_format_select = ft.Select(
         label="Meta Format",
@@ -91,16 +84,17 @@ def create_filter_components():
         **FILTER_HX_ATTRS
     )
 
-    # Card subtype multiselect
-    card_subtype_select = ft.Select(
-        label="Card Subtype",
-        id="card-subtype-select",
-        name="card_types",
-        multiple=True,
-        size=1,
-        cls=SELECT_CLS + " multiselect",
-        *[ft.Option(subtype, value=subtype) for subtype in all_types],
-        **FILTER_HX_ATTRS
+    # Card subtype multiselect - now loaded via HTMX
+    card_subtype_wrapper = ft.Div(
+        create_loading_spinner(
+            id="card-subtype-loading",
+            size="w-4 h-4",
+            container_classes="min-h-[60px]"
+        ),
+        id="card-subtype-wrapper",
+        hx_get="/api/card-subtype-select",
+        hx_trigger="load",
+        hx_swap="innerHTML"
     )
 
     # Currency select
@@ -246,10 +240,11 @@ def create_filter_components():
 
     # Ability text input
     ability_text_input = ft.Div(
-        ft.Label("Card Ability Text", cls="text-white font-medium block mb-2"),
+        ft.Label("Ability Text", cls="text-white font-medium block mb-2"),
         ft.Input(
             type="text",
             name="ability_text",
+            placeholder="Search in ability text...",
             cls="w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg",
             **FILTER_HX_ATTRS
         ),
@@ -262,7 +257,10 @@ def create_filter_components():
         id="filter-operator-select",
         name="filter_operator",
         cls=SELECT_CLS + " styled-select",
-        *[ft.Option(op, value=op) for op in ["OR", "AND"]],
+        *[
+            ft.Option("AND", value="AND", selected=True),
+            ft.Option("OR", value="OR")
+        ],
         **FILTER_HX_ATTRS
     )
 
@@ -272,7 +270,7 @@ def create_filter_components():
         card_attributes_select,
         card_counter_select,
         card_type_select,
-        card_subtype_select,
+        card_subtype_wrapper,  # Now uses HTMX loading
         currency_select,
         price_range_slider,
         cost_range_slider,
@@ -466,8 +464,59 @@ def card_popularity_page():
             size="w-8 h-8",
             container_classes="min-h-[100px]"
         ),
+        # Content container that will be loaded via HTMX
         ft.Div(
             id="card-popularity-content",
-            cls="min-h-screen"
-        )
+            cls="min-h-screen",
+            hx_get="/api/card-popularity",
+            hx_trigger="load",
+            hx_indicator="#card-popularity-loading-indicator"
+        ),
+        # JavaScript to handle card subtype loading sequence
+        ft.Script("""
+            let initializationComplete = false;
+            let initialLoadDone = false;
+            
+            // Prevent HTMX during initialization
+            document.addEventListener('htmx:configRequest', function(evt) {
+                // Block range slider HTMX requests during initialization
+                if (!initializationComplete && 
+                    evt.target.classList.contains('slider-range')) {
+                    evt.preventDefault();
+                    return false;
+                }
+            });
+            
+            function triggerInitialLoad() {
+                if (!initialLoadDone) {
+                    initialLoadDone = true;
+                    htmx.trigger('#card-popularity-content', 'load');
+                }
+            }
+            
+            document.addEventListener('htmx:afterSettle', function(evt) {
+                if (evt.target.id === 'card-subtype-wrapper') {
+                    // After card subtype loads, trigger content loading
+                    triggerInitialLoad();
+                    
+                    // Allow range sliders to work after a short delay
+                    setTimeout(() => {
+                        initializationComplete = true;
+                    }, 500);
+                }
+            });
+            
+            // Backup to enable range sliders and ensure content loads
+            document.addEventListener('DOMContentLoaded', function() {
+                // Backup initial load in case card subtype loads too quickly
+                setTimeout(() => {
+                    triggerInitialLoad();
+                }, 500);
+                
+                // Backup to enable range sliders
+                setTimeout(() => {
+                    initializationComplete = true;
+                }, 2000);
+            });
+        """)
     ) 
