@@ -66,13 +66,21 @@ def create_filter_components(selected_meta_formats=None, selected_leader_id=None
         });
     """)
     
-    # Leader select wrapper with initial content using the modular component
+    # Leader select wrapper with initial content loaded via HTMX
     leader_select_wrapper = ft.Div(
-        create_leader_select_component(
-            selected_meta_formats=selected_meta_formats,
-            selected_leader_id=selected_leader_id,
-            htmx_attrs=FILTER_HX_ATTRS
+        # Initial loading spinner
+        create_loading_spinner(
+            id="leader-select-loading",
+            size="w-6 h-6",
+            container_classes="min-h-[60px]"
         ),
+        # Load the initial component via HTMX
+        hx_get="/api/leader-select",
+        hx_trigger="load",
+        hx_include=HX_INCLUDE,
+        hx_target="this",
+        hx_swap="innerHTML",
+        hx_indicator="#leader-select-loading",
         id="leader-select-wrapper",
         cls="relative"  # Required for proper styling
     )

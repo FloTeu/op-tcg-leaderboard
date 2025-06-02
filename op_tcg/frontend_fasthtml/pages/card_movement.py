@@ -11,6 +11,13 @@ SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shado
 
 # Common HTMX attributes for filter components
 HX_INCLUDE = "[name='meta_format'],[name='leader_id']"
+FILTER_HX_ATTRS = {
+    "hx_get": "/api/card-movement-content",
+    "hx_trigger": "change",
+    "hx_target": "#card-movement-content",
+    "hx_include": HX_INCLUDE,
+    "hx_indicator": "#card-movement-loading-indicator"
+}
 
 class CardFrequencyChange(BaseModel):
     """Data class for tracking card frequency changes between meta formats"""
@@ -24,9 +31,13 @@ class CardFrequencyChange(BaseModel):
     previous_avg_count: float  # average copies in deck
     change_type: str  # "increased", "decreased", "new", "disappeared", "stable"
 
-def create_filter_components():
-    """Create filter components for the card movement page"""
+def create_filter_components(selected_meta_format=None, selected_leader_id=None):
+    """Create filter components for the card movement page using HTMX and API routes"""
     latest_meta = MetaFormat.latest_meta_format()
+    
+    # If no selected format provided, default to latest
+    if not selected_meta_format:
+        selected_meta_format = latest_meta
     
     # Meta format select
     meta_format_select = ft.Select(
@@ -34,34 +45,71 @@ def create_filter_components():
         id="meta-format-select",
         name="meta_format",
         cls=SELECT_CLS + " styled-select",
-        *[ft.Option(mf, value=mf, selected=mf == latest_meta) for mf in reversed(MetaFormat.to_list())],
+        *[ft.Option(mf, value=mf, selected=mf == selected_meta_format) for mf in reversed(MetaFormat.to_list())],
         **{
             "hx_get": "/api/leader-select-generic",
-            "hx_trigger": "change",
             "hx_target": "#leader-select-wrapper",
             "hx_include": HX_INCLUDE,
-            "hx_indicator": "#card-movement-loading-indicator",
-            "hx_vals": '{"select_name": "leader_id", "label": "Leader Card", "wrapper_id": "leader-select-wrapper", "select_id": "leader-select"}'
+            "hx_trigger": "change",
+            "hx_swap": "innerHTML",
+            "hx_params": "*",
+            "hx_vals": '{"select_name": "leader_id", "label": "Leader Card", "wrapper_id": "leader-select-wrapper", "select_id": "leader-select", "auto_select_top": "true"}'
         }
     )
-    
-    # Leader select wrapper - create initial component without HTMX attrs
-    # HTMX attrs will be added after the component is updated via meta format change
-    leader_select_wrapper = ft.Div(
-        create_leader_select_component(
-            selected_meta_formats=[latest_meta],
-            select_name="leader_id",
-            label="Leader Card",
-            wrapper_id="leader-select-wrapper",
-            select_id="leader-select",
-            # Don't add HTMX attrs here - they'll be added via JavaScript after updates
-        ),
-        id="leader-select-wrapper"
+
+    # Add a hidden div that will trigger the content update
+    content_trigger = ft.Div(
+        id="content-trigger",
+        **FILTER_HX_ATTRS,
+        style="display: none;"
     )
-    
+
+    # Add JavaScript to trigger the content update after leader select is updated
+    trigger_script = ft.Script("""
+        document.addEventListener('htmx:afterSettle', function(evt) {
+            if (evt.target.id === 'leader-select-wrapper') {
+                // Trigger content update after leader select is ready
+                htmx.trigger('#content-trigger', 'change');
+            }
+        });
+        
+        // Also trigger initial load if we have default leader selections
+        document.addEventListener('DOMContentLoaded', function() {
+            // Small delay to ensure all elements are ready
+            setTimeout(function() {
+                const leaderSelect = document.querySelector('[name="leader_id"]');
+                if (leaderSelect && leaderSelect.value) {
+                    htmx.trigger('#content-trigger', 'change');
+                }
+            }, 100);
+        });
+    """)
+
+    # Leader select wrapper with initial content loaded via HTMX
+    leader_select_wrapper = ft.Div(
+        # Initial loading spinner
+        create_loading_spinner(
+            id="leader-select-loading",
+            size="w-6 h-6",
+            container_classes="min-h-[60px]"
+        ),
+        # Load the initial component via HTMX
+        hx_get="/api/leader-select-generic",
+        hx_trigger="load",
+        hx_include=HX_INCLUDE,
+        hx_target="this",
+        hx_swap="innerHTML",
+        hx_indicator="#leader-select-loading",
+        hx_vals='{"select_name": "leader_id", "label": "Leader Card", "wrapper_id": "leader-select-wrapper", "select_id": "leader-select", "auto_select_top": "true"}',
+        id="leader-select-wrapper",
+        cls="relative"
+    )
+
     return ft.Div(
         meta_format_select,
         leader_select_wrapper,
+        content_trigger,
+        trigger_script,
         cls="space-y-4"
     )
 
@@ -479,100 +527,31 @@ def create_tabs_content(leader_id: str, current_meta: MetaFormat, analysis: Dict
     return create_tab_view(analysis, current_meta, analysis['previous_meta'])
 
 def card_movement_page():
-    """Create the card movement page with filters and content area"""
+    """Create the card movement page with HTMX-driven content loading"""
     return ft.Div(
-        ft.H1("Card Movement", cls="text-3xl font-bold text-white mb-6"),
-        ft.P("Track card play frequency changes of cards between meta formats.", cls="text-gray-300 mb-8"),
-        
-        # Loading indicator
+        # Header Section
         ft.Div(
-            create_loading_spinner(),
-            id="card-movement-loading-indicator",
-            cls="htmx-indicator"
+            ft.H1("Card Movement", cls="text-3xl font-bold text-white"),
+            ft.P("Track card play frequency changes of cards between meta formats.", cls="text-gray-300 mt-2"),
+            cls="mb-8"
         ),
-        
-        # Main content area with initial load trigger
+
+        # Loading Spinner for dynamic content
+        create_loading_spinner(
+            id="card-movement-loading-indicator",
+            size="w-8 h-8",
+            container_classes="min-h-[100px]"
+        ),
+
+        # Content container that will be populated after leader selection
         ft.Div(
+            # Initially empty - will be populated via HTMX after leader selection
             ft.Div(
-                ft.P("Loading card movement analysis...", cls="text-gray-300 text-center"),
-                cls="text-center py-12"
+                ft.P("Please select a leader to view card movement analysis", cls="text-gray-400 text-center py-8"),
+                cls="text-center"
             ),
             id="card-movement-content",
-            cls="mt-8"
+            cls="w-full"
         ),
-        
-        # JavaScript to handle interactions and HTMX setup
-        ft.Script("""
-            // Function to add HTMX attributes to leader select
-            function setupLeaderSelectHTMX() {
-                const leaderSelect = document.getElementById('leader-select');
-                if (leaderSelect) {
-                    // Add HTMX attributes for content loading
-                    leaderSelect.setAttribute('hx-get', '/api/card-movement-content');
-                    leaderSelect.setAttribute('hx-trigger', 'change');
-                    leaderSelect.setAttribute('hx-target', '#card-movement-content');
-                    leaderSelect.setAttribute('hx-include', '[name="meta_format"],[name="leader_id"]');
-                    leaderSelect.setAttribute('hx-indicator', '#card-movement-loading-indicator');
-                    
-                    // Process the new HTMX attributes
-                    if (window.htmx) {
-                        htmx.process(leaderSelect);
-                    }
-                }
-            }
-            
-            // Function to trigger content load
-            function loadContent() {
-                const leaderSelect = document.getElementById('leader-select');
-                if (leaderSelect && leaderSelect.value && leaderSelect.value !== '') {
-                    // Trigger content load
-                    if (window.htmx) {
-                        htmx.ajax('GET', '/api/card-movement-content', {
-                            target: '#card-movement-content',
-                            source: leaderSelect,
-                            indicator: '#card-movement-loading-indicator'
-                        });
-                    }
-                }
-            }
-            
-            document.addEventListener('DOMContentLoaded', function() {
-                // Setup initial HTMX attributes
-                setupLeaderSelectHTMX();
-                
-                // Load initial content
-                setTimeout(function() {
-                    loadContent();
-                }, 100);
-                
-                // Trigger initial load of leader select
-                setTimeout(function() {
-                    const metaSelect = document.getElementById('meta-format-select');
-                    if (metaSelect) {
-                        htmx.trigger(metaSelect, 'change');
-                    }
-                }, 200);
-            });
-            
-            // Handle leader select updates after meta format changes
-            document.body.addEventListener('htmx:afterSettle', function(evt) {
-                if (evt.target.id === 'leader-select-wrapper') {
-                    // Re-setup HTMX attributes for the new leader dropdown
-                    setupLeaderSelectHTMX();
-                    
-                    // Re-initialize styled select for the new leader dropdown
-                    const leaderSelect = document.getElementById('leader-select');
-                    if (leaderSelect && window.initializeSelect) {
-                        window.initializeSelect('leader-select');
-                    }
-                    
-                    // Load content with the selected leader (preserve selection or use new top leader)
-                    setTimeout(function() {
-                        loadContent();
-                    }, 50);
-                }
-            });
-        """),
-        
-        cls="min-h-screen"
+        cls="min-h-screen p-4 md:p-6 w-full"
     ) 

@@ -83,8 +83,24 @@ def tournaments():
     return layout(tournaments_page(), filter_component=tournament_filters(), current_path="/tournaments")
 
 @rt("/card-movement")
-def card_movement():
-    return layout(card_movement_page(), filter_component=card_movement_filters(), current_path="/card-movement")
+def card_movement(request: Request):
+    # Get selected meta format and leader ID from query params
+    selected_meta_format = request.query_params.get("meta_format")
+    selected_leader_id = request.query_params.get("leader_id")
+    
+    # Convert to MetaFormat enum if present
+    if selected_meta_format:
+        selected_meta_format = MetaFormat(selected_meta_format)
+    
+    # Pass to card_movement_page which will handle HTMX loading
+    return layout(
+        card_movement_page(), 
+        filter_component=card_movement_filters(
+            selected_meta_format=selected_meta_format,
+            selected_leader_id=selected_leader_id
+        ), 
+        current_path="/card-movement"
+    )
 
 @rt("/matchups")
 def matchups(request: Request):
