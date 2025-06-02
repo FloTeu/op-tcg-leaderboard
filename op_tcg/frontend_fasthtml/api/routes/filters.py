@@ -1,8 +1,9 @@
 from fasthtml import ft
 from starlette.requests import Request
 from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict
-from op_tcg.frontend_fasthtml.components.filters import create_leader_select_component
-from op_tcg.frontend_fasthtml.api.models import LeaderDataParams
+from op_tcg.frontend_fasthtml.components.filters import create_leader_select_component, create_leader_multiselect_component
+from op_tcg.frontend_fasthtml.api.models import LeaderDataParams, MatchupParams, MetaFormatParams
+from op_tcg.backend.models.input import MetaFormat
 
 def setup_api_routes(rt):
     @rt("/api/leader-select")
@@ -55,4 +56,49 @@ def setup_api_routes(rt):
             label=label,
             auto_select_top=auto_select_top,
             include_label=include_label
+        )
+
+    @rt("/api/leader-multiselect")
+    async def get_leader_multiselect(request: Request):
+        """Generic leader multi-select endpoint that can be customized via query parameters."""
+        # Parse params using MatchupParams model which supports leader_ids
+        query_params = get_query_params_as_dict(request)
+        
+        # Set defaults for matchups page if not provided
+        if not query_params.get('meta_format'):
+            query_params['meta_format'] = [MetaFormat.latest_meta_format()]
+        
+        if 'only_official' not in query_params:
+            query_params['only_official'] = True
+            
+        params = MatchupParams(**query_params)
+        
+        # Get additional customization parameters
+        wrapper_id = request.query_params.get("wrapper_id", "leader-multiselect-wrapper")
+        select_id = request.query_params.get("select_id", "leader-multiselect")
+        select_name = request.query_params.get("select_name", "leader_ids")
+        label = request.query_params.get("label", "Leaders")
+        auto_select_top = int(request.query_params.get("auto_select_top", "5"))
+        include_label = request.query_params.get("include_label", "true").lower() == "true"
+        use_win_rate_filtering = request.query_params.get("use_win_rate_filtering", "true").lower() == "true"
+        
+        # Use the modular leader multi-select component with custom parameters
+        return create_leader_multiselect_component(
+            selected_meta_formats=params.meta_format,
+            selected_leader_ids=params.leader_ids,
+            only_official=params.only_official,
+            wrapper_id=wrapper_id,
+            select_id=select_id,
+            select_name=select_name,
+            label=label,
+            htmx_attrs={
+                "hx_get": "/api/matchup-content",
+                "hx_trigger": "change",
+                "hx_target": "#matchup-content",
+                "hx_include": "[name='meta_format'],[name='only_official'],[name='leader_ids']",
+                "hx_indicator": "#matchup-loading-indicator"
+            },
+            auto_select_top=auto_select_top,
+            include_label=include_label,
+            use_win_rate_filtering=use_win_rate_filtering
         ) 

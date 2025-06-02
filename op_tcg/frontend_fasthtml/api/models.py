@@ -5,6 +5,28 @@ from op_tcg.backend.models.leader import LeaderboardSortBy
 from op_tcg.backend.models.cards import OPTcgColor, OPTcgCardCatagory, OPTcgAbility, CardCurrency, OPTcgAttribute
 
 
+class MetaFormatParams(BaseModel):
+    """Parameters for matchup page requests"""
+    meta_format: list[MetaFormat]
+    only_official: bool = True
+    
+    @field_validator('meta_format', mode='before')
+    def validate_meta_formats(cls, value):
+        if value is None or (isinstance(value, list) and len(value) == 0):
+            return [MetaFormat.latest_meta_format()]
+        if isinstance(value, list):
+            return [MetaFormat(item) if isinstance(item, str) else item for item in value]
+        return [MetaFormat(value) if isinstance(value, str) else value]
+    
+    @field_validator('only_official', mode='before')
+    def validate_only_official(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if isinstance(value, str):
+            return value.lower() in ("true", "on", "1", "yes")
+        return bool(value)
+    
+
 class LeaderboardFilter(BaseModel):
     meta_format: MetaFormat = MetaFormat.latest_meta_format
     release_meta_formats: Optional[List[MetaFormat]] = None
@@ -176,19 +198,9 @@ class TournamentPageParams(BaseModel):
         return value if value is not None else None
 
 
-class MatchupParams(BaseModel):
+class MatchupParams(MetaFormatParams):
     """Parameters for matchup page requests"""
-    meta_format: list[MetaFormat]
-    leader_ids: list[str]
-    only_official: bool = True
-    
-    @field_validator('meta_format', mode='before')
-    def validate_meta_formats(cls, value):
-        if value is None or (isinstance(value, list) and len(value) == 0):
-            return [MetaFormat.latest_meta_format()]
-        if isinstance(value, list):
-            return [MetaFormat(item) if isinstance(item, str) else item for item in value]
-        return [MetaFormat(value) if isinstance(value, str) else value]
+    leader_ids: list[str] | None = None
     
     @field_validator('leader_ids', mode='before')
     def validate_leader_ids(cls, value):
@@ -197,14 +209,6 @@ class MatchupParams(BaseModel):
         if isinstance(value, list):
             return value
         return [value]
-    
-    @field_validator('only_official', mode='before')
-    def validate_only_official(cls, value):
-        if isinstance(value, list) and value:
-            value = value[0]
-        if isinstance(value, str):
-            return value.lower() in ("true", "on", "1", "yes")
-        return bool(value)
 
 
 class CardPopularityParams(BaseModel):

@@ -87,8 +87,26 @@ def card_movement():
     return layout(card_movement_page(), filter_component=card_movement_filters(), current_path="/card-movement")
 
 @rt("/matchups")
-def matchups():
-    return layout(matchups_page(), filter_component=matchups_filters(), current_path="/matchups")
+def matchups(request: Request):
+    # Get selected meta formats from query params (can be multiple)
+    selected_meta_formats = request.query_params.getlist("meta_format")
+    selected_leader_ids = request.query_params.getlist("leader_ids")
+    only_official = request.query_params.get("only_official", "true").lower() in ("true", "on", "1", "yes")
+    
+    # Convert to MetaFormat enum if present
+    if selected_meta_formats:
+        selected_meta_formats = [MetaFormat(mf) for mf in selected_meta_formats]
+    
+    # Pass to matchups_page which will handle HTMX loading
+    return layout(
+        matchups_page(), 
+        filter_component=matchups_filters(
+            selected_meta_formats=selected_meta_formats,
+            selected_leader_ids=selected_leader_ids,
+            only_official=only_official
+        ), 
+        current_path="/matchups"
+    )
 
 # Card pages
 @rt("/card-popularity")
