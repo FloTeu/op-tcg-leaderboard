@@ -11,7 +11,7 @@ from op_tcg.frontend_fasthtml.utils.extract import (
     get_card_id_card_data_lookup
 )
 from op_tcg.frontend_fasthtml.pages.home import create_leaderboard_table
-from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended
+from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended, get_leaders_with_decklist_data
 from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict, get_filtered_leaders, get_effective_meta_format_with_fallback, create_fallback_notification
 from op_tcg.frontend_fasthtml.pages.leader import create_leader_content, HX_INCLUDE
 from op_tcg.frontend_fasthtml.pages.tournaments import create_tournament_content
@@ -128,9 +128,16 @@ def setup_api_routes(rt):
 
         # Sort leaders by the specified sort criteria
         if sort_params.sort_by == LeaderboardSortBy.TOURNAMENT_WINS:
-            filtered_leaders.sort(key=lambda x: (x.tournament_wins > 0, x.tournament_wins, x.elo), reverse=True)
+            filtered_leaders.sort(key=lambda x: (x.tournament_wins > 0, x.tournament_wins, x.elo or 0), reverse=True)
         else:
-            filtered_leaders.sort(key=lambda x: getattr(x, display_name2df_col_name.get(sort_params.sort_by)), reverse=True)
+            # Handle None values in sorting by providing default values
+            def get_sort_key(leader):
+                attr_name = display_name2df_col_name.get(sort_params.sort_by)
+                value = getattr(leader, attr_name)
+                # Return 0 for None values to sort them to the end
+                return value if value is not None else 0
+            
+            filtered_leaders.sort(key=get_sort_key, reverse=True)
         
         # Create the leaderboard table using the effective meta format
         table_content = create_leaderboard_table(
@@ -164,13 +171,31 @@ def setup_api_routes(rt):
             
         # Filter by meta format and apply additional filters
         filtered_by_meta = [l for l in leader_data if l.meta_format in params.meta_format]
+        
+        # Get leaders that have decklist data in these meta formats
+        leaders_with_decklists = get_leaders_with_decklist_data(filtered_by_meta, params.meta_format)
+        
+        # Apply standard filtering
         filtered_data = filter_leader_extended(
             leaders=filtered_by_meta,
             only_official=params.only_official
         )
         
+        # Create a set of leader IDs that are already included in filtered_data
+        already_included_ids = {fl.id for fl in filtered_data}
+        
+        # Add leaders that have decklist data but might not have match data
+        # Only include if they are not already in the filtered_data set
+        additional_leaders = [
+            l for l in filtered_by_meta 
+            if l.id in leaders_with_decklists and l.id not in already_included_ids
+        ]
+        
+        # Combine both sets of leaders
+        all_filtered_data = filtered_data + additional_leaders
+        
         # If no data found for the requested meta formats, try fallback
-        if not filtered_data:
+        if not all_filtered_data:
             fallback_used = False
             effective_meta_formats = []
             
@@ -185,26 +210,44 @@ def setup_api_routes(rt):
             
             # Re-filter with effective meta formats
             filtered_by_meta = [l for l in leader_data if l.meta_format in effective_meta_formats]
+            
+            # Get leaders with decklists for fallback meta formats
+            leaders_with_decklists = get_leaders_with_decklist_data(filtered_by_meta, effective_meta_formats)
+            
+            # Apply standard filtering
             filtered_data = filter_leader_extended(
                 leaders=filtered_by_meta,
                 only_official=params.only_official
             )
             
-            if not filtered_data:
+            # Create a set of leader IDs that are already included in filtered_data
+            already_included_ids = {fl.id for fl in filtered_data}
+            
+            # Add leaders that have decklist data but might not have match data
+            # Only include if they are not already in the filtered_data set
+            additional_leaders = [
+                l for l in filtered_by_meta 
+                if l.id in leaders_with_decklists and l.id not in already_included_ids
+            ]
+            
+            # Combine both sets of leaders
+            all_filtered_data = filtered_data + additional_leaders
+            
+            if not all_filtered_data:
                 return ft.P("No data available for leaders in the selected meta format.", cls="text-red-400")
                 
             # Find the leader to show
             if params.lid:
                 # Try to find the specific leader first
-                leader_data_result = next((l for l in filtered_data if l.id == params.lid), None)
+                leader_data_result = next((l for l in all_filtered_data if l.id == params.lid), None)
                 if not leader_data_result:
                     # If specific leader not found, get the top leader
-                    filtered_data.sort(key=lambda x: (x.d_score or 0, x.elo or 0), reverse=True)
-                    leader_data_result = filtered_data[0]
+                    all_filtered_data.sort(key=lambda x: (x.d_score or 0, x.elo or 0), reverse=True)
+                    leader_data_result = all_filtered_data[0]
             else:
                 # Get the top leader
-                filtered_data.sort(key=lambda x: (x.d_score or 0, x.elo or 0), reverse=True)
-                leader_data_result = filtered_data[0]
+                all_filtered_data.sort(key=lambda x: (x.d_score or 0, x.elo or 0), reverse=True)
+                leader_data_result = all_filtered_data[0]
             
             # Create content with fallback notification
             content = create_leader_content(leader_data_result)
@@ -220,13 +263,13 @@ def setup_api_routes(rt):
         # Data found for requested meta formats - no fallback needed
         if params.lid:
             # Find the specific leader
-            leader_data_result = next((l for l in filtered_data if l.id == params.lid), None)
+            leader_data_result = next((l for l in all_filtered_data if l.id == params.lid), None)
             if not leader_data_result:
                 return ft.P("No data available for this leader in the selected meta format.", cls="text-red-400")
         else:
             # Get the top leader
-            filtered_data.sort(key=lambda x: (x.d_score or 0, x.elo or 0), reverse=True)
-            leader_data_result = filtered_data[0]
+            all_filtered_data.sort(key=lambda x: (x.d_score or 0, x.elo or 0), reverse=True)
+            leader_data_result = all_filtered_data[0]
         
         return create_leader_content(leader_data_result)
 

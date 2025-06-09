@@ -218,7 +218,9 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
     
     # Create table body
     rows = []
-    max_elo = max(leader.elo for leader in selected_meta_leaders if leader.elo)
+    # Calculate max_elo only from leaders with elo data
+    leaders_with_elo = [leader for leader in selected_meta_leaders if leader.elo is not None]
+    max_elo = max(leader.elo for leader in leaders_with_elo) if leaders_with_elo else 0
     
     for idx, leader in enumerate(selected_meta_leaders):
         
@@ -257,10 +259,10 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
             ),
             ft.Td(leader.id.split("-")[0], cls="px-4 py-2 text-gray-200"),
             ft.Td(str(leader.tournament_wins), cls="px-4 py-2 text-gray-200"),
-            ft.Td(str(leader.total_matches), cls="px-4 py-2 text-gray-200"),
-            ft.Td(f"{leader.win_rate * 100:.2f}%", cls="px-4 py-2 text-gray-200"),
-            ft.Td(f"{int(leader.d_score * 100)}%", cls="px-4 py-2 text-gray-200"),
-            ft.Td(str(leader.elo), cls=f"px-4 py-2 {elo_color_class}"),
+            ft.Td(str(leader.total_matches) if leader.total_matches is not None else "N/A", cls="px-4 py-2 text-gray-200"),
+            ft.Td(f"{leader.win_rate * 100:.2f}%" if leader.win_rate is not None else "N/A", cls="px-4 py-2 text-gray-200"),
+            ft.Td(f"{int(leader.d_score * 100)}%" if leader.d_score is not None else "N/A", cls="px-4 py-2 text-gray-200"),
+            ft.Td(str(leader.elo) if leader.elo is not None else "N/A", cls=f"px-4 py-2 {elo_color_class}"),
             ft.Td(
                 ft.Div(
                     # Chart loading indicator

@@ -1,8 +1,9 @@
 from fasthtml import ft
 from typing import List, Optional, Dict, Any
 from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended, get_leader_win_rate, get_card_id_card_data_lookup
-from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended
+from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended, get_leaders_with_decklist_data
 
 # Common CSS classes for select components
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -44,16 +45,35 @@ def create_leader_select_component(
     if not selected_meta_formats:
         selected_meta_formats = [MetaFormat.latest_meta_format()]
     
-    # Get leader data and filter by meta formats and only official matches
+    # Get leader data and filter by meta formats
     leader_data = get_leader_extended()
+    leaders_in_meta = [l for l in leader_data if l.meta_format in selected_meta_formats]
+    
+    # Get leaders that have decklist data in these meta formats
+    leaders_with_decklists = get_leaders_with_decklist_data(leaders_in_meta, selected_meta_formats)
+    
+    # Filter leaders using the standard filter, but also include those with decklist data
     filtered_leaders = filter_leader_extended(
-        leaders=[l for l in leader_data if l.meta_format in selected_meta_formats],
+        leaders=leaders_in_meta,
         only_official=only_official
     )
     
+    # Create a set of leader IDs that are already included in filtered_leaders
+    already_included_ids = {fl.id for fl in filtered_leaders}
+    
+    # Add leaders that have decklist data but might not have match data
+    # Only include if they are not already in the filtered_leaders set
+    additional_leaders = [
+        l for l in leaders_in_meta 
+        if l.id in leaders_with_decklists and l.id not in already_included_ids
+    ]
+    
+    # Combine both sets of leaders
+    all_available_leaders = filtered_leaders + additional_leaders
+    
     # Create unique leader mapping using only the most recent version from selected meta formats
     unique_leaders = {}
-    for leader in filtered_leaders:
+    for leader in all_available_leaders:
         if leader.id not in unique_leaders:
             unique_leaders[leader.id] = leader
         else:
@@ -173,12 +193,30 @@ def create_leader_multiselect_component(
             if l.meta_format in selected_meta_formats and l.id in leaders_with_matches
         ]
     else:
-        # Standard filtering using filter_leader_extended
+        # Include leaders with decklist data but no match data
+        leaders_in_meta = [l for l in leader_data if l.meta_format in selected_meta_formats]
+        
+        # Get leaders that have decklist data in these meta formats
+        leaders_with_decklists = get_leaders_with_decklist_data(leaders_in_meta, selected_meta_formats)
+        
+        # Filter leaders using the standard filter, but also include those with decklist data
         filtered_leaders = filter_leader_extended(
-            leaders=[l for l in leader_data if l.meta_format in selected_meta_formats],
+            leaders=leaders_in_meta,
             only_official=only_official
         )
-        leader_data = filtered_leaders
+        
+        # Create a set of leader IDs that are already included in filtered_leaders
+        already_included_ids = {fl.id for fl in filtered_leaders}
+        
+        # Add leaders that have decklist data but might not have match data
+        # Only include if they are not already in the filtered_leaders set
+        additional_leaders = [
+            l for l in leaders_in_meta 
+            if l.id in leaders_with_decklists and l.id not in already_included_ids
+        ]
+        
+        # Combine both sets of leaders
+        leader_data = filtered_leaders + additional_leaders
     
     # Sort by d_score and get unique leaders
     leader_data.sort(key=lambda x: (x.d_score if x.d_score is not None else 0), reverse=True)

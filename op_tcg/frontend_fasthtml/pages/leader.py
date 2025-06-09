@@ -146,17 +146,21 @@ def create_filter_components(selected_meta_formats=None, selected_leader_id=None
         cls="space-y-4"
     )
 
-def create_tab_view():
+def create_tab_view(has_match_data: bool = True):
     """Create a tabbed interface for the leader page content."""
-    return ft.Div(
-        # Tab buttons
-        ft.Div(
-            ft.Button(
-                "Decklist Analysis",
-                cls="tab-button active bg-gray-700 text-white px-4 py-2 rounded-t-lg",
-                onclick="switchTab(event, 'decklist-tab')",
-                id="decklist-button"
-            ),
+    
+    # Tab buttons - only show matchup analysis if there's match data
+    tab_buttons = [
+        ft.Button(
+            "Decklist Analysis",
+            cls="tab-button active bg-gray-700 text-white px-4 py-2 rounded-t-lg",
+            onclick="switchTab(event, 'decklist-tab')",
+            id="decklist-button"
+        )
+    ]
+    
+    if has_match_data:
+        tab_buttons.append(
             ft.Button(
                 "Matchup Analysis",
                 cls="tab-button bg-gray-600 text-gray-300 px-4 py-2 rounded-t-lg ml-1",
@@ -167,72 +171,77 @@ def create_tab_view():
                 hx_indicator="#matchup-loading-indicator",
                 hx_include=HX_INCLUDE,
                 id="matchup-button"
-            ),
-            ft.Button(
-                "Tournaments",
-                cls="tab-button bg-gray-600 text-gray-300 px-4 py-2 rounded-t-lg ml-1",
-                onclick="switchTab(event, 'tournaments-tab')",
-                hx_get="/api/leader-tournaments",
-                hx_trigger="click once",
-                hx_target="#tournaments-tab",
-                hx_indicator="#tournament-loading-indicator",
-                hx_include=HX_INCLUDE,
-                id="tournaments-button"
-            ),
-            cls="flex border-b border-gray-700"
-        ),
-        
-        # Tab content
+            )
+        )
+    
+    tab_buttons.append(
+        ft.Button(
+            "Tournaments",
+            cls="tab-button bg-gray-600 text-gray-300 px-4 py-2 rounded-t-lg ml-1",
+            onclick="switchTab(event, 'tournaments-tab')",
+            hx_get="/api/leader-tournaments",
+            hx_trigger="click once",
+            hx_target="#tournaments-tab",
+            hx_indicator="#tournament-loading-indicator",
+            hx_include=HX_INCLUDE,
+            id="tournaments-button"
+        )
+    )
+    
+    # Tab content - only include matchup tab if there's match data
+    tab_content = [
+        # Decklist Analysis Tab (shown by default)
         ft.Div(
-            # Decklist Analysis Tab (shown by default)
+            ft.H2("Decklist Analysis", cls="text-2xl font-bold text-white mb-4"),
+            # Two-column layout for decklist and similar leader
             ft.Div(
-                ft.H2("Decklist Analysis", cls="text-2xl font-bold text-white mb-4"),
-                # Two-column layout for decklist and similar leader
+                # Left column - Decklist
                 ft.Div(
-                    # Left column - Decklist
-                    ft.Div(
-                        create_loading_spinner(
-                            id="decklist-loading-indicator",
-                            size="w-8 h-8",
-                            container_classes="min-h-[100px]"
-                        ),
-                        ft.Div(
-                            hx_get="/api/leader-decklist",
-                            hx_trigger="load",
-                            hx_include=HX_INCLUDE,
-                            hx_target="#leader-decklist-container",
-                            hx_indicator="#decklist-loading-indicator",
-                            id="leader-decklist-container",
-                            cls="min-h-[300px] w-full"
-                        ),
-                        cls="w-full md:w-1/2 bg-gray-800 rounded-lg shadow-xl"
+                    create_loading_spinner(
+                        id="decklist-loading-indicator",
+                        size="w-8 h-8",
+                        container_classes="min-h-[100px]"
                     ),
-                    
-                    # Right column - Similar Leader
                     ft.Div(
-                        create_loading_spinner(
-                            id="similar-loading-indicator",
-                            size="w-8 h-8",
-                            container_classes="min-h-[100px]"
-                        ),
-                        ft.Div(
-                            hx_get="/api/leader-similar",
-                            hx_trigger="load",
-                            hx_include=HX_INCLUDE,
-                            hx_target="#leader-similar-container",
-                            hx_indicator="#similar-loading-indicator",
-                            id="leader-similar-container",
-                            cls="min-h-[300px] w-full"
-                        ),
-                        cls="w-full md:w-1/2 md:pl-6"
+                        hx_get="/api/leader-decklist",
+                        hx_trigger="load",
+                        hx_include=HX_INCLUDE,
+                        hx_target="#leader-decklist-container",
+                        hx_indicator="#decklist-loading-indicator",
+                        id="leader-decklist-container",
+                        cls="min-h-[300px] w-full"
                     ),
-                    cls="flex flex-col md:flex-row gap-6"
+                    cls="w-full md:w-1/2 bg-gray-800 rounded-lg shadow-xl"
                 ),
-                cls="tab-pane md:p-6 p-2",
-                id="decklist-tab",
-                style="display: block;"  # Show this tab by default
+                
+                # Right column - Similar Leader
+                ft.Div(
+                    create_loading_spinner(
+                        id="similar-loading-indicator",
+                        size="w-8 h-8",
+                        container_classes="min-h-[100px]"
+                    ),
+                    ft.Div(
+                        hx_get="/api/leader-similar",
+                        hx_trigger="load",
+                        hx_include=HX_INCLUDE,
+                        hx_target="#leader-similar-container",
+                        hx_indicator="#similar-loading-indicator",
+                        id="leader-similar-container",
+                        cls="min-h-[300px] w-full"
+                    ),
+                    cls="w-full md:w-1/2 md:pl-6"
+                ),
+                cls="flex flex-col md:flex-row gap-6"
             ),
-            
+            cls="tab-pane md:p-6 p-2",
+            id="decklist-tab",
+            style="display: block;"  # Show this tab by default
+        )
+    ]
+    
+    if has_match_data:
+        tab_content.append(
             # Matchup Analysis Tab (loaded via HTMX)
             ft.Div(
                 create_loading_spinner(
@@ -242,18 +251,32 @@ def create_tab_view():
                 ),
                 cls="tab-pane p-6",
                 id="matchup-tab"
+            )
+        )
+    
+    tab_content.append(
+        # Tournaments Tab (loaded via HTMX)
+        ft.Div(
+            create_loading_spinner(
+                id="tournament-loading-indicator",
+                size="w-8 h-8",
+                container_classes="min-h-[100px]"
             ),
-            
-            # Tournaments Tab (loaded via HTMX)
-            ft.Div(
-                create_loading_spinner(
-                    id="tournament-loading-indicator",
-                    size="w-8 h-8",
-                    container_classes="min-h-[100px]"
-                ),
-                cls="tab-pane p-6",
-                id="tournaments-tab"
-            ),
+            cls="tab-pane p-6",
+            id="tournaments-tab"
+        )
+    )
+    
+    return ft.Div(
+        # Tab buttons
+        ft.Div(
+            *tab_buttons,
+            cls="flex border-b border-gray-700"
+        ),
+        
+        # Tab content
+        ft.Div(
+            *tab_content,
             cls="bg-gray-800 rounded-lg shadow-xl w-full mb-6"
         ),
         
@@ -303,6 +326,68 @@ def create_leader_content(leader_data: LeaderExtended):
     Returns:
         A Div containing the leader page content
     """
+    # Check if leader has match data
+    has_match_data = leader_data.total_matches is not None and leader_data.total_matches > 0
+    
+    # Create charts section only if there's match data
+    charts_section = None
+    if has_match_data:
+        charts_section = ft.Div(
+            # Win rate chart
+            ft.Div(
+                ft.H3("Win Rate History", cls="text-xl font-bold text-white mb-4"),
+                create_loading_spinner(
+                    id="win-rate-chart-loading-indicator",
+                    size="w-8 h-8",
+                    container_classes="min-h-[100px]"
+                ),
+                ft.Div(
+                    hx_get=f"/api/leader-chart/{leader_data.id}",
+                    hx_trigger="load",
+                    hx_include=HX_INCLUDE,
+                    hx_target="#win-rate-chart-container",
+                    hx_indicator="#win-rate-chart-loading-indicator",
+                    hx_vals=f'{{"last_n": "10", "color": "neutral"}}',
+                    id="win-rate-chart-container",
+                    cls="min-h-[150px] flex items-center justify-center w-full"
+                ),
+                cls="bg-gray-800 rounded-lg p-6 shadow-xl mb-6"
+            ),
+            
+            # Color matchup radar chart
+            ft.Div(
+                ft.H3("Color Matchups", cls="text-xl font-bold text-white mb-4"),
+                create_loading_spinner(
+                    id="radar-chart-loading-indicator",
+                    size="w-8 h-8",
+                    container_classes="min-h-[100px]"
+                ),
+                ft.Div(
+                    hx_get="/api/leader-radar-chart",
+                    hx_trigger="load",
+                    hx_include=HX_INCLUDE,
+                    hx_target="#leader-radar-chart",
+                    hx_indicator="#radar-chart-loading-indicator",
+                    hx_vals=f'{{"lid": "{leader_data.id}"}}',
+                    id="leader-radar-chart",
+                    cls="min-h-[300px] flex items-center justify-center w-full"
+                ),
+                cls="bg-gray-800 rounded-lg p-6 shadow-xl"
+            ),
+            cls="w-full md:w-3/4 md:pl-6 flex-grow px-4 md:px-0"
+        )
+    else:
+        # Show message when no match data is available
+        charts_section = ft.Div(
+            ft.Div(
+                ft.H3("Match Data", cls="text-xl font-bold text-white mb-4"),
+                ft.P("No match data available for this leader.", cls="text-gray-400"),
+                ft.P("This leader may only have decklist data available.", cls="text-gray-500 text-sm"),
+                cls="bg-gray-800 rounded-lg p-6 shadow-xl"
+            ),
+            cls="w-full md:w-3/4 md:pl-6 flex-grow px-4 md:px-0"
+        )
+    
     return ft.Div(
         # Page title
         ft.H1(f"Leader: {leader_data.name} ({leader_data.id})", 
@@ -339,57 +424,15 @@ def create_leader_content(leader_data: LeaderExtended):
                 cls="w-full md:w-1/4 flex-shrink-0 mb-6 px-4 md:px-0"
             ),
             
-            # Second section - Charts (full width on mobile)
-            ft.Div(
-                # Win rate chart
-                ft.Div(
-                    ft.H3("Win Rate History", cls="text-xl font-bold text-white mb-4"),
-                    create_loading_spinner(
-                        id="win-rate-chart-loading-indicator",
-                        size="w-8 h-8",
-                        container_classes="min-h-[100px]"
-                    ),
-                    ft.Div(
-                        hx_get=f"/api/leader-chart/{leader_data.id}",
-                        hx_trigger="load",
-                        hx_include=HX_INCLUDE,
-                        hx_target="#win-rate-chart-container",
-                        hx_indicator="#win-rate-chart-loading-indicator",
-                        hx_vals=f'{{"last_n": "10", "color": "neutral"}}',
-                        id="win-rate-chart-container",
-                        cls="min-h-[150px] flex items-center justify-center w-full"
-                    ),
-                    cls="bg-gray-800 rounded-lg p-6 shadow-xl mb-6"
-                ),
-                
-                # Color matchup radar chart
-                ft.Div(
-                    ft.H3("Color Matchups", cls="text-xl font-bold text-white mb-4"),
-                    create_loading_spinner(
-                        id="radar-chart-loading-indicator",
-                        size="w-8 h-8",
-                        container_classes="min-h-[100px]"
-                    ),
-                    ft.Div(
-                        hx_get="/api/leader-radar-chart",
-                        hx_trigger="load",
-                        hx_include=HX_INCLUDE,
-                        hx_target="#leader-radar-chart",
-                        hx_indicator="#radar-chart-loading-indicator",
-                        hx_vals=f'{{"lid": "{leader_data.id}"}}',
-                        id="leader-radar-chart",
-                        cls="min-h-[300px] flex items-center justify-center w-full"
-                    ),
-                    cls="bg-gray-800 rounded-lg p-6 shadow-xl"
-                ),
-                cls="w-full md:w-3/4 md:pl-6 flex-grow px-4 md:px-0"
-            ),
+            # Second section - Charts or message (full width on mobile)
+            charts_section,
+            
             cls="flex flex-col md:flex-row gap-4"
         ),
         
         # TabView section
         ft.Div(
-            create_tab_view(),
+            create_tab_view(has_match_data),
             cls="px-4 md:px-0 mt-4"
         ),
         id="leader-content-inner"
