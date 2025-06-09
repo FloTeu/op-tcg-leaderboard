@@ -94,8 +94,8 @@ def meta_format2release_datetime(meta_format: MetaFormat) -> datetime | None:
         return datetime(2024, 12, 13)
     if meta_format == MetaFormat.OP10:
         return datetime(2025, 3, 21)
-    # if meta_format == MetaFormat.OP11:
-    #     return datetime(2024, 6, 14)
+    if meta_format == MetaFormat.OP11:
+        return datetime(2024, 6, 6)
     else:
         return None
 
