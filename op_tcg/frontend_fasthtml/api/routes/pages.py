@@ -12,7 +12,7 @@ from op_tcg.frontend_fasthtml.utils.extract import (
 )
 from op_tcg.frontend_fasthtml.pages.home import create_leaderboard_table
 from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended
-from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict, get_filtered_leaders
+from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict, get_filtered_leaders, get_effective_meta_format_with_fallback, create_fallback_notification
 from op_tcg.frontend_fasthtml.pages.leader import create_leader_content, HX_INCLUDE
 from op_tcg.frontend_fasthtml.pages.tournaments import create_tournament_content
 from op_tcg.frontend_fasthtml.pages.card_popularity import create_card_popularity_content
@@ -110,6 +110,12 @@ def setup_api_routes(rt):
         leader_extended_data: list[LeaderExtended] = get_leader_extended(meta_format_region=get_query_params_as_dict(request).get("region"))
         filtered_leaders = get_filtered_leaders(request, leader_extended_data=leader_extended_data)
         
+        # Use utility function to get effective meta format with fallback
+        effective_meta_format, fallback_used = get_effective_meta_format_with_fallback(
+            sort_params.meta_format, 
+            filtered_leaders
+        )
+        
         display_name2df_col_name = {
             "Name": "name",
             "Set": "id",
@@ -126,12 +132,22 @@ def setup_api_routes(rt):
         else:
             filtered_leaders.sort(key=lambda x: getattr(x, display_name2df_col_name.get(sort_params.sort_by)), reverse=True)
         
-        # Create the leaderboard table
-        return create_leaderboard_table(
+        # Create the leaderboard table using the effective meta format
+        table_content = create_leaderboard_table(
             filtered_leaders,
             leader_extended_data,
-            sort_params.meta_format
+            effective_meta_format
         )
+        
+        # If fallback was used, add a notification message
+        if fallback_used:
+            notification = create_fallback_notification(
+                sort_params.meta_format,
+                effective_meta_format
+            )
+            return ft.Div(notification, table_content)
+        
+        return table_content
 
     @rt("/api/leader-data")
     async def get_leader_data(request: Request):
@@ -146,39 +162,73 @@ def setup_api_routes(rt):
             # Otherwise, get all leaders and find the one with highest d_score
             leader_data = get_leader_extended()
             
-        # Filter by meta format
+        # Filter by meta format and apply additional filters
         filtered_by_meta = [l for l in leader_data if l.meta_format in params.meta_format]
-        
-        # Apply filters
         filtered_data = filter_leader_extended(
             leaders=filtered_by_meta,
             only_official=params.only_official
         )
         
+        # If no data found for the requested meta formats, try fallback
         if not filtered_data:
-            return ft.P("No data available for this leader.", cls="text-red-400")
+            fallback_used = False
+            effective_meta_formats = []
             
-        # If no specific leader was requested, find the one with highest d_score
-        if not params.lid:
-            # Sort by d_score and elo, handling None values
-            def sort_key(leader):
-                d_score = leader.d_score if leader.d_score is not None else 0
-                elo = leader.elo if leader.elo is not None else 0
-                return (-d_score, -elo)
+            for meta_format in params.meta_format:
+                effective_meta, is_fallback = get_effective_meta_format_with_fallback(
+                    meta_format,
+                    leader_data  # Use all leader data for fallback check
+                )
+                effective_meta_formats.append(effective_meta)
+                if is_fallback:
+                    fallback_used = True
             
-            filtered_data.sort(key=sort_key)
-            if filtered_data:
-                leader_data = filtered_data[0]
-            else:
+            # Re-filter with effective meta formats
+            filtered_by_meta = [l for l in leader_data if l.meta_format in effective_meta_formats]
+            filtered_data = filter_leader_extended(
+                leaders=filtered_by_meta,
+                only_official=params.only_official
+            )
+            
+            if not filtered_data:
                 return ft.P("No data available for leaders in the selected meta format.", cls="text-red-400")
-        else:
-            leader_data = next((l for l in filtered_data if l.id == params.lid), None)
+                
+            # Find the leader to show
+            if params.lid:
+                # Try to find the specific leader first
+                leader_data_result = next((l for l in filtered_data if l.id == params.lid), None)
+                if not leader_data_result:
+                    # If specific leader not found, get the top leader
+                    filtered_data.sort(key=lambda x: (x.d_score or 0, x.elo or 0), reverse=True)
+                    leader_data_result = filtered_data[0]
+            else:
+                # Get the top leader
+                filtered_data.sort(key=lambda x: (x.d_score or 0, x.elo or 0), reverse=True)
+                leader_data_result = filtered_data[0]
             
-            if not leader_data:
-                return ft.P("No data available for this leader in the selected meta format.", cls="text-red-400")
+            # Create content with fallback notification
+            content = create_leader_content(leader_data_result)
+            if fallback_used and len(params.meta_format) == 1:
+                notification = create_fallback_notification(
+                    params.meta_format[0],
+                    effective_meta_formats[0],
+                    dropdown_id="release-meta-formats-select"
+                )
+                return ft.Div(notification, content)
+            return content
         
-        # Use the shared create_leader_content function
-        return create_leader_content(leader_data)
+        # Data found for requested meta formats - no fallback needed
+        if params.lid:
+            # Find the specific leader
+            leader_data_result = next((l for l in filtered_data if l.id == params.lid), None)
+            if not leader_data_result:
+                return ft.P("No data available for this leader in the selected meta format.", cls="text-red-400")
+        else:
+            # Get the top leader
+            filtered_data.sort(key=lambda x: (x.d_score or 0, x.elo or 0), reverse=True)
+            leader_data_result = filtered_data[0]
+        
+        return create_leader_content(leader_data_result)
 
     @rt("/api/card-popularity")
     def get_card_popularity(request: Request):
@@ -190,10 +240,16 @@ def setup_api_routes(rt):
         card_data_lookup = get_card_id_card_data_lookup()
         card_popularity_list = get_card_popularity_data()
         
-        # Filter card popularity data by meta format
+        # Use utility function to get effective meta format with fallback
+        effective_meta_format, fallback_used = get_effective_meta_format_with_fallback(
+            params.meta_format,
+            card_popularity_list
+        )
+        
+        # Filter card popularity data by effective meta format
         card_popularity_dict = {}
         for cp in card_popularity_list:
-            if cp.meta_format == params.meta_format:
+            if cp.meta_format == effective_meta_format:
                 if cp.card_id not in card_popularity_dict:
                     card_popularity_dict[cp.card_id] = []
                 card_popularity_dict[cp.card_id].append(cp.popularity)
@@ -202,7 +258,8 @@ def setup_api_routes(rt):
             for cid, popularity_list in card_popularity_dict.items() 
         }
         
-        # Get all cards and apply filters
+        # Get all cards and apply filters (update params to use effective meta format)
+        params.meta_format = effective_meta_format
         cards_data = list(card_data_lookup.values())
         filtered_cards = filter_cards(cards_data, params)
         
@@ -212,8 +269,27 @@ def setup_api_routes(rt):
             reverse=True
         )
         
-        # Create and return the card popularity content
-        return create_card_popularity_content(filtered_cards, card_popularity_dict, params.page, search_term=params.search_term, currency=params.currency)
+        # Create the card popularity content
+        content = create_card_popularity_content(
+            filtered_cards, 
+            card_popularity_dict, 
+            params.page, 
+            search_term=params.search_term, 
+            currency=params.currency
+        )
+        
+        # If fallback was used, add notification
+        if fallback_used:
+            # Get the original requested meta format
+            original_params = CardPopularityParams(**get_query_params_as_dict(request))
+            notification = create_fallback_notification(
+                original_params.meta_format,
+                effective_meta_format,
+                dropdown_id="meta-format-select"
+            )
+            return ft.Div(notification, content)
+        
+        return content
 
     @rt("/api/card-modal")
     def get_card_modal(request: Request):

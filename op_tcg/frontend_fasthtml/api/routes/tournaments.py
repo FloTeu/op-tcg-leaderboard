@@ -5,7 +5,7 @@ from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.cards import CardCurrency
 from op_tcg.frontend_fasthtml.utils.extract import get_tournament_decklist_data, get_all_tournament_extened_data
-from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict
+from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict, get_effective_meta_format_with_fallback, create_fallback_notification
 from op_tcg.frontend_fasthtml.utils.extract import (
     get_leader_extended,
     get_card_id_card_data_lookup
@@ -89,11 +89,28 @@ def setup_api_routes(rt):
         leader_data = get_leader_extended(meta_format_region=params.region)
         card_data = get_card_id_card_data_lookup()
         
-        # Filter by meta formats
-        leader_data = [ld for ld in leader_data if ld.meta_format in params.meta_format and ld.only_official]
+        # Filter by meta formats first
+        filtered_data = [ld for ld in leader_data if ld.meta_format in params.meta_format and ld.only_official]
+        
+        # Check if fallback is needed for any of the selected meta formats
+        fallback_used = False
+        effective_meta_formats = []
+        
+        for meta_format in params.meta_format:
+            effective_meta, is_fallback = get_effective_meta_format_with_fallback(
+                meta_format,
+                filtered_data
+            )
+            effective_meta_formats.append(effective_meta)
+            if is_fallback:
+                fallback_used = True
+        
+        # If fallback was used, re-filter data to use effective meta formats
+        if fallback_used:
+            filtered_data = [ld for ld in leader_data if ld.meta_format in effective_meta_formats and ld.only_official]
 
         # Calculate relative mean win rate and prepare final data for chart
-        final_leader_data = aggregate_leader_data(leader_data)
+        final_leader_data = aggregate_leader_data(filtered_data)
         
         # Get max matches for slider bounds and set default if not provided
         max_matches = max((ld.get("total_matches", 0) for ld in final_leader_data), default=1000)
@@ -224,11 +241,22 @@ def setup_api_routes(rt):
             cls="mt-6"
         )
         
-        return ft.Div(
+        content = ft.Div(
             chart_div,
             slider_div,
             cls="space-y-6"
         )
+        
+        # If fallback was used, add notification
+        if fallback_used:
+            notification = create_fallback_notification(
+                params.meta_format[0],  # Show first requested meta format
+                effective_meta_formats[0],  # Show first effective meta format
+                dropdown_id="meta-formats-select"
+            )
+            return ft.Div(notification, content)
+        
+        return content
 
     @rt("/api/leader-tournaments")
     async def get_leader_tournaments(request: Request):
