@@ -129,7 +129,7 @@ def get_filtered_leaders(request: Request, leader_extended_data: list[LeaderExte
     leaders_in_meta = [l for l in leader_extended_data if l.meta_format == meta_format]
     
     # Get leaders that have decklist data in this meta format
-    leaders_with_decklists = get_leaders_with_decklist_data(leaders_in_meta, [meta_format])
+    leaders_with_decklists = get_leaders_with_decklist_data([meta_format])
     
     # Apply standard filtering
     filtered_leaders = filter_leader_extended(

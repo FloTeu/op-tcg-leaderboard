@@ -173,7 +173,7 @@ def setup_api_routes(rt):
         filtered_by_meta = [l for l in leader_data if l.meta_format in params.meta_format]
         
         # Get leaders that have decklist data in these meta formats
-        leaders_with_decklists = get_leaders_with_decklist_data(filtered_by_meta, params.meta_format)
+        leaders_with_decklists = get_leaders_with_decklist_data(params.meta_format)
         
         # Apply standard filtering
         filtered_data = filter_leader_extended(
@@ -212,7 +212,7 @@ def setup_api_routes(rt):
             filtered_by_meta = [l for l in leader_data if l.meta_format in effective_meta_formats]
             
             # Get leaders with decklists for fallback meta formats
-            leaders_with_decklists = get_leaders_with_decklist_data(filtered_by_meta, effective_meta_formats)
+            leaders_with_decklists = get_leaders_with_decklist_data(effective_meta_formats)
             
             # Apply standard filtering
             filtered_data = filter_leader_extended(

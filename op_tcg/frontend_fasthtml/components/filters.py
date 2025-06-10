@@ -50,7 +50,7 @@ def create_leader_select_component(
     leaders_in_meta = [l for l in leader_data if l.meta_format in selected_meta_formats]
     
     # Get leaders that have decklist data in these meta formats
-    leaders_with_decklists = get_leaders_with_decklist_data(leaders_in_meta, selected_meta_formats)
+    leaders_with_decklists = get_leaders_with_decklist_data(selected_meta_formats)
     
     # Filter leaders using the standard filter, but also include those with decklist data
     filtered_leaders = filter_leader_extended(
@@ -197,7 +197,7 @@ def create_leader_multiselect_component(
         leaders_in_meta = [l for l in leader_data if l.meta_format in selected_meta_formats]
         
         # Get leaders that have decklist data in these meta formats
-        leaders_with_decklists = get_leaders_with_decklist_data(leaders_in_meta, selected_meta_formats)
+        leaders_with_decklists = get_leaders_with_decklist_data(selected_meta_formats)
         
         # Filter leaders using the standard filter, but also include those with decklist data
         filtered_leaders = filter_leader_extended(

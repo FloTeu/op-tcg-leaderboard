@@ -1,6 +1,7 @@
 from typing import List, Optional
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.input import MetaFormat
+from op_tcg.frontend_fasthtml.utils.extract import get_tournament_decklist_data
 
 def filter_leader_extended(
     leaders: List[LeaderExtended],
@@ -51,18 +52,16 @@ def filter_leader_extended(
     return list(filter(filter_fn, leaders))
 
 
-def get_leaders_with_decklist_data(leaders: List[LeaderExtended], meta_formats: List[MetaFormat]) -> List[str]:
+def get_leaders_with_decklist_data(meta_formats: List[MetaFormat]) -> List[str]:
     """
     Get leader IDs that have decklist data in the specified meta formats.
     
     Args:
-        leaders: List of LeaderExtended objects
         meta_formats: List of meta formats to check for decklist data
         
     Returns:
         List of leader IDs that have decklist data
     """
-    from op_tcg.frontend_fasthtml.utils.extract import get_tournament_decklist_data
     
     # Get all decklists for the meta formats
     tournament_decklists = get_tournament_decklist_data(meta_formats=meta_formats)
