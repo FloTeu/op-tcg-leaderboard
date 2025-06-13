@@ -50,14 +50,17 @@ def filter_cards(cards_data: list, params: CardPopularityParams) -> list:
         if params.card_attributes and not any(attr in params.card_attributes for attr in card.attributes):
             continue
             
-        # Filter by counter
-        if params.card_counter is not None and card.counter != params.card_counter:
-            continue
-            
         # Filter by card category
         if params.card_category and card.card_category not in params.card_category:
             continue
             
+        # Filter by counter
+        if params.card_counter == 0 and card.counter not in [None, 0]:
+            continue
+
+        elif params.card_counter not in [0, None] and card.counter != params.card_counter:
+            continue
+
         # Filter by card types
         if params.card_types and not any(t in params.card_types for t in card.types):
             continue
