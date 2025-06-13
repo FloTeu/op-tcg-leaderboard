@@ -48,11 +48,13 @@ def setup_api_routes(rt):
                 None
             )
 
+            card_id2card_data = get_card_id_card_data_lookup()
+
             if not selected_decklist_obj:
                 return ft.P("Decklist not found.", cls="text-red-500 p-4")
             
             # display_decklist expects dict[str, int] (the actual decklist) and leader_id
-            return display_decklist(selected_decklist_obj.decklist, leader_id)
+            return display_decklist(selected_decklist_obj.decklist, card_id2card_data, leader_id)
         except Exception as e:
             # Catch any other unexpected errors during data fetching or processing
             return ft.P(f"An error occurred while fetching the decklist: {e}", cls="text-red-500 p-4") 

@@ -1,5 +1,5 @@
 from fasthtml import ft
-from op_tcg.backend.models.cards import OPTcgLanguage, LatestCardPrice
+from op_tcg.backend.models.cards import ExtendedCardData, OPTcgLanguage, LatestCardPrice
 from op_tcg.frontend_fasthtml.utils.decklist import DecklistData, decklist_to_export_str, ensure_leader_id
 
 # Added for styling the select component, consider moving to a common utils/constants
@@ -107,7 +107,7 @@ def display_card_list(decklist_data: DecklistData, card_ids: list[str]):
         cls="mb-8"  # Added extra margin for spacing
     )
 
-def display_decklist(decklist: dict[str, int], leader_id: str = None):
+def display_decklist(decklist: dict[str, int], card_id2card_data: dict[str, ExtendedCardData], leader_id: str = None):
     """
     Display a visual representation of a complete decklist.
     
@@ -131,7 +131,7 @@ def display_decklist(decklist: dict[str, int], leader_id: str = None):
     for i, (card_id, count) in enumerate(filtered_decklist.items()):
         # Extract set code from card_id
         op_set = card_id.split("-")[0]
-        img_url = f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{op_set}/{card_id}_{OPTcgLanguage.EN.upper()}.webp"
+        img_url = card_id2card_data[card_id].image_url if card_id in card_id2card_data else f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{op_set}/{card_id}_{OPTcgLanguage.EN.upper()}.webp"
         
         card_items.append(
             ft.Div(
@@ -309,7 +309,7 @@ def create_decklist_section(leader_id: str, tournament_decklists, card_id2card_d
         # Update the select's value to match the best decklist
         tournament_decklist_select_component.children[1].value = f"{best_matching_td.tournament_id}:{best_matching_td.player_id}"
     
-    initial_decklist_content = display_decklist(best_matching_decklist_dict, leader_id) if best_matching_decklist_dict else ft.P("Select a decklist from the dropdown to view details.", cls="text-white p-4")
+    initial_decklist_content = display_decklist(best_matching_decklist_dict, card_id2card_data, leader_id) if best_matching_decklist_dict else ft.P("Select a decklist from the dropdown to view details.", cls="text-white p-4")
 
     return ft.Div(
         ft.Link(rel="stylesheet", href="/public/css/decklist.css", id="decklist-css"),
