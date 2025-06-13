@@ -31,14 +31,18 @@ def aggregate_leader_data(leader_data: list[LeaderExtended]):
     })
     
     for ld in leader_data:
-        aggregated_data[ld.id]["total_matches"].append(ld.total_matches)
-        aggregated_data[ld.id]["total_wins"].append(ld.tournament_wins)
-        aggregated_data[ld.id]["win_rate"].append(ld.win_rate)
+        if ld.total_matches is not None:
+            aggregated_data[ld.id]["total_matches"].append(ld.total_matches)
+        if ld.tournament_wins is not None:
+            aggregated_data[ld.id]["total_wins"].append(ld.tournament_wins)
+        if ld.win_rate is not None:
+            aggregated_data[ld.id]["win_rate"].append(ld.win_rate)
         aggregated_data[ld.id]["image_url"] = ld.aa_image_url if ld.aa_image_url else ld.image_url
 
     # Calculate relative mean win rate and prepare final data for chart
     final_leader_data = []
     for leader_id, data in aggregated_data.items():
+        
         if len(data["total_matches"]) > 0:
             # for each list element get a relative factor by dividing the element by the sum of the list
             relative_factors = [x / sum(data["total_matches"]) for x in data["total_matches"]]
