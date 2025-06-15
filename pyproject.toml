@@ -42,6 +42,7 @@ streamlit-js-eval = "^0.1.7"
 st-theme = "^1.2.2"
 plotly = "^6.0.0"
 python-fasthtml = "^0.12.12"
+google-cloud-firestore = "^2.21.0"
 
 [build-system]
 requires = ["poetry-core"]

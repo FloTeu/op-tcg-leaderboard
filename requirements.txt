@@ -10,5 +10,6 @@ numpy
 requests
 google-cloud-bigquery
 google-cloud-storage
+google-cloud-firestore
 cachetools
 fastcore
