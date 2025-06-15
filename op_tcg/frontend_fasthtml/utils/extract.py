@@ -2,6 +2,7 @@ import os
 from collections import Counter
 
 from cachetools import TTLCache
+from fastcore.xtras import timed_cache
 
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
 from op_tcg.backend.models.cards import LatestCardPrice, CardPopularity, Card, CardReleaseSet, ExtendedCardData, \
@@ -73,6 +74,14 @@ def get_leader_extended(meta_formats: list[MetaFormat] | None = None, leader_ids
         bq_leader_data = [bql for bql in bq_leader_data if (bql.meta_format in meta_formats)]
 
     return bq_leader_data
+
+@timed_cache(seconds=60*60*24) # 24 hours
+def get_leader_extended_by_meta_format(meta_format: MetaFormat, only_official: bool = True) -> list[LeaderExtended]:
+    """Get cached leader data by meta format.
+    """
+    leader_data = get_leader_extended()
+    leaders_in_meta = [l for l in leader_data if l.meta_format == meta_format and l.only_official == only_official]
+    return leaders_in_meta
 
 @timeit
 def get_tournament_standing_data(meta_formats: list[MetaFormat], leader_id: str | None = None) -> list[TournamentStandingExtended]:

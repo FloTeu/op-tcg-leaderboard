@@ -1,9 +1,12 @@
 from fasthtml import ft
 from starlette.requests import Request
 from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict
 from op_tcg.frontend_fasthtml.components.filters import create_leader_select_component, create_leader_multiselect_component, create_card_subtype_select_component
 from op_tcg.frontend_fasthtml.api.models import LeaderDataParams, MatchupParams
+from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended_by_meta_format
+
 
 def setup_api_routes(rt):
     @rt("/api/leader-select")
@@ -23,6 +26,8 @@ def setup_api_routes(rt):
             query_params['lid'] = query_params['initial_lid']
             
         params = LeaderDataParams(**query_params)
+        # assumes first meta format is the latest meta format
+        leader_data: list[LeaderExtended] = get_leader_extended_by_meta_format(params.meta_format[0])
         
         # Check if the current leader is available in the new meta format
         # This will be handled by the component itself, but we pass the selected_leader_id
@@ -32,6 +37,7 @@ def setup_api_routes(rt):
         return create_leader_select_component(
             selected_meta_formats=params.meta_format,
             selected_leader_id=params.lid,
+            leader_data=leader_data,
             only_official=params.only_official,
             auto_select_top=True,  # Auto-select top leader if current one is not available
             htmx_attrs={
