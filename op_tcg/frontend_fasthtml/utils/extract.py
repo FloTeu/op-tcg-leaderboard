@@ -2,7 +2,6 @@ import os
 from collections import Counter
 
 from cachetools import TTLCache
-from fastcore.xtras import timed_cache
 
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
 from op_tcg.backend.models.cards import LatestCardPrice, CardPopularity, Card, CardReleaseSet, ExtendedCardData, \
@@ -66,6 +65,7 @@ def get_leader_extended(meta_formats: list[MetaFormat] | None = None, leader_ids
         f"""SELECT * FROM `{get_bq_table_id(LeaderExtended)}`""")
     bq_leader_data.extend([LeaderExtended(**d) for d in leader_data_rows])
 
+    # Apply filters
     if leader_ids:
         bq_leader_data = [bql for bql in bq_leader_data if (bql.id in leader_ids)]
     if meta_format_region:
@@ -75,9 +75,8 @@ def get_leader_extended(meta_formats: list[MetaFormat] | None = None, leader_ids
 
     return bq_leader_data
 
-@timed_cache(seconds=60*60*24) # 24 hours
 def get_leader_extended_by_meta_format(meta_format: MetaFormat, only_official: bool = True) -> list[LeaderExtended]:
-    """Get cached leader data by meta format.
+    """Get leader data by meta format.
     """
     leader_data = get_leader_extended()
     leaders_in_meta = [l for l in leader_data if l.meta_format == meta_format and l.only_official == only_official]
