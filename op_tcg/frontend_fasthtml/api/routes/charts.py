@@ -2,7 +2,7 @@ import json
 import html
 from fasthtml import ft
 from starlette.requests import Request
-from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.cards import OPTcgCardCatagory
 from op_tcg.frontend_fasthtml.utils.colors import ChartColors
 from op_tcg.frontend_fasthtml.utils.extract import (
@@ -12,7 +12,6 @@ from op_tcg.frontend_fasthtml.utils.extract import (
 )
 from op_tcg.frontend_fasthtml.utils.charts import create_line_chart, create_leader_win_rate_radar_chart, create_card_occurrence_streaming_chart
 from op_tcg.frontend_fasthtml.utils.win_rate import get_radar_chart_data
-from op_tcg.frontend_fasthtml.utils.api import get_filtered_leaders
 from op_tcg.frontend_fasthtml.utils.leader_data import lid_to_name_and_lid
 
 
@@ -66,29 +65,62 @@ def setup_api_routes(rt):
         # Get color parameter (default to neutral for leader page)
         color_param = request.query_params.get("color", None)
         
-        # Get leader data for all meta formats
-        filtered_leaders = get_filtered_leaders(request)
+        # Get only_official parameter 
+        only_official_param = request.query_params.get("only_official", "true").lower() in ("true", "on", "1", "yes")
+        
+        # Get leader data for ALL meta formats up to the selected meta format
+        # We need all historical data to build the chart, not just the exact meta format
+        region_param = request.query_params.get("region", MetaFormatRegion.ALL.value)
+        region = MetaFormatRegion(region_param) if region_param else MetaFormatRegion.ALL
+        
+        all_leader_data = get_leader_extended(meta_format_region=region)
+        
+        # Filter by all meta formats up to and including the selected one
+        relevant_meta_formats = all_meta_formats[:meta_format_index + 1]
+        filtered_leaders = [l for l in all_leader_data if l.meta_format in relevant_meta_formats]
+        
+        # Apply only_official filter
+        filtered_leaders = [l for l in filtered_leaders if l.only_official == only_official_param]
         
         # Sort by meta format to ensure chronological order
         filtered_leaders.sort(key=lambda x: all_meta_formats.index(x.meta_format))
 
-        first_meta_format = filtered_leaders[0].meta_format if filtered_leaders else None
-        
+        # Get only the data for the specific leader we're charting
         leader_history = [l for l in filtered_leaders if l.id == leader_id]
-        start_index = all_meta_formats.index(first_meta_format) if first_meta_format in all_meta_formats else 0
-        meta_formats_between = all_meta_formats[start_index:]
+        
+        if not leader_history:
+            # No data for this leader, return empty chart
+            return create_line_chart(
+                container_id=f"win-rate-chart-{leader_id}",
+                data=[],
+                color=ChartColors.NEUTRAL,
+                show_x_axis=True,
+                show_y_axis=True
+            )
+        
+        # Find the range of meta formats where this leader has data
+        leader_meta_formats = [l.meta_format for l in leader_history]
+        first_leader_meta = min(leader_meta_formats)
+        last_leader_meta = max(leader_meta_formats)
+        
+        # Get the index range for the leader's data
+        first_leader_index = all_meta_formats.index(first_leader_meta)
+        last_leader_index = all_meta_formats.index(last_leader_meta)
+        
+        # Create the full range of meta formats to consider (from first leader data to selected meta format)
+        full_range_end = max(last_leader_index, meta_format_index) + 1
+        meta_formats_range = all_meta_formats[first_leader_index:full_range_end]
+        
+        # Apply last_n limit - take the last N meta formats from the range
+        if len(meta_formats_range) > last_n:
+            meta_formats_range = meta_formats_range[-last_n:]
         
         # Create a lookup for existing data points
         meta_to_leader = {l.meta_format: l for l in leader_history}
         
-        # Determine range of meta formats to include based on last_n
-        end_index = meta_format_index + 1 - start_index  # Exclusive end index
-        start_index = max(0, end_index - last_n)  # Take at most last_n meta formats
-        relevant_meta_formats = meta_formats_between[start_index:end_index]
-        
         # Prepare data for the chart, including null values for missing meta formats
         chart_data = []
-        for meta_format in relevant_meta_formats:
+        for meta_format in meta_formats_range:
             if meta_format in meta_to_leader:
                 leader = meta_to_leader[meta_format]
                 chart_data.append({

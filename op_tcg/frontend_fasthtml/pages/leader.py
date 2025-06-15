@@ -330,63 +330,50 @@ def create_leader_content(leader_data: LeaderExtended):
     has_match_data = leader_data.total_matches is not None and leader_data.total_matches > 0
     
     # Create charts section only if there's match data
-    charts_section = None
-    if has_match_data:
-        charts_section = ft.Div(
-            # Win rate chart
-            ft.Div(
-                ft.H3("Win Rate History", cls="text-xl font-bold text-white mb-4"),
-                create_loading_spinner(
-                    id="win-rate-chart-loading-indicator",
-                    size="w-8 h-8",
-                    container_classes="min-h-[100px]"
-                ),
-                ft.Div(
-                    hx_get=f"/api/leader-chart/{leader_data.id}",
-                    hx_trigger="load",
-                    hx_include=HX_INCLUDE,
-                    hx_target="#win-rate-chart-container",
-                    hx_indicator="#win-rate-chart-loading-indicator",
-                    hx_vals=f'{{"last_n": "10", "color": "neutral"}}',
-                    id="win-rate-chart-container",
-                    cls="min-h-[150px] flex items-center justify-center w-full"
-                ),
-                cls="bg-gray-800 rounded-lg p-6 shadow-xl mb-6"
+    charts_section = ft.Div(
+        # Win rate chart
+        ft.Div(
+            ft.H3("Win Rate History", cls="text-xl font-bold text-white mb-4"),
+            create_loading_spinner(
+                id="win-rate-chart-loading-indicator",
+                size="w-8 h-8",
+                container_classes="min-h-[100px]"
             ),
-            
-            # Color matchup radar chart
             ft.Div(
-                ft.H3("Color Matchups", cls="text-xl font-bold text-white mb-4"),
-                create_loading_spinner(
-                    id="radar-chart-loading-indicator",
-                    size="w-8 h-8",
-                    container_classes="min-h-[100px]"
-                ),
-                ft.Div(
-                    hx_get="/api/leader-radar-chart",
-                    hx_trigger="load",
-                    hx_include=HX_INCLUDE,
-                    hx_target="#leader-radar-chart",
-                    hx_indicator="#radar-chart-loading-indicator",
-                    hx_vals=f'{{"lid": "{leader_data.id}"}}',
-                    id="leader-radar-chart",
-                    cls="min-h-[300px] flex items-center justify-center w-full"
-                ),
-                cls="bg-gray-800 rounded-lg p-6 shadow-xl"
+                hx_get=f"/api/leader-chart/{leader_data.id}",
+                hx_trigger="load",
+                hx_include=HX_INCLUDE,
+                hx_target="#win-rate-chart-container",
+                hx_indicator="#win-rate-chart-loading-indicator",
+                hx_vals=f'{{"last_n": "10", "color": "neutral"}}',
+                id="win-rate-chart-container",
+                cls="min-h-[150px] flex items-center justify-center w-full"
             ),
-            cls="w-full md:w-3/4 md:pl-6 flex-grow px-4 md:px-0"
-        )
-    else:
-        # Show message when no match data is available
-        charts_section = ft.Div(
+            cls="bg-gray-800 rounded-lg p-6 shadow-xl mb-6"
+        ),
+        
+        # Color matchup radar chart
+        ft.Div(
+            ft.H3("Color Matchups", cls="text-xl font-bold text-white mb-4"),
+            create_loading_spinner(
+                id="radar-chart-loading-indicator",
+                size="w-8 h-8",
+                container_classes="min-h-[100px]"
+            ),
             ft.Div(
-                ft.H3("Match Data", cls="text-xl font-bold text-white mb-4"),
-                ft.P("No match data available for this leader.", cls="text-gray-400"),
-                ft.P("This leader may only have decklist data available.", cls="text-gray-500 text-sm"),
-                cls="bg-gray-800 rounded-lg p-6 shadow-xl"
+                hx_get="/api/leader-radar-chart",
+                hx_trigger="load",
+                hx_include=HX_INCLUDE,
+                hx_target="#leader-radar-chart",
+                hx_indicator="#radar-chart-loading-indicator",
+                hx_vals=f'{{"lid": "{leader_data.id}"}}',
+                id="leader-radar-chart",
+                cls="min-h-[300px] flex items-center justify-center w-full"
             ),
-            cls="w-full md:w-3/4 md:pl-6 flex-grow px-4 md:px-0"
-        )
+            cls="bg-gray-800 rounded-lg p-6 shadow-xl"
+        ),
+        cls="w-full md:w-3/4 md:pl-6 flex-grow px-4 md:px-0"
+    )
     
     return ft.Div(
         # Page title

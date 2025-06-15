@@ -35,7 +35,7 @@ bq_client = bigquery.Client(credentials=credentials)
 storage_client = storage.Client(credentials=credentials)
 firestore_client = firestore.Client(credentials=credentials, database="op-leaderboard")
 
-#@timed_cache(seconds=60 * 60 * 6) # 6 hours
+@timed_cache(seconds=60 * 60 * 6) # 6 hours
 def run_bq_query(query: str) -> list[dict[str, Any]]:
     """Runs a bigquery query with Firestore caching if available, fallback to timed_cache"""
     
