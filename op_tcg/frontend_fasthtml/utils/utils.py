@@ -9,7 +9,6 @@ from typing import Any, Optional
 from google.oauth2 import service_account
 from google.cloud import bigquery, storage, firestore
 from fastcore.xtras import timed_cache
-from .cache import get_from_firestore_cache, store_in_firestore_cache
 
 
 # Create API client using base64 encoded service account key
@@ -38,20 +37,10 @@ firestore_client = firestore.Client(credentials=credentials, database="op-leader
 @timed_cache(seconds=60 * 60 * 6) # 6 hours
 def run_bq_query(query: str) -> list[dict[str, Any]]:
     """Runs a bigquery query with Firestore caching if available, fallback to timed_cache"""
-    
-    # Try Firestore cache first
-    cached_result = get_from_firestore_cache(firestore_client, query)
-    if cached_result is not None and cached_result != []:
-        return cached_result
-    
     # Execute query
     logging.info(f"Running bq query: {query}")
     query_job = bq_client.query(query, location="europe-west3")
     rows_raw = query_job.result()
     # Convert to list of dicts. Required for caching to hash the return value.
     rows = [dict(row) for row in rows_raw]
-    
-    # Store in Firestore cache
-    store_in_firestore_cache(firestore_client, query, rows)
-    
     return rows
