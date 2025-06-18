@@ -1,7 +1,7 @@
 import os
 from collections import Counter
 
-from cachetools import TTLCache
+from cachetools import TTLCache, cached
 
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
 from op_tcg.backend.models.cards import LatestCardPrice, CardPopularity, Card, CardReleaseSet, ExtendedCardData, \
@@ -16,8 +16,7 @@ from op_tcg.backend.utils.utils import timeit
 from op_tcg.frontend_fasthtml.utils.card_price import get_decklist_price
 from op_tcg.frontend_fasthtml.utils.utils import run_bq_query
 
-# maxsize: Number of elements the cache can hold
-CACHE = TTLCache(maxsize=10, ttl=60 * 60 * 24)
+
 
 def get_bq_table_id(table: type[BQTableBaseModel]) -> str:
     # Get project ID from environment variable
@@ -27,8 +26,8 @@ def get_bq_table_id(table: type[BQTableBaseModel]) -> str:
     return f'{project_id}.{table.get_dataset_id()}.{table.__tablename__}'
 
 def get_leader_data() -> list[Leader]:
-    # cached for each session
-    leader_data_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(Leader)}`""")
+    # Leader data is relatively static - cache for 24 hours
+    leader_data_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(Leader)}`""", ttl_hours=24.0)
     bq_leaders = [Leader(**d) for d in leader_data_rows]
     return bq_leaders
 
@@ -36,8 +35,8 @@ def get_leader_data() -> list[Leader]:
 def get_match_data(meta_formats: list[MetaFormat], leader_ids: list[str] | None = None) -> list[Match]:
     bq_matches: list[Match] = []
     for meta_format in meta_formats:
-        # cached for each session
-        match_data_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(Match)}` where meta_format = '{meta_format}'""")
+        # Match data changes frequently - cache for 24 hour
+        match_data_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(Match)}` where meta_format = '{meta_format}'""", ttl_hours=24.0)
         bq_matches.extend([Match(**d) for d in match_data_rows])
 
     if leader_ids:
@@ -48,8 +47,8 @@ def get_match_data(meta_formats: list[MetaFormat], leader_ids: list[str] | None 
 def get_leader_win_rate(meta_formats: list[MetaFormat], leader_ids: list[str] | None = None) -> list[LeaderWinRate]:
     bq_win_rates: list[LeaderWinRate] = []
     for meta_format in meta_formats:
-        # cached for each session
-        win_rate_data_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(LeaderWinRate)}` where meta_format = '{meta_format}'""")
+        # Win rates update daily - cache for 6 hours (default)
+        win_rate_data_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(LeaderWinRate)}` where meta_format = '{meta_format}'""", ttl_hours=24.0)
         bq_win_rates.extend([LeaderWinRate(**d) for d in win_rate_data_rows])
 
     if leader_ids:
@@ -61,8 +60,9 @@ def get_leader_extended(meta_formats: list[MetaFormat] | None = None, leader_ids
     # ensure only available meta formats are used per default
     meta_formats = meta_formats or MetaFormat.to_list()
     bq_leader_data: list[LeaderExtended] = []
+    # Extended leader data is computed, cache for 6 hours (default)
     leader_data_rows = run_bq_query(
-        f"""SELECT * FROM `{get_bq_table_id(LeaderExtended)}`""")
+        f"""SELECT * FROM `{get_bq_table_id(LeaderExtended)}`""", ttl_hours=6.0)
     bq_leader_data.extend([LeaderExtended(**d) for d in leader_data_rows])
 
     # Apply filters
@@ -91,7 +91,7 @@ def get_tournament_standing_data(meta_formats: list[MetaFormat], leader_id: str 
 SELECT t1.*, t2.* EXCEPT (create_timestamp, name) FROM `{get_bq_table_id(TournamentStanding)}` t1
 left join `{get_bq_table_id(Tournament)}` t2
 on t1.tournament_id = t2.id
-where t2.meta_format = '{meta_format}'""")
+where t2.meta_format = '{meta_format}'""", ttl_hours=24.0)
         bq_tournament_standings.extend([TournamentStandingExtended(**d) for d in tournament_standing_rows])
     if leader_id:
         bq_tournament_standings = [ts for ts in bq_tournament_standings if ts.leader_id == leader_id]
@@ -107,38 +107,33 @@ def get_tournament_decklist_data(meta_formats: list[MetaFormat], leader_ids: lis
         bq_decklists = [ts for ts in bq_decklists if ts.meta_format in meta_formats]
     return bq_decklists
 
+@cached(cache=TTLCache(maxsize=1024, ttl=60*60*24))
 def get_all_tournament_decklist_data() -> list[TournamentDecklist]:
-    if "TOURNAMENT_DECKLISTS" in CACHE:
-        return CACHE["TOURNAMENT_DECKLISTS"]
-    else:
-        card_id2card_data = get_card_id_card_data_lookup()
-        # cached for each session
-        tournament_standing_rows = run_bq_query(f"""
-    SELECT t1.leader_id, t1.tournament_id, COALESCE(t3.decklist, t1.decklist) AS decklist, t1.placing, t1.player_id, t2.meta_format, COALESCE(t2.meta_format_region, 'west') AS meta_format_region , t2.tournament_timestamp 
-    FROM `{get_bq_table_id(TournamentStanding)}` t1
-    left join `{get_bq_table_id(Tournament)}` t2 on t1.tournament_id = t2.id
-    left join `{get_bq_table_id(Decklist)}` t3 on t1.decklist_id = t3.id
-    where
-    t1.decklist IS NOT NULL 
-    OR t3.decklist IS NOT NULL""")
-        tournament_decklists: list[TournamentDecklist] = []
-        for ts in tournament_standing_rows:
-            tournament_decklist = TournamentDecklist(**ts)
-            tournament_decklist.price_usd = get_decklist_price(tournament_decklist.decklist, card_id2card_data, currency=CardCurrency.US_DOLLAR)
-            tournament_decklist.price_eur = get_decklist_price(tournament_decklist.decklist, card_id2card_data, currency=CardCurrency.EURO)
-            tournament_decklists.append(tournament_decklist)
-        CACHE["TOURNAMENT_DECKLISTS"] = tournament_decklists
-        return tournament_decklists
+    """Function is cached since data processing is expensive."""
+    card_id2card_data = get_card_id_card_data_lookup()
+    # cached for each session
+    tournament_standing_rows = run_bq_query(f"""
+SELECT t1.leader_id, t1.tournament_id, COALESCE(t3.decklist, t1.decklist) AS decklist, t1.placing, t1.player_id, t2.meta_format, COALESCE(t2.meta_format_region, 'west') AS meta_format_region , t2.tournament_timestamp 
+FROM `{get_bq_table_id(TournamentStanding)}` t1
+left join `{get_bq_table_id(Tournament)}` t2 on t1.tournament_id = t2.id
+left join `{get_bq_table_id(Decklist)}` t3 on t1.decklist_id = t3.id
+where
+t1.decklist IS NOT NULL 
+OR t3.decklist IS NOT NULL""", ttl_hours=None)
+    tournament_decklists: list[TournamentDecklist] = []
+    for ts in tournament_standing_rows:
+        tournament_decklist = TournamentDecklist(**ts)
+        tournament_decklist.price_usd = get_decklist_price(tournament_decklist.decklist, card_id2card_data, currency=CardCurrency.US_DOLLAR)
+        tournament_decklist.price_eur = get_decklist_price(tournament_decklist.decklist, card_id2card_data, currency=CardCurrency.EURO)
+        tournament_decklists.append(tournament_decklist)
+    return tournament_decklists
 
+@timeit
 def get_all_tournament_extened_data(meta_formats: list[MetaFormat] | None = None) -> list[TournamentExtended]:
-    if "TOURNAMENT_EXTENDED" in CACHE:
-        tournaments = CACHE["TOURNAMENT_EXTENDED"]
-    else:
-        tournament_extended_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(TournamentExtended)}` order by tournament_timestamp desc""")
-        tournaments: list[TournamentExtended] = []
-        for te in tournament_extended_rows:
-            tournaments.append(TournamentExtended(**te))
-        CACHE["TOURNAMENT_EXTENDED"] = tournaments
+    tournament_extended_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(TournamentExtended)}` order by tournament_timestamp desc""", ttl_hours=24.0)
+    tournaments: list[TournamentExtended] = []
+    for te in tournament_extended_rows:
+        tournaments.append(TournamentExtended(**te))
 
     if meta_formats:
         tournaments = [t for t in tournaments if t.meta_format in meta_formats]
@@ -151,11 +146,11 @@ def get_leader_elo_data(meta_formats: list[MetaFormat] | None=None) -> list[Lead
     if meta_formats:
         for meta_format in meta_formats:
             # cached for each session
-            leader_elo_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(LeaderElo)}` where meta_format = '{meta_format}' order by elo desc""")
+            leader_elo_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(LeaderElo)}` where meta_format = '{meta_format}' order by elo desc""", ttl_hours=24.0)
             bq_leader_elos.extend([LeaderElo(**d) for d in leader_elo_rows])
     else:
         leader_elo_rows = run_bq_query(
-            f"""SELECT * FROM `{get_bq_table_id(LeaderElo)}` order by elo desc""")
+            f"""SELECT * FROM `{get_bq_table_id(LeaderElo)}` order by elo desc""", ttl_hours=24.0)
         bq_leader_elos.extend([LeaderElo(**d) for d in leader_elo_rows])
     bq_leader_elos.sort(key=lambda x: x.elo, reverse=True)
     return bq_leader_elos
@@ -168,11 +163,11 @@ def get_leader_tournament_wins(meta_formats: list[MetaFormat] | None=None) -> li
     if meta_formats:
         for meta_format in meta_formats:
             # cached for each session
-            leader_wins_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(TournamentWinner)}` where meta_format = '{meta_format}'""")
+            leader_wins_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(TournamentWinner)}` where meta_format = '{meta_format}'""", ttl_hours=24.0)
             bq_leader_tournament_wins.extend([TournamentWinner(**d) for d in leader_wins_rows])
     else:
         leader_wins_rows = run_bq_query(
-            f"""SELECT * FROM `{get_bq_table_id(TournamentWinner)}`""")
+            f"""SELECT * FROM `{get_bq_table_id(TournamentWinner)}`""", ttl_hours=24.0)
         bq_leader_tournament_wins.extend([TournamentWinner(**d) for d in leader_wins_rows])
     return bq_leader_tournament_wins
 
@@ -181,12 +176,13 @@ def get_card_data() -> list[LatestCardPrice]:
             f"""SELECT t0.*, t1.* except(id, name, language, create_timestamp) 
             FROM `{get_bq_table_id(LatestCardPrice)}` t0
             LEFT JOIN `{get_bq_table_id(CardReleaseSet)}` t1 on t0.release_set_id = t1.id
-    """)
+    """, ttl_hours=24.0)
     return [ExtendedCardData(**d) for d in latest_card_rows]
 
 def get_card_popularity_data() -> list[CardPopularity]:
+    # Card popularity is computed daily - cache for 24 hours
     latest_card_rows = run_bq_query(
-            f"""SELECT * FROM `{get_bq_table_id(CardPopularity)}`""")
+            f"""SELECT * FROM `{get_bq_table_id(CardPopularity)}`""", ttl_hours=24.0)
     return [CardPopularity(**d) for d in latest_card_rows]
 
 def get_card_popularity_by_meta(card_id: str, until_meta_format: MetaFormat | None = None) -> dict[MetaFormat, float]:
@@ -211,7 +207,7 @@ def get_meta_format_to_num_decklists() -> dict[MetaFormat, int]:
 
 def get_card_types() -> list[str]:
     latest_card_rows = run_bq_query(
-            f"""SELECT DISTINCT(types) FROM `{get_bq_table_id(Card)}` c, UNNEST(c.types) AS types """)
+            f"""SELECT DISTINCT(types) FROM `{get_bq_table_id(Card)}` c, UNNEST(c.types) AS types """, ttl_hours=24.0)
     return [d["types"] for d in latest_card_rows]
 
 
