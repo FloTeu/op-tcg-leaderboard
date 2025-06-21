@@ -3,6 +3,7 @@ load_dotenv()
 
 from fasthtml import ft
 from fasthtml.common import fast_app, serve
+from contextlib import asynccontextmanager
 from op_tcg.frontend_fasthtml.components.layout import layout
 from op_tcg.frontend_fasthtml.pages.home import home_page, create_filter_components as home_filters
 from op_tcg.frontend_fasthtml.pages.leader import leader_page, create_filter_components as leader_filters
@@ -14,10 +15,39 @@ from op_tcg.frontend_fasthtml.pages.bug_report import bug_report_page
 from op_tcg.frontend_fasthtml.api.routes.main import setup_api_routes
 from op_tcg.backend.models.input import MetaFormat
 from starlette.requests import Request
+from op_tcg.frontend_fasthtml.utils.cache_warmer import start_cache_warming, stop_cache_warming, warm_cache_now
+import logging
 
-# Create main app
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+@asynccontextmanager
+async def lifespan(app):
+    """Application lifespan manager - runs in the same process as request handlers"""
+    logger.info("Starting OP TCG Leaderboard application...")
+    
+    try:
+        # Start background cache warming in the worker process
+        start_cache_warming()
+        logger.info("Cache warming started successfully")
+    except Exception as e:
+        logger.error(f"Failed to start cache warming: {e}")
+    
+    yield  # Application runs here
+    
+    # Cleanup on shutdown
+    logger.info("Shutting down OP TCG Leaderboard application...")
+    try:
+        stop_cache_warming()
+        logger.info("Cache warming stopped successfully")
+    except Exception as e:
+        logger.error(f"Error stopping cache warming: {e}")
+
+# Create main app with lifespan manager
 app, rt = fast_app(
     pico=False,
+    lifespan=lifespan,  # Add lifespan manager here
     hdrs=[
         ft.Style(':root { --pico-font-size: 100%; }'),
         ft.Style('body { background-color: rgb(17, 24, 39); }'),
@@ -55,6 +85,41 @@ app, rt = fast_app(
 
 # Setup API routes
 setup_api_routes(rt)
+
+@rt("/api/cache/status")
+def cache_status():
+    """Get cache warmer status"""
+    from op_tcg.frontend_fasthtml.utils.cache_warmer import get_cache_warmer
+    warmer = get_cache_warmer()
+    return {
+        "is_running": warmer.is_running,
+        "warm_interval_hours": warmer.warm_interval_hours
+    }
+
+@rt("/api/cache/stats")
+def cache_stats():
+    """Get cache performance statistics"""
+    from op_tcg.frontend_fasthtml.utils.cache_monitor import get_cache_summary
+    return get_cache_summary()
+
+@rt("/api/cache/warm")
+def warm_cache_manual():
+    """Manually trigger cache warming"""
+    try:
+        warm_cache_now()
+        return {"status": "success", "message": "Cache warming initiated"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@rt("/api/cache/clear")
+def clear_cache():
+    """Clear all caches"""
+    try:
+        from op_tcg.frontend_fasthtml.utils.cache import clear_all_caches
+        clear_all_caches()
+        return {"status": "success", "message": "All caches cleared"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 # Leader pages
 @rt("/")
@@ -135,4 +200,5 @@ def bug_report():
     return layout(bug_report_page(), filter_component=None, current_path="/bug-report")
 
 if __name__ == "__main__":
+    # Start background tasks
     serve()

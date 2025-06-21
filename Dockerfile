@@ -5,7 +5,8 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
-    PORT=8080
+    PORT=8080 \
+    CACHE_WARM_INTERVAL_HOURS=3.0
 
 # Set the working directory in the container
 WORKDIR /app
@@ -42,6 +43,7 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD python -c "import requests; requests.get('http://localhost:8080')" || exit 1
 
 # Run the application with proper configuration for Cloud Run
+# Use exec form to ensure proper signal handling for graceful shutdown
 CMD ["python", "-m", "uvicorn", "op_tcg.frontend_fasthtml.main:app", \
      "--host", "0.0.0.0", \
      "--port", "8080", \

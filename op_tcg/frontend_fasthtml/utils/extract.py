@@ -32,18 +32,6 @@ def get_leader_data() -> list[Leader]:
     return bq_leaders
 
 
-def get_match_data(meta_formats: list[MetaFormat], leader_ids: list[str] | None = None) -> list[Match]:
-    bq_matches: list[Match] = []
-    for meta_format in meta_formats:
-        # Match data changes frequently - cache for 24 hour
-        match_data_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(Match)}` where meta_format = '{meta_format}'""", ttl_hours=24.0)
-        bq_matches.extend([Match(**d) for d in match_data_rows])
-
-    if leader_ids:
-        return [bqm for bqm in bq_matches if (bqm.leader_id in leader_ids)]
-    else:
-        return bq_matches
-
 def get_leader_win_rate(meta_formats: list[MetaFormat], leader_ids: list[str] | None = None) -> list[LeaderWinRate]:
     bq_win_rates: list[LeaderWinRate] = []
     for meta_format in meta_formats:
@@ -81,21 +69,6 @@ def get_leader_extended_by_meta_format(meta_format: MetaFormat, only_official: b
     leader_data = get_leader_extended()
     leaders_in_meta = [l for l in leader_data if l.meta_format == meta_format and l.only_official == only_official]
     return leaders_in_meta
-
-@timeit
-def get_tournament_standing_data(meta_formats: list[MetaFormat], leader_id: str | None = None) -> list[TournamentStandingExtended]:
-    bq_tournament_standings: list[TournamentStandingExtended] = []
-    for meta_format in meta_formats:
-        # cached for each session
-        tournament_standing_rows = run_bq_query(f"""
-SELECT t1.*, t2.* EXCEPT (create_timestamp, name) FROM `{get_bq_table_id(TournamentStanding)}` t1
-left join `{get_bq_table_id(Tournament)}` t2
-on t1.tournament_id = t2.id
-where t2.meta_format = '{meta_format}'""", ttl_hours=24.0)
-        bq_tournament_standings.extend([TournamentStandingExtended(**d) for d in tournament_standing_rows])
-    if leader_id:
-        bq_tournament_standings = [ts for ts in bq_tournament_standings if ts.leader_id == leader_id]
-    return bq_tournament_standings
 
 
 def get_tournament_decklist_data(meta_formats: list[MetaFormat], leader_ids: list[str] | None = None) -> list[TournamentDecklist]:
@@ -139,37 +112,6 @@ def get_all_tournament_extened_data(meta_formats: list[MetaFormat] | None = None
         tournaments = [t for t in tournaments if t.meta_format in meta_formats]
     return tournaments
 
-def get_leader_elo_data(meta_formats: list[MetaFormat] | None=None) -> list[LeaderElo]:
-    """First element is leader with best elo.
-    """
-    bq_leader_elos: list[LeaderElo] = []
-    if meta_formats:
-        for meta_format in meta_formats:
-            # cached for each session
-            leader_elo_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(LeaderElo)}` where meta_format = '{meta_format}' order by elo desc""", ttl_hours=24.0)
-            bq_leader_elos.extend([LeaderElo(**d) for d in leader_elo_rows])
-    else:
-        leader_elo_rows = run_bq_query(
-            f"""SELECT * FROM `{get_bq_table_id(LeaderElo)}` order by elo desc""", ttl_hours=24.0)
-        bq_leader_elos.extend([LeaderElo(**d) for d in leader_elo_rows])
-    bq_leader_elos.sort(key=lambda x: x.elo, reverse=True)
-    return bq_leader_elos
-
-
-def get_leader_tournament_wins(meta_formats: list[MetaFormat] | None=None) -> list[TournamentWinner]:
-    """First element is leader with best elo.
-    """
-    bq_leader_tournament_wins: list[TournamentWinner] = []
-    if meta_formats:
-        for meta_format in meta_formats:
-            # cached for each session
-            leader_wins_rows = run_bq_query(f"""SELECT * FROM `{get_bq_table_id(TournamentWinner)}` where meta_format = '{meta_format}'""", ttl_hours=24.0)
-            bq_leader_tournament_wins.extend([TournamentWinner(**d) for d in leader_wins_rows])
-    else:
-        leader_wins_rows = run_bq_query(
-            f"""SELECT * FROM `{get_bq_table_id(TournamentWinner)}`""", ttl_hours=24.0)
-        bq_leader_tournament_wins.extend([TournamentWinner(**d) for d in leader_wins_rows])
-    return bq_leader_tournament_wins
 
 def get_card_data() -> list[LatestCardPrice]:
     latest_card_rows = run_bq_query(

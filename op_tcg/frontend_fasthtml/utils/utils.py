@@ -3,9 +3,9 @@ import json
 import base64
 import logging
 from typing import Any
-from cachetools import TTLCache
 from google.oauth2 import service_account
 from google.cloud import bigquery, storage, firestore
+from op_tcg.frontend_fasthtml.utils.cache import _CACHE_1D, _CACHE_6H, _CACHE_1H, _CACHE_30M
 
 
 # Create API client using base64 encoded service account key
@@ -31,13 +31,9 @@ bq_client = bigquery.Client(credentials=credentials)
 storage_client = storage.Client(credentials=credentials)
 firestore_client = firestore.Client(credentials=credentials, database="op-leaderboard")
 
-# Multiple cache instances for different TTL values
-_CACHE_6H = TTLCache(maxsize=512, ttl=60*60*6)   # 6 hours
-_CACHE_1H = TTLCache(maxsize=512, ttl=60*60*1)   # 1 hour
-_CACHE_30M = TTLCache(maxsize=512, ttl=60*30)    # 30 minutes
-_CACHE_1D = TTLCache(maxsize=256, ttl=60*60*24)  # 1 day
 
-def run_bq_query(query: str, ttl_hours: float | None = None) -> list[dict[str, Any]]:
+
+def run_bq_query(query: str, ttl_hours: float | None = None, location: str = "europe-west3") -> list[dict[str, Any]]:
     """
     Runs a bigquery query with configurable TTL caching
     
@@ -48,12 +44,17 @@ def run_bq_query(query: str, ttl_hours: float | None = None) -> list[dict[str, A
                    - 6.0: Default for most queries
                    - 1.0: Frequently changing data 
                    - 0.5: Real-time data
+                   - None: No caching
+        location: BigQuery location (default: europe-west3)
     
     Returns:
         List of dictionaries representing query results
     """
     
     # Select appropriate cache based on TTL
+    cache = None
+    cache_key = None
+    
     if ttl_hours is not None:
         if ttl_hours >= 24:
             cache = _CACHE_1D
@@ -63,6 +64,7 @@ def run_bq_query(query: str, ttl_hours: float | None = None) -> list[dict[str, A
             cache = _CACHE_1H
         else:
             cache = _CACHE_30M
+            
         # Create cache key that includes TTL to prevent conflicts
         cache_key = f"{query}|ttl_{ttl_hours}"
         
@@ -73,14 +75,14 @@ def run_bq_query(query: str, ttl_hours: float | None = None) -> list[dict[str, A
     
     # Execute query
     logging.info(f"Running bq query (TTL: {ttl_hours}h): {query}")
-    query_job = bq_client.query(query, location="europe-west3")
+    query_job = bq_client.query(query, location=location)
     rows_raw = query_job.result()
     
     # Convert to list of dicts. Required for caching to hash the return value.
     rows = [dict(row) for row in rows_raw]
     
-    # Cache the result
-    if ttl_hours is not None:
+    # Cache the result if caching is enabled
+    if cache is not None and cache_key is not None:
         cache[cache_key] = rows
     
     return rows
