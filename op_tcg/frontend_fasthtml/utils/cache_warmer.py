@@ -125,7 +125,7 @@ class CacheWarmer:
         self.is_running = False
         
         # Shutdown executor with a timeout
-        self.executor.shutdown(wait=True, timeout=30)
+        self.executor.shutdown(wait=True)
         logger.info("Cache warmer stopped")
     
     def warm_cache_now(self) -> None:

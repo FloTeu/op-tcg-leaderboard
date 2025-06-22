@@ -24,6 +24,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
+# Copy .env file if it exists (for local development)
+COPY .env* ./
+RUN if [ -f .env ]; then echo "Found .env file for local development"; else echo "No .env file found, using environment variables"; fi
+
 # Copy the rest of the application code
 COPY . .
 
