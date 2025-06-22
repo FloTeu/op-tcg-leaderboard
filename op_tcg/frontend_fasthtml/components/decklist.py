@@ -255,61 +255,6 @@ def create_decklist_section(leader_id: str, tournament_decklists, card_id2card_d
         exclude_card_ids=[leader_id]
     )
     fictive_decklist = decklist_data_to_fictive_decklist(decklist_data, leader_id)
-    best_matching_decklist_dict = get_best_matching_decklist(tournament_decklists, decklist_data)
-    
-    # Sort tournament decklists by placing (None placings at the end)
-    tournament_decklists.sort(key=lambda x: (x.placing is None, x.placing))
-    
-    decklist_options = []
-    for td_obj in tournament_decklists:
-        if not td_obj.tournament_id or not td_obj.player_id:
-            continue  # Skip if we don't have both IDs
-            
-        option_text = []
-        if td_obj.player_id:
-            option_text.append(f"Player: {td_obj.player_id}")
-        if td_obj.tournament_id:
-            option_text.append(f"Tournament: {td_obj.tournament_id[:20]}{'...' if len(td_obj.tournament_id) > 20 else ''}")
-        if td_obj.placing:
-            option_text.append(f"#{td_obj.placing}")
-            
-        # Create a composite value using both IDs
-        value = f"{td_obj.tournament_id}:{td_obj.player_id}"
-        
-        decklist_options.append(ft.Option(" - ".join(option_text), value=value))
-
-    tournament_decklist_select_component = ft.Div()  # Default to empty div
-    if decklist_options:
-        tournament_decklist_select_component = ft.Div(
-            ft.Label("Select Tournament Decklist:", cls="text-white font-medium block mb-2"),
-            ft.Select(
-                *decklist_options,
-                id="tournament-decklist-select",
-                cls=SELECT_CLS + " styled-select mb-2",
-                hx_get="/api/decklist/tournament-decklist",
-                hx_target="#selected-tournament-decklist-content",
-                hx_include="[name='lid'], [name='meta_format']",
-                hx_trigger="change",
-                hx_swap="innerHTML",
-                hx_vals='''js:{
-                    "tournament_id": event.target.value.split(":")[0],
-                    "player_id": event.target.value.split(":")[1]
-                }''',            ),
-            cls="mb-4"
-        )
-    
-    # Find the best matching decklist in the tournament_decklists
-    best_matching_td = next(
-        (td for td in tournament_decklists if td.decklist == best_matching_decklist_dict),
-        None
-    ) if best_matching_decklist_dict else None
-    
-    # If we found the best matching tournament decklist, pre-select it in the dropdown
-    if best_matching_td and best_matching_td.tournament_id and best_matching_td.player_id:
-        # Update the select's value to match the best decklist
-        tournament_decklist_select_component.children[1].value = f"{best_matching_td.tournament_id}:{best_matching_td.player_id}"
-    
-    initial_decklist_content = display_decklist(best_matching_decklist_dict, card_id2card_data, leader_id) if best_matching_decklist_dict else ft.P("Select a decklist from the dropdown to view details.", cls="text-white p-4")
 
     return ft.Div(
         ft.Link(rel="stylesheet", href="/public/css/decklist.css", id="decklist-css"),
@@ -318,18 +263,17 @@ def create_decklist_section(leader_id: str, tournament_decklists, card_id2card_d
         display_card_list(decklist_data, common_card_ids),
         display_decklist_export(fictive_decklist, leader_id),
         
+        # Button to open tournament decklists modal
         ft.Div(
-            tournament_decklist_select_component,
-            
-            ft.Details(
-                ft.Div(
-                    initial_decklist_content,
-                    id="selected-tournament-decklist-content"
-                ),
-                open=(True if best_matching_decklist_dict else False),
-                cls="mb-6 bg-gray-750 p-3 rounded-lg shadow"
-            ) if tournament_decklists else ft.Div(),
-            
-            cls="space-y-6"
+            ft.Button(
+                ft.Span("View Tournament Decklists", cls="mr-2"),
+                ft.I("→", cls="text-lg"),
+                cls="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors w-full",
+                hx_get="/api/decklist-modal",
+                hx_target="body",
+                hx_swap="beforeend",
+                hx_include="[name='meta_format'],[name='lid'],[name='only_official'],[name='meta_format_region']"
+            ),
+            cls="mt-6 text-center"
         )
     ) 
