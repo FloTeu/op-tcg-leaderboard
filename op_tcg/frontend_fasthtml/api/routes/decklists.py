@@ -9,7 +9,7 @@ from op_tcg.frontend_fasthtml.components.decklist import create_decklist_section
 from op_tcg.frontend_fasthtml.api.models import LeaderDataParams
 from op_tcg.frontend_fasthtml.components.decklist_modal import create_decklist_modal, display_decklist_modal
 from op_tcg.frontend_fasthtml.components.decklist_export import create_decklist_export_component
-
+from op_tcg.frontend_fasthtml.utils.decklist import tournament_standings2decklist_data
 def setup_api_routes(rt):
     @rt("/api/leader-decklist")
     async def get_leader_decklist(request: Request):
@@ -36,7 +36,8 @@ def setup_api_routes(rt):
         # Get tournament decklist data
         tournament_decklists = get_tournament_decklist_data(
             meta_formats=params.meta_format, 
-            leader_ids=[params.lid]
+            leader_ids=[params.lid],
+            meta_format_region=params.meta_format_region
         )
         card_id2card_data = get_card_id_card_data_lookup()
         
@@ -58,21 +59,18 @@ def setup_api_routes(rt):
                 )
             )
         
-        # Find the best matching decklist
-        from op_tcg.frontend_fasthtml.utils.decklist import (
-            tournament_standings2decklist_data, 
-            get_best_matching_decklist
-        )
+        # Sort tournament decklists by placing to get the best ranked first
+        tournament_decklists.sort(key=lambda x: (x.placing is None, x.placing or float('inf')))
         
-        decklist_data = tournament_standings2decklist_data(tournament_decklists, card_id2card_data)
-        best_matching_decklist_dict = get_best_matching_decklist(tournament_decklists, decklist_data)
+        # Find the best matching decklist (for compatibility)
         
-        # Create and return the modal
+        
+        
+        # Create and return the modal - it will handle showing the best ranked decklist by default
         return create_decklist_modal(
             leader_id=params.lid,
             tournament_decklists=tournament_decklists,
-            card_id2card_data=card_id2card_data,
-            best_matching_decklist=best_matching_decklist_dict
+            card_id2card_data=card_id2card_data
         )
     
     @rt("/api/decklist/tournament-decklist-modal")
