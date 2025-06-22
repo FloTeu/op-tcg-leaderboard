@@ -61,7 +61,23 @@ def display_card_list(decklist_data: DecklistData, card_ids: list[str]):
         # Get price info if available
         price_item = None
         if card_data and hasattr(card_data, 'latest_eur_price') and hasattr(card_data, 'latest_usd_price'):
-            price_item = ft.Li(f"Price: {card_data.latest_eur_price}€ | ${card_data.latest_usd_price}")
+            if card_data.latest_eur_price and card_data.latest_usd_price:
+                price_item = ft.Li(
+                    ft.Span("Price: ", cls="text-gray-400"),
+                    ft.Span(f"€{card_data.latest_eur_price:.2f}", cls="text-green-400 font-medium"),
+                    ft.Span(" | ", cls="text-gray-400"),
+                    ft.Span(f"${card_data.latest_usd_price:.2f}", cls="text-blue-400 font-medium")
+                )
+            elif card_data.latest_eur_price:
+                price_item = ft.Li(
+                    ft.Span("Price: ", cls="text-gray-400"),
+                    ft.Span(f"€{card_data.latest_eur_price:.2f}", cls="text-green-400 font-medium")
+                )
+            elif card_data.latest_usd_price:
+                price_item = ft.Li(
+                    ft.Span("Price: ", cls="text-gray-400"),
+                    ft.Span(f"${card_data.latest_usd_price:.2f}", cls="text-blue-400 font-medium")
+                )
         
         # Create list item
         list_items.append(
@@ -133,6 +149,22 @@ def display_decklist(decklist: dict[str, int], card_id2card_data: dict[str, Exte
         op_set = card_id.split("-")[0]
         img_url = card_id2card_data[card_id].image_url if card_id in card_id2card_data else f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{op_set}/{card_id}_{OPTcgLanguage.EN.upper()}.webp"
         
+        # Get price information
+        card_data = card_id2card_data.get(card_id)
+        price_info = ""
+        price_class = "text-center text-gray-300 text-sm mt-1"
+        
+        if card_data and hasattr(card_data, 'latest_eur_price') and hasattr(card_data, 'latest_usd_price'):
+            if card_data.latest_eur_price and card_data.latest_usd_price:
+                price_info = f"€{card_data.latest_eur_price:.2f} | ${card_data.latest_usd_price:.2f}"
+                price_class = "text-center text-green-400 text-sm mt-1 font-medium"
+            elif card_data.latest_eur_price:
+                price_info = f"€{card_data.latest_eur_price:.2f}"
+                price_class = "text-center text-green-400 text-sm mt-1 font-medium"
+            elif card_data.latest_usd_price:
+                price_info = f"${card_data.latest_usd_price:.2f}"
+                price_class = "text-center text-blue-400 text-sm mt-1 font-medium"
+        
         card_items.append(
             ft.Div(
                 ft.Div(
@@ -141,8 +173,12 @@ def display_decklist(decklist: dict[str, int], card_id2card_data: dict[str, Exte
                     data_index=str(starting_index + i),
                     onclick="openDecklistModal(this)"
                 ),
-                ft.P(f"x{count}", cls="text-center text-white font-bold text-lg mt-2"),
-                cls="mb-4"
+                ft.Div(
+                    ft.P(f"x{count}", cls="text-center text-white font-bold text-lg bg-gray-900 bg-opacity-80 rounded px-2 py-1 inline-block"),
+                    ft.P(price_info, cls=price_class) if price_info else ft.P("N/A", cls="text-center text-gray-500 text-sm mt-1"),
+                    cls="mt-2"
+                ),
+                cls="mb-4 bg-gray-800 bg-opacity-50 rounded-lg p-3 hover:bg-opacity-70 transition-all"
             )
         )
     

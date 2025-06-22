@@ -55,7 +55,9 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
             id="carousel-item-base",
             data_price=f"{card.latest_eur_price:.2f}" if currency == CardCurrency.EURO and card.latest_eur_price else 
                       f"{card.latest_usd_price:.2f}" if currency == CardCurrency.US_DOLLAR and card.latest_usd_price else "N/A",
-            data_currency="EUR" if currency == CardCurrency.EURO else "USD"
+            data_currency="EUR" if currency == CardCurrency.EURO else "USD",
+            data_eur_price=f"{card.latest_eur_price:.2f}" if card.latest_eur_price else "N/A",
+            data_usd_price=f"{card.latest_usd_price:.2f}" if card.latest_usd_price else "N/A"
         )
     ]
     
@@ -84,7 +86,9 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 id=f"carousel-item-{i}",
                 data_price=f"{version.latest_eur_price:.2f}" if currency == CardCurrency.EURO and version.latest_eur_price else 
                           f"{version.latest_usd_price:.2f}" if currency == CardCurrency.US_DOLLAR and version.latest_usd_price else "N/A",
-                data_currency="EUR" if currency == CardCurrency.EURO else "USD"
+                data_currency="EUR" if currency == CardCurrency.EURO else "USD",
+                data_eur_price=f"{version.latest_eur_price:.2f}" if version.latest_eur_price else "N/A",
+                data_usd_price=f"{version.latest_usd_price:.2f}" if version.latest_usd_price else "N/A"
             )
         )
 
@@ -110,11 +114,19 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
     price_symbol = "€" if currency == CardCurrency.EURO else "$"
     price_label = "Price (EUR)" if currency == CardCurrency.EURO else "Price (USD)"
 
-    # Format the initial price display
+    # Format the initial price display - show both currencies when available
     initial_price = "N/A"
-    if currency == CardCurrency.EURO and card.latest_eur_price:
-        initial_price = f"{card.latest_eur_price:.2f} €"
+    if card.latest_eur_price and card.latest_usd_price:
+        initial_price = f"€{card.latest_eur_price:.2f} | ${card.latest_usd_price:.2f}"
+        price_label = "Price (EUR | USD)"
+        price_symbol = "💰"
+    elif currency == CardCurrency.EURO and card.latest_eur_price:
+        initial_price = f"€{card.latest_eur_price:.2f}"
     elif currency == CardCurrency.US_DOLLAR and card.latest_usd_price:
+        initial_price = f"${card.latest_usd_price:.2f}"
+    elif card.latest_eur_price:
+        initial_price = f"€{card.latest_eur_price:.2f}"
+    elif card.latest_usd_price:
         initial_price = f"${card.latest_usd_price:.2f}"
 
     return ft.Div(
@@ -283,12 +295,17 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 if (priceElement) {
                     const price = activeItem.getAttribute('data-price');
                     const currency = activeItem.getAttribute('data-currency');
+                    const eurPrice = activeItem.getAttribute('data-eur-price');
+                    const usdPrice = activeItem.getAttribute('data-usd-price');
                     
-                    if (price === 'N/A') {
+                    if (eurPrice && usdPrice && eurPrice !== 'N/A' && usdPrice !== 'N/A') {
+                        // Show both currencies when available
+                        priceElement.textContent = `€${eurPrice} | $${usdPrice}`;
+                    } else if (price === 'N/A') {
                         priceElement.textContent = 'N/A';
                     } else {
                         priceElement.textContent = currency === 'EUR' ? 
-                            `${price} €` : 
+                            `€${price}` : 
                             `$${price}`;
                     }
                 }

@@ -1,5 +1,6 @@
 from fasthtml import ft
 from starlette.requests import Request
+from op_tcg.backend.models.cards import CardCurrency
 from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict
 from op_tcg.frontend_fasthtml.utils.extract import (
     get_tournament_decklist_data,
@@ -79,6 +80,13 @@ def setup_api_routes(rt):
         tournament_id = params_dict.get("tournament_id")
         player_id = params_dict.get("player_id")
         
+        # Get currency parameter (default to EUR)
+        currency_str = params_dict.get("currency", "EURO")
+        try:
+            currency = CardCurrency(currency_str)
+        except ValueError:
+            currency = CardCurrency.EURO
+        
         if not tournament_id or not player_id:
             return ft.P("Invalid tournament or player ID", cls="text-red-400")
         
@@ -105,8 +113,8 @@ def setup_api_routes(rt):
         # Generate unique ID for this specific decklist
         unique_id = f"{tournament_id}-{player_id}".replace(":", "-").replace("/", "-")[:20]
         
-        # Return the decklist display with export functionality
+        # Return the decklist display with export functionality and currency support
         return ft.Div(
             create_decklist_export_component(selected_decklist, params.lid, unique_id),
-            display_decklist_modal(selected_decklist, card_id2card_data, params.lid)
+            display_decklist_modal(selected_decklist, card_id2card_data, params.lid, currency)
         ) 

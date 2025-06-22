@@ -1,13 +1,13 @@
 from fasthtml import ft
 from typing import Dict, List
-from op_tcg.backend.models.cards import ExtendedCardData, OPTcgLanguage
+from op_tcg.backend.models.cards import ExtendedCardData, OPTcgLanguage, CardCurrency
 from op_tcg.frontend_fasthtml.utils.decklist import DecklistData, decklist_to_export_str, ensure_leader_id
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 from op_tcg.frontend_fasthtml.components.decklist_export import create_decklist_export_component
 
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
-def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str, ExtendedCardData], leader_id: str = None):
+def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str, ExtendedCardData], leader_id: str = None, currency: CardCurrency = CardCurrency.EURO):
     """
     Display a visual representation of a decklist for the modal (without header).
     
@@ -15,6 +15,7 @@ def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str
         decklist: Dictionary mapping card IDs to counts
         card_id2card_data: Mapping of card IDs to card data
         leader_id: Leader card ID to exclude from the display
+        currency: Selected currency for price display
     
     Returns:
         A Div containing the decklist cards without header
@@ -36,6 +37,29 @@ def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str
         op_set = card_id.split("-")[0]
         img_url = card_id2card_data[card_id].image_url if card_id in card_id2card_data else f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{op_set}/{card_id}_{OPTcgLanguage.EN.upper()}.webp"
         
+        # Get price information based on selected currency
+        card_data = card_id2card_data.get(card_id)
+        price_info = ""
+        price_class = "text-center text-gray-300 text-xs mt-1"
+        
+        if card_data and hasattr(card_data, 'latest_eur_price') and hasattr(card_data, 'latest_usd_price'):
+            if currency == CardCurrency.EURO and card_data.latest_eur_price:
+                price_info = f"€{card_data.latest_eur_price:.2f}"
+                price_class = "text-center text-green-400 text-xs mt-1 font-medium"
+            elif currency == CardCurrency.US_DOLLAR and card_data.latest_usd_price:
+                price_info = f"${card_data.latest_usd_price:.2f}"
+                price_class = "text-center text-blue-400 text-xs mt-1 font-medium"
+            elif card_data.latest_eur_price and card_data.latest_usd_price:
+                # Fallback to EUR if selected currency not available
+                price_info = f"€{card_data.latest_eur_price:.2f}"
+                price_class = "text-center text-green-400 text-xs mt-1 font-medium"
+            elif card_data.latest_eur_price:
+                price_info = f"€{card_data.latest_eur_price:.2f}"
+                price_class = "text-center text-green-400 text-xs mt-1 font-medium"
+            elif card_data.latest_usd_price:
+                price_info = f"${card_data.latest_usd_price:.2f}"
+                price_class = "text-center text-blue-400 text-xs mt-1 font-medium"
+        
         card_items.append(
             ft.Div(
                 ft.Div(
@@ -46,10 +70,14 @@ def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str
                         hx_target="body",
                         hx_swap="beforeend"
                     ),
-                    cls="cursor-pointer"
+                    cls="cursor-pointer relative"
                 ),
-                ft.P(f"x{count}", cls="text-center text-white font-bold text-sm mt-1"),
-                cls="mb-2"
+                ft.Div(
+                    ft.P(f"x{count}", cls="text-center text-white font-bold text-sm bg-gray-900 bg-opacity-80 rounded px-2 py-1"),
+                    ft.P(price_info, cls=price_class) if price_info else ft.P("N/A", cls="text-center text-gray-500 text-xs mt-1"),
+                    cls="mt-1"
+                ),
+                cls="mb-2 bg-gray-750 rounded-lg p-2 hover:bg-gray-700 transition-colors"
             )
         )
     
@@ -57,7 +85,7 @@ def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str
     return ft.Div(
         ft.Div(
             *card_items,
-            cls="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 gap-2"
+            cls="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 gap-3"
         ),
         style="max-height: 600px; overflow-y: auto;"  # Increased height
     )
@@ -116,28 +144,60 @@ def create_decklist_modal(
             selected_value = f"{selected_td.tournament_id}:{selected_td.player_id}"
         
         tournament_decklist_select_component = ft.Div(
-            ft.Label("Select Tournament Decklist:", cls="text-white font-medium block mb-3"),
-            ft.Select(
-                *[
-                    ft.Option(
-                        text,
-                        value=value,
-                        selected=(value == selected_value)
-                    ) for text, value in decklist_options
-                ],
-                id="tournament-decklist-select-modal",
-                cls=SELECT_CLS + " styled-select mb-4",
-                hx_get="/api/decklist/tournament-decklist-modal",
-                hx_target="#selected-tournament-decklist-content-modal",
-                hx_include="[name='lid'], [name='meta_format']",
-                hx_trigger="change",
-                hx_swap="innerHTML",
-                hx_vals='''js:{
-                    "tournament_id": event.target.value.split(":")[0],
-                    "player_id": event.target.value.split(":")[1]
-                }''',
-                hx_indicator="#tournament-decklist-loading"
+            # Row with tournament decklist and currency selection
+            ft.Div(
+                # Tournament decklist selector (left side)
+                ft.Div(
+                    ft.Label("Select Tournament Decklist:", cls="text-white font-medium block mb-3"),
+                    ft.Select(
+                        *[
+                            ft.Option(
+                                text,
+                                value=value,
+                                selected=(value == selected_value)
+                            ) for text, value in decklist_options
+                        ],
+                        id="tournament-decklist-select-modal",
+                        cls=SELECT_CLS + " styled-select",
+                        hx_get="/api/decklist/tournament-decklist-modal",
+                        hx_target="#selected-tournament-decklist-content-modal",
+                        hx_include="[name='lid'], [name='meta_format'], #currency-select-modal",
+                        hx_trigger="change",
+                        hx_swap="innerHTML",
+                        hx_vals='''js:{
+                            "tournament_id": event.target.value.split(":")[0],
+                            "player_id": event.target.value.split(":")[1]
+                        }''',
+                        hx_indicator="#tournament-decklist-loading"
+                    ),
+                    cls="flex-1"
+                ),
+                
+                # Currency selector (right side)
+                ft.Div(
+                    ft.Label("Currency:", cls="text-white font-medium block mb-3"),
+                    ft.Select(
+                        ft.Option("EUR (€)", value="EURO", selected=True),
+                        ft.Option("USD ($)", value="US_DOLLAR"),
+                        id="currency-select-modal",
+                        name="currency",
+                        cls=SELECT_CLS + " styled-select",
+                        hx_get="/api/decklist/tournament-decklist-modal",
+                        hx_target="#selected-tournament-decklist-content-modal",
+                        hx_include="[name='lid'], [name='meta_format'], #tournament-decklist-select-modal",
+                        hx_trigger="change",
+                        hx_swap="innerHTML",
+                        hx_vals='''js:{
+                            "tournament_id": document.getElementById("tournament-decklist-select-modal").value.split(":")[0],
+                            "player_id": document.getElementById("tournament-decklist-select-modal").value.split(":")[1]
+                        }''',
+                        hx_indicator="#tournament-decklist-loading"
+                    ),
+                    cls="w-32 ml-4"
+                ),
+                cls="flex items-end gap-4 mb-4"
             ),
+            
             # Add loading indicator
             create_loading_spinner(
                 id="tournament-decklist-loading",
@@ -189,7 +249,7 @@ def create_decklist_modal(
     if selected_td.decklist:
         initial_decklist_content = ft.Div(
             create_decklist_export_component(selected_td.decklist, leader_id, "initial"),
-            display_decklist_modal(selected_td.decklist, card_id2card_data, leader_id)
+            display_decklist_modal(selected_td.decklist, card_id2card_data, leader_id, CardCurrency.EURO)
         )
     else:
         initial_decklist_content = ft.Div(
