@@ -5,7 +5,7 @@ from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict
 from op_tcg.frontend_fasthtml.components.filters import create_leader_select_component, create_leader_multiselect_component, create_card_subtype_select_component
 from op_tcg.frontend_fasthtml.api.models import LeaderDataParams, MatchupParams
-from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended_by_meta_format
+from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended
 
 
 def setup_api_routes(rt):
@@ -26,8 +26,13 @@ def setup_api_routes(rt):
             query_params['lid'] = query_params['initial_lid']
             
         params = LeaderDataParams(**query_params)
-        # assumes first meta format is the latest meta format
-        leader_data: list[LeaderExtended] = get_leader_extended_by_meta_format(params.meta_format[0])
+        
+        # Get leader data with meta format region filtering
+        leader_data: list[LeaderExtended] = get_leader_extended(
+            meta_formats=params.meta_format[0],
+            meta_format_region=params.meta_format_region,
+            only_official=params.only_official
+        )
         
         # Check if the current leader is available in the new meta format
         # This will be handled by the component itself, but we pass the selected_leader_id
@@ -44,7 +49,7 @@ def setup_api_routes(rt):
                 "hx_get": "/api/leader-data",
                 "hx_trigger": "change", 
                 "hx_target": "#leader-content",
-                "hx_include": "[name='meta_format'],[name='lid'],[name='only_official']",
+                "hx_include": "[name='meta_format'],[name='lid'],[name='only_official'],[name='meta_format_region']",
                 "hx_indicator": "#loading-indicator"
             }
         )

@@ -104,31 +104,13 @@ class LeaderboardSort(BaseModel):
         return value
 
 
-class LeaderSelectParams(BaseModel):
-    meta_format: Optional[List[MetaFormat]] = None
-    lid: Optional[str] = None
-    
-    @field_validator('meta_format', mode='before')
-    def validate_meta_formats(cls, value):
-        if value is None or (isinstance(value, list) and len(value) == 0):
-            return [MetaFormat.latest_meta_format()]
-        if isinstance(value, list):
-            return [MetaFormat(item) if isinstance(item, str) else item for item in value]
-        return [MetaFormat(value) if isinstance(value, str) else value]
-    
-    @field_validator('lid', mode='before')
-    def validate_lid(cls, value):
-        if isinstance(value, list) and value:
-            return value[0]
-        return value
-
-
 class LeaderDataParams(BaseModel):
     """Parameters for leader data requests"""
     lid: Optional[str] = None
     similar_lid: Optional[str] = None
     meta_format: list[MetaFormat]
     only_official: bool = True
+    meta_format_region: Optional[MetaFormatRegion] = MetaFormatRegion.ALL
     
     @field_validator('meta_format', mode='before')
     def validate_meta_formats(cls, value):
@@ -151,6 +133,14 @@ class LeaderDataParams(BaseModel):
         if isinstance(value, str):
             return value.lower() in ("true", "on", "1", "yes")
         return bool(value)
+    
+    @field_validator('meta_format_region', mode='before')
+    def validate_meta_format_region(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if isinstance(value, str):
+            return MetaFormatRegion(value)
+        return value or MetaFormatRegion.ALL
 
 
 class Matchup(BaseModel):

@@ -164,13 +164,16 @@ def setup_api_routes(rt):
         # Parse params using Pydantic model
         params = LeaderDataParams(**get_query_params_as_dict(request))
         
-        # Get leader data
+        # Get leader data with meta format region filtering
         if params.lid:
             # If a leader ID is provided, get data for that specific leader
-            leader_data = get_leader_extended(leader_ids=[params.lid])
+            leader_data = get_leader_extended(
+                leader_ids=[params.lid],
+                meta_format_region=params.meta_format_region
+            )
         else:
             # Otherwise, get all leaders and find the one with highest d_score
-            leader_data = get_leader_extended()
+            leader_data = get_leader_extended(meta_format_region=params.meta_format_region)
             
         # Filter by meta format and apply additional filters
         filtered_by_meta = [l for l in leader_data if l.meta_format in params.meta_format]

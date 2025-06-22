@@ -10,8 +10,12 @@ def setup_api_routes(rt):
         # Parse params using Pydantic model
         params = LeaderDataParams(**get_query_params_as_dict(request))
         
-        # Get leader data
-        leader_data_list = get_leader_extended(meta_formats=params.meta_format, leader_ids=[params.lid])
+        # Get leader data with meta format region filtering
+        leader_data_list = get_leader_extended(
+            meta_formats=params.meta_format, 
+            leader_ids=[params.lid],
+            meta_format_region=params.meta_format_region
+        )
         
         # Filter list by official, but include leaders without match data (only_official is None)
         leader_data_list = [

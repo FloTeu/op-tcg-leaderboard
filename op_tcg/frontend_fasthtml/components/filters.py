@@ -2,7 +2,7 @@ from fasthtml import ft
 from typing import List, Optional, Dict, Any
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import LeaderExtended
-from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended, get_leader_extended_by_meta_format, get_leader_win_rate, get_card_id_card_data_lookup
+from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended, get_leader_win_rate, get_card_id_card_data_lookup
 from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended, get_leaders_with_decklist_data
 
 # Common CSS classes for select components
@@ -48,7 +48,7 @@ def create_leader_select_component(
     
     # Get leader data and filter by meta formats
     if leader_data is None:
-        all_available_leaders = get_leader_extended_by_meta_format(selected_meta_formats[0])
+        all_available_leaders = get_leader_extended(meta_formats=[selected_meta_formats[0]], only_official=True)
     else:
         all_available_leaders = leader_data
         

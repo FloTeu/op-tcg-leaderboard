@@ -44,7 +44,7 @@ def get_leader_win_rate(meta_formats: list[MetaFormat], leader_ids: list[str] | 
     else:
         return bq_win_rates
 
-def get_leader_extended(meta_formats: list[MetaFormat] | None = None, leader_ids: list[str] | None = None, meta_format_region: MetaFormatRegion = MetaFormatRegion.ALL) -> list[LeaderExtended]:
+def get_leader_extended(meta_formats: list[MetaFormat] | None = None, leader_ids: list[str] | None = None, meta_format_region: MetaFormatRegion = MetaFormatRegion.ALL, only_official: bool | None = None) -> list[LeaderExtended]:
     # ensure only available meta formats are used per default
     meta_formats = meta_formats or MetaFormat.to_list()
     bq_leader_data: list[LeaderExtended] = []
@@ -60,24 +60,21 @@ def get_leader_extended(meta_formats: list[MetaFormat] | None = None, leader_ids
         bq_leader_data = [bql for bql in bq_leader_data if (bql.meta_format_region == meta_format_region)]
     if meta_formats:
         bq_leader_data = [bql for bql in bq_leader_data if (bql.meta_format in meta_formats)]
+    if only_official is not None:
+        bq_leader_data = [l for l in bq_leader_data if l.only_official == only_official]
 
     return bq_leader_data
 
-def get_leader_extended_by_meta_format(meta_format: MetaFormat, only_official: bool = True) -> list[LeaderExtended]:
-    """Get leader data by meta format.
-    """
-    leader_data = get_leader_extended()
-    leaders_in_meta = [l for l in leader_data if l.meta_format == meta_format and l.only_official == only_official]
-    return leaders_in_meta
 
-
-def get_tournament_decklist_data(meta_formats: list[MetaFormat], leader_ids: list[str] | None = None) -> list[TournamentDecklist]:
+def get_tournament_decklist_data(meta_formats: list[MetaFormat], leader_ids: list[str] | None = None, meta_format_region: MetaFormatRegion = MetaFormatRegion.ALL) -> list[TournamentDecklist]:
     leader_ids = leader_ids or []
     bq_decklists = get_all_tournament_decklist_data()
     if leader_ids:
         bq_decklists = [ts for ts in bq_decklists if ts.leader_id in leader_ids]
     if meta_formats:
         bq_decklists = [ts for ts in bq_decklists if ts.meta_format in meta_formats]
+    if meta_format_region != MetaFormatRegion.ALL:
+        bq_decklists = [ts for ts in bq_decklists if ts.meta_format_region == meta_format_region]
     return bq_decklists
 
 @cached(cache=TTLCache(maxsize=1024, ttl=60*60*24))

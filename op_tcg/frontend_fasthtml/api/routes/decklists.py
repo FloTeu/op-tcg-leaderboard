@@ -18,7 +18,8 @@ def setup_api_routes(rt):
         # Get decklist data
         tournament_decklists = get_tournament_decklist_data(
             meta_formats=params.meta_format, 
-            leader_ids=[params.lid]
+            leader_ids=[params.lid],
+            meta_format_region=params.meta_format_region
         )
         card_id2card_data = get_card_id_card_data_lookup()
         
@@ -39,7 +40,7 @@ def setup_api_routes(rt):
 
         try:
             # Re-fetch tournament decklists for the specific leader and meta formats
-            all_tournament_decklists_for_leader = get_tournament_decklist_data(meta_formats=meta_formats, leader_ids=[leader_id])
+            all_tournament_decklists_for_leader = get_tournament_decklist_data(meta_formats=meta_formats, leader_ids=[leader_id], meta_format_region=query_params.meta_format_region)
 
             # Find the specific decklist by tournament_id and player_id
             selected_decklist_obj = next(

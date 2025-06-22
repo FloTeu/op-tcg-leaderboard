@@ -1,11 +1,11 @@
 from fasthtml import ft
 from op_tcg.backend.models.leader import LeaderExtended
-from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 from op_tcg.frontend_fasthtml.components.filters import create_leader_select_component
 
-# Common HTMX attributes for filter components
-HX_INCLUDE = "[name='meta_format'],[name='lid'],[name='only_official']"
+# Common HTMX attributes for filter components - Updated to include meta_format_region
+HX_INCLUDE = "[name='meta_format'],[name='lid'],[name='only_official'],[name='meta_format_region']"
 FILTER_HX_ATTRS = {
     "hx_get": "/api/leader-data",
     "hx_trigger": "change", 
@@ -17,18 +17,23 @@ FILTER_HX_ATTRS = {
 # Common CSS classes for select components
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
-def create_filter_components(selected_meta_formats=None, selected_leader_id=None):
+def create_filter_components(selected_meta_formats=None, selected_leader_id=None, selected_meta_format_region=None):
     """Create filter components for the leader page.
     
     Args:
         selected_meta_formats: Optional list of meta formats to select
         selected_leader_id: Optional leader ID to pre-select
+        selected_meta_format_region: Optional meta format region to select
     """
     latest_meta = MetaFormat.latest_meta_format()
     
     # If no selected formats provided, default to latest
     if not selected_meta_formats:
         selected_meta_formats = [latest_meta]
+    
+    # If no selected region provided, default to ALL
+    if not selected_meta_format_region:
+        selected_meta_format_region = MetaFormatRegion.ALL
     
     # Meta format select
     meta_format_select = ft.Select(
@@ -47,6 +52,25 @@ def create_filter_components(selected_meta_formats=None, selected_leader_id=None
             "hx_swap": "innerHTML",
             "hx_params": "*",  # Include all parameters in the request
             "hx_push-url": "true"  # Update the URL when changing meta format
+        }
+    )
+    
+    # Meta format region select
+    regions = MetaFormatRegion.to_list()
+    region_select = ft.Select(
+        label="Region",
+        id="meta-format-region-select",
+        name="meta_format_region",
+        cls=SELECT_CLS + " styled-select",
+        *[ft.Option(r, value=r, selected=(r == selected_meta_format_region)) for r in regions],
+        **{
+            "hx_get": "/api/leader-select",
+            "hx_target": "#leader-select-wrapper",
+            "hx_include": HX_INCLUDE,
+            "hx_trigger": "change",
+            "hx_swap": "innerHTML",
+            "hx_params": "*",  # Include all parameters in the request
+            "hx_push-url": "true"  # Update the URL when changing region
         }
     )
     
@@ -131,6 +155,7 @@ def create_filter_components(selected_meta_formats=None, selected_leader_id=None
     # Components to return
     components = [
         meta_format_select,
+        region_select,  # Add region select to the filter components
         leader_select_wrapper,
         official_toggle,
         content_trigger,

@@ -13,7 +13,7 @@ from op_tcg.frontend_fasthtml.pages.matchups import matchups_page, create_filter
 from op_tcg.frontend_fasthtml.pages.card_popularity import card_popularity_page, create_filter_components as card_popularity_filters
 from op_tcg.frontend_fasthtml.pages.bug_report import bug_report_page
 from op_tcg.frontend_fasthtml.api.routes.main import setup_api_routes
-from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from starlette.requests import Request
 from op_tcg.frontend_fasthtml.utils.cache_warmer import start_cache_warming, stop_cache_warming, warm_cache_now
 import logging
@@ -131,15 +131,24 @@ def leader_default(request: Request):
     # Get selected meta formats from query params (can be multiple)
     selected_meta_format = request.query_params.getlist("meta_format")
     leader_id = request.query_params.get("lid")
+    selected_meta_format_region = request.query_params.get("meta_format_region")
     
     # Convert to MetaFormat enum if present
     if selected_meta_format:
         selected_meta_format = [MetaFormat(mf) for mf in selected_meta_format]
     
+    # Convert to MetaFormatRegion enum if present
+    if selected_meta_format_region:
+        selected_meta_format_region = MetaFormatRegion(selected_meta_format_region)
+    
     # Pass to leader_page which will handle HTMX loading
     return layout(
         leader_page(leader_id, selected_meta_format=selected_meta_format),
-        filter_component=leader_filters(selected_meta_formats=selected_meta_format, selected_leader_id=leader_id),
+        filter_component=leader_filters(
+            selected_meta_formats=selected_meta_format, 
+            selected_leader_id=leader_id,
+            selected_meta_format_region=selected_meta_format_region
+        ),
         current_path="/leader"
     )
 
