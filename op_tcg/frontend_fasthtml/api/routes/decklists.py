@@ -5,9 +5,10 @@ from op_tcg.frontend_fasthtml.utils.extract import (
     get_tournament_decklist_data,
     get_card_id_card_data_lookup
 )
-from op_tcg.frontend_fasthtml.components.decklist import create_decklist_section, display_decklist
+from op_tcg.frontend_fasthtml.components.decklist import create_decklist_section
 from op_tcg.frontend_fasthtml.api.models import LeaderDataParams
-from op_tcg.frontend_fasthtml.components.decklist_modal import create_decklist_modal
+from op_tcg.frontend_fasthtml.components.decklist_modal import create_decklist_modal, display_decklist_modal
+from op_tcg.frontend_fasthtml.components.decklist_export import create_decklist_export_component
 
 def setup_api_routes(rt):
     @rt("/api/leader-decklist")
@@ -108,14 +109,11 @@ def setup_api_routes(rt):
         # Get card data
         card_id2card_data = get_card_id_card_data_lookup()
         
-        # Import modal-specific functions
-        from op_tcg.frontend_fasthtml.components.decklist_modal import display_decklist_modal, display_decklist_export_modal
-        
         # Generate unique ID for this specific decklist
         unique_id = f"{tournament_id}-{player_id}".replace(":", "-").replace("/", "-")[:20]
         
         # Return the decklist display with export functionality
         return ft.Div(
-            display_decklist_export_modal(selected_decklist, params.lid, unique_id),
+            create_decklist_export_component(selected_decklist, params.lid, unique_id),
             display_decklist_modal(selected_decklist, card_id2card_data, params.lid)
         ) 

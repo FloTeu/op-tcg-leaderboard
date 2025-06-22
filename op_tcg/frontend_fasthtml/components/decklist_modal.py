@@ -3,6 +3,7 @@ from typing import Dict, List
 from op_tcg.backend.models.cards import ExtendedCardData, OPTcgLanguage
 from op_tcg.frontend_fasthtml.utils.decklist import DecklistData, decklist_to_export_str, ensure_leader_id
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
+from op_tcg.frontend_fasthtml.components.decklist_export import create_decklist_export_component
 
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
@@ -27,6 +28,9 @@ def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str
     # Get the starting index for the complete decklist images
     starting_index = 2000  # Using a different high number for modal to avoid conflicts
     
+    # Get all card IDs for the card modal navigation
+    all_card_ids = list(filtered_decklist.keys())
+    
     for i, (card_id, count) in enumerate(filtered_decklist.items()):
         # Extract set code from card_id
         op_set = card_id.split("-")[0]
@@ -35,10 +39,14 @@ def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str
         card_items.append(
             ft.Div(
                 ft.Div(
-                    ft.Img(src=img_url, cls="w-full rounded-lg"),
-                    cls="cursor-pointer",
-                    data_index=str(starting_index + i),
-                    onclick="openDecklistModal(this)"
+                    ft.Img(
+                        src=img_url, 
+                        cls="w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity",
+                        hx_get=f"/api/card-modal?card_id={card_id}&card_elements={'&card_elements='.join(all_card_ids)}&meta_format=latest",
+                        hx_target="body",
+                        hx_swap="beforeend"
+                    ),
+                    cls="cursor-pointer"
                 ),
                 ft.P(f"x{count}", cls="text-center text-white font-bold text-lg mt-2"),
                 cls="mb-4"
@@ -52,75 +60,6 @@ def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str
             cls="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 gap-4"
         ),
         style="max-height: 400px; overflow-y: auto;"  # Make it scrollable
-    )
-
-def display_decklist_export_modal(decklist: dict[str, int], leader_id: str, unique_id: str = "modal"):
-    """
-    Display an exportable decklist with copy functionality for the modal.
-    
-    Args:
-        decklist: Dictionary mapping card IDs to counts
-        leader_id: Leader card ID
-        unique_id: Unique identifier for the modal elements
-    
-    Returns:
-        A Div containing the exportable decklist
-    """
-    # Ensure leader is included in the decklist
-    complete_decklist = ensure_leader_id(decklist, leader_id)
-    export_str = decklist_to_export_str(complete_decklist)
-    
-    copy_btn_id = f"decklist-copy-btn-{unique_id}"
-    export_id = f"decklist-export-{unique_id}"
-    
-    clipboard_script = f"""
-    document.addEventListener('DOMContentLoaded', function() {{
-        var copyBtn = document.getElementById('{copy_btn_id}');
-        if (!copyBtn) return;
-        
-        copyBtn.addEventListener('click', function() {{
-            const decklistText = document.getElementById('{export_id}').textContent;
-            
-            navigator.clipboard.writeText(decklistText).then(() => {{
-                const originalText = copyBtn.textContent;
-                copyBtn.textContent = 'Copied!';
-                copyBtn.disabled = true;
-                copyBtn.classList.add('bg-green-600');
-                copyBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-                
-                setTimeout(() => {{
-                    copyBtn.textContent = originalText;
-                    copyBtn.disabled = false;
-                    copyBtn.classList.remove('bg-green-600');
-                    copyBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
-                }}, 2000);
-            }}).catch(err => {{
-                console.error('Failed to copy: ', err);
-            }});
-        }});
-    }});
-    """
-    
-    return ft.Div(
-        # Export text area
-        ft.Pre(
-            export_str,
-            id=export_id,
-            cls="bg-gray-900 text-white p-3 rounded-lg font-mono text-xs overflow-auto mb-3",
-            style="max-height: 150px;"
-        ),
-        
-        # Copy button
-        ft.Button(
-            "📋 Copy to Clipboard",
-            id=copy_btn_id,
-            cls="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors w-full"
-        ),
-        
-        # JavaScript for clipboard functionality 
-        ft.Script(clipboard_script),
-        
-        cls="bg-gray-750 p-3 rounded-lg mb-4"
     )
 
 def create_decklist_modal(
@@ -252,7 +191,7 @@ def create_decklist_modal(
     initial_decklist_content = ft.Div()
     if best_matching_decklist:
         initial_decklist_content = ft.Div(
-            display_decklist_export_modal(best_matching_decklist, leader_id, "initial"),
+            create_decklist_export_component(best_matching_decklist, leader_id, "initial"),
             display_decklist_modal(best_matching_decklist, card_id2card_data, leader_id)
         )
     else:
@@ -271,7 +210,7 @@ def create_decklist_modal(
                 ft.Button(
                     ft.I("×", cls="text-3xl leading-none"),
                     cls="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors z-10 w-8 h-8 flex items-center justify-center",
-                    onclick="document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove())"
+                    onclick="event.stopPropagation(); document.getElementById('decklist-modal-backdrop').remove();"
                 ),
                 
                 # Modal header
@@ -310,19 +249,22 @@ def create_decklist_modal(
                     cls="max-h-[70vh] overflow-y-auto"
                 ),
                 
-                cls="bg-gray-800 rounded-lg p-6 max-w-5xl w-full mx-4 relative max-h-[90vh] overflow-hidden"
+                cls="bg-gray-800 rounded-lg p-6 max-w-5xl w-full mx-4 relative max-h-[90vh] overflow-hidden",
+                onclick="event.stopPropagation()"  # Prevent clicks inside modal from closing it
             ),
-            cls="modal-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 overflow-y-auto py-4",
-            onclick="if (event.target === this) document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove())"
+            cls="decklist-modal-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center overflow-y-auto py-4",
+            onclick="if (event.target === this) { event.target.remove(); }",
+            id="decklist-modal-backdrop"  # Add ID for specific targeting
         ),
         
         # Include required CSS and JS
         ft.Link(rel="stylesheet", href="/public/css/decklist.css", id="decklist-css-modal"),
         ft.Script(src="/public/js/decklist-modal.js", id="decklist-modal-js-modal"),
         
-        # Enhanced modal styles
+        # Enhanced modal styles with proper z-index management
         ft.Style("""
-            .modal-backdrop {
+            .decklist-modal-backdrop {
+                z-index: 9999 !important;
                 backdrop-filter: blur(4px);
             }
             .carousel-item {
@@ -337,5 +279,36 @@ def create_decklist_modal(
             #tournament-decklist-loading.htmx-request {
                 display: block !important;
             }
+            /* Ensure card modals appear on top of decklist modal */
+            .modal-backdrop:not(.decklist-modal-backdrop) {
+                z-index: 10000 !important;
+            }
+            /* Override any sidebar z-index */
+            .decklist-modal-backdrop {
+                z-index: 9999 !important;
+            }
+        """),
+        
+        # JavaScript to prevent card modal from closing decklist modal
+        ft.Script("""
+            document.addEventListener('htmx:beforeSwap', function(evt) {
+                // If a card modal is being closed, don't affect the decklist modal
+                if (evt.target.classList && evt.target.classList.contains('modal-backdrop') && 
+                    !evt.target.classList.contains('decklist-modal-backdrop')) {
+                    evt.preventDefault();
+                    evt.target.remove();
+                }
+            });
+            
+            // Handle card modal close buttons specifically
+            document.addEventListener('click', function(evt) {
+                if (evt.target.closest('.modal-backdrop:not(.decklist-modal-backdrop)')) {
+                    const cardModal = evt.target.closest('.modal-backdrop:not(.decklist-modal-backdrop)');
+                    if (cardModal && evt.target === cardModal) {
+                        cardModal.remove();
+                        evt.stopPropagation();
+                    }
+                }
+            });
         """)
     ) 

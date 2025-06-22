@@ -159,73 +159,6 @@ def display_decklist(decklist: dict[str, int], card_id2card_data: dict[str, Exte
         cls="mb-8"  # Added extra margin for spacing
     )
 
-def display_decklist_export(decklist: dict[str, int], leader_id: str):
-    """
-    Display an exportable decklist with copy functionality.
-    
-    Args:
-        decklist: Dictionary mapping card IDs to counts
-        leader_id: Leader card ID
-    
-    Returns:
-        A Div containing the exportable decklist
-    """
-    # Ensure leader is included in the decklist
-    complete_decklist = ensure_leader_id(decklist, leader_id)
-    export_str = decklist_to_export_str(complete_decklist)
-    
-    clipboard_script = """
-    document.addEventListener('DOMContentLoaded', function() {
-        var copyBtn = document.getElementById('decklist-copy-btn');
-        if (!copyBtn) return;
-        
-        copyBtn.addEventListener('click', function() {
-            const decklistText = document.getElementById('decklist-export').textContent;
-            
-            navigator.clipboard.writeText(decklistText).then(() => {
-                const originalText = copyBtn.textContent;
-                copyBtn.textContent = 'Copied!';
-                copyBtn.disabled = true;
-                
-                setTimeout(() => {
-                    copyBtn.textContent = originalText;
-                    copyBtn.disabled = false;
-                }, 2000);
-            }).catch(err => {
-                console.error('Failed to copy: ', err);
-            });
-        });
-    });
-    """
-    
-    return ft.Div(
-        # Header
-        ft.H3("Export for OPTCGSim", cls="text-xl font-bold text-white mb-4"),
-        
-        # Container for export content and button
-        ft.Div(
-            # Export text area
-            ft.Pre(
-                export_str,
-                id="decklist-export",
-                cls="bg-gray-900 text-white p-4 rounded-lg font-mono text-sm overflow-auto mb-4"
-            ),
-            
-            # Copy button
-            ft.Button(
-                "Copy to Clipboard",
-                id="decklist-copy-btn",
-                cls="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-            ),
-            
-            # JavaScript for clipboard functionality 
-            ft.Script(clipboard_script),
-            
-            cls="bg-gray-800 p-4 rounded-lg"
-        ),
-        cls="mb-8"  # Added extra margin for spacing
-    )
-
 def create_decklist_section(leader_id: str, tournament_decklists, card_id2card_data):
     """
     Create a complete decklist section for the leader page.
@@ -244,6 +177,7 @@ def create_decklist_section(leader_id: str, tournament_decklists, card_id2card_d
         decklist_data_to_fictive_decklist,
         get_best_matching_decklist
     )
+    from op_tcg.frontend_fasthtml.components.decklist_export import create_decklist_export_component
     
     if not tournament_decklists:
         return ft.P("No decklist data available for this leader.", cls="text-red-400")
@@ -261,7 +195,13 @@ def create_decklist_section(leader_id: str, tournament_decklists, card_id2card_d
         ft.Script(src="/public/js/decklist-modal.js", id="decklist-modal-js"),
         ft.P(f"Based on {decklist_data.num_decklists} decklists", cls="text-gray-400 mb-6"),
         display_card_list(decklist_data, common_card_ids),
-        display_decklist_export(fictive_decklist, leader_id),
+        
+        # Export section with header
+        ft.Div(
+            ft.H3("Export for OPTCGSim", cls="text-xl font-bold text-white mb-4"),
+            create_decklist_export_component(fictive_decklist, leader_id, "leader-page"),
+            cls="mb-8"
+        ),
         
         # Button to open tournament decklists modal
         ft.Div(
