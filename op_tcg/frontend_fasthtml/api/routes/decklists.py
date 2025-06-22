@@ -9,7 +9,8 @@ from op_tcg.frontend_fasthtml.components.decklist import create_decklist_section
 from op_tcg.frontend_fasthtml.api.models import LeaderDataParams
 from op_tcg.frontend_fasthtml.components.decklist_modal import create_decklist_modal, display_decklist_modal
 from op_tcg.frontend_fasthtml.components.decklist_export import create_decklist_export_component
-from op_tcg.frontend_fasthtml.utils.decklist import tournament_standings2decklist_data
+
+
 def setup_api_routes(rt):
     @rt("/api/leader-decklist")
     async def get_leader_decklist(request: Request):
@@ -58,13 +59,7 @@ def setup_api_routes(rt):
                     onclick="if (event.target === this) document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove())"
                 )
             )
-        
-        # Sort tournament decklists by placing to get the best ranked first
-        tournament_decklists.sort(key=lambda x: (x.placing is None, x.placing or float('inf')))
-        
-        # Find the best matching decklist (for compatibility)
-        
-        
+    
         
         # Create and return the modal - it will handle showing the best ranked decklist by default
         return create_decklist_modal(

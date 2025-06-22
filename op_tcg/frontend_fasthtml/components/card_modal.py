@@ -39,15 +39,15 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 alt=f"{card.name} ({card.id})",
                 cls="w-full h-auto rounded-lg shadow-lg"
             ),
-            # Left click area (invisible overlay)
+            # Left click area for card version navigation (invisible overlay)
             ft.Div(
-                cls="absolute left-0 top-0 w-1/3 h-full cursor-pointer z-10",
+                cls="absolute left-0 top-0 w-1/3 h-full cursor-pointer z-20 card-version-nav",
                 onclick="previousCarouselItem(this)",
                 title="Previous version"
             ) if len(card_versions) > 0 else None,
-            # Right click area (invisible overlay)
+            # Right click area for card version navigation (invisible overlay)
             ft.Div(
-                cls="absolute right-0 top-0 w-1/3 h-full cursor-pointer z-10",
+                cls="absolute right-0 top-0 w-1/3 h-full cursor-pointer z-20 card-version-nav",
                 onclick="nextCarouselItem(this)",
                 title="Next version"
             ) if len(card_versions) > 0 else None,
@@ -68,15 +68,15 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     alt=f"{version.name} ({version.id})",
                     cls="w-full h-auto rounded-lg shadow-lg"
                 ),
-                # Left click area (invisible overlay)
+                # Left click area for card version navigation (invisible overlay)
                 ft.Div(
-                    cls="absolute left-0 top-0 w-1/3 h-full cursor-pointer z-10",
+                    cls="absolute left-0 top-0 w-1/3 h-full cursor-pointer z-20 card-version-nav",
                     onclick="previousCarouselItem(this)",
                     title="Previous version"
                 ),
-                # Right click area (invisible overlay)
+                # Right click area for card version navigation (invisible overlay)
                 ft.Div(
-                    cls="absolute right-0 top-0 w-1/3 h-full cursor-pointer z-10",
+                    cls="absolute right-0 top-0 w-1/3 h-full cursor-pointer z-20 card-version-nav",
                     onclick="nextCarouselItem(this)",
                     title="Next version"
                 ),
@@ -117,34 +117,6 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
     elif currency == CardCurrency.US_DOLLAR and card.latest_usd_price:
         initial_price = f"${card.latest_usd_price:.2f}"
 
-    # Create navigation buttons for previous/next card only if we have the IDs
-    card_nav = []
-    if prev_card_id or next_card_id:
-        card_nav = [
-            # Previous card button
-            ft.Button(
-                ft.I("◀", cls="text-2xl"),
-                cls="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/75 transition-colors",
-                hx_get=f"/api/card-modal?card_id={prev_card_id}&card_elements={'&card_elements='.join([c for c in card_elements])}" if prev_card_id else None,
-                hx_target="body",
-                hx_swap="beforeend",
-                hx_include=HX_INCLUDE,
-                data_tooltip="Previous Card",
-                style="display: none" if not prev_card_id else None
-            ),
-            # Next card button
-            ft.Button(
-                ft.I("▶", cls="text-2xl"),
-                cls="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/75 transition-colors",
-                hx_get=f"/api/card-modal?card_id={next_card_id}&card_elements={'&card_elements='.join([c for c in card_elements])}" if next_card_id else None,
-                hx_target="body",
-                hx_swap="beforeend",
-                hx_include=HX_INCLUDE,
-                data_tooltip="Next Card",
-                style="display: none" if not next_card_id else None
-            ),
-        ]
-
     return ft.Div(
         # Modal backdrop
         ft.Div(
@@ -153,9 +125,30 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 # Close button
                 ft.Button(
                     ft.I("×", cls="text-2xl"),
-                    cls="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors z-10",
+                    cls="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors z-30",
                     onclick="document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove())"
                 ),
+                
+                # Card navigation areas (full height on left and right sides)
+                ft.Div(
+                    cls="absolute left-0 top-0 w-16 h-full cursor-pointer z-10 card-nav-left",
+                    hx_get=f"/api/card-modal?card_id={prev_card_id}&card_elements={'&card_elements='.join([c for c in card_elements])}&meta_format=latest" if prev_card_id and card_elements else None,
+                    hx_target="body",
+                    hx_swap="beforeend",
+                    hx_include=HX_INCLUDE,
+                    title="Previous Card",
+                    style="display: none" if not prev_card_id else None
+                ) if prev_card_id else None,
+                
+                ft.Div(
+                    cls="absolute right-0 top-0 w-16 h-full cursor-pointer z-10 card-nav-right",
+                    hx_get=f"/api/card-modal?card_id={next_card_id}&card_elements={'&card_elements='.join([c for c in card_elements])}&meta_format=latest" if next_card_id and card_elements else None,
+                    hx_target="body",
+                    hx_swap="beforeend",
+                    hx_include=HX_INCLUDE,
+                    title="Next Card",
+                    style="display: none" if not next_card_id else None
+                ) if next_card_id else None,
                 
                 # Main card content section
                 ft.Div(
@@ -274,8 +267,6 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     cls="w-full"
                 ),
                 
-                # Navigation buttons for previous/next card
-                *card_nav,
                 cls="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 relative"
             ),
             cls="modal-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 overflow-y-auto py-4",
@@ -349,6 +340,26 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     nextCarouselItem(activeModal);
                 }
             });
+            
+            // Add touch support for mobile card navigation
+            document.addEventListener('DOMContentLoaded', function() {
+                const cardNavLeft = document.querySelector('.card-nav-left');
+                const cardNavRight = document.querySelector('.card-nav-right');
+                
+                if (cardNavLeft) {
+                    cardNavLeft.addEventListener('touchstart', function(e) {
+                        e.preventDefault();
+                        this.click();
+                    });
+                }
+                
+                if (cardNavRight) {
+                    cardNavRight.addEventListener('touchstart', function(e) {
+                        e.preventDefault();
+                        this.click();
+                    });
+                }
+            });
         """),
         # Carousel CSS
         ft.Style("""
@@ -362,14 +373,15 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 opacity: 1;
             }
             
-            /* Click area hover effects */
-            .carousel-item .cursor-pointer:hover {
+            /* Card version navigation hover effects (for alt art carousel) */
+            .card-version-nav:hover {
                 background: rgba(255, 255, 255, 0.1);
                 transition: background 0.2s ease;
+                z-index: 30; /* Ensure version navigation is always on top */
             }
             
-            /* Add subtle visual indicators on hover */
-            .carousel-item .cursor-pointer:first-of-type:hover::after {
+            /* Add subtle visual indicators on hover for version navigation */
+            .card-version-nav:first-of-type:hover::after {
                 content: '◀';
                 position: absolute;
                 top: 50%;
@@ -379,9 +391,10 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 font-size: 1.5rem;
                 text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
                 pointer-events: none;
+                z-index: 31;
             }
             
-            .carousel-item .cursor-pointer:last-of-type:hover::after {
+            .card-version-nav:last-of-type:hover::after {
                 content: '▶';
                 position: absolute;
                 top: 50%;
@@ -391,6 +404,69 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 font-size: 1.5rem;
                 text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
                 pointer-events: none;
+                z-index: 31;
+            }
+            
+            /* Card navigation hover effects - only active outside image area */
+            .card-nav-left:hover {
+                background: linear-gradient(to right, rgba(0, 0, 0, 0.4), transparent);
+                transition: background 0.2s ease;
+            }
+            
+            .card-nav-right:hover {
+                background: linear-gradient(to left, rgba(0, 0, 0, 0.4), transparent);
+                transition: background 0.2s ease;
+            }
+            
+            /* Card navigation arrows on hover - only show outside image area */
+            .card-nav-left:hover::after {
+                content: '◀ Previous';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                color: white;
+                font-size: 1.2rem;
+                font-weight: bold;
+                text-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
+                pointer-events: none;
+                white-space: nowrap;
+            }
+            
+            .card-nav-right:hover::after {
+                content: 'Next ▶';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                color: white;
+                font-size: 1.2rem;
+                font-weight: bold;
+                text-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
+                pointer-events: none;
+                white-space: nowrap;
+            }
+            
+            /* Ensure card navigation doesn't interfere with image area on desktop */
+            @media (min-width: 769px) {
+                .card-nav-left {
+                    /* Only show on the left margin area, not overlapping with image */
+                    width: 64px;
+                    background: transparent;
+                }
+                
+                .card-nav-right {
+                    /* Only show on the right margin area, not overlapping with image */
+                    width: 64px;
+                    background: transparent;
+                }
+                
+                /* Hide card navigation arrows when hovering over image area */
+                .md\\:w-1\\/2:hover ~ .card-nav-left,
+                .md\\:w-1\\/2:hover ~ .card-nav-right {
+                    pointer-events: none;
+                    opacity: 0.3;
+                }
             }
             
             /* Toggle switch styles */
@@ -441,6 +517,58 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 }
                 .modal-backdrop > div > div:first-of-type .md\\:w-1\\/2 {
                     width: 100%;
+                }
+                
+                /* Adjust card navigation for mobile - make them wider for easier touch */
+                .card-nav-left, .card-nav-right {
+                    width: 80px; /* Increased width for easier touch */
+                }
+                
+                /* Add visual feedback for touch on mobile */
+                .card-nav-left:active {
+                    background: linear-gradient(to right, rgba(0, 0, 0, 0.6), transparent);
+                }
+                
+                .card-nav-right:active {
+                    background: linear-gradient(to left, rgba(0, 0, 0, 0.6), transparent);
+                }
+                
+                /* Show navigation indicators on mobile without hover */
+                .card-nav-left::before {
+                    content: '◀';
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    color: rgba(255, 255, 255, 0.3);
+                    font-size: 1.5rem;
+                    font-weight: bold;
+                    text-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
+                    pointer-events: none;
+                }
+                
+                .card-nav-right::before {
+                    content: '▶';
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    color: rgba(255, 255, 255, 0.3);
+                    font-size: 1.5rem;
+                    font-weight: bold;
+                    text-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
+                    pointer-events: none;
+                }
+                
+                /* Adjust navigation text for mobile */
+                .card-nav-left:hover::after {
+                    content: '◀';
+                    font-size: 2rem; /* Larger for mobile */
+                }
+                
+                .card-nav-right:hover::after {
+                    content: '▶';
+                    font-size: 2rem; /* Larger for mobile */
                 }
             }
             

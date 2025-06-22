@@ -206,7 +206,7 @@ def create_decklist_modal(
                 # Close button
                 ft.Button(
                     ft.I("×", cls="text-3xl leading-none"),
-                    cls="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors z-20 w-8 h-8 flex items-center justify-center",
+                    cls="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors z-20 w-8 h-8 flex items-center justify-center",
                     onclick="event.stopPropagation(); document.getElementById('decklist-modal-backdrop').remove();"
                 ),
                 
@@ -215,10 +215,10 @@ def create_decklist_modal(
                     ft.H2(
                         ft.Span("Tournament Decklists", cls="text-3xl font-bold text-white"),
                         ft.Span(f" ({leader_id})", cls="text-gray-400 text-xl ml-2"),
-                        cls="mb-2 pr-12"  # Add right padding to avoid overlap with close button
+                        cls="mb-2 pr-16 pt-6"  # Increased right padding and top padding
                     ),
                     ft.P(f"Explore {len(tournament_decklists)} tournament decklists from competitive play", cls="text-gray-400 mb-6"),
-                    cls="border-b border-gray-700 pb-6 mb-6 relative"  # Make relative for proper positioning
+                    cls="border-b border-gray-700 pb-6 mb-6 relative bg-gray-800"  # Added background to ensure visibility
                 ),
                 
                 # Scrollable content area
@@ -243,13 +243,13 @@ def create_decklist_modal(
                         cls="bg-gray-750 rounded-lg"
                     ),
                     
-                    cls="max-h-[65vh] overflow-y-auto"  # Reduced to make room for fixed header
+                    cls="max-h-[60vh] overflow-y-auto px-6"  # Added horizontal padding and reduced height
                 ),
                 
-                cls="bg-gray-800 rounded-lg p-6 max-w-6xl w-full mx-4 relative max-h-[85vh] overflow-hidden",  # Increased max-width
+                cls="bg-gray-800 rounded-lg max-w-6xl w-full mx-4 relative max-h-[90vh] overflow-hidden mt-4",  # Removed padding, reduced top margin
                 onclick="event.stopPropagation()"  # Prevent clicks inside modal from closing it
             ),
-            cls="decklist-modal-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center overflow-y-auto py-4",
+            cls="decklist-modal-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center overflow-y-auto py-4",  # Reduced vertical padding
             onclick="if (event.target === this) { event.target.remove(); }",
             id="decklist-modal-backdrop"  # Add ID for specific targeting
         ),
