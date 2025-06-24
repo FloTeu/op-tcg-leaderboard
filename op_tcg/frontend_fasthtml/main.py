@@ -1,4 +1,6 @@
 from dotenv import load_dotenv
+
+from op_tcg.backend.utils.environment import is_debug
 load_dotenv()
 
 from fasthtml import ft
@@ -29,8 +31,9 @@ async def lifespan(app):
     
     try:
         # Start background cache warming in the worker process
-        start_cache_warming()
-        logger.info("Cache warming started successfully")
+        if not is_debug():
+            start_cache_warming()
+            logger.info("Cache warming started successfully")
     except Exception as e:
         logger.error(f"Failed to start cache warming: {e}")
     

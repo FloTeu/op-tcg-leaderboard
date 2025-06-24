@@ -33,6 +33,7 @@ class CacheWarmer:
         """Define all the cache warming tasks to run"""
         return [
             # Static data - warm every cycle
+            lambda: get_leader_extended(),
             lambda: get_leader_data(),
             lambda: get_card_data(), 
             lambda: get_card_popularity_data(),
@@ -40,7 +41,6 @@ class CacheWarmer:
             lambda: get_all_tournament_decklist_data(),
             
             # Meta-specific data
-            lambda: get_leader_extended(),
             lambda: get_all_tournament_extened_data(),
             
             # Per meta format data

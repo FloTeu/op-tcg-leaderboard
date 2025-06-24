@@ -61,23 +61,7 @@ def display_card_list(decklist_data: DecklistData, card_ids: list[str]):
         # Get price info if available
         price_item = None
         if card_data and hasattr(card_data, 'latest_eur_price') and hasattr(card_data, 'latest_usd_price'):
-            if card_data.latest_eur_price and card_data.latest_usd_price:
-                price_item = ft.Li(
-                    ft.Span("Price: ", cls="text-gray-400"),
-                    ft.Span(f"€{card_data.latest_eur_price:.2f}", cls="text-green-400 font-medium"),
-                    ft.Span(" | ", cls="text-gray-400"),
-                    ft.Span(f"${card_data.latest_usd_price:.2f}", cls="text-blue-400 font-medium")
-                )
-            elif card_data.latest_eur_price:
-                price_item = ft.Li(
-                    ft.Span("Price: ", cls="text-gray-400"),
-                    ft.Span(f"€{card_data.latest_eur_price:.2f}", cls="text-green-400 font-medium")
-                )
-            elif card_data.latest_usd_price:
-                price_item = ft.Li(
-                    ft.Span("Price: ", cls="text-gray-400"),
-                    ft.Span(f"${card_data.latest_usd_price:.2f}", cls="text-blue-400 font-medium")
-                )
+            price_item = ft.Li(f"Price: {card_data.latest_eur_price}€ | ${card_data.latest_usd_price}")
         
         # Create list item
         list_items.append(
@@ -152,18 +136,13 @@ def display_decklist(decklist: dict[str, int], card_id2card_data: dict[str, Exte
         # Get price information
         card_data = card_id2card_data.get(card_id)
         price_info = ""
-        price_class = "text-center text-gray-300 text-sm mt-1"
-        
         if card_data and hasattr(card_data, 'latest_eur_price') and hasattr(card_data, 'latest_usd_price'):
             if card_data.latest_eur_price and card_data.latest_usd_price:
                 price_info = f"€{card_data.latest_eur_price:.2f} | ${card_data.latest_usd_price:.2f}"
-                price_class = "text-center text-green-400 text-sm mt-1 font-medium"
             elif card_data.latest_eur_price:
                 price_info = f"€{card_data.latest_eur_price:.2f}"
-                price_class = "text-center text-green-400 text-sm mt-1 font-medium"
             elif card_data.latest_usd_price:
                 price_info = f"${card_data.latest_usd_price:.2f}"
-                price_class = "text-center text-blue-400 text-sm mt-1 font-medium"
         
         card_items.append(
             ft.Div(
@@ -174,11 +153,11 @@ def display_decklist(decklist: dict[str, int], card_id2card_data: dict[str, Exte
                     onclick="openDecklistModal(this)"
                 ),
                 ft.Div(
-                    ft.P(f"x{count}", cls="text-center text-white font-bold text-lg bg-gray-900 bg-opacity-80 rounded px-2 py-1 inline-block"),
-                    ft.P(price_info, cls=price_class) if price_info else ft.P("N/A", cls="text-center text-gray-500 text-sm mt-1"),
+                    ft.P(f"x{count}", cls="text-center text-white font-bold text-lg"),
+                    ft.P(price_info, cls="text-center text-gray-300 text-sm mt-1") if price_info else None,
                     cls="mt-2"
                 ),
-                cls="mb-4 bg-gray-800 bg-opacity-50 rounded-lg p-3 hover:bg-opacity-70 transition-all"
+                cls="mb-4"
             )
         )
     
@@ -237,19 +216,5 @@ def create_decklist_section(leader_id: str, tournament_decklists, card_id2card_d
             ft.H3("Export for OPTCGSim", cls="text-xl font-bold text-white mb-4"),
             create_decklist_export_component(fictive_decklist, leader_id, "leader-page"),
             cls="mb-8"
-        ),
-        
-        # Button to open tournament decklists modal
-        ft.Div(
-            ft.Button(
-                ft.Span("View Tournament Decklists", cls="mr-2"),
-                ft.I("→", cls="text-lg"),
-                cls="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors w-full",
-                hx_get="/api/decklist-modal",
-                hx_target="body",
-                hx_swap="beforeend",
-                hx_include="[name='meta_format'],[name='lid'],[name='only_official'],[name='meta_format_region']"
-            ),
-            cls="mt-6 text-center"
         )
     ) 

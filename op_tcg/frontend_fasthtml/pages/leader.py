@@ -218,10 +218,24 @@ def create_tab_view(has_match_data: bool = True):
         # Decklist Analysis Tab (shown by default)
         ft.Div(
             ft.H2("Decklist Analysis", cls="text-2xl font-bold text-white mb-4"),
+            
             # Two-column layout for decklist and similar leader
             ft.Div(
                 # Left column - Decklist
                 ft.Div(
+                    # View Tournament Decklists button right below header
+                    ft.Div(
+                        ft.Button(
+                            ft.Span("View Tournament Decklists", cls="mr-2"),
+                            ft.I("→", cls="text-lg"),
+                            cls="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors",
+                            hx_get="/api/decklist-modal",
+                            hx_target="body",
+                            hx_swap="beforeend",
+                            hx_include=HX_INCLUDE
+                        ),
+                        cls="text-center mb-6"
+                    ),
                     create_loading_spinner(
                         id="decklist-loading-indicator",
                         size="w-8 h-8",

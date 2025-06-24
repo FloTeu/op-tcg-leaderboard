@@ -1,13 +1,13 @@
 from fasthtml import ft
 from typing import Dict, List
-from op_tcg.backend.models.cards import ExtendedCardData, OPTcgLanguage, CardCurrency
+from op_tcg.backend.models.cards import ExtendedCardData, OPTcgLanguage
 from op_tcg.frontend_fasthtml.utils.decklist import DecklistData, decklist_to_export_str, ensure_leader_id
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 from op_tcg.frontend_fasthtml.components.decklist_export import create_decklist_export_component
 
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
-def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str, ExtendedCardData], leader_id: str = None, currency: CardCurrency = CardCurrency.EURO):
+def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str, ExtendedCardData], leader_id: str = None, currency: str = "EUR"):
     """
     Display a visual representation of a decklist for the modal (without header).
     
@@ -15,7 +15,7 @@ def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str
         decklist: Dictionary mapping card IDs to counts
         card_id2card_data: Mapping of card IDs to card data
         leader_id: Leader card ID to exclude from the display
-        currency: Selected currency for price display
+        currency: Currency to display prices in ("EUR" or "USD")
     
     Returns:
         A Div containing the decklist cards without header
@@ -25,9 +25,6 @@ def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str
     
     # Create card items
     card_items = []
-    
-    # Get the starting index for the complete decklist images
-    starting_index = 2000  # Using a different high number for modal to avoid conflicts
     
     # Get all card IDs for the card modal navigation
     all_card_ids = list(filtered_decklist.keys())
@@ -40,25 +37,22 @@ def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str
         # Get price information based on selected currency
         card_data = card_id2card_data.get(card_id)
         price_info = ""
-        price_class = "text-center text-gray-300 text-xs mt-1"
-        
+        price_value = 0
         if card_data and hasattr(card_data, 'latest_eur_price') and hasattr(card_data, 'latest_usd_price'):
-            if currency == CardCurrency.EURO and card_data.latest_eur_price:
+            if currency == "EUR" and card_data.latest_eur_price:
+                price_value = card_data.latest_eur_price
                 price_info = f"€{card_data.latest_eur_price:.2f}"
-                price_class = "text-center text-green-400 text-xs mt-1 font-medium"
-            elif currency == CardCurrency.US_DOLLAR and card_data.latest_usd_price:
+            elif currency == "USD" and card_data.latest_usd_price:
+                price_value = card_data.latest_usd_price
                 price_info = f"${card_data.latest_usd_price:.2f}"
-                price_class = "text-center text-blue-400 text-xs mt-1 font-medium"
-            elif card_data.latest_eur_price and card_data.latest_usd_price:
-                # Fallback to EUR if selected currency not available
-                price_info = f"€{card_data.latest_eur_price:.2f}"
-                price_class = "text-center text-green-400 text-xs mt-1 font-medium"
-            elif card_data.latest_eur_price:
-                price_info = f"€{card_data.latest_eur_price:.2f}"
-                price_class = "text-center text-green-400 text-xs mt-1 font-medium"
-            elif card_data.latest_usd_price:
-                price_info = f"${card_data.latest_usd_price:.2f}"
-                price_class = "text-center text-blue-400 text-xs mt-1 font-medium"
+        
+        # Determine if card is expensive (over 5 EUR/USD)
+        is_expensive = price_value > 5.0
+        price_classes = "text-gray-300 text-xs"
+        if is_expensive:
+            price_classes = "text-red-300 text-xs font-bold"
+            if price_value > 20.0:  # Very expensive
+                price_classes = "text-red-400 text-xs font-bold bg-red-900/30 px-1 py-0.5 rounded"
         
         card_items.append(
             ft.Div(
@@ -70,14 +64,20 @@ def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str
                         hx_target="body",
                         hx_swap="beforeend"
                     ),
-                    cls="cursor-pointer relative"
+                    cls="cursor-pointer"
                 ),
                 ft.Div(
-                    ft.P(f"x{count}", cls="text-center text-white font-bold text-sm bg-gray-900 bg-opacity-80 rounded px-2 py-1"),
-                    ft.P(price_info, cls=price_class) if price_info else ft.P("N/A", cls="text-center text-gray-500 text-xs mt-1"),
-                    cls="mt-1"
+                    ft.Div(
+                        ft.Span(f"x{count}", cls="text-white font-bold text-sm"),
+                        ft.Span(
+                            f"💰 {price_info}" if is_expensive else price_info, 
+                            cls=price_classes
+                        ) if price_info else ft.Span("", cls="text-xs"),
+                        cls="flex justify-between items-center w-full"
+                    ),
+                    cls="mt-1 px-1"
                 ),
-                cls="mb-2 bg-gray-750 rounded-lg p-2 hover:bg-gray-700 transition-colors"
+                cls="mb-2"
             )
         )
     
@@ -85,7 +85,7 @@ def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str
     return ft.Div(
         ft.Div(
             *card_items,
-            cls="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 gap-3"
+            cls="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 gap-2"
         ),
         style="max-height: 600px; overflow-y: auto;"  # Increased height
     )
@@ -144,9 +144,7 @@ def create_decklist_modal(
             selected_value = f"{selected_td.tournament_id}:{selected_td.player_id}"
         
         tournament_decklist_select_component = ft.Div(
-            # Row with tournament decklist and currency selection
             ft.Div(
-                # Tournament decklist selector (left side)
                 ft.Div(
                     ft.Label("Select Tournament Decklist:", cls="text-white font-medium block mb-3"),
                     ft.Select(
@@ -158,7 +156,7 @@ def create_decklist_modal(
                             ) for text, value in decklist_options
                         ],
                         id="tournament-decklist-select-modal",
-                        cls=SELECT_CLS + " styled-select",
+                        cls=SELECT_CLS + " styled-select mb-4",
                         hx_get="/api/decklist/tournament-decklist-modal",
                         hx_target="#selected-tournament-decklist-content-modal",
                         hx_include="[name='lid'], [name='meta_format'], #currency-select-modal",
@@ -172,19 +170,17 @@ def create_decklist_modal(
                     ),
                     cls="flex-1"
                 ),
-                
-                # Currency selector (right side)
                 ft.Div(
                     ft.Label("Currency:", cls="text-white font-medium block mb-3"),
                     ft.Select(
-                        ft.Option("EUR (€)", value="EURO", selected=True),
-                        ft.Option("USD ($)", value="US_DOLLAR"),
+                        ft.Option("EUR (€)", value="EUR", selected=True),
+                        ft.Option("USD ($)", value="USD"),
                         id="currency-select-modal",
                         name="currency",
-                        cls=SELECT_CLS + " styled-select",
+                        cls=SELECT_CLS + " styled-select mb-4",
                         hx_get="/api/decklist/tournament-decklist-modal",
                         hx_target="#selected-tournament-decklist-content-modal",
-                        hx_include="[name='lid'], [name='meta_format'], #tournament-decklist-select-modal",
+                        hx_include="#tournament-decklist-select-modal, [name='lid'], [name='meta_format']",
                         hx_trigger="change",
                         hx_swap="innerHTML",
                         hx_vals='''js:{
@@ -193,11 +189,10 @@ def create_decklist_modal(
                         }''',
                         hx_indicator="#tournament-decklist-loading"
                     ),
-                    cls="w-32 ml-4"
+                    cls="flex-none w-40 ml-4"
                 ),
-                cls="flex items-end gap-4 mb-4"
+                cls="flex items-end gap-4"
             ),
-            
             # Add loading indicator
             create_loading_spinner(
                 id="tournament-decklist-loading",
@@ -248,8 +243,8 @@ def create_decklist_modal(
     
     if selected_td.decklist:
         initial_decklist_content = ft.Div(
-            create_decklist_export_component(selected_td.decklist, leader_id, "initial"),
-            display_decklist_modal(selected_td.decklist, card_id2card_data, leader_id, CardCurrency.EURO)
+            display_decklist_modal(selected_td.decklist, card_id2card_data, leader_id, "EUR"),
+            create_decklist_export_component(selected_td.decklist, leader_id, "initial")
         )
     else:
         initial_decklist_content = ft.Div(
@@ -266,20 +261,17 @@ def create_decklist_modal(
                 # Close button
                 ft.Button(
                     ft.I("×", cls="text-3xl leading-none"),
-                    cls="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors z-20 w-8 h-8 flex items-center justify-center",
+                    cls="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors z-20 w-8 h-8 flex items-center justify-center",
                     onclick="event.stopPropagation(); document.getElementById('decklist-modal-backdrop').remove();"
                 ),
                 
-                # Modal header - fixed at top with proper spacing
-                ft.Div(
-                    ft.H2(
-                        ft.Span("Tournament Decklists", cls="text-3xl font-bold text-white"),
-                        ft.Span(f" ({leader_id})", cls="text-gray-400 text-xl ml-2"),
-                        cls="mb-2 pr-16 pt-6"  # Increased right padding and top padding
-                    ),
-                    ft.P(f"Explore {len(tournament_decklists)} tournament decklists from competitive play", cls="text-gray-400 mb-6"),
-                    cls="border-b border-gray-700 pb-6 mb-6 relative bg-gray-800"  # Added background to ensure visibility
+                # Modal header - NOT in scrollable area
+                ft.H2(
+                    ft.Span("Tournament Decklists", cls="text-3xl font-bold text-white"),
+                    ft.Span(f" ({leader_id})", cls="text-gray-400 text-xl ml-2"),
+                    cls="mb-2 pr-16"
                 ),
+                ft.P(f"Explore {len(tournament_decklists)} tournament decklists from competitive play", cls="text-gray-400 mb-6"),
                 
                 # Scrollable content area
                 ft.Div(
@@ -303,13 +295,13 @@ def create_decklist_modal(
                         cls="bg-gray-750 rounded-lg"
                     ),
                     
-                    cls="max-h-[60vh] overflow-y-auto px-6"  # Added horizontal padding and reduced height
+                    cls="max-h-[60vh] overflow-y-auto"
                 ),
                 
-                cls="bg-gray-800 rounded-lg max-w-6xl w-full mx-4 relative max-h-[90vh] overflow-hidden mt-4",  # Removed padding, reduced top margin
+                cls="bg-gray-800 rounded-lg p-6 max-w-6xl w-full mx-4 relative",
                 onclick="event.stopPropagation()"  # Prevent clicks inside modal from closing it
             ),
-            cls="decklist-modal-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center overflow-y-auto py-4",  # Reduced vertical padding
+            cls="decklist-modal-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-start justify-center overflow-y-auto py-4",
             onclick="if (event.target === this) { event.target.remove(); }",
             id="decklist-modal-backdrop"  # Add ID for specific targeting
         ),
