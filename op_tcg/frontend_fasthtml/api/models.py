@@ -207,7 +207,7 @@ class CardPopularityParams(BaseModel):
     card_colors: List[OPTcgColor] = OPTcgColor.to_list()
     card_attributes: Optional[List[OPTcgAttribute]] = None
     card_counter: Optional[int] = None
-    card_category: List[OPTcgCardCatagory] = None
+    card_category: List[OPTcgCardCatagory] = [cat for cat in OPTcgCardCatagory.to_list() if cat != OPTcgCardCatagory.LEADER]
     card_types: Optional[List[str]] = None
     currency: CardCurrency = CardCurrency.EURO
     min_price: float = 0
