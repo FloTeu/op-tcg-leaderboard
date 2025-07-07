@@ -52,6 +52,8 @@ app, rt = fast_app(
     pico=False,
     lifespan=lifespan,  # Add lifespan manager here
     hdrs=[
+        # Impact site verification
+        ft.Meta(name="impact-site-verification", value="42884b40-0e25-4302-9ead-e1bd322b1ed8"),
         ft.Style(':root { --pico-font-size: 100%; }'),
         ft.Style('body { background-color: rgb(17, 24, 39); }'),
         ft.Link(
