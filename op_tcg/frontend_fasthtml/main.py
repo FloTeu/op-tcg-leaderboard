@@ -129,7 +129,12 @@ def clear_cache():
 # Leader pages
 @rt("/")
 def home():
-    return layout(home_page(), filter_component=home_filters(), current_path="/")
+    # Add canonical link to head for home page
+    canonical_url = "https://www.op-leaderboard.com"
+    return (
+        ft.Link(rel="canonical", href=canonical_url),
+        layout(home_page(), filter_component=home_filters(), current_path="/")
+    )
 
 @rt("/leader")
 def leader_default(request: Request):
@@ -146,20 +151,32 @@ def leader_default(request: Request):
     if selected_meta_format_region:
         selected_meta_format_region = MetaFormatRegion(selected_meta_format_region)
     
+    # Add canonical link to head
+    canonical_url = "https://www.op-leaderboard.com/leader"
+    
     # Pass to leader_page which will handle HTMX loading
-    return layout(
-        leader_page(leader_id, selected_meta_format=selected_meta_format),
-        filter_component=leader_filters(
-            selected_meta_formats=selected_meta_format, 
-            selected_leader_id=leader_id,
-            selected_meta_format_region=selected_meta_format_region
-        ),
-        current_path="/leader"
+    return (
+        ft.Link(rel="canonical", href=canonical_url),
+        layout(
+            leader_page(leader_id, selected_meta_format=selected_meta_format),
+            filter_component=leader_filters(
+                selected_meta_formats=selected_meta_format, 
+                selected_leader_id=leader_id,
+                selected_meta_format_region=selected_meta_format_region
+            ),
+            current_path="/leader"
+        )
     )
 
 @rt("/tournaments")
 def tournaments():
-    return layout(tournaments_page(), filter_component=tournament_filters(), current_path="/tournaments")
+    # Add canonical link to head
+    canonical_url = "https://www.op-leaderboard.com/tournaments"
+    
+    return (
+        ft.Link(rel="canonical", href=canonical_url),
+        layout(tournaments_page(), filter_component=tournament_filters(), current_path="/tournaments")
+    )
 
 @rt("/card-movement")
 def card_movement(request: Request):
@@ -171,14 +188,20 @@ def card_movement(request: Request):
     if selected_meta_format:
         selected_meta_format = MetaFormat(selected_meta_format)
     
+    # Add canonical link to head
+    canonical_url = "https://www.op-leaderboard.com/card-movement"
+    
     # Pass to card_movement_page which will handle HTMX loading
-    return layout(
-        card_movement_page(), 
-        filter_component=card_movement_filters(
-            selected_meta_format=selected_meta_format,
-            selected_leader_id=selected_leader_id
-        ), 
-        current_path="/card-movement"
+    return (
+        ft.Link(rel="canonical", href=canonical_url),
+        layout(
+            card_movement_page(), 
+            filter_component=card_movement_filters(
+                selected_meta_format=selected_meta_format,
+                selected_leader_id=selected_leader_id
+            ), 
+            current_path="/card-movement"
+        )
     )
 
 @rt("/matchups")
@@ -192,26 +215,44 @@ def matchups(request: Request):
     if selected_meta_formats:
         selected_meta_formats = [MetaFormat(mf) for mf in selected_meta_formats]
     
+    # Add canonical link to head
+    canonical_url = "https://www.op-leaderboard.com/matchups"
+    
     # Pass to matchups_page which will handle HTMX loading
-    return layout(
-        matchups_page(), 
-        filter_component=matchups_filters(
-            selected_meta_formats=selected_meta_formats,
-            selected_leader_ids=selected_leader_ids,
-            only_official=only_official
-        ), 
-        current_path="/matchups"
+    return (
+        ft.Link(rel="canonical", href=canonical_url),
+        layout(
+            matchups_page(), 
+            filter_component=matchups_filters(
+                selected_meta_formats=selected_meta_formats,
+                selected_leader_ids=selected_leader_ids,
+                only_official=only_official
+            ), 
+            current_path="/matchups"
+        )
     )
 
 # Card pages
 @rt("/card-popularity")
 def card_popularity():
-    return layout(card_popularity_page(), filter_component=card_popularity_filters(), current_path="/card-popularity")
+    # Add canonical link to head
+    canonical_url = "https://www.op-leaderboard.com/card-popularity"
+    
+    return (
+        ft.Link(rel="canonical", href=canonical_url),
+        layout(card_popularity_page(), filter_component=card_popularity_filters(), current_path="/card-popularity")
+    )
 
 # Support pages
 @rt("/bug-report")
 def bug_report():
-    return layout(bug_report_page(), filter_component=None, current_path="/bug-report")
+    # Add canonical link to head
+    canonical_url = "https://www.op-leaderboard.com/bug-report"
+    
+    return (
+        ft.Link(rel="canonical", href=canonical_url),
+        layout(bug_report_page(), filter_component=None, current_path="/bug-report")
+    )
 
 if __name__ == "__main__":
     # Start background tasks

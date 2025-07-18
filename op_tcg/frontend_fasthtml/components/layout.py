@@ -1,7 +1,7 @@
 from fasthtml import ft
 from op_tcg.frontend_fasthtml.components.sidebar import sidebar
 
-def layout(content, filter_component=None, current_path="/", canonical_url=None):
+def layout(content, filter_component=None, current_path="/"):
     """
     Main layout component that includes the sidebar navigation and content area.
     
@@ -9,12 +9,7 @@ def layout(content, filter_component=None, current_path="/", canonical_url=None)
         content: The main content to display
         filter_component: Optional filter component to show in the sidebar
         current_path: The current path of the page, used for highlighting active navigation items
-        canonical_url: The canonical URL for this page (for SEO)
     """
-    # Generate canonical URL if not provided
-    if canonical_url is None:
-        base_url = "https://www.op-leaderboard.com"
-        canonical_url = f"{base_url}{current_path}" if current_path != "/" else base_url
     
     # Create filter section if filter component is provided
     filter_section = None
@@ -27,8 +22,6 @@ def layout(content, filter_component=None, current_path="/", canonical_url=None)
 
     # Main layout
     return ft.Div(
-        # SEO: Canonical URL for the current page
-        ft.Link(rel="canonical", href=canonical_url),
         # Include external CSS files
         ft.Link(rel="stylesheet", href="public/css/leaderboard.css"),
         
