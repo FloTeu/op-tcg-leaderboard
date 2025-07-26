@@ -1,7 +1,6 @@
 from fasthtml import ft
-from typing import Dict, List
+from op_tcg.backend.etl.extract import get_card_image_url
 from op_tcg.backend.models.cards import ExtendedCardData, OPTcgLanguage
-from op_tcg.frontend_fasthtml.utils.decklist import DecklistData, decklist_to_export_str, ensure_leader_id
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 from op_tcg.frontend_fasthtml.components.decklist_export import create_decklist_export_component
 
@@ -30,9 +29,7 @@ def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str
     all_card_ids = list(filtered_decklist.keys())
     
     for i, (card_id, count) in enumerate(filtered_decklist.items()):
-        # Extract set code from card_id
-        op_set = card_id.split("-")[0]
-        img_url = card_id2card_data[card_id].image_url if card_id in card_id2card_data else f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{op_set}/{card_id}_{OPTcgLanguage.EN.upper()}.webp"
+        img_url = card_id2card_data[card_id].image_url if card_id in card_id2card_data else get_card_image_url(card_id, OPTcgLanguage.JP)
         
         # Get price information based on selected currency
         card_data = card_id2card_data.get(card_id)

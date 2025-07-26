@@ -1,4 +1,5 @@
 from fasthtml import ft
+from op_tcg.backend.etl.extract import get_card_image_url
 from op_tcg.backend.models.cards import ExtendedCardData, OPTcgLanguage, LatestCardPrice
 from op_tcg.frontend_fasthtml.utils.decklist import DecklistData, decklist_to_export_str, ensure_leader_id
 
@@ -47,11 +48,10 @@ def display_card_list(decklist_data: DecklistData, card_ids: list[str]):
     
     for i, card_id in enumerate(filtered_cards):
         card_data = decklist_data.card_id2card_data.get(card_id)
-        op_set = card_id.split("-")[0]
         occurrence_percentage = decklist_data.card_id2occurrence_proportion[card_id]
         
         # Get card image URL
-        img_src = card_data.image_url if card_data else f'https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{op_set}/{card_id}_{OPTcgLanguage.EN.upper()}.webp'
+        img_src = card_data.image_url if card_data else get_card_image_url(card_id, OPTcgLanguage.JP)
         
         # Get card name
         card_name = card_data.name if card_data else card_id
@@ -130,8 +130,7 @@ def display_decklist(decklist: dict[str, int], card_id2card_data: dict[str, Exte
     
     for i, (card_id, count) in enumerate(filtered_decklist.items()):
         # Extract set code from card_id
-        op_set = card_id.split("-")[0]
-        img_url = card_id2card_data[card_id].image_url if card_id in card_id2card_data else f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{op_set}/{card_id}_{OPTcgLanguage.EN.upper()}.webp"
+        img_url = card_id2card_data[card_id].image_url if card_id in card_id2card_data else get_card_image_url(card_id, OPTcgLanguage.JP)
         
         # Get price information
         card_data = card_id2card_data.get(card_id)
