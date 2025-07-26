@@ -130,7 +130,7 @@ def clear_cache():
 @rt("/")
 def home():
     # Add canonical link to head for home page
-    canonical_url = "https://www.op-leaderboard.com"
+    canonical_url = "https://op-leaderboard.com"
     return (
         ft.Link(rel="canonical", href=canonical_url),
         layout(home_page(), filter_component=home_filters(), current_path="/")
@@ -152,7 +152,7 @@ def leader_default(request: Request):
         selected_meta_format_region = MetaFormatRegion(selected_meta_format_region)
     
     # Add canonical link to head
-    canonical_url = "https://www.op-leaderboard.com/leader"
+    canonical_url = "https://op-leaderboard.com/leader"
     
     # Pass to leader_page which will handle HTMX loading
     return (
@@ -171,7 +171,7 @@ def leader_default(request: Request):
 @rt("/tournaments")
 def tournaments():
     # Add canonical link to head
-    canonical_url = "https://www.op-leaderboard.com/tournaments"
+    canonical_url = "https://op-leaderboard.com/tournaments"
     
     return (
         ft.Link(rel="canonical", href=canonical_url),
@@ -189,7 +189,7 @@ def card_movement(request: Request):
         selected_meta_format = MetaFormat(selected_meta_format)
     
     # Add canonical link to head
-    canonical_url = "https://www.op-leaderboard.com/card-movement"
+    canonical_url = "https://op-leaderboard.com/card-movement"
     
     # Pass to card_movement_page which will handle HTMX loading
     return (
@@ -216,7 +216,7 @@ def matchups(request: Request):
         selected_meta_formats = [MetaFormat(mf) for mf in selected_meta_formats]
     
     # Add canonical link to head
-    canonical_url = "https://www.op-leaderboard.com/matchups"
+    canonical_url = "https://op-leaderboard.com/matchups"
     
     # Pass to matchups_page which will handle HTMX loading
     return (
@@ -236,7 +236,7 @@ def matchups(request: Request):
 @rt("/card-popularity")
 def card_popularity():
     # Add canonical link to head
-    canonical_url = "https://www.op-leaderboard.com/card-popularity"
+    canonical_url = "https://op-leaderboard.com/card-popularity"
     
     return (
         ft.Link(rel="canonical", href=canonical_url),
@@ -247,7 +247,7 @@ def card_popularity():
 @rt("/bug-report")
 def bug_report():
     # Add canonical link to head
-    canonical_url = "https://www.op-leaderboard.com/bug-report"
+    canonical_url = "https://op-leaderboard.com/bug-report"
     
     return (
         ft.Link(rel="canonical", href=canonical_url),
