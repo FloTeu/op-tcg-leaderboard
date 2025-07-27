@@ -91,11 +91,15 @@ where
 t1.decklist IS NOT NULL 
 OR t3.decklist IS NOT NULL""", ttl_hours=None)
     tournament_decklists: list[TournamentDecklist] = []
+    seen_decklists = set()  # To track unique combinations of leader_id, tournament_id, player_id, and placing
     for ts in tournament_standing_rows:
-        tournament_decklist = TournamentDecklist(**ts)
-        tournament_decklist.price_usd = get_decklist_price(tournament_decklist.decklist, card_id2card_data, currency=CardCurrency.US_DOLLAR)
-        tournament_decklist.price_eur = get_decklist_price(tournament_decklist.decklist, card_id2card_data, currency=CardCurrency.EURO)
-        tournament_decklists.append(tournament_decklist)
+        key = (ts['leader_id'], ts['tournament_id'], ts['player_id'], ts['placing'])
+        if key not in seen_decklists:
+            tournament_decklist = TournamentDecklist(**ts)
+            tournament_decklist.price_usd = get_decklist_price(tournament_decklist.decklist, card_id2card_data, currency=CardCurrency.US_DOLLAR)
+            tournament_decklist.price_eur = get_decklist_price(tournament_decklist.decklist, card_id2card_data, currency=CardCurrency.EURO)
+            tournament_decklists.append(tournament_decklist)
+            seen_decklists.add(key)  # Mark this combination as seen
     return tournament_decklists
 
 @timeit
