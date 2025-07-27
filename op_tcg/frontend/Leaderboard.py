@@ -3,7 +3,7 @@ st.set_page_config(layout="wide")
 
 from op_tcg.frontend.sub_pages.Leader_Detail_Analysis import add_qparam_on_change_fn
 from op_tcg.frontend.sub_pages.utils import sub_page_title_to_url_path
-from op_tcg.frontend.utils.js import is_mobile, execute_js_file, prevent_js_frame_height, execute_js_code
+from op_tcg.frontend.utils.js import is_mobile, execute_js_file, prevent_js_frame_height, execute_js_code, redirect_external_url
 from op_tcg.frontend.utils.launch import init_load_data
 from op_tcg.frontend.views.component import ElementsComponentView
 
@@ -278,7 +278,52 @@ def upload_match_dialog():
                     st.error(str(e))
 
 
+def show_migration_message(new_url: str, button_text: str = "Switch to New Version", 
+                          old_version_name: str = "current version", 
+                          new_version_name: str = "new version"):
+    """
+    Display a friendly migration message encouraging users to switch to the new maintained version
+    
+    Args:
+        new_url: URL of the new maintained version
+        button_text: Text for the migration button
+        old_version_name: Name of the current/old version
+        new_version_name: Name of the new version
+    """
+    import streamlit as st
+    
+    # Create an attractive info container
+    with st.container():
+        st.info("🎉 **Great News!** We've launched an improved version of this application!")
+        
+        st.markdown(f"""
+        **We're excited to announce that this {old_version_name} has been upgraded!** 
+        
+        Our {new_version_name} features:
+        - ✨ **Enhanced performance** and faster loading times
+        - 🔧 **Improved functionality** with new features
+        - 🐛 **Bug fixes** and stability improvements
+        - 📱 **Better mobile experience**
+        - 🔄 **Regular updates** and active maintenance
+        
+        We kindly encourage you to **switch to the new version** for the best experience. 
+        """)
+    
+        
+        # Optional: Add a small note about the transition
+        st.caption("💡 *This current version will remain available during the transition period, but we recommend using the new version for the latest features and improvements.*")
+        redirect_external_url(new_url, button_text, use_link_button=True)
+
+
 def main():
+
+    show_migration_message(
+        new_url="https://www.op-leaderboard.com/",
+        button_text="Visit New OP Leaderboard 🚀",
+        old_version_name="legacy leaderboard",
+        new_version_name="enhanced leaderboard"
+    )
+
     change_sidebar_collapse_button_style()
 
     # display data

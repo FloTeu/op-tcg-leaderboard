@@ -89,3 +89,37 @@ def dict_to_js_func(d, default_value='#000000'):
 
     js_func = f"function(x) {{{conditions_str}}}"
     return js_func
+
+
+def redirect_external_url(url: str, button_text: str = "Redirect", use_link_button: bool = True):
+    """
+    Redirect to external URL with multiple fallback methods
+    
+    Args:
+        url: External URL to redirect to
+        button_text: Text for the redirect button
+        use_link_button: Whether to use st.link_button (recommended)
+    """
+    import streamlit as st
+    
+    if use_link_button:
+        # Method 1: Use st.link_button (most reliable)
+        return st.link_button(button_text, url, type="primary")
+    else:
+        # Method 2: HTML button with target="_blank" (opens new tab)
+        components.html(f"""
+            <a href="{url}" target="_blank" style="text-decoration: none;">
+                <button style="
+                    background-color: #ff4b4b;
+                    color: white;
+                    border: none;
+                    padding: 0.5rem 1rem;
+                    border-radius: 0.5rem;
+                    cursor: pointer;
+                    font-size: 1rem;
+                ">
+                    {button_text}
+                </button>
+            </a>
+        """, height=50)
+
