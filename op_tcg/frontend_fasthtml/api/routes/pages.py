@@ -163,7 +163,8 @@ def setup_api_routes(rt):
     async def get_leader_data(request: Request):
         # Parse params using Pydantic model
         params = LeaderDataParams(**get_query_params_as_dict(request))
-        
+        match_data_exists = True
+
         # Get leader data with meta format region filtering
         if params.lid:
             # If a leader ID is provided, get data for that specific leader
@@ -192,79 +193,22 @@ def setup_api_routes(rt):
         
         # Add leaders that have decklist data but might not have match data
         # Only include if they are not already in the filtered_data set
-        additional_leaders = [
+        additional_leaders_with_decklist = [
             l for l in filtered_by_meta 
             if l.id in leaders_with_decklists and l.id not in already_included_ids
         ]
         
         # Combine both sets of leaders
-        all_filtered_data = filtered_data + additional_leaders
+        all_filtered_data = filtered_data + additional_leaders_with_decklist
         
-        # If no data found for the requested meta formats, try fallback
-        if not all_filtered_data:
-            fallback_used = False
-            effective_meta_formats = []
-            
-            for meta_format in params.meta_format:
-                effective_meta, is_fallback = get_effective_meta_format_with_fallback(
-                    meta_format,
-                    leader_data  # Use all leader data for fallback check
-                )
-                effective_meta_formats.append(effective_meta)
-                if is_fallback:
-                    fallback_used = True
-            
-            # Re-filter with effective meta formats
-            filtered_by_meta = [l for l in leader_data if l.meta_format in effective_meta_formats]
-            
-            # Get leaders with decklists for fallback meta formats
-            leaders_with_decklists = get_leaders_with_decklist_data(effective_meta_formats)
-            
-            # Apply standard filtering
-            filtered_data = filter_leader_extended(
-                leaders=filtered_by_meta,
+        # If no match data exists, but the leader has decklist data, use the latest leader data
+        if not all_filtered_data and params.lid in leaders_with_decklists:
+            all_filtered_data = filter_leader_extended(
+                leaders=[l for l in leader_data if l.id == params.lid],
                 only_official=params.only_official
             )
-            
-            # Create a set of leader IDs that are already included in filtered_data
-            already_included_ids = {fl.id for fl in filtered_data}
-            
-            # Add leaders that have decklist data but might not have match data
-            # Only include if they are not already in the filtered_data set
-            additional_leaders = [
-                l for l in filtered_by_meta 
-                if l.id in leaders_with_decklists and l.id not in already_included_ids
-            ]
-            
-            # Combine both sets of leaders
-            all_filtered_data = filtered_data + additional_leaders
-            
-            if not all_filtered_data:
-                return ft.P("No data available for leaders in the selected meta format.", cls="text-red-400")
-                
-            # Find the leader to show
-            if params.lid:
-                # Try to find the specific leader first
-                leader_data_result = next((l for l in all_filtered_data if l.id == params.lid), None)
-                if not leader_data_result:
-                    # If specific leader not found, get the top leader
-                    all_filtered_data.sort(key=lambda x: (x.d_score or 0, x.elo or 0), reverse=True)
-                    leader_data_result = all_filtered_data[0]
-            else:
-                # Get the top leader
-                all_filtered_data.sort(key=lambda x: (x.d_score or 0, x.elo or 0), reverse=True)
-                leader_data_result = all_filtered_data[0]
-            
-            # Create content with fallback notification
-            content = create_leader_content(leader_data_result)
-            if fallback_used and len(params.meta_format) == 1:
-                notification = create_fallback_notification(
-                    params.meta_format[0],
-                    effective_meta_formats[0],
-                    dropdown_id="release-meta-formats-select"
-                )
-                return ft.Div(notification, content)
-            return content
+            match_data_exists = False
+
         
         # Data found for requested meta formats - no fallback needed
         if params.lid:
@@ -277,7 +221,12 @@ def setup_api_routes(rt):
             all_filtered_data.sort(key=lambda x: (x.d_score or 0, x.elo or 0), reverse=True)
             leader_data_result = all_filtered_data[0]
         
-        return create_leader_content(leader_data_result)
+        return create_leader_content(
+            leader_id=leader_data_result.id,
+            leader_name=leader_data_result.name,
+            aa_image_url=leader_data_result.aa_image_url,
+            total_matches=leader_data_result.total_matches if match_data_exists else None
+        )
 
     @rt("/api/card-popularity")
     def get_card_popularity(request: Request):

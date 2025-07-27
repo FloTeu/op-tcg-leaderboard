@@ -43,7 +43,7 @@ def create_filter_components(selected_meta_formats=None, selected_leader_id=None
         multiple=True,
         size=1,
         cls=SELECT_CLS + " multiselect",
-        *[ft.Option(mf, value=mf, selected=(mf in selected_meta_formats)) for mf in reversed(MetaFormat.to_list())],
+        *[ft.Option(mf, value=mf, selected=(mf in selected_meta_formats)) for mf in reversed(MetaFormat.to_list(region=MetaFormatRegion.ASIA))],
         **{
             "hx_get": "/api/leader-select",
             "hx_target": "#leader-select-wrapper",
@@ -355,18 +355,21 @@ def create_tab_view(has_match_data: bool = True):
         cls="w-full"
     )
 
-def create_leader_content(leader_data: LeaderExtended):
+def create_leader_content(leader_id: str, leader_name: str, aa_image_url: str, total_matches: int | None = None):
     """
     Create the content for a leader page.
     
     Args:
-        leader_data: Leader data to display
+        leader_id: The leader's ID
+        leader_name: The leader's name
+        aa_image_url: URL to the leader's alternative artwork image
+        total_matches: Total number of matches (optional, determines if match data is available)
         
     Returns:
         A Div containing the leader page content
     """
     # Check if leader has match data
-    has_match_data = leader_data.total_matches is not None and leader_data.total_matches > 0
+    has_match_data = total_matches is not None and total_matches > 0
     
     # Create charts section only if there's match data
     charts_section = ft.Div(
@@ -379,7 +382,7 @@ def create_leader_content(leader_data: LeaderExtended):
                 container_classes="min-h-[100px]"
             ),
             ft.Div(
-                hx_get=f"/api/leader-chart/{leader_data.id}",
+                hx_get=f"/api/leader-chart/{leader_id}",
                 hx_trigger="load",
                 hx_include=HX_INCLUDE,
                 hx_target="#win-rate-chart-container",
@@ -405,7 +408,7 @@ def create_leader_content(leader_data: LeaderExtended):
                 hx_include=HX_INCLUDE,
                 hx_target="#leader-radar-chart",
                 hx_indicator="#radar-chart-loading-indicator",
-                hx_vals=f'{{"lid": "{leader_data.id}"}}',
+                hx_vals=f'{{"lid": "{leader_id}"}}',
                 id="leader-radar-chart",
                 cls="min-h-[300px] flex items-center justify-center w-full"
             ),
@@ -416,7 +419,7 @@ def create_leader_content(leader_data: LeaderExtended):
     
     return ft.Div(
         # Page title
-        ft.H1(f"Leader: {leader_data.name} ({leader_data.id})", 
+        ft.H1(f"Leader: {leader_name} ({leader_id})", 
               cls="text-3xl font-bold text-white mb-6 px-4 md:px-0"),
         
         # Main content: single column for mobile, two-column layout for desktop
@@ -425,7 +428,7 @@ def create_leader_content(leader_data: LeaderExtended):
             ft.Div(
                 # Leader image
                 ft.Div(
-                    ft.Img(src=leader_data.aa_image_url, cls="w-full rounded-lg shadow-lg"),
+                    ft.Img(src=aa_image_url, cls="w-full rounded-lg shadow-lg"),
                     cls="mb-4"
                 ),
                 
@@ -519,7 +522,12 @@ def leader_page(leader_id: str | None = None, filtered_leader_data: LeaderExtend
         )
     
     # Get leader content
-    leader_content = create_leader_content(leader_data)
+    leader_content = create_leader_content(
+        leader_id=leader_data.id,
+        leader_name=leader_data.name,
+        aa_image_url=leader_data.aa_image_url,
+        total_matches=leader_data.total_matches
+    )
     
     # Return the complete leader page
     return ft.Div(

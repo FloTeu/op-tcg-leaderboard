@@ -51,7 +51,7 @@ def setup_api_routes(rt):
         
         # Original logic - fetch data from database
         # Get query parameters
-        all_meta_formats = MetaFormat.to_list()
+        all_meta_formats = MetaFormat.to_list(region=MetaFormatRegion.ASIA)
         meta_format_list = request.query_params.getlist("meta_format")
         meta_format = MetaFormat(meta_format_list[0] if meta_format_list else MetaFormat.latest_meta_format())
         meta_format_index = all_meta_formats.index(meta_format)
@@ -197,7 +197,7 @@ def setup_api_routes(rt):
                 colors.append(leader.to_hex_color())
         
         if not leaders:
-            return ft.Div(ft.P("Leaders not found in selected meta format", cls="text-red-400"))
+            return ft.Div(ft.P("Leader match data not found in selected meta format", cls="text-red-400"))
         
         # Get radar chart data
         radar_data = get_radar_chart_data(leader_ids, meta_formats, only_official)
@@ -239,7 +239,8 @@ def setup_api_routes(rt):
             # Get release meta and subsequent metas (last 10)
             release_meta = card_data.meta_format
             start_meta = release_meta if release_meta != MetaFormat.OP01 else MetaFormat.OP02
-            meta_formats = MetaFormat.to_list()[MetaFormat.to_list().index(start_meta):]
+            all_meta_formats = MetaFormat.to_list(region=MetaFormatRegion.ASIA)
+            meta_formats = all_meta_formats[all_meta_formats.index(start_meta):]
             meta_formats = meta_formats[-10:]  # Last 10 meta formats
             
             # Get leaders of the same color

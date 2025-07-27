@@ -15,7 +15,7 @@ def get_effective_meta_format_with_fallback(
     meta_format_attr: str = "meta_format"
 ) -> Tuple[MetaFormat, bool]:
     """
-    Get effective meta format with automatic fallback to previous meta if no data exists.
+    Get effective (the last with data) meta format with automatic fallback to previous meta if no data exists.
     
     Args:
         requested_meta_format: The originally requested meta format
@@ -35,7 +35,7 @@ def get_effective_meta_format_with_fallback(
         return requested_meta_format, False
         
     # No data found, try previous meta format
-    all_meta_formats = MetaFormat.to_list()
+    all_meta_formats = MetaFormat.to_list(region=MetaFormatRegion.ASIA)
     current_index = all_meta_formats.index(requested_meta_format)
     
     if current_index > 0:

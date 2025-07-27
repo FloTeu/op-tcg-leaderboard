@@ -1,11 +1,13 @@
 from fasthtml import ft
 from starlette.requests import Request
+
+from op_tcg.backend.etl.extract import get_card_image_url
 from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict
 from op_tcg.frontend_fasthtml.api.models import LeaderDataParams
 from op_tcg.frontend_fasthtml.utils.similar import get_most_similar_leader_data, SimilarLeaderData
 from op_tcg.frontend_fasthtml.utils.leader_data import lid_to_name_and_lid, get_lid2ldata_dict_cached
 from op_tcg.frontend_fasthtml.utils.extract import get_card_id_card_data_lookup
-from op_tcg.backend.models.cards import Card, LatestCardPrice
+from op_tcg.backend.models.cards import Card, LatestCardPrice, OPTcgLanguage
 
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
@@ -124,7 +126,7 @@ def setup_api_routes(rt):
                 ft.Div(
                     *[
                         ft.Img(
-                            src=cid2cdata_dict[cid].image_url,
+                            src=cid2cdata_dict[cid].image_url if cid in cid2cdata_dict else get_card_image_url(cid, language=OPTcgLanguage.JP),
                             cls="w-1/4 inline-block p-1"
                         ) for cid in similar_leader_data.cards_intersection
                     ],
@@ -139,7 +141,7 @@ def setup_api_routes(rt):
                 ft.Div(
                     *[
                         ft.Img(
-                            src=cid2cdata_dict[cid].image_url,
+                            src=cid2cdata_dict[cid].image_url if cid in cid2cdata_dict else get_card_image_url(cid, language=OPTcgLanguage.JP),
                             cls="w-1/4 inline-block p-1"
                         ) for cid in similar_leader_data.cards_missing
                     ],
