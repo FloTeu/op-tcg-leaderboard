@@ -2,7 +2,8 @@ from fasthtml import ft
 from collections import Counter
 from typing import Dict
 
-from op_tcg.backend.models.cards import Card, OPTcgCardCatagory, CardCurrency
+from op_tcg.backend.etl.extract import get_card_image_url
+from op_tcg.backend.models.cards import Card, OPTcgCardCatagory, CardCurrency, OPTcgLanguage
 from op_tcg.backend.models.input import MetaFormat
 
 def create_decklist_view(decklist: Dict[str, int], cid2card_data: Dict[str, Card], title: str = "Decklist", meta_format: MetaFormat = None, currency: CardCurrency = CardCurrency.EURO):
@@ -22,7 +23,8 @@ def create_decklist_view(decklist: Dict[str, int], cid2card_data: Dict[str, Card
         OPTcgCardCatagory.LEADER: [],
         OPTcgCardCatagory.CHARACTER: [],
         OPTcgCardCatagory.EVENT: [],
-        OPTcgCardCatagory.STAGE: []
+        OPTcgCardCatagory.STAGE: [],
+        "Unknown": []
     }
     
     # Sort cards into their types
@@ -32,10 +34,16 @@ def create_decklist_view(decklist: Dict[str, int], cid2card_data: Dict[str, Card
             card_type = card.card_category
             if card_type in card_types:
                 card_types[card_type].append((card, count))
+        else:
+            card = Card.from_default()
+            card.name = "Unknown"
+            card.id = card_id
+            card.image_url = get_card_image_url(card_id, OPTcgLanguage.JP)
+            card_types["Unknown"].append((card, count))
     
-    # Sort cards within each type by name
+    # Sort cards within each type by color and cost
     for type_cards in card_types.values():
-        type_cards.sort(key=lambda x: x[0].name)
+        type_cards.sort(key=lambda x: (x[0].colors, x[0].cost))
     
     # Get all card IDs for the modal navigation
     all_card_ids = [card_id for card_id in decklist.keys() if card_id in cid2card_data]

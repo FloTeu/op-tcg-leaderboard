@@ -278,16 +278,12 @@ def setup_api_routes(rt):
         leader_data = get_leader_extended()
         leader_extended_dict = {le.id: le for le in leader_data}
         
-        # Get card data
-        card_id2card_data = get_card_id_card_data_lookup()
-        
         # Create and return the tournament section
         return create_tournament_section(
             leader_id=params.lid,
             tournament_decklists=tournament_decklists,
             tournaments=tournaments,
             leader_extended_dict=leader_extended_dict,
-            cid2cdata_dict=card_id2card_data,
             hx_include=HX_INCLUDE
         )
 

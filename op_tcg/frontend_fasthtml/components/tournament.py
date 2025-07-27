@@ -89,7 +89,7 @@ def create_leader_grid(leader_stats: Dict[str, float], leader_extended_dict: Dic
 
 def create_tournament_section(leader_id: str, tournament_decklists: List[TournamentDecklist],
                             tournaments: List[TournamentExtended], leader_extended_dict: Dict[str, LeaderExtended],
-                            cid2cdata_dict: dict, hx_include: str) -> ft.Div:
+                             hx_include: str) -> ft.Div:
     """Create the tournament section for the leader page."""
     
     # Filter tournaments where this leader won
