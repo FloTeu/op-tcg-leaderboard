@@ -12,6 +12,7 @@ FILTER_HX_ATTRS = {
     "hx_target": "#leader-content",
     "hx_include": HX_INCLUDE,
     "hx_indicator": "#loading-indicator"
+    # Note: URL updates are handled by JavaScript to maintain /leader path
 }
 
 # Common CSS classes for select components
@@ -50,8 +51,8 @@ def create_filter_components(selected_meta_formats=None, selected_leader_id=None
             "hx_include": HX_INCLUDE,
             "hx_trigger": "change",
             "hx_swap": "innerHTML",
-            "hx_params": "*",  # Include all parameters in the request
-            "hx_push-url": "true"  # Update the URL when changing meta format
+            "hx_params": "*"  # Include all parameters in the request
+            # Note: URL updates are handled by JavaScript to maintain /leader path
         }
     )
     
@@ -69,8 +70,8 @@ def create_filter_components(selected_meta_formats=None, selected_leader_id=None
             "hx_include": HX_INCLUDE,
             "hx_trigger": "change",
             "hx_swap": "innerHTML",
-            "hx_params": "*",  # Include all parameters in the request
-            "hx_push-url": "true"  # Update the URL when changing region
+            "hx_params": "*"  # Include all parameters in the request
+            # Note: URL updates are handled by JavaScript to maintain /leader path
         }
     )
     
@@ -82,16 +83,72 @@ def create_filter_components(selected_meta_formats=None, selected_leader_id=None
     )
     
     # Add JavaScript to trigger the content update after leader select is updated
+    # and handle URL updates
     trigger_script = ft.Script("""
+        // Function to update URL with current form values
+        function updateLeaderURL() {
+            const params = new URLSearchParams();
+            
+            // Get meta format values
+            const metaFormatSelect = document.querySelector('[name="meta_format"]');
+            if (metaFormatSelect) {
+                const selectedOptions = Array.from(metaFormatSelect.selectedOptions);
+                selectedOptions.forEach(option => {
+                    if (option.value) {
+                        params.append('meta_format', option.value);
+                    }
+                });
+            }
+            
+            // Get leader ID
+            const leaderSelect = document.querySelector('[name="lid"]');
+            if (leaderSelect && leaderSelect.value) {
+                params.set('lid', leaderSelect.value);
+            }
+            
+            // Get meta format region
+            const regionSelect = document.querySelector('[name="meta_format_region"]');
+            if (regionSelect && regionSelect.value) {
+                params.set('meta_format_region', regionSelect.value);
+            }
+            
+            // Get only official toggle
+            const officialToggle = document.querySelector('[name="only_official"]');
+            if (officialToggle) {
+                params.set('only_official', officialToggle.checked ? 'true' : 'false');
+            }
+            
+            // Update URL
+            const newURL = '/leader' + (params.toString() ? '?' + params.toString() : '');
+            window.history.replaceState({}, '', newURL);
+        }
+        
         document.addEventListener('htmx:afterSettle', function(evt) {
             if (evt.target.id === 'leader-select-wrapper') {
                 // Small delay to ensure the select element is fully ready
                 setTimeout(function() {
                     const leaderSelect = document.querySelector('[name="lid"]');
                     if (leaderSelect && leaderSelect.value) {
+                        updateLeaderURL();
                         htmx.trigger('#content-trigger', 'change');
                     }
                 }, 50);
+            }
+            
+            // Update URL after content updates
+            if (evt.target.id === 'leader-content') {
+                updateLeaderURL();
+            }
+        });
+        
+        // Handle filter changes
+        document.addEventListener('change', function(evt) {
+            if (evt.target.matches('[name="meta_format"], [name="meta_format_region"], [name="only_official"]')) {
+                setTimeout(updateLeaderURL, 10);
+            }
+            
+            if (evt.target.matches('[name="lid"]')) {
+                setTimeout(updateLeaderURL, 10);
             }
         });
         
@@ -103,6 +160,8 @@ def create_filter_components(selected_meta_formats=None, selected_leader_id=None
                 if (leaderSelect && leaderSelect.value) {
                     htmx.trigger('#content-trigger', 'change');
                 }
+                // Update URL on initial load
+                updateLeaderURL();
             }, 100);
         });
     """)
@@ -488,6 +547,7 @@ def leader_page(leader_id: str | None = None, filtered_leader_data: LeaderExtend
             "hx_include": HX_INCLUDE,
             "hx_target": "#leader-content-inner",
             "hx_swap": "innerHTML"
+            # Note: URL updates are handled by JavaScript to maintain /leader path
         }
         
         # If leader_id is provided directly, add it as a param to ensure
