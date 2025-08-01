@@ -4,7 +4,7 @@ from starlette.requests import Request
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.cards import CardCurrency
-from op_tcg.frontend_fasthtml.utils.extract import get_tournament_decklist_data, get_all_tournament_extened_data
+from op_tcg.frontend_fasthtml.utils.extract import get_tournament_decklist_data, get_all_tournament_extened_data, get_tournament_match_data
 from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict, get_effective_meta_format_with_fallback, create_fallback_notification
 from op_tcg.frontend_fasthtml.utils.extract import (
     get_leader_extended,
@@ -13,12 +13,15 @@ from op_tcg.frontend_fasthtml.utils.extract import (
 from op_tcg.frontend_fasthtml.components.tournament import (
     create_tournament_section,
     create_tournament_keyfacts,
-    create_leader_grid
+    create_leader_grid,
+    create_match_progression,
+    create_decklist_selector
 )
 from op_tcg.frontend_fasthtml.components.tournament_decklist import create_decklist_view
 from op_tcg.frontend_fasthtml.api.models import LeaderDataParams, TournamentPageParams
 from op_tcg.frontend_fasthtml.pages.leader import HX_INCLUDE
 from op_tcg.frontend_fasthtml.utils.charts import create_bubble_chart
+from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 import json
 
 def aggregate_leader_data(leader_data: list[LeaderExtended]):
@@ -328,9 +331,16 @@ def setup_api_routes(rt):
                     hx_get="/api/tournament-details",
                     hx_target="#tournament-details",
                     hx_trigger="change",
-                    hx_include="[name='meta_format'],[name='region']"
+                    hx_include="[name='meta_format'],[name='region']",
+                    hx_indicator="#tournament-selector-loading"
                 ),
-                cls="mb-8"
+                cls="mb-4"
+            ),
+            # Loading spinner positioned right below the selector
+            create_loading_spinner(
+                id="tournament-selector-loading",
+                size="w-8 h-8",
+                container_classes="min-h-[60px] mb-4"
             ),
             # Tournament details container
             ft.Div(
@@ -371,7 +381,7 @@ def setup_api_routes(rt):
         tournament_decklists = get_tournament_decklist_data(params.meta_format)
         tournament_decklists = [td for td in tournament_decklists if td.tournament_id == tournament_id]
         
-        # Get winner decklist
+        # Get winner decklist for fallback
         winner_decklist = next((td for td in tournament_decklists if td.placing == 1), None)
         
         # Calculate leader participation stats
@@ -388,10 +398,154 @@ def setup_api_routes(rt):
         else:
             leader_image_url = None
             
-        # Create the tournament details view with two columns
+        # Set default selected leader (winner)
+        selected_leader_id = winner_decklist.leader_id if winner_decklist else None
+        
+        # Create the tournament details view with new layout
+        return ft.Div(
+            id="tournament-leader-content",
+            hx_get="/api/tournament-select-leader",
+            hx_trigger="load",
+            hx_include="[name='meta_format'],[name='region']",
+            hx_vals={
+                "tournament_id": tournament_id,
+                "selected_leader_id": selected_leader_id
+            } if selected_leader_id else None,
+            cls="space-y-6"
+        ) 
+
+    @rt("/api/tournament-select-leader")
+    async def get_tournament_leader_content(request: Request):
+        """Get tournament content with selected leader highlighted."""
+        def _create_leader_decklist_section(leader_decklists, selected_index, card_data, meta_format, 
+                                          tournament_id, leader_id, fallback_decklist):
+            """Create the decklist section for the selected leader."""
+            if not leader_decklists:
+                # Fallback to winner's decklist if no leader decklists available
+                if fallback_decklist:
+                    return ft.Div(
+                        ft.H4("Winner's Decklist (No decklist found for selected leader)", cls="text-lg font-bold text-white mb-4"),
+                        create_decklist_view(
+                            fallback_decklist.decklist,
+                            card_data,
+                            title=None,  # Title already shown above
+                            meta_format=meta_format,
+                            currency=CardCurrency.EURO
+                        )
+                    )
+                else:
+                    return ft.P("No decklist available", cls="text-gray-400")
+            
+            # Get the selected decklist
+            if selected_index >= len(leader_decklists):
+                selected_index = 0
+            
+            selected_decklist = leader_decklists[selected_index]
+            
+            # Create title based on placing
+            title_parts = []
+            if selected_decklist.placing == 1:
+                title_parts.append("Winner's Decklist")
+            elif selected_decklist.placing is not None:
+                title_parts.append(f"#{selected_decklist.placing} Decklist")
+            else:
+                title_parts.append("Decklist")
+            
+            if selected_decklist.player_id:
+                title_parts.append(f"({selected_decklist.player_id})")
+            
+            title = " ".join(title_parts)
+            
+            # Create decklist selector if multiple decklists
+            decklist_selector = create_decklist_selector(
+                leader_decklists, 
+                selected_index, 
+                tournament_id, 
+                leader_id
+            )
+            
+            # Build components list, filtering out None values
+            components = [ft.H4(title, cls="text-lg font-bold text-white mb-4")]
+            
+            if decklist_selector:
+                components.append(decklist_selector)
+                
+            components.append(
+                create_decklist_view(
+                    selected_decklist.decklist,
+                    card_data,
+                    title=None,  # Title already shown above
+                    meta_format=meta_format,
+                    currency=CardCurrency.EURO
+                )
+            )
+            
+            return ft.Div(*components, cls="space-y-4")
+        
+        params_dict = get_query_params_as_dict(request)
+        tournament_id = params_dict.get("tournament_id")
+        selected_leader_id = params_dict.get("selected_leader_id")
+        selected_decklist_index = int(params_dict.get("selected_decklist_index", "0"))
+        params = TournamentPageParams(**params_dict)
+
+        if not tournament_id:
+            return ft.P("No tournament selected", cls="text-gray-400")
+            
+        # Get tournament data
+        tournaments = get_all_tournament_extened_data(
+            meta_formats=params.meta_format,
+        )
+        tournament = next((t for t in tournaments if t.id == tournament_id), None)
+        
+        if not tournament:
+            return ft.P("Tournament not found", cls="text-red-400")
+            
+        # Get card and leader data
+        card_id2card_data = get_card_id_card_data_lookup()
+        leader_data = get_leader_extended()
+        leader_extended_dict = {le.id: le for le in leader_data}
+        
+        # Get tournament decklists
+        tournament_decklists = get_tournament_decklist_data(params.meta_format)
+        tournament_decklists = [td for td in tournament_decklists if td.tournament_id == tournament_id]
+        
+        # Get winner decklist
+        winner_decklist = next((td for td in tournament_decklists if td.placing == 1), None)
+        
+        # Calculate leader participation stats
+        leader_stats = {}
+        if tournament.num_players:
+            for lid, placings in tournament.leader_ids_placings.items():
+                leader_stats[lid] = len(placings) / tournament.num_players
+        
+        # Set default selected leader if none provided
+        if not selected_leader_id:
+            selected_leader_id = winner_decklist.leader_id if winner_decklist else None
+        
+        # Get selected leader's decklists
+        selected_leader_decklists = []
+        if selected_leader_id:
+            selected_leader_decklists = [td for td in tournament_decklists if td.leader_id == selected_leader_id]
+            # Sort by placing (best placing first)
+            selected_leader_decklists.sort(key=lambda x: x.placing if x.placing is not None else 999)
+        
+        # Get selected leader info for display
+        selected_leader_data = leader_extended_dict.get(selected_leader_id) if selected_leader_id else None
+        selected_leader_image = None
+        if selected_leader_data:
+            selected_leader_image = selected_leader_data.aa_image_url or selected_leader_data.image_url
+        
+        # Get match data for selected leader
+        matches = []
+        if selected_leader_id:
+            matches = get_tournament_match_data(
+                tournament_id=tournament_id,
+                leader_id=selected_leader_id
+            )
+        
         return ft.Div(
             ft.Div(
-                # Tournament Facts and Winner Image Section
+                # Left Column: Tournament Facts, Selected Leader Image, and Match Progression
                 ft.Div(
                     # Tournament facts
                     create_tournament_keyfacts(
@@ -399,34 +553,64 @@ def setup_api_routes(rt):
                         winner_name=winner_decklist.leader_id if winner_decklist else "Unknown"
                     ),
                     
-                    # Winner Leader Image (if available)
+                    # Selected Leader Image
                     ft.Div(
+                        ft.H5(
+                            f"Selected Leader{' (Winner)' if selected_leader_id and winner_decklist and selected_leader_id == winner_decklist.leader_id else ''}", 
+                            cls="text-lg font-bold text-white mb-2"
+                        ) if selected_leader_id else None,
                         ft.Img(
-                            src=leader_image_url if winner_decklist else None,
+                            src=selected_leader_image,
                             cls="w-full h-auto rounded-lg shadow-lg max-w-[300px] mx-auto"
-                        ) if winner_decklist and winner_decklist.leader_id in card_id2card_data else ft.P("No winner image available", cls="text-gray-400"),
-                        cls="mt-6"
-                    ),
-                    cls="w-full lg:w-1/3"
-                ),
-                
-                # Leader Stats and Decklist Section
-                ft.Div(
-                    # Leader participation section
-                    ft.Div(
-                        ft.H4("Leader Participation", cls="text-lg font-bold text-white mb-4"),
-                        create_leader_grid(leader_stats, leader_extended_dict, card_id2card_data)
+                        ) if selected_leader_image else ft.P("No leader selected", cls="text-gray-400 text-center"),
+                        cls="mt-6 mb-6"
                     ),
                     
-                    # Winner decklist section
+                    # Match Progression (moved here)
                     ft.Div(
-                        create_decklist_view(
-                            winner_decklist.decklist if winner_decklist else {},
+                        ft.H5("Match Progression", cls="text-lg font-bold text-white mb-4"),
+                        create_loading_spinner(
+                            id="tournament-leader-loading",
+                            size="w-6 h-6",
+                            container_classes="min-h-[50px]"
+                        ),
+                        create_match_progression(
+                            matches=matches,
+                            leader_extended_dict=leader_extended_dict,
+                            cid2cdata_dict=card_id2card_data,
+                            selected_leader_id=selected_leader_id or ""
+                        ) if selected_leader_id else ft.P("Click on a leader above to see their match progression", cls="text-gray-400"),
+                        cls="bg-gray-800 rounded-lg p-4"
+                    ),
+                    
+                    cls="w-full lg:w-1/3 space-y-6"
+                ),
+                
+                # Right Column: Leader Participation and Decklist
+                ft.Div(
+                    # Leader participation section (now clickable)
+                    ft.Div(
+                        ft.H4("Leader Participation (Click to Select)", cls="text-lg font-bold text-white mb-4"),
+                        create_leader_grid(
+                            leader_stats, 
+                            leader_extended_dict, 
+                            card_id2card_data, 
+                            selected_leader_id=selected_leader_id,
+                            tournament_id=tournament_id
+                        )
+                    ),
+                    
+                    # Decklist section
+                    ft.Div(
+                        _create_leader_decklist_section(
+                            selected_leader_decklists,
+                            selected_decklist_index,
                             card_id2card_data,
-                            title="Winner's Decklist",
-                            meta_format=winner_decklist.meta_format if winner_decklist else params.meta_format[0],
-                            currency=CardCurrency.EURO
-                        ) if winner_decklist else ft.P("No winner decklist available", cls="text-gray-400"),
+                            params.meta_format[0],
+                            tournament_id,
+                            selected_leader_id,
+                            winner_decklist
+                        ),
                         cls="mt-8"
                     ),
                     cls="w-full lg:w-2/3 lg:pl-8 mt-8 lg:mt-0"

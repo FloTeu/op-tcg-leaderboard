@@ -165,3 +165,27 @@ def get_card_id_card_data_lookup(aa_version: int = 0, ensure_latest_price_not_nu
         for cdata in card_data:
             cdata.ensure_latest_price_not_none()
     return {card.id: card for card in card_data}
+
+def get_tournament_match_data(tournament_id: str, leader_id: str | None = None) -> list[Match]:
+    """Get all matches for a specific tournament, optionally filtered by leader_id
+    
+    Args:
+        tournament_id: The tournament ID to get matches for
+        leader_id: Optional leader ID to filter matches for a specific leader
+        meta_formats: Optional meta formats to filter by
+        
+    Returns:
+        List of Match objects sorted by round, phase, and timestamp
+    """
+    base_query = f"""
+    SELECT * FROM `{get_bq_table_id(Match)}` 
+    WHERE tournament_id = '{tournament_id}'
+    ORDER BY tournament_round ASC, tournament_phase ASC, match_timestamp ASC
+    """
+    
+    match_data_rows = run_bq_query(base_query)
+    matches = [Match(**d) for d in match_data_rows]
+    if leader_id:
+        matches = [m for m in matches if m.leader_id == leader_id]
+    
+    return matches

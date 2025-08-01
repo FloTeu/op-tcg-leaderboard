@@ -78,7 +78,6 @@ def create_tournament_content():
                 id="tournament-list-container",
                 hx_get="/api/tournaments/all",
                 hx_trigger="load",
-                hx_indicator="#tournament-loading-indicator",
                 hx_include="[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']",
             ),
             cls="mt-32"
