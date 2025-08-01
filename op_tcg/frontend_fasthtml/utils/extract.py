@@ -1,7 +1,9 @@
+import logging
 import os
 from collections import Counter
 
 from cachetools import TTLCache, cached
+from pydantic import ValidationError
 
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
 from op_tcg.backend.models.cards import LatestCardPrice, CardPopularity, Card, CardReleaseSet, ExtendedCardData, \
@@ -91,11 +93,22 @@ where
 t1.decklist IS NOT NULL 
 OR t3.decklist IS NOT NULL""", ttl_hours=None)
     tournament_decklists: list[TournamentDecklist] = []
-    seen_decklists = set()  # To track unique combinations of leader_id, tournament_id, player_id, and placing
+    leader_ids = [l.id for l in get_leader_data()]
+    seen_decklists = set()
+    # To track unique combinations of leader_id, tournament_id, player_id, and placing
     for ts in tournament_standing_rows:
         key = (ts['leader_id'], ts['tournament_id'], ts['player_id'], ts['placing'])
         if key not in seen_decklists:
-            tournament_decklist = TournamentDecklist(**ts)
+            if ts["leader_id"] is None:
+                for leader_id in leader_ids:
+                    if leader_id in ts["decklist"]:
+                        ts["leader_id"] = leader_id
+                        break
+            try:
+                tournament_decklist = TournamentDecklist(**ts)
+            except ValidationError as e:
+                logging.warning(str(e))
+                continue
             tournament_decklist.price_usd = get_decklist_price(tournament_decklist.decklist, card_id2card_data, currency=CardCurrency.US_DOLLAR)
             tournament_decklist.price_eur = get_decklist_price(tournament_decklist.decklist, card_id2card_data, currency=CardCurrency.EURO)
             tournament_decklists.append(tournament_decklist)
