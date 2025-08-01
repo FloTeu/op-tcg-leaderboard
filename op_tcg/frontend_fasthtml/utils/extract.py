@@ -85,7 +85,7 @@ def get_all_tournament_decklist_data() -> list[TournamentDecklist]:
     card_id2card_data = get_card_id_card_data_lookup()
     # cached for each session
     tournament_standing_rows = run_bq_query(f"""
-SELECT t1.leader_id, t1.tournament_id, COALESCE(t3.decklist, t1.decklist) AS decklist, t1.placing, t1.player_id, t2.meta_format, COALESCE(t2.meta_format_region, 'west') AS meta_format_region , t2.tournament_timestamp 
+SELECT COALESCE(t1.leader_id,t3.leader_id) as leader_id, t1.tournament_id, COALESCE(t3.decklist, t1.decklist) AS decklist, t1.placing, t1.player_id, t2.meta_format, COALESCE(t2.meta_format_region, 'west') AS meta_format_region , t2.tournament_timestamp 
 FROM `{get_bq_table_id(TournamentStanding)}` t1
 left join `{get_bq_table_id(Tournament)}` t2 on t1.tournament_id = t2.id
 left join `{get_bq_table_id(Decklist)}` t3 on t1.decklist_id = t3.id
@@ -99,16 +99,7 @@ OR t3.decklist IS NOT NULL""", ttl_hours=None)
     for ts in tournament_standing_rows:
         key = (ts['leader_id'], ts['tournament_id'], ts['player_id'], ts['placing'])
         if key not in seen_decklists:
-            if ts["leader_id"] is None:
-                for leader_id in leader_ids:
-                    if leader_id in ts["decklist"]:
-                        ts["leader_id"] = leader_id
-                        break
-            try:
-                tournament_decklist = TournamentDecklist(**ts)
-            except ValidationError as e:
-                logging.warning(str(e))
-                continue
+            tournament_decklist = TournamentDecklist(**ts)
             tournament_decklist.price_usd = get_decklist_price(tournament_decklist.decklist, card_id2card_data, currency=CardCurrency.US_DOLLAR)
             tournament_decklist.price_eur = get_decklist_price(tournament_decklist.decklist, card_id2card_data, currency=CardCurrency.EURO)
             tournament_decklists.append(tournament_decklist)
