@@ -103,7 +103,7 @@ def get_all_tournament_decklist_data() -> list[TournamentDecklist]:
         card_id2card_data = get_card_id_card_data_lookup()
         # cached for each session
         tournament_standing_rows = run_bq_query(f"""
-    SELECT t1.leader_id, t1.tournament_id, COALESCE(t3.decklist, t1.decklist) AS decklist, t1.placing, t1.player_id, t2.meta_format, COALESCE(t2.meta_format_region, 'west') AS meta_format_region , t2.tournament_timestamp 
+    SELECT COALESCE(t1.leader_id, t3.leader_id) AS leader_id, t1.tournament_id, COALESCE(t3.decklist, t1.decklist) AS decklist, t1.placing, t1.player_id, t2.meta_format, COALESCE(t2.meta_format_region, 'west') AS meta_format_region , t2.tournament_timestamp 
     FROM `{get_bq_table_id(TournamentStanding)}` t1
     left join `{get_bq_table_id(Tournament)}` t2 on t1.tournament_id = t2.id
     left join `{get_bq_table_id(Decklist)}` t3 on t1.decklist_id = t3.id
