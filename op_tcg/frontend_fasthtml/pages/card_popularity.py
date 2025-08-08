@@ -1,7 +1,7 @@
 from fasthtml import ft
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.cards import OPTcgColor, OPTcgCardCatagory, OPTcgAbility, CardCurrency, OPTcgAttribute
-from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
+from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner, create_skeleton_cards_indicator
 from op_tcg.frontend_fasthtml.utils.extract import get_card_popularity_data, get_card_id_card_data_lookup
 from op_tcg.backend.models.cards import ExtendedCardData
 
@@ -378,7 +378,7 @@ def create_card_popularity_content(cards_data: list[ExtendedCardData], card_popu
             )
             for card in current_page_cards
         ],
-        cls="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+        cls="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4"
     )
 
     # Add CSS for the card grid and progress bars
@@ -406,12 +406,14 @@ def create_card_popularity_content(cards_data: list[ExtendedCardData], card_popu
         }
     """)
 
-    # Create loading spinner for new batches
+    # Create loading spinner and skeleton for new batches
     loading_spinner = create_loading_spinner(
         id="card-popularity-batch-loading",
         size="w-6 h-6",
         container_classes="min-h-[50px]"
     )
+    # Skeleton only for newly loaded batches
+    skeleton = create_skeleton_cards_indicator(id="card-popularity-batch-skeleton", count=16)
 
     # For the first page, return the full structure
     if page == 1:
@@ -428,9 +430,10 @@ def create_card_popularity_content(cards_data: list[ExtendedCardData], card_popu
                     hx_target="#card-grid-container",
                     hx_swap="beforeend",
                     hx_include=HX_INCLUDE,
-                    hx_indicator="#card-popularity-batch-loading",
+                    hx_indicator="#card-popularity-batch-loading, #card-popularity-batch-skeleton",
                     cls="h-10"
                 ) if has_more else None,
+                skeleton,
                 loading_spinner,
                 id="card-grid-container",
                 cls="p-4"
@@ -448,9 +451,10 @@ def create_card_popularity_content(cards_data: list[ExtendedCardData], card_popu
             hx_target="#card-grid-container",
             hx_swap="beforeend",
             hx_include=HX_INCLUDE,
-            hx_indicator="#card-popularity-batch-loading",
+            hx_indicator="#card-popularity-batch-loading, #card-popularity-batch-skeleton",
             cls="h-10"
         ) if has_more else None,
+        skeleton,
         loading_spinner
     )
 

@@ -34,6 +34,7 @@ def sidebar_content(filter_component=None, current_path="/"):
     
     card_links = [
         ("/card-popularity", "Card Popularity", "💃", current_path == "/card-popularity"),
+        ("/prices", "Card Prices", "💰", current_path == "/prices"),
     ]
     
     support_links = [

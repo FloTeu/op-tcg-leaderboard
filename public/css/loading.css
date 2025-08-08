@@ -9,3 +9,35 @@
 .htmx-request.htmx-indicator {
     display: block;
 } 
+
+/* Hide content marked to hide while an ancestor (or itself) is in request state */
+.htmx-request .htmx-hide-during-request,
+.htmx-request.htmx-hide-during-request {
+    display: none !important;
+}
+
+/* Generic skeleton styles (reusable) */
+.skeleton {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.skeleton-animate {
+    position: relative;
+    overflow: hidden;
+}
+
+.skeleton-animate::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+    animation: skeleton-loading 1.2s ease-in-out infinite;
+}
+
+@keyframes skeleton-loading {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}

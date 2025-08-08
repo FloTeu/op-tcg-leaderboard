@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
 from op_tcg.backend.models.cards import LatestCardPrice, CardPopularity, Card, CardReleaseSet, ExtendedCardData, \
-    CardCurrency
+    CardCurrency, CardPrice
 from op_tcg.backend.models.decklists import Decklist
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import Leader, TournamentWinner, LeaderElo, LeaderExtended
@@ -189,3 +189,97 @@ def get_tournament_match_data(tournament_id: str, leader_id: str | None = None) 
         matches = [m for m in matches if m.leader_id == leader_id]
     
     return matches
+
+
+# --------------- Price overview extraction helpers ---------------
+def get_price_change_data(days: int, currency: CardCurrency, min_latest_price: float, max_latest_price: float,
+                          page: int, page_size: int, order_dir: str = "DESC", include_alt_art: bool = False, change_metric: str = "absolute") -> list[dict]:
+    """Return price changes over a window for cards, ordered by percentage change.
+
+    Args:
+        days: Lookback window in days
+        currency: EUR or USD
+        min_latest_price: minimum latest price filter
+        max_latest_price: maximum latest price filter
+        limit: number of rows
+        order: 'pct_change DESC' or 'pct_change ASC'
+    """
+    latest_tbl = get_bq_table_id(LatestCardPrice).replace(":", ".")
+    history_tbl = get_bq_table_id(CardPrice).replace(":", ".")
+    currency_col = 'latest_eur_price' if currency == CardCurrency.EURO else 'latest_usd_price'
+    price_currency = 'eur' if currency == CardCurrency.EURO else 'usd'
+    aa_filter = "" if include_alt_art else "AND aa_version = 0"
+    # max_latest_price is already normalized by pydantic: None means unbounded
+    upper_bound = f"AND {currency_col} <= {max_latest_price}" if max_latest_price is not None else ""
+    # ORDER BY expression
+    order_expr = "IFNULL(abs_change, 0)" if change_metric == "absolute" else "IFNULL(pct_change, 0)"
+    order_dir = order_dir if order_dir in ("ASC", "DESC") else "DESC"
+    offset = max(0, (page - 1) * page_size)
+    fetch_count = page_size + 1  # fetch one extra to detect has_more
+    query = f"""
+    WITH history_window AS (
+      SELECT card_id, language, aa_version, price, create_timestamp,
+             ROW_NUMBER() OVER (PARTITION BY card_id, language, aa_version ORDER BY create_timestamp ASC) AS rn
+      FROM `{history_tbl}`
+      WHERE create_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)
+        AND currency = '{price_currency}'
+        AND language = 'en'
+        {aa_filter}
+    ),
+    base_price AS (
+      SELECT card_id, language, aa_version, price AS window_price
+      FROM history_window
+      WHERE rn = 1
+    ),
+    latest AS (
+      SELECT id AS card_id, language, aa_version, name, image_url, {currency_col} AS latest_price
+      FROM `{latest_tbl}`
+      WHERE {currency_col} IS NOT NULL
+        AND {currency_col} >= {min_latest_price}
+        {upper_bound}
+        {aa_filter}
+    )
+    SELECT l.card_id, l.language, l.aa_version, l.name, l.image_url, l.latest_price,
+           b.window_price,
+           SAFE_DIVIDE(l.latest_price - b.window_price, NULLIF(b.window_price, 0)) AS pct_change,
+           (l.latest_price - b.window_price) AS abs_change
+    FROM latest l
+    LEFT JOIN base_price b
+      ON l.card_id = b.card_id AND l.language = b.language AND l.aa_version = b.aa_version
+    ORDER BY {order_expr} {order_dir}
+    LIMIT {fetch_count}
+    OFFSET {offset}
+    """
+    rows = run_bq_query(query, ttl_hours=24.0)
+    return rows
+
+
+def get_top_current_prices(
+    currency: CardCurrency,
+    page: int,
+    page_size: int,
+    min_latest_price: float,
+    max_latest_price: float,
+    direction: str = "DESC",
+    language: str = 'en',
+    include_alt_art: bool = False
+) -> list[dict]:
+    """Return cards by current latest price in the selected currency."""
+    latest_tbl = get_bq_table_id(LatestCardPrice).replace(":", ".")
+    currency_col = 'latest_eur_price' if currency == CardCurrency.EURO else 'latest_usd_price'
+    aa_filter = "" if include_alt_art else "AND aa_version = 0"
+    offset = max(0, (page - 1) * page_size)
+    fetch_count = page_size + 1
+    upper_bound = f"AND {currency_col} <= {max_latest_price}" if max_latest_price is not None else ""
+    query = f"""
+    SELECT id AS card_id, language, aa_version, name, image_url, {currency_col} AS latest_price,
+           NULL AS window_price, NULL AS pct_change, NULL AS abs_change
+    FROM `{latest_tbl}`
+    WHERE language = '{language}' {aa_filter} AND {currency_col} IS NOT NULL
+      AND {currency_col} >= {min_latest_price}
+      {upper_bound}
+    ORDER BY {currency_col} {direction}
+    LIMIT {fetch_count}
+    OFFSET {offset}
+    """
+    return run_bq_query(query, ttl_hours=24.0)

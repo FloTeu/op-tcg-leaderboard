@@ -343,3 +343,95 @@ class CardPopularityParams(BaseModel):
         if isinstance(value, list):
             return value
         return [value]
+
+
+class PriceOverviewParams(BaseModel):
+    """Parameters for card price overview requests"""
+    currency: CardCurrency = CardCurrency.EURO
+    days: int = 30
+    min_latest_price: float = 0.0
+    max_latest_price: Optional[float] = None
+    max_results: int = 20
+    include_alt_art: bool = False
+    order_by: str = "rising"  # rising | fallers | expensive
+    change_metric: str = "absolute"  # absolute | relative
+    page: int = 1
+
+    @field_validator('currency', mode='before')
+    def validate_currency(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if isinstance(value, str):
+            return CardCurrency(value)
+        return value
+
+    @field_validator('days', 'max_results', mode='before')
+    def validate_ints(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if isinstance(value, str):
+            try:
+                return int(value)
+            except (ValueError, TypeError):
+                return 0
+        return value if value is not None else 0
+
+    @field_validator('min_latest_price', mode='before')
+    def validate_min_price(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if isinstance(value, str):
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return 0.0
+        return value if value is not None else 0.0
+
+    @field_validator('max_latest_price', mode='before')
+    def normalize_max_price(cls, value):
+        # Treat slider max (500) as no upper bound (None)
+        if isinstance(value, list) and value:
+            value = value[-1]
+        if value is None or value == "":
+            return None
+        try:
+            v = float(value)
+            return None if v >= 500 else v
+        except (ValueError, TypeError):
+            return None
+
+    @field_validator('include_alt_art', mode='before')
+    def validate_bool(cls, value):
+        if isinstance(value, list) and value:
+            # If both hidden(false) and checkbox(true) are sent, take the last occurrence
+            value = value[-1]
+        if isinstance(value, str):
+            return value.lower() in ("true", "on", "1", "yes")
+        return bool(value)
+
+    @field_validator('order_by', mode='before')
+    def validate_order_by(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if not value:
+            return "rising"
+        v = str(value).lower()
+        return v if v in ("rising", "fallers", "expensive") else "rising"
+
+    @field_validator('change_metric', mode='before')
+    def validate_change_metric(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        v = (value or "absolute").lower()
+        return v if v in ("absolute", "relative") else "absolute"
+
+    @field_validator('page', mode='before')
+    def validate_page(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if isinstance(value, str):
+            try:
+                return max(1, int(value))
+            except (ValueError, TypeError):
+                return 1
+        return max(1, value if value is not None else 1)

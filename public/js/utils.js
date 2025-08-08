@@ -70,3 +70,26 @@ document.addEventListener('DOMContentLoaded', initializeTooltips);
 
 // Re-initialize tooltips after HTMX content swaps
 document.addEventListener('htmx:afterSwap', initializeTooltips); 
+
+// Generic content hide/show during HTMX for reusable skeletons
+// Usage: add class "htmx-hide-during-request" to any content that should hide while the request is active
+// Ensure your hx_indicator includes a wrapper ancestor so it receives the htmx-request class
+(function(){
+  function toggleHideDuringRequest(evt, hide){
+    try {
+      // For HTMX requests that target price-overview or that include price params, hide price content
+      var path = (evt.detail && evt.detail.pathInfo && evt.detail.pathInfo.path) || '';
+      var elt = evt.target;
+      var isPriceRequest = (path.indexOf('/api/price-overview') === 0) ||
+                           (elt && elt.getAttribute && (elt.getAttribute('hx_target') === '#price-overview' || elt.getAttribute('hx_target') === 'price-overview'));
+      if (!isPriceRequest) return;
+
+      var ov = document.getElementById('price-overview');
+      if (ov) {
+        if (hide) ov.classList.add('hidden'); else ov.classList.remove('hidden');
+      }
+    } catch(e) {}
+  }
+  document.addEventListener('htmx:beforeRequest', function(evt){ toggleHideDuringRequest(evt, true); });
+  document.addEventListener('htmx:afterSwap', function(evt){ toggleHideDuringRequest(evt, false); });
+})();

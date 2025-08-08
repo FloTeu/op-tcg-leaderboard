@@ -29,6 +29,9 @@ class MetaFormat(EnumBase, StrEnum):
     OP13 = "OP13"
     OP14 = "OP14"
     OP15 = "OP15"
+    OP16 = "OP16"
+    OP17 = "OP17"
+    OP18 = "OP18"
 
     @classmethod
     def to_list(cls, only_after_release: bool = True, until_meta_format: str | None = None, region: MetaFormatRegion = MetaFormatRegion.WEST) -> list[str]:
@@ -114,6 +117,7 @@ def meta_format2release_datetime(meta_format: MetaFormat, region: MetaFormatRegi
         MetaFormat.OP10: datetime(2024, 12, 21),   # 3 months earlier
         MetaFormat.OP11: datetime(2025, 3, 6),     # 3 months earlier
         MetaFormat.OP12: datetime(2025, 5, 31),    # 3 months earlier
+        MetaFormat.OP13: datetime(2025, 8, 23),    # 3 months earlier
     }
     
     # Western release dates (existing dates)
@@ -130,6 +134,7 @@ def meta_format2release_datetime(meta_format: MetaFormat, region: MetaFormatRegi
         MetaFormat.OP10: datetime(2025, 3, 21),
         MetaFormat.OP11: datetime(2025, 6, 6),
         MetaFormat.OP12: datetime(2025, 8, 29),
+        MetaFormat.OP13: datetime(2025, 11, 7),
     }
     
     if region == MetaFormatRegion.ASIA:

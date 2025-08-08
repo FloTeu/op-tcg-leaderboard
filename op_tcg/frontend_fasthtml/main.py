@@ -13,6 +13,7 @@ from op_tcg.frontend_fasthtml.pages.tournaments import tournaments_page, create_
 from op_tcg.frontend_fasthtml.pages.card_movement import card_movement_page, create_filter_components as card_movement_filters
 from op_tcg.frontend_fasthtml.pages.matchups import matchups_page, create_filter_components as matchups_filters
 from op_tcg.frontend_fasthtml.pages.card_popularity import card_popularity_page, create_filter_components as card_popularity_filters
+from op_tcg.frontend_fasthtml.pages.prices import prices_page, create_filter_components as prices_filters
 from op_tcg.frontend_fasthtml.pages.bug_report import bug_report_page
 from op_tcg.frontend_fasthtml.api.routes.main import setup_api_routes
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
@@ -241,6 +242,15 @@ def card_popularity():
     return (
         ft.Link(rel="canonical", href=canonical_url),
         layout(card_popularity_page(), filter_component=card_popularity_filters(), current_path="/card-popularity")
+    )
+
+# Prices page
+@rt("/prices")
+def prices():
+    canonical_url = "https://op-leaderboard.com/prices"
+    return (
+        ft.Link(rel="canonical", href=canonical_url),
+        layout(prices_page(), filter_component=prices_filters(), current_path="/prices")
     )
 
 # Support pages

@@ -8,7 +8,8 @@ from op_tcg.frontend_fasthtml.api.routes import (
     pages,
     stats,
     similar,
-    card_movement
+    card_movement,
+    prices
 )
 
 DATA_IS_LOADED = False
@@ -25,3 +26,4 @@ def setup_api_routes(rt):
     stats.setup_api_routes(rt)
     similar.setup_api_routes(rt)
     card_movement.setup_api_routes(rt)
+    prices.setup_api_routes(rt)
