@@ -128,10 +128,23 @@ def clear_cache():
         return {"status": "error", "message": str(e)}
 
 # Leader pages
+def _canonical_base(request: Request) -> str:
+    """Return canonical base using incoming host and scheme.
+
+    Preserves www vs non-www based on the Host header and respects proxies via X-Forwarded-Proto.
+    """
+    # Prefer X-Forwarded-Proto when deployed behind a proxy (e.g., Vercel, Nginx)
+    forwarded_proto = request.headers.get("x-forwarded-proto")
+    scheme = (forwarded_proto or request.url.scheme or "https").split(",")[0].strip()
+    host = request.headers.get("host") or request.url.netloc
+    # Normalize host casing
+    host = host.strip()
+    return f"{scheme}://{host}"
+
 @rt("/")
-def home():
-    # Add canonical link to head for home page
-    canonical_url = "https://op-leaderboard.com"
+def home(request: Request):
+    # Add canonical link to head for home page using incoming host
+    canonical_url = _canonical_base(request)
     return (
         ft.Link(rel="canonical", href=canonical_url),
         layout(home_page(), filter_component=home_filters(), current_path="/")
@@ -152,8 +165,8 @@ def leader_default(request: Request):
     if selected_meta_format_region:
         selected_meta_format_region = MetaFormatRegion(selected_meta_format_region)
     
-    # Add canonical link to head
-    canonical_url = "https://op-leaderboard.com/leader"
+    # Add canonical link to head based on incoming host
+    canonical_url = f"{_canonical_base(request)}/leader"
     
     # Pass to leader_page which will handle HTMX loading
     return (
@@ -170,9 +183,9 @@ def leader_default(request: Request):
     )
 
 @rt("/tournaments")
-def tournaments():
-    # Add canonical link to head
-    canonical_url = "https://op-leaderboard.com/tournaments"
+def tournaments(request: Request):
+    # Add canonical link to head based on incoming host
+    canonical_url = f"{_canonical_base(request)}/tournaments"
     
     return (
         ft.Link(rel="canonical", href=canonical_url),
@@ -189,8 +202,8 @@ def card_movement(request: Request):
     if selected_meta_format:
         selected_meta_format = MetaFormat(selected_meta_format)
     
-    # Add canonical link to head
-    canonical_url = "https://op-leaderboard.com/card-movement"
+    # Add canonical link to head based on incoming host
+    canonical_url = f"{_canonical_base(request)}/card-movement"
     
     # Pass to card_movement_page which will handle HTMX loading
     return (
@@ -216,8 +229,8 @@ def matchups(request: Request):
     if selected_meta_formats:
         selected_meta_formats = [MetaFormat(mf) for mf in selected_meta_formats]
     
-    # Add canonical link to head
-    canonical_url = "https://op-leaderboard.com/matchups"
+    # Add canonical link to head based on incoming host
+    canonical_url = f"{_canonical_base(request)}/matchups"
     
     # Pass to matchups_page which will handle HTMX loading
     return (
@@ -235,9 +248,9 @@ def matchups(request: Request):
 
 # Card pages
 @rt("/card-popularity")
-def card_popularity():
-    # Add canonical link to head
-    canonical_url = "https://op-leaderboard.com/card-popularity"
+def card_popularity(request: Request):
+    # Add canonical link to head based on incoming host
+    canonical_url = f"{_canonical_base(request)}/card-popularity"
     
     return (
         ft.Link(rel="canonical", href=canonical_url),
@@ -246,8 +259,8 @@ def card_popularity():
 
 # Prices page
 @rt("/prices")
-def prices():
-    canonical_url = "https://op-leaderboard.com/prices"
+def prices(request: Request):
+    canonical_url = f"{_canonical_base(request)}/prices"
     return (
         ft.Link(rel="canonical", href=canonical_url),
         layout(prices_page(), filter_component=prices_filters(), current_path="/prices")
@@ -255,9 +268,9 @@ def prices():
 
 # Support pages
 @rt("/bug-report")
-def bug_report():
-    # Add canonical link to head
-    canonical_url = "https://op-leaderboard.com/bug-report"
+def bug_report(request: Request):
+    # Add canonical link to head based on incoming host
+    canonical_url = f"{_canonical_base(request)}/bug-report"
     
     return (
         ft.Link(rel="canonical", href=canonical_url),
