@@ -9,6 +9,7 @@ from op_tcg.frontend_fasthtml.utils.extract import (
 )
 from op_tcg.backend.models.cards import CardCurrency
 from op_tcg.frontend_fasthtml.components.prices import price_tiles
+from op_tcg.frontend_fasthtml.utils.extract import get_card_id_card_data_lookup
 
 
 def _header(currency: CardCurrency, days: int) -> ft.Div:
@@ -53,7 +54,9 @@ def setup_api_routes(rt):
         has_more = len(items) > params.max_results
         page_items = items[:params.max_results]
 
-        content = price_tiles(page_items, params.currency)
+        # Provide card metadata for building marketplace URLs (set info)
+        card_lookup = get_card_id_card_data_lookup()
+        content = price_tiles(page_items, params.currency, card_lookup)
 
         if params.page == 1:
             # First page returns header + container with infinite scroll trigger

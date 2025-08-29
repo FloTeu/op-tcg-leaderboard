@@ -314,7 +314,7 @@ def create_card_popularity_content(cards_data: list[ExtendedCardData], card_popu
             )
         )
 
-    CARDS_PER_PAGE = 32
+    CARDS_PER_PAGE = 30
     start_idx = (page - 1) * CARDS_PER_PAGE
     end_idx = start_idx + CARDS_PER_PAGE
     current_page_cards = cards_data[start_idx:end_idx]
