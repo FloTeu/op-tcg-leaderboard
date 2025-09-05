@@ -1,3 +1,4 @@
+import os
 from dotenv import load_dotenv
 
 from op_tcg.backend.utils.environment import is_debug
@@ -128,18 +129,37 @@ def clear_cache():
         return {"status": "error", "message": str(e)}
 
 # Leader pages
+CANONICAL_HOST = os.environ.get("CANONICAL_HOST")  # e.g., "op-leaderboard.com" or "www.op-leaderboard.com"
+
 def _canonical_base(request: Request) -> str:
     """Return canonical base using incoming host and scheme.
 
     Preserves www vs non-www based on the Host header and respects proxies via X-Forwarded-Proto.
     """
-    # Prefer X-Forwarded-Proto when deployed behind a proxy (e.g., Vercel, Nginx)
+    # Prefer X-Forwarded-Proto when deployed behind a proxy (e.g., Cloud Run, Nginx)
     forwarded_proto = request.headers.get("x-forwarded-proto")
     scheme = (forwarded_proto or request.url.scheme or "https").split(",")[0].strip()
-    host = request.headers.get("host") or request.url.netloc
+    # On Cloud Run, Host header will be the custom domain if mapped; allow override via env
+    host = CANONICAL_HOST or request.headers.get("host") or request.url.netloc
     # Normalize host casing
     host = host.strip()
     return f"{scheme}://{host}"
+
+# Middleware-like redirect: enforce single host if CANONICAL_HOST is set
+@app.middleware("http")
+async def enforce_canonical_host(request, call_next):
+    if CANONICAL_HOST:
+        request_host = (request.headers.get("host") or request.url.netloc or "").strip()
+        if request_host and request_host.lower() != CANONICAL_HOST.lower():
+            forwarded_proto = request.headers.get("x-forwarded-proto")
+            scheme = (forwarded_proto or request.url.scheme or "https").split(",")[0].strip()
+            destination = f"{scheme}://{CANONICAL_HOST}{request.url.path}"
+            if request.url.query:
+                destination += f"?{request.url.query}"
+            from starlette.responses import RedirectResponse
+            # 308 preserves method and body; best for SEO permanence
+            return RedirectResponse(url=destination, status_code=308)
+    return await call_next(request)
 
 @rt("/")
 def home(request: Request):
