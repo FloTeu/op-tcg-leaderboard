@@ -42,6 +42,8 @@ def filter_leader_extended(
             keep_le = keep_le and any(lcolor in selected_leader_colors for lcolor in le.colors)
             
         # filter match_count - only apply if leader has match data
+        if match_count_min and le.total_matches is None:
+            keep_le = False
         if match_count_min and le.total_matches is not None:
             keep_le = keep_le and (le.total_matches >= match_count_min)
         if match_count_max and le.total_matches is not None:

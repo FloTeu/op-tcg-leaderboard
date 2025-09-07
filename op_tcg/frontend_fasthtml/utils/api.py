@@ -128,9 +128,6 @@ def get_filtered_leaders(request: Request, leader_extended_data: list[LeaderExte
     meta_format = query_params.meta_format
     leaders_in_meta = [l for l in leader_extended_data if l.meta_format == meta_format]
     
-    # Get leaders that have decklist data in this meta format
-    leaders_with_decklists = get_leaders_with_decklist_data([meta_format])
-    
     # Apply standard filtering
     filtered_leaders = filter_leader_extended(
         leaders=leaders_in_meta,
@@ -139,25 +136,28 @@ def get_filtered_leaders(request: Request, leader_extended_data: list[LeaderExte
         match_count_min=query_params.min_matches,
         match_count_max=query_params.max_matches
     )
-    
-    # Create a set of leader IDs that are already included in filtered_leaders
-    already_included_ids = {fl.id for fl in filtered_leaders}
-    
-    # Add leaders that have decklist data but might not have match data
-    # Only include if they are not already in the filtered_leaders set
-    additional_leaders = [
-        l for l in leaders_in_meta 
-        if l.id in leaders_with_decklists and l.id not in already_included_ids
-    ]
-    
-    # Combine both sets of leaders
-    all_filtered_leaders = filtered_leaders + additional_leaders
-    
-    # Final deduplication step: ensure each leader ID appears only once
-    # Keep the first occurrence of each leader ID
-    unique_leaders = {}
-    for leader in all_filtered_leaders:
-        if leader.id not in unique_leaders:
-            unique_leaders[leader.id] = leader
-    
-    return list(unique_leaders.values())
+
+    # # Create a set of leader IDs that are already included in filtered_leaders
+    # already_included_ids = {fl.id for fl in filtered_leaders}
+    #
+    # # Get leaders that have decklist data in this meta format
+    # leaders_with_decklists = get_leaders_with_decklist_data([meta_format])
+    #
+    # # Add leaders that have decklist data but might not have match data
+    # # Only include if they are not already in the filtered_leaders set
+    # additional_leaders = [
+    #     l for l in leaders_in_meta
+    #     if l.id in leaders_with_decklists and l.id not in already_included_ids
+    # ]
+    #
+    # # Combine both sets of leaders
+    # all_filtered_leaders = filtered_leaders + additional_leaders
+    #
+    # # Final deduplication step: ensure each leader ID appears only once
+    # # Keep the first occurrence of each leader ID
+    # unique_leaders = {}
+    # for leader in all_filtered_leaders:
+    #     if leader.id not in unique_leaders:
+    #         unique_leaders[leader.id] = leader
+    #
+    return filtered_leaders #list(unique_leaders.values())
