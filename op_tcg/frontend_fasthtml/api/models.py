@@ -5,6 +5,28 @@ from op_tcg.backend.models.leader import LeaderboardSortBy
 from op_tcg.backend.models.cards import OPTcgColor, OPTcgCardCatagory, OPTcgAbility, CardCurrency, OPTcgAttribute
 
 
+class MetaFormatParams(BaseModel):
+    """Parameters for matchup page requests"""
+    meta_format: list[MetaFormat]
+    only_official: bool = True
+    
+    @field_validator('meta_format', mode='before')
+    def validate_meta_formats(cls, value):
+        if value is None or (isinstance(value, list) and len(value) == 0):
+            return [MetaFormat.latest_meta_format()]
+        if isinstance(value, list):
+            return [MetaFormat(item) if isinstance(item, str) else item for item in value]
+        return [MetaFormat(value) if isinstance(value, str) else value]
+    
+    @field_validator('only_official', mode='before')
+    def validate_only_official(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if isinstance(value, str):
+            return value.lower() in ("true", "on", "1", "yes")
+        return bool(value)
+    
+
 class LeaderboardFilter(BaseModel):
     meta_format: MetaFormat = MetaFormat.latest_meta_format
     release_meta_formats: Optional[List[MetaFormat]] = None
@@ -82,31 +104,13 @@ class LeaderboardSort(BaseModel):
         return value
 
 
-class LeaderSelectParams(BaseModel):
-    meta_format: Optional[List[MetaFormat]] = None
-    lid: Optional[str] = None
-    
-    @field_validator('meta_format', mode='before')
-    def validate_meta_formats(cls, value):
-        if value is None or (isinstance(value, list) and len(value) == 0):
-            return [MetaFormat.latest_meta_format()]
-        if isinstance(value, list):
-            return [MetaFormat(item) if isinstance(item, str) else item for item in value]
-        return [MetaFormat(value) if isinstance(value, str) else value]
-    
-    @field_validator('lid', mode='before')
-    def validate_lid(cls, value):
-        if isinstance(value, list) and value:
-            return value[0]
-        return value
-
-
 class LeaderDataParams(BaseModel):
     """Parameters for leader data requests"""
     lid: Optional[str] = None
     similar_lid: Optional[str] = None
     meta_format: list[MetaFormat]
     only_official: bool = True
+    meta_format_region: Optional[MetaFormatRegion] = MetaFormatRegion.ALL
     
     @field_validator('meta_format', mode='before')
     def validate_meta_formats(cls, value):
@@ -129,6 +133,14 @@ class LeaderDataParams(BaseModel):
         if isinstance(value, str):
             return value.lower() in ("true", "on", "1", "yes")
         return bool(value)
+    
+    @field_validator('meta_format_region', mode='before')
+    def validate_meta_format_region(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if isinstance(value, str):
+            return MetaFormatRegion(value)
+        return value or MetaFormatRegion.ALL
 
 
 class Matchup(BaseModel):
@@ -148,6 +160,8 @@ class TournamentPageParams(BaseModel):
     """Parameters for tournament page requests"""
     meta_format: list[MetaFormat]
     region: MetaFormatRegion = MetaFormatRegion.ALL
+    min_matches: int = 0
+    max_matches: int | None = None
     
     @field_validator('meta_format', mode='before')
     def validate_meta_formats(cls, value):
@@ -164,21 +178,19 @@ class TournamentPageParams(BaseModel):
         if isinstance(value, str):
             return MetaFormatRegion(value)
         return value
-
-
-class MatchupParams(BaseModel):
-    """Parameters for matchup page requests"""
-    meta_format: list[MetaFormat]
-    leader_ids: list[str]
-    only_official: bool = True
     
-    @field_validator('meta_format', mode='before')
-    def validate_meta_formats(cls, value):
-        if value is None or (isinstance(value, list) and len(value) == 0):
-            return [MetaFormat.latest_meta_format()]
-        if isinstance(value, list):
-            return [MetaFormat(item) if isinstance(item, str) else item for item in value]
-        return [MetaFormat(value) if isinstance(value, str) else value]
+    @field_validator('min_matches', 'max_matches', mode='before')
+    def validate_matches(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if isinstance(value, str):
+            return int(value)
+        return value if value is not None else None
+
+
+class MatchupParams(MetaFormatParams):
+    """Parameters for matchup page requests"""
+    leader_ids: list[str] | None = None
     
     @field_validator('leader_ids', mode='before')
     def validate_leader_ids(cls, value):
@@ -187,14 +199,6 @@ class MatchupParams(BaseModel):
         if isinstance(value, list):
             return value
         return [value]
-    
-    @field_validator('only_official', mode='before')
-    def validate_only_official(cls, value):
-        if isinstance(value, list) and value:
-            value = value[0]
-        if isinstance(value, str):
-            return value.lower() in ("true", "on", "1", "yes")
-        return bool(value)
 
 
 class CardPopularityParams(BaseModel):
@@ -203,7 +207,7 @@ class CardPopularityParams(BaseModel):
     card_colors: List[OPTcgColor] = OPTcgColor.to_list()
     card_attributes: Optional[List[OPTcgAttribute]] = None
     card_counter: Optional[int] = None
-    card_category: List[OPTcgCardCatagory] = None
+    card_category: List[OPTcgCardCatagory] = [cat for cat in OPTcgCardCatagory.to_list() if cat != OPTcgCardCatagory.LEADER]
     card_types: Optional[List[str]] = None
     currency: CardCurrency = CardCurrency.EURO
     min_price: float = 0
@@ -339,3 +343,95 @@ class CardPopularityParams(BaseModel):
         if isinstance(value, list):
             return value
         return [value]
+
+
+class PriceOverviewParams(BaseModel):
+    """Parameters for card price overview requests"""
+    currency: CardCurrency = CardCurrency.EURO
+    days: int = 30
+    min_latest_price: float = 0.0
+    max_latest_price: Optional[float] = None
+    max_results: int = 20
+    include_alt_art: bool = False
+    order_by: str = "rising"  # rising | fallers | expensive
+    change_metric: str = "absolute"  # absolute | relative
+    page: int = 1
+
+    @field_validator('currency', mode='before')
+    def validate_currency(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if isinstance(value, str):
+            return CardCurrency(value)
+        return value
+
+    @field_validator('days', 'max_results', mode='before')
+    def validate_ints(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if isinstance(value, str):
+            try:
+                return int(value)
+            except (ValueError, TypeError):
+                return 0
+        return value if value is not None else 0
+
+    @field_validator('min_latest_price', mode='before')
+    def validate_min_price(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if isinstance(value, str):
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return 0.0
+        return value if value is not None else 0.0
+
+    @field_validator('max_latest_price', mode='before')
+    def normalize_max_price(cls, value):
+        # Treat slider max (500) as no upper bound (None)
+        if isinstance(value, list) and value:
+            value = value[-1]
+        if value is None or value == "":
+            return None
+        try:
+            v = float(value)
+            return None if v >= 500 else v
+        except (ValueError, TypeError):
+            return None
+
+    @field_validator('include_alt_art', mode='before')
+    def validate_bool(cls, value):
+        if isinstance(value, list) and value:
+            # If both hidden(false) and checkbox(true) are sent, take the last occurrence
+            value = value[-1]
+        if isinstance(value, str):
+            return value.lower() in ("true", "on", "1", "yes")
+        return bool(value)
+
+    @field_validator('order_by', mode='before')
+    def validate_order_by(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if not value:
+            return "rising"
+        v = str(value).lower()
+        return v if v in ("rising", "fallers", "expensive") else "rising"
+
+    @field_validator('change_metric', mode='before')
+    def validate_change_metric(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        v = (value or "absolute").lower()
+        return v if v in ("absolute", "relative") else "absolute"
+
+    @field_validator('page', mode='before')
+    def validate_page(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if isinstance(value, str):
+            try:
+                return max(1, int(value))
+            except (ValueError, TypeError):
+                return 1
+        return max(1, value if value is not None else 1)

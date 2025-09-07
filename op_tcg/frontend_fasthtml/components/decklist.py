@@ -1,5 +1,6 @@
 from fasthtml import ft
-from op_tcg.backend.models.cards import OPTcgLanguage, LatestCardPrice
+from op_tcg.backend.etl.extract import get_card_image_url
+from op_tcg.backend.models.cards import ExtendedCardData, OPTcgLanguage, LatestCardPrice
 from op_tcg.frontend_fasthtml.utils.decklist import DecklistData, decklist_to_export_str, ensure_leader_id
 
 # Added for styling the select component, consider moving to a common utils/constants
@@ -47,11 +48,10 @@ def display_card_list(decklist_data: DecklistData, card_ids: list[str]):
     
     for i, card_id in enumerate(filtered_cards):
         card_data = decklist_data.card_id2card_data.get(card_id)
-        op_set = card_id.split("-")[0]
         occurrence_percentage = decklist_data.card_id2occurrence_proportion[card_id]
         
         # Get card image URL
-        img_src = card_data.image_url if card_data else f'https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{op_set}/{card_id}_{OPTcgLanguage.EN.upper()}.webp'
+        img_src = card_data.image_url if card_data else get_card_image_url(card_id, OPTcgLanguage.JP)
         
         # Get card name
         card_name = card_data.name if card_data else card_id
@@ -107,7 +107,7 @@ def display_card_list(decklist_data: DecklistData, card_ids: list[str]):
         cls="mb-8"  # Added extra margin for spacing
     )
 
-def display_decklist(decklist: dict[str, int], leader_id: str = None):
+def display_decklist(decklist: dict[str, int], card_id2card_data: dict[str, ExtendedCardData], leader_id: str = None):
     """
     Display a visual representation of a complete decklist.
     
@@ -130,8 +130,18 @@ def display_decklist(decklist: dict[str, int], leader_id: str = None):
     
     for i, (card_id, count) in enumerate(filtered_decklist.items()):
         # Extract set code from card_id
-        op_set = card_id.split("-")[0]
-        img_url = f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{op_set}/{card_id}_{OPTcgLanguage.EN.upper()}.webp"
+        img_url = card_id2card_data[card_id].image_url if card_id in card_id2card_data else get_card_image_url(card_id, OPTcgLanguage.JP)
+        
+        # Get price information
+        card_data = card_id2card_data.get(card_id)
+        price_info = ""
+        if card_data and hasattr(card_data, 'latest_eur_price') and hasattr(card_data, 'latest_usd_price'):
+            if card_data.latest_eur_price and card_data.latest_usd_price:
+                price_info = f"€{card_data.latest_eur_price:.2f} | ${card_data.latest_usd_price:.2f}"
+            elif card_data.latest_eur_price:
+                price_info = f"€{card_data.latest_eur_price:.2f}"
+            elif card_data.latest_usd_price:
+                price_info = f"${card_data.latest_usd_price:.2f}"
         
         card_items.append(
             ft.Div(
@@ -141,7 +151,11 @@ def display_decklist(decklist: dict[str, int], leader_id: str = None):
                     data_index=str(starting_index + i),
                     onclick="openDecklistModal(this)"
                 ),
-                ft.P(f"x{count}", cls="text-center text-white font-bold text-lg mt-2"),
+                ft.Div(
+                    ft.P(f"x{count}", cls="text-center text-white font-bold text-lg"),
+                    ft.P(price_info, cls="text-center text-gray-300 text-sm mt-1") if price_info else None,
+                    cls="mt-2"
+                ),
                 cls="mb-4"
             )
         )
@@ -155,73 +169,6 @@ def display_decklist(decklist: dict[str, int], leader_id: str = None):
                 cls="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 gap-4"
             ),
             style="max-height: 500px; overflow-y: auto;"  # Make it scrollable
-        ),
-        cls="mb-8"  # Added extra margin for spacing
-    )
-
-def display_decklist_export(decklist: dict[str, int], leader_id: str):
-    """
-    Display an exportable decklist with copy functionality.
-    
-    Args:
-        decklist: Dictionary mapping card IDs to counts
-        leader_id: Leader card ID
-    
-    Returns:
-        A Div containing the exportable decklist
-    """
-    # Ensure leader is included in the decklist
-    complete_decklist = ensure_leader_id(decklist, leader_id)
-    export_str = decklist_to_export_str(complete_decklist)
-    
-    clipboard_script = """
-    document.addEventListener('DOMContentLoaded', function() {
-        var copyBtn = document.getElementById('decklist-copy-btn');
-        if (!copyBtn) return;
-        
-        copyBtn.addEventListener('click', function() {
-            const decklistText = document.getElementById('decklist-export').textContent;
-            
-            navigator.clipboard.writeText(decklistText).then(() => {
-                const originalText = copyBtn.textContent;
-                copyBtn.textContent = 'Copied!';
-                copyBtn.disabled = true;
-                
-                setTimeout(() => {
-                    copyBtn.textContent = originalText;
-                    copyBtn.disabled = false;
-                }, 2000);
-            }).catch(err => {
-                console.error('Failed to copy: ', err);
-            });
-        });
-    });
-    """
-    
-    return ft.Div(
-        # Header
-        ft.H3("Export for OPTCGSim", cls="text-xl font-bold text-white mb-4"),
-        
-        # Container for export content and button
-        ft.Div(
-            # Export text area
-            ft.Pre(
-                export_str,
-                id="decklist-export",
-                cls="bg-gray-900 text-white p-4 rounded-lg font-mono text-sm overflow-auto mb-4"
-            ),
-            
-            # Copy button
-            ft.Button(
-                "Copy to Clipboard",
-                id="decklist-copy-btn",
-                cls="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-            ),
-            
-            # JavaScript for clipboard functionality 
-            ft.Script(clipboard_script),
-            
-            cls="bg-gray-800 p-4 rounded-lg"
         ),
         cls="mb-8"  # Added extra margin for spacing
     )
@@ -244,6 +191,7 @@ def create_decklist_section(leader_id: str, tournament_decklists, card_id2card_d
         decklist_data_to_fictive_decklist,
         get_best_matching_decklist
     )
+    from op_tcg.frontend_fasthtml.components.decklist_export import create_decklist_export_component
     
     if not tournament_decklists:
         return ft.P("No decklist data available for this leader.", cls="text-red-400")
@@ -255,81 +203,17 @@ def create_decklist_section(leader_id: str, tournament_decklists, card_id2card_d
         exclude_card_ids=[leader_id]
     )
     fictive_decklist = decklist_data_to_fictive_decklist(decklist_data, leader_id)
-    best_matching_decklist_dict = get_best_matching_decklist(tournament_decklists, decklist_data)
-    
-    # Sort tournament decklists by placing (None placings at the end)
-    tournament_decklists.sort(key=lambda x: (x.placing is None, x.placing))
-    
-    decklist_options = []
-    for td_obj in tournament_decklists:
-        if not td_obj.tournament_id or not td_obj.player_id:
-            continue  # Skip if we don't have both IDs
-            
-        option_text = []
-        if td_obj.player_id:
-            option_text.append(f"Player: {td_obj.player_id}")
-        if td_obj.tournament_id:
-            option_text.append(f"Tournament: {td_obj.tournament_id[:20]}{'...' if len(td_obj.tournament_id) > 20 else ''}")
-        if td_obj.placing:
-            option_text.append(f"#{td_obj.placing}")
-            
-        # Create a composite value using both IDs
-        value = f"{td_obj.tournament_id}:{td_obj.player_id}"
-        
-        decklist_options.append(ft.Option(" - ".join(option_text), value=value))
-
-    tournament_decklist_select_component = ft.Div()  # Default to empty div
-    if decklist_options:
-        tournament_decklist_select_component = ft.Div(
-            ft.Label("Select Tournament Decklist:", cls="text-white font-medium block mb-2"),
-            ft.Select(
-                *decklist_options,
-                id="tournament-decklist-select",
-                cls=SELECT_CLS + " styled-select mb-2",
-                hx_get="/api/decklist/tournament-decklist",
-                hx_target="#selected-tournament-decklist-content",
-                hx_include="[name='lid'], [name='meta_format']",
-                hx_trigger="change",
-                hx_swap="innerHTML",
-                hx_vals='''js:{
-                    "tournament_id": event.target.value.split(":")[0],
-                    "player_id": event.target.value.split(":")[1]
-                }''',            ),
-            cls="mb-4"
-        )
-    
-    # Find the best matching decklist in the tournament_decklists
-    best_matching_td = next(
-        (td for td in tournament_decklists if td.decklist == best_matching_decklist_dict),
-        None
-    ) if best_matching_decklist_dict else None
-    
-    # If we found the best matching tournament decklist, pre-select it in the dropdown
-    if best_matching_td and best_matching_td.tournament_id and best_matching_td.player_id:
-        # Update the select's value to match the best decklist
-        tournament_decklist_select_component.children[1].value = f"{best_matching_td.tournament_id}:{best_matching_td.player_id}"
-    
-    initial_decklist_content = display_decklist(best_matching_decklist_dict, leader_id) if best_matching_decklist_dict else ft.P("Select a decklist from the dropdown to view details.", cls="text-white p-4")
 
     return ft.Div(
-        ft.Link(rel="stylesheet", href="/static/css/decklist.css", id="decklist-css"),
-        ft.Script(src="/static/js/decklist-modal.js", id="decklist-modal-js"),
+        ft.Link(rel="stylesheet", href="/public/css/decklist.css", id="decklist-css"),
+        ft.Script(src="/public/js/decklist-modal.js", id="decklist-modal-js"),
         ft.P(f"Based on {decklist_data.num_decklists} decklists", cls="text-gray-400 mb-6"),
         display_card_list(decklist_data, common_card_ids),
-        display_decklist_export(fictive_decklist, leader_id),
         
+        # Export section with header
         ft.Div(
-            tournament_decklist_select_component,
-            
-            ft.Details(
-                ft.Div(
-                    initial_decklist_content,
-                    id="selected-tournament-decklist-content"
-                ),
-                open=(True if best_matching_decklist_dict else False),
-                cls="mb-6 bg-gray-750 p-3 rounded-lg shadow"
-            ) if tournament_decklists else ft.Div(),
-            
-            cls="space-y-6"
+            ft.H3("Export for OPTCGSim", cls="text-xl font-bold text-white mb-4"),
+            create_decklist_export_component(fictive_decklist, leader_id, "leader-page"),
+            cls="mb-8"
         )
     ) 

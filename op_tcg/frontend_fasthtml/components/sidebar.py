@@ -34,6 +34,7 @@ def sidebar_content(filter_component=None, current_path="/"):
     
     card_links = [
         ("/card-popularity", "Card Popularity", "💃", current_path == "/card-popularity"),
+        #("/prices", "Card Prices", "💰", current_path == "/prices"),
     ]
     
     support_links = [
@@ -75,6 +76,7 @@ def sidebar(filter_component=None, current_path="/"):
             sidebar_content(filter_component, current_path),
             cls="p-4"
         ),
-        cls="fixed left-0 top-0 h-full w-80 bg-gray-800 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800 hover:scrollbar-thumb-gray-500",
-        id="sidebar"
+        cls="fixed left-0 top-0 h-full w-80 bg-gray-800 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800 hover:scrollbar-thumb-gray-500 z-50 shadow-lg",
+        id="sidebar",
+        style="transform: translateX(-100%);"  # Start closed on mobile
     ) 

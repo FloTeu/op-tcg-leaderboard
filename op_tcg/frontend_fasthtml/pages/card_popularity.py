@@ -1,7 +1,7 @@
 from fasthtml import ft
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.cards import OPTcgColor, OPTcgCardCatagory, OPTcgAbility, CardCurrency, OPTcgAttribute
-from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
+from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner, create_skeleton_cards_indicator
 from op_tcg.frontend_fasthtml.utils.extract import get_card_popularity_data, get_card_id_card_data_lookup
 from op_tcg.backend.models.cards import ExtendedCardData
 
@@ -19,13 +19,6 @@ FILTER_HX_ATTRS = {
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
 def create_filter_components():
-    # Get all available card types
-    card_data_lookup = get_card_id_card_data_lookup()
-    all_types = set()
-    for card in card_data_lookup.values():
-        all_types.update(card.types)
-    all_types = sorted(list(all_types))
-
     # Meta format select
     meta_format_select = ft.Select(
         label="Meta Format",
@@ -91,16 +84,17 @@ def create_filter_components():
         **FILTER_HX_ATTRS
     )
 
-    # Card subtype multiselect
-    card_subtype_select = ft.Select(
-        label="Card Subtype",
-        id="card-subtype-select",
-        name="card_types",
-        multiple=True,
-        size=1,
-        cls=SELECT_CLS + " multiselect",
-        *[ft.Option(subtype, value=subtype) for subtype in all_types],
-        **FILTER_HX_ATTRS
+    # Card subtype multiselect - now loaded via HTMX
+    card_subtype_wrapper = ft.Div(
+        create_loading_spinner(
+            id="card-subtype-loading",
+            size="w-4 h-4",
+            container_classes="min-h-[60px]"
+        ),
+        id="card-subtype-wrapper",
+        hx_get="/api/card-subtype-select",
+        hx_trigger="load",
+        hx_swap="innerHTML"
     )
 
     # Currency select
@@ -149,8 +143,8 @@ def create_filter_components():
             ),
             cls="relative w-full"
         ),
-        ft.Script(src="/static/js/double_range_slider.js"),
-        ft.Link(rel="stylesheet", href="/static/css/double_range_slider.css"),
+        ft.Script(src="/public/js/double_range_slider.js"),
+        ft.Link(rel="stylesheet", href="/public/css/double_range_slider.css"),
         cls="mb-6"
     )
 
@@ -246,10 +240,11 @@ def create_filter_components():
 
     # Ability text input
     ability_text_input = ft.Div(
-        ft.Label("Card Ability Text", cls="text-white font-medium block mb-2"),
+        ft.Label("Ability Text", cls="text-white font-medium block mb-2"),
         ft.Input(
             type="text",
             name="ability_text",
+            placeholder="Search in ability text...",
             cls="w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg",
             **FILTER_HX_ATTRS
         ),
@@ -262,7 +257,10 @@ def create_filter_components():
         id="filter-operator-select",
         name="filter_operator",
         cls=SELECT_CLS + " styled-select",
-        *[ft.Option(op, value=op) for op in ["OR", "AND"]],
+        *[
+            ft.Option("AND", value="AND", selected=True),
+            ft.Option("OR", value="OR")
+        ],
         **FILTER_HX_ATTRS
     )
 
@@ -272,7 +270,7 @@ def create_filter_components():
         card_attributes_select,
         card_counter_select,
         card_type_select,
-        card_subtype_select,
+        card_subtype_wrapper,  # Now uses HTMX loading
         currency_select,
         price_range_slider,
         cost_range_slider,
@@ -316,7 +314,7 @@ def create_card_popularity_content(cards_data: list[ExtendedCardData], card_popu
             )
         )
 
-    CARDS_PER_PAGE = 32
+    CARDS_PER_PAGE = 30
     start_idx = (page - 1) * CARDS_PER_PAGE
     end_idx = start_idx + CARDS_PER_PAGE
     current_page_cards = cards_data[start_idx:end_idx]
@@ -380,7 +378,7 @@ def create_card_popularity_content(cards_data: list[ExtendedCardData], card_popu
             )
             for card in current_page_cards
         ],
-        cls="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+        cls="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4"
     )
 
     # Add CSS for the card grid and progress bars
@@ -408,12 +406,14 @@ def create_card_popularity_content(cards_data: list[ExtendedCardData], card_popu
         }
     """)
 
-    # Create loading spinner for new batches
+    # Create loading spinner and skeleton for new batches
     loading_spinner = create_loading_spinner(
         id="card-popularity-batch-loading",
         size="w-6 h-6",
         container_classes="min-h-[50px]"
     )
+    # Skeleton only for newly loaded batches
+    skeleton = create_skeleton_cards_indicator(id="card-popularity-batch-skeleton", count=16)
 
     # For the first page, return the full structure
     if page == 1:
@@ -430,9 +430,10 @@ def create_card_popularity_content(cards_data: list[ExtendedCardData], card_popu
                     hx_target="#card-grid-container",
                     hx_swap="beforeend",
                     hx_include=HX_INCLUDE,
-                    hx_indicator="#card-popularity-batch-loading",
+                    hx_indicator="#card-popularity-batch-loading, #card-popularity-batch-skeleton",
                     cls="h-10"
                 ) if has_more else None,
+                skeleton,
                 loading_spinner,
                 id="card-grid-container",
                 cls="p-4"
@@ -450,9 +451,10 @@ def create_card_popularity_content(cards_data: list[ExtendedCardData], card_popu
             hx_target="#card-grid-container",
             hx_swap="beforeend",
             hx_include=HX_INCLUDE,
-            hx_indicator="#card-popularity-batch-loading",
+            hx_indicator="#card-popularity-batch-loading, #card-popularity-batch-skeleton",
             cls="h-10"
         ) if has_more else None,
+        skeleton,
         loading_spinner
     )
 
@@ -466,8 +468,59 @@ def card_popularity_page():
             size="w-8 h-8",
             container_classes="min-h-[100px]"
         ),
+        # Content container that will be loaded via HTMX
         ft.Div(
             id="card-popularity-content",
-            cls="min-h-screen"
-        )
+            cls="min-h-screen",
+            hx_get="/api/card-popularity",
+            hx_trigger="load",
+            hx_indicator="#card-popularity-loading-indicator"
+        ),
+        # JavaScript to handle card subtype loading sequence
+        ft.Script("""
+            let initializationComplete = false;
+            let initialLoadDone = false;
+            
+            // Prevent HTMX during initialization
+            document.addEventListener('htmx:configRequest', function(evt) {
+                // Block range slider HTMX requests during initialization
+                if (!initializationComplete && 
+                    evt.target.classList.contains('slider-range')) {
+                    evt.preventDefault();
+                    return false;
+                }
+            });
+            
+            function triggerInitialLoad() {
+                if (!initialLoadDone) {
+                    initialLoadDone = true;
+                    htmx.trigger('#card-popularity-content', 'load');
+                }
+            }
+            
+            document.addEventListener('htmx:afterSettle', function(evt) {
+                if (evt.target.id === 'card-subtype-wrapper') {
+                    // After card subtype loads, trigger content loading
+                    triggerInitialLoad();
+                    
+                    // Allow range sliders to work after a short delay
+                    setTimeout(() => {
+                        initializationComplete = true;
+                    }, 500);
+                }
+            });
+            
+            // Backup to enable range sliders and ensure content loads
+            document.addEventListener('DOMContentLoaded', function() {
+                // Backup initial load in case card subtype loads too quickly
+                setTimeout(() => {
+                    triggerInitialLoad();
+                }, 500);
+                
+                // Backup to enable range sliders
+                setTimeout(() => {
+                    initializationComplete = true;
+                }, 2000);
+            });
+        """)
     ) 

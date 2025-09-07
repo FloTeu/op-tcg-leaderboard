@@ -3,6 +3,7 @@ from datetime import datetime, date
 from typing import Dict, List
 from op_tcg.backend.models.tournaments import TournamentExtended, TournamentDecklist
 from op_tcg.backend.models.leader import LeaderExtended
+from op_tcg.backend.models.matches import Match, MatchResult
 from op_tcg.backend.models.input import MetaFormatRegion
 from op_tcg.frontend_fasthtml.utils.charts import create_stream_chart
 from op_tcg.frontend_fasthtml.utils.colors import ChartColors
@@ -10,7 +11,8 @@ from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 from op_tcg.backend.models.cards import Card
 
 def create_leader_grid(leader_stats: Dict[str, float], leader_extended_dict: Dict[str, LeaderExtended], 
-                      cid2cdata_dict: dict, max_leaders: int | None=None) -> ft.Div:
+                      cid2cdata_dict: dict, max_leaders: int | None=None, 
+                      selected_leader_id: str | None = None, tournament_id: str | None = None) -> ft.Div:
     """Create a grid of leader images with participation percentages."""
     # Calculate total share of known leaders
     total_known_share = sum(leader_stats.values())
@@ -54,24 +56,36 @@ def create_leader_grid(leader_stats: Dict[str, float], leader_extended_dict: Dic
                 continue
                 
             # Create leader card with image and percentage
+            is_selected = selected_leader_id == lid
+            card_classes = "w-full transform transition-transform hover:scale-105 cursor-pointer"
+            if is_selected:
+                card_classes += " ring-2 ring-blue-400"
+                
             leader_card = ft.Div(
-                ft.A(
-                    ft.Div(
-                        ft.Img(
-                            src=leader_data.aa_image_url,
-                            cls="w-full h-full object-cover rounded-lg"
-                        ),
-                        # Overlay with percentage
-                        ft.Div(
-                            f"{share * 100:.1f}%",
-                            cls="absolute bottom-0 right-0 bg-black bg-opacity-70 px-2 py-1 rounded-bl-lg rounded-tr-lg text-white text-sm"
-                        ),
-                        cls="relative w-full pb-[100%]"  # Square aspect ratio
+                ft.Div(
+                    ft.Img(
+                        src=leader_data.aa_image_url,
+                        cls="w-full h-full object-cover rounded-lg"
                     ),
-                    href=f"/leader?lid={lid}",
-                    cls="block w-full"
+                    # Overlay with percentage
+                    ft.Div(
+                        f"{share * 100:.1f}%",
+                        cls="absolute bottom-0 right-0 bg-black bg-opacity-70 px-2 py-1 rounded-bl-lg rounded-tr-lg text-white text-sm"
+                    ),
+                    # Selection indicator
+                    ft.Div(
+                        "✓",
+                        cls="absolute top-2 right-2 bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold"
+                    ) if is_selected else None,
+                    cls="relative w-full pb-[100%]"  # Square aspect ratio
                 ),
-                cls="w-full transform transition-transform hover:scale-105"
+                cls=card_classes,
+                hx_get="/api/tournament-select-leader",
+                hx_target="#tournament-leader-content",
+                hx_trigger="click",
+                hx_include="[name='meta_format'],[name='region']",
+                hx_vals={"tournament_id": tournament_id, "selected_leader_id": lid} if tournament_id else None,
+                hx_indicator="#tournament-leader-loading"
             )
         
         current_row.append(leader_card)
@@ -89,7 +103,7 @@ def create_leader_grid(leader_stats: Dict[str, float], leader_extended_dict: Dic
 
 def create_tournament_section(leader_id: str, tournament_decklists: List[TournamentDecklist],
                             tournaments: List[TournamentExtended], leader_extended_dict: Dict[str, LeaderExtended],
-                            cid2cdata_dict: dict, hx_include: str) -> ft.Div:
+                             hx_include: str) -> ft.Div:
     """Create the tournament section for the leader page."""
     
     # Filter tournaments where this leader won
@@ -206,3 +220,183 @@ def create_tournament_keyfacts(tournament: TournamentExtended, winner_name: str)
         *fact_elements,
         cls="space-y-2 mb-6"  # Added margin bottom
     ) 
+
+def create_match_progression(matches: List[Match], leader_extended_dict: Dict[str, LeaderExtended], 
+                           cid2cdata_dict: dict, selected_leader_id: str) -> ft.Div:
+    """Create a match progression timeline for a leader in a tournament."""
+    if not matches:
+        return ft.Div(
+            ft.P("No detailed match data available for this tournament.", cls="text-gray-400 text-center py-8"),
+            ft.P("Match data might not be recorded for this tournament", cls="text-gray-500 text-sm text-center"),
+            cls="bg-gray-800 rounded-lg p-6"
+        )
+    
+    # Group matches by round/phase
+    rounds = {}
+    for match in matches:
+        round_key = f"Round {match.tournament_round}" if match.tournament_round else "Unknown Round"
+        if match.tournament_phase:
+            round_key += f" (Phase {match.tournament_phase})"
+        
+        if round_key not in rounds:
+            rounds[round_key] = []
+        rounds[round_key].append(match)
+    
+    # Create match progression timeline
+    round_elements = []
+    total_wins = 0
+    total_losses = 0
+    
+    for round_name, round_matches in rounds.items():
+        match_elements = []
+        
+        for match in round_matches:
+            # Get opponent info
+            opponent_id = match.opponent_id
+            opponent_data = leader_extended_dict.get(opponent_id)
+            opponent_card = cid2cdata_dict.get(opponent_id)
+            opponent_name = opponent_card.name if opponent_card else opponent_id
+            opponent_image = opponent_data.aa_image_url if opponent_data and opponent_data.aa_image_url else (opponent_data.image_url if opponent_data else None)
+            
+            # Determine result and styling
+            if match.result == MatchResult.WIN:
+                result_text = "Won"
+                result_color = "text-green-400"
+                bg_color = "bg-green-900/30 border-green-600"
+                total_wins += 1
+            elif match.result == MatchResult.LOSE:
+                result_text = "Lost"
+                result_color = "text-red-400"
+                bg_color = "bg-red-900/30 border-red-600"
+                total_losses += 1
+            else:
+                result_text = "Draw"
+                result_color = "text-yellow-400"
+                bg_color = "bg-yellow-900/30 border-yellow-600"
+            
+            # Create match card
+            match_card = ft.Div(
+                ft.Div(
+                    # Opponent image
+                    ft.Div(
+                        ft.Img(
+                            src=opponent_image,
+                            cls="w-16 h-16 object-cover rounded-lg"
+                        ) if opponent_image else ft.Div(
+                            opponent_id[:8] + "...",
+                            cls="w-16 h-16 bg-gray-600 rounded-lg flex items-center justify-center text-white text-xs"
+                        ),
+                        cls="flex-shrink-0"
+                    ),
+                    
+                    # Match details
+                    ft.Div(
+                        ft.P(f"vs {opponent_name}", cls="font-semibold text-white"),
+                        ft.P(f"Result: {result_text}", cls=f"text-sm {result_color}"),
+                        ft.P(f"Table: {match.tournament_table}", cls="text-xs text-gray-400") if match.tournament_table else None,
+                        ft.P(f"Match: {match.tournament_match}", cls="text-xs text-gray-400") if match.tournament_match else None,
+                        cls="flex-1 ml-4"
+                    ),
+                    
+                    cls="flex items-center"
+                ),
+                cls=f"border rounded-lg p-4 {bg_color}"
+            )
+            
+            match_elements.append(match_card)
+        
+        # Create round section
+        round_section = ft.Div(
+            ft.H5(round_name, cls="text-lg font-bold text-white mb-3"),
+            ft.Div(*match_elements, cls="space-y-3"),
+            cls="mb-6"
+        )
+        round_elements.append(round_section)
+    
+    # Create summary
+    summary = ft.Div(
+        ft.H4("Match Summary", cls="text-xl font-bold text-white mb-4"),
+        ft.Div(
+            ft.Div(
+                ft.Span("Wins: ", cls="text-gray-300"),
+                ft.Span(str(total_wins), cls="text-green-400 font-bold"),
+                cls="mr-6"
+            ),
+            ft.Div(
+                ft.Span("Losses: ", cls="text-gray-300"),
+                ft.Span(str(total_losses), cls="text-red-400 font-bold"),
+                cls="mr-6"
+            ),
+            ft.Div(
+                ft.Span("Win Rate: ", cls="text-gray-300"),
+                ft.Span(f"{(total_wins / (total_wins + total_losses) * 100):.1f}%" if (total_wins + total_losses) > 0 else "N/A", 
+                       cls="text-blue-400 font-bold"),
+            ),
+            cls="flex flex-wrap"
+        ),
+        cls="bg-gray-800 rounded-lg p-4 mb-6"
+    )
+    
+    return ft.Div(
+        summary,
+        ft.H4("Match Progression", cls="text-xl font-bold text-white mb-4"),
+        ft.Div(*round_elements, cls="space-y-4"),
+        cls="space-y-6"
+    ) 
+
+def create_decklist_selector(leader_decklists: list, selected_decklist_index: int = 0, 
+                           tournament_id: str = None, selected_leader_id: str = None) -> ft.Div:
+    """Create a decklist selector when a leader has multiple decklists in a tournament."""
+    
+    if len(leader_decklists) <= 1:
+        return None
+    
+    # Create options for each decklist
+    options = []
+    for i, decklist in enumerate(leader_decklists):
+        placing_text = f"#{decklist.placing}" if decklist.placing is not None else "Unplaced"
+        option_text = f"{placing_text} - {decklist.player_id if decklist.player_id else 'Unknown Player'}"
+        
+        options.append(
+            ft.Option(
+                option_text,
+                value=str(i),
+                selected=(i == selected_decklist_index),
+                cls="text-white"
+            )
+        )
+    
+    select_id = f"decklist-selector-{tournament_id}-{selected_leader_id}"
+    
+    return ft.Div(
+        ft.Label("Select Decklist:", cls="text-white font-medium block mb-2"),
+        ft.Select(
+            *options,
+            id=select_id,
+            name="selected_decklist_index",
+            cls="styled-select w-full",
+            hx_get="/api/tournament-select-leader",
+            hx_target="#tournament-leader-content",
+            hx_trigger="change",
+            hx_include="[name='meta_format'],[name='region'],[name='tournament_id'],[name='selected_leader_id']",
+            hx_vals={
+                "tournament_id": tournament_id,
+                "selected_leader_id": selected_leader_id
+            } if tournament_id and selected_leader_id else None,
+            hx_indicator="#tournament-leader-loading"
+        ),
+        # Script to initialize the select after it's rendered
+        ft.Script(f"""
+            setTimeout(() => {{
+                if (window.initializeSelect) {{
+                    console.log('Initializing decklist selector: {select_id}');
+                    window.initializeSelect('{select_id}');
+                }} else {{
+                    console.error('initializeSelect function not available');
+                }}
+            }}, 100);
+        """),
+        cls="mb-4"
+    )
+
+ 

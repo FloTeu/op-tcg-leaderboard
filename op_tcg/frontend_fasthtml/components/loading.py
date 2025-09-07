@@ -53,3 +53,36 @@ def create_loading_overlay(id: str = None, size: str = "w-8 h-8"):
         container_classes="absolute inset-0 bg-gray-900/50",
         is_htmx_indicator=True
     ) 
+
+
+def create_skeleton_cards_indicator(id: str = None, count: int = 12, grid_cls: str | None = None) -> ft.Div:
+    """Generic skeleton loader showing a grid of card-like placeholders.
+
+    Args:
+        id: Optional ID for the skeleton container
+        count: Number of skeleton tiles
+        grid_cls: Tailwind grid classes; defaults to a responsive grid
+    """
+    grid_cls = grid_cls or "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4"
+
+    def _tile():
+        return ft.Div(
+            # Image placeholder
+            ft.Div(cls="w-full h-40 rounded-t-lg skeleton skeleton-animate"),
+            # Text placeholder area
+            ft.Div(
+                ft.Div(cls="h-4 w-3/4 mb-2 rounded skeleton skeleton-animate"),
+                ft.Div(cls="h-3 w-1/2 rounded skeleton skeleton-animate"),
+                cls="p-2"
+            ),
+            cls="bg-gray-800 rounded-lg overflow-hidden"
+        )
+
+    tiles = [_tile() for _ in range(count)]
+
+    # The container has htmx-indicator so it shows only during requests
+    return ft.Div(
+        ft.Div(*tiles, cls=grid_cls),
+        cls="htmx-indicator w-full",
+        id=id
+    )

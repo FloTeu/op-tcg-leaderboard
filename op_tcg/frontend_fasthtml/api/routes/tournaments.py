@@ -3,8 +3,9 @@ from fasthtml import ft
 from starlette.requests import Request
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended
-from op_tcg.frontend.utils.extract import get_tournament_decklist_data, get_all_tournament_extened_data
-from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict
+from op_tcg.backend.models.cards import CardCurrency
+from op_tcg.frontend_fasthtml.utils.extract import get_tournament_decklist_data, get_all_tournament_extened_data, get_tournament_match_data
+from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict, get_effective_meta_format_with_fallback, create_fallback_notification
 from op_tcg.frontend_fasthtml.utils.extract import (
     get_leader_extended,
     get_card_id_card_data_lookup
@@ -12,12 +13,15 @@ from op_tcg.frontend_fasthtml.utils.extract import (
 from op_tcg.frontend_fasthtml.components.tournament import (
     create_tournament_section,
     create_tournament_keyfacts,
-    create_leader_grid
+    create_leader_grid,
+    create_match_progression,
+    create_decklist_selector
 )
 from op_tcg.frontend_fasthtml.components.tournament_decklist import create_decklist_view
 from op_tcg.frontend_fasthtml.api.models import LeaderDataParams, TournamentPageParams
 from op_tcg.frontend_fasthtml.pages.leader import HX_INCLUDE
 from op_tcg.frontend_fasthtml.utils.charts import create_bubble_chart
+from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 import json
 
 def aggregate_leader_data(leader_data: list[LeaderExtended]):
@@ -30,14 +34,18 @@ def aggregate_leader_data(leader_data: list[LeaderExtended]):
     })
     
     for ld in leader_data:
-        aggregated_data[ld.id]["total_matches"].append(ld.total_matches)
-        aggregated_data[ld.id]["total_wins"].append(ld.tournament_wins)
-        aggregated_data[ld.id]["win_rate"].append(ld.win_rate)
+        if ld.total_matches is not None:
+            aggregated_data[ld.id]["total_matches"].append(ld.total_matches)
+        if ld.tournament_wins is not None:
+            aggregated_data[ld.id]["total_wins"].append(ld.tournament_wins)
+        if ld.win_rate is not None:
+            aggregated_data[ld.id]["win_rate"].append(ld.win_rate)
         aggregated_data[ld.id]["image_url"] = ld.aa_image_url if ld.aa_image_url else ld.image_url
 
     # Calculate relative mean win rate and prepare final data for chart
     final_leader_data = []
     for leader_id, data in aggregated_data.items():
+        
         if len(data["total_matches"]) > 0:
             # for each list element get a relative factor by dividing the element by the sum of the list
             relative_factors = [x / sum(data["total_matches"]) for x in data["total_matches"]]
@@ -58,6 +66,26 @@ def aggregate_leader_data(leader_data: list[LeaderExtended]):
 
 def setup_api_routes(rt):
 
+    @rt("/api/tournaments/max-matches")
+    def get_max_matches(request: Request):
+        """Return the maximum match count for setting slider bounds."""
+        # Parse params using Pydantic model
+        params = TournamentPageParams(**get_query_params_as_dict(request))
+        
+        # Get leader data
+        leader_data = get_leader_extended(meta_format_region=params.region)
+        
+        # Filter by meta formats
+        leader_data = [ld for ld in leader_data if ld.meta_format in params.meta_format and ld.only_official]
+
+        # Calculate relative mean win rate and prepare final data for chart
+        final_leader_data = aggregate_leader_data(leader_data)
+        
+        # Get maximum match count
+        max_matches = max((ld.get("total_matches", 0) for ld in final_leader_data), default=1000)
+        
+        return {"max_matches": max_matches}
+
     @rt("/api/tournaments/chart")
     def get_tournament_chart(request: Request):
         """Return the tournament statistics chart."""
@@ -68,11 +96,38 @@ def setup_api_routes(rt):
         leader_data = get_leader_extended(meta_format_region=params.region)
         card_data = get_card_id_card_data_lookup()
         
-        # Filter by meta formats
-        leader_data = [ld for ld in leader_data if ld.meta_format in params.meta_format and ld.only_official]
+        # Filter by meta formats first
+        filtered_data = [ld for ld in leader_data if ld.meta_format in params.meta_format and ld.only_official]
+        
+        # Check if fallback is needed for any of the selected meta formats
+        fallback_used = False
+        effective_meta_formats = []
+        
+        for meta_format in params.meta_format:
+            effective_meta, is_fallback = get_effective_meta_format_with_fallback(
+                meta_format,
+                filtered_data
+            )
+            effective_meta_formats.append(effective_meta)
+            if is_fallback:
+                fallback_used = True
+        
+        # If fallback was used, re-filter data to use effective meta formats
+        if fallback_used:
+            filtered_data = [ld for ld in leader_data if ld.meta_format in effective_meta_formats and ld.only_official]
 
         # Calculate relative mean win rate and prepare final data for chart
-        final_leader_data = aggregate_leader_data(leader_data)
+        final_leader_data = aggregate_leader_data(filtered_data)
+        
+        # Get max matches for slider bounds and set default if not provided
+        max_matches = max((ld.get("total_matches", 0) for ld in final_leader_data), default=1000)
+        if params.max_matches is None:
+            effective_max_matches = max_matches
+        else:
+            effective_max_matches = params.max_matches
+        
+        # Filter by match count range
+        final_leader_data = [ld for ld in final_leader_data if params.min_matches <= ld.get("total_matches", 0) <= effective_max_matches]
         
         # Process data for bubble chart
         chart_data = []
@@ -106,13 +161,109 @@ def setup_api_routes(rt):
                 })
                 colors.append(color)
         
-        # Create and return the chart
-        return create_bubble_chart(
+        # Create the chart with slider
+        chart_div = create_bubble_chart(
             container_id="tournament-chart",
             data=chart_data,
             colors=colors,
             title="Leader Tournament Popularity"
         )
+        
+        # Add the slider below the chart
+        slider_div = ft.Div(
+            ft.Label("Tournament Match Count Range", cls="text-white font-medium block mb-2"),
+            ft.Div(
+                ft.Div(
+                    ft.Div(cls="slider-track"),
+                    ft.Input(
+                        type="range",
+                        min="0",
+                        max=str(max_matches),
+                        value=str(params.min_matches),
+                        name="min_matches",
+                        cls="slider-range min-range",
+                        hx_get="/api/tournaments/chart",
+                        hx_trigger="change",
+                        hx_target="#tournament-chart-container",
+                        hx_include="[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']",
+                        hx_indicator="#tournament-loading-indicator"
+                    ),
+                    ft.Input(
+                        type="range",
+                        min="0",
+                        max=str(max_matches),
+                        value=str(effective_max_matches),
+                        name="max_matches",
+                        cls="slider-range max-range",
+                        hx_get="/api/tournaments/chart",
+                        hx_trigger="change",
+                        hx_target="#tournament-chart-container",
+                        hx_include="[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']",
+                        hx_indicator="#tournament-loading-indicator"
+                    ),
+                    ft.Div(
+                        ft.Span(str(params.min_matches), cls="min-value text-white"),
+                        ft.Span(" - ", cls="text-white mx-2"),
+                        ft.Span(str(effective_max_matches), cls="max-value text-white"),
+                        cls="slider-values"
+                    ),
+                    cls="double-range-slider",
+                    id="tournament-match-slider",
+                    data_double_range_slider="true"
+                ),
+                cls="relative w-full"
+            ),
+            ft.Script(src="/public/js/double_range_slider.js"),
+            ft.Link(rel="stylesheet", href="/public/css/double_range_slider.css"),
+            ft.Script(f"""
+                // Ensure chart recreation after HTMX swap
+                document.addEventListener('htmx:afterSwap', function(event) {{
+                    if (event.target.id === 'tournament-chart-container') {{
+                        // Force chart recreation with a small delay
+                        setTimeout(() => {{
+                            if (window.recreateBubbleChart) {{
+                                console.log('Recreating bubble chart after slider change');
+                                window.recreateBubbleChart();
+                            }}
+                        }}, 150);
+                    }}
+                }});
+                
+                // Also trigger on slider change for immediate feedback
+                document.addEventListener('DOMContentLoaded', function() {{
+                    const sliders = document.querySelectorAll('#tournament-match-slider input[type="range"]');
+                    sliders.forEach(slider => {{
+                        slider.addEventListener('input', function() {{
+                            // Small delay to allow HTMX to process
+                            setTimeout(() => {{
+                                if (window.recreateBubbleChart) {{
+                                    console.log('Recreating bubble chart after slider input');
+                                    window.recreateBubbleChart();
+                                }}
+                            }}, 200);
+                        }});
+                    }});
+                }});
+            """),
+            cls="mt-6"
+        )
+        
+        content = ft.Div(
+            chart_div,
+            slider_div,
+            cls="space-y-6"
+        )
+        
+        # If fallback was used, add notification
+        if fallback_used:
+            notification = create_fallback_notification(
+                params.meta_format[0],  # Show first requested meta format
+                effective_meta_formats[0],  # Show first effective meta format
+                dropdown_id="meta-formats-select"
+            )
+            return ft.Div(notification, content)
+        
+        return content
 
     @rt("/api/leader-tournaments")
     async def get_leader_tournaments(request: Request):
@@ -130,16 +281,12 @@ def setup_api_routes(rt):
         leader_data = get_leader_extended()
         leader_extended_dict = {le.id: le for le in leader_data}
         
-        # Get card data
-        card_id2card_data = get_card_id_card_data_lookup()
-        
         # Create and return the tournament section
         return create_tournament_section(
             leader_id=params.lid,
             tournament_decklists=tournament_decklists,
             tournaments=tournaments,
             leader_extended_dict=leader_extended_dict,
-            cid2cdata_dict=card_id2card_data,
             hx_include=HX_INCLUDE
         )
 
@@ -184,9 +331,16 @@ def setup_api_routes(rt):
                     hx_get="/api/tournament-details",
                     hx_target="#tournament-details",
                     hx_trigger="change",
-                    hx_include="[name='meta_format'],[name='region']"
+                    hx_include="[name='meta_format'],[name='region']",
+                    hx_indicator="#tournament-selector-loading"
                 ),
-                cls="mb-8"
+                cls="mb-4"
+            ),
+            # Loading spinner positioned right below the selector
+            create_loading_spinner(
+                id="tournament-selector-loading",
+                size="w-8 h-8",
+                container_classes="min-h-[60px] mb-4"
             ),
             # Tournament details container
             ft.Div(
@@ -227,7 +381,7 @@ def setup_api_routes(rt):
         tournament_decklists = get_tournament_decklist_data(params.meta_format)
         tournament_decklists = [td for td in tournament_decklists if td.tournament_id == tournament_id]
         
-        # Get winner decklist
+        # Get winner decklist for fallback
         winner_decklist = next((td for td in tournament_decklists if td.placing == 1), None)
         
         # Calculate leader participation stats
@@ -244,10 +398,154 @@ def setup_api_routes(rt):
         else:
             leader_image_url = None
             
-        # Create the tournament details view with two columns
+        # Set default selected leader (winner)
+        selected_leader_id = winner_decklist.leader_id if winner_decklist else None
+        
+        # Create the tournament details view with new layout
+        return ft.Div(
+            id="tournament-leader-content",
+            hx_get="/api/tournament-select-leader",
+            hx_trigger="load",
+            hx_include="[name='meta_format'],[name='region']",
+            hx_vals={
+                "tournament_id": tournament_id,
+                "selected_leader_id": selected_leader_id
+            } if selected_leader_id else None,
+            cls="space-y-6"
+        ) 
+
+    @rt("/api/tournament-select-leader")
+    async def get_tournament_leader_content(request: Request):
+        """Get tournament content with selected leader highlighted."""
+        def _create_leader_decklist_section(leader_decklists, selected_index, card_data, meta_format, 
+                                          tournament_id, leader_id, fallback_decklist):
+            """Create the decklist section for the selected leader."""
+            if not leader_decklists:
+                # Fallback to winner's decklist if no leader decklists available
+                if fallback_decklist:
+                    return ft.Div(
+                        ft.H4("Winner's Decklist (No decklist found for selected leader)", cls="text-lg font-bold text-white mb-4"),
+                        create_decklist_view(
+                            fallback_decklist.decklist,
+                            card_data,
+                            title=None,  # Title already shown above
+                            meta_format=meta_format,
+                            currency=CardCurrency.EURO
+                        )
+                    )
+                else:
+                    return ft.P("No decklist available", cls="text-gray-400")
+            
+            # Get the selected decklist
+            if selected_index >= len(leader_decklists):
+                selected_index = 0
+            
+            selected_decklist = leader_decklists[selected_index]
+            
+            # Create title based on placing
+            title_parts = []
+            if selected_decklist.placing == 1:
+                title_parts.append("Winner's Decklist")
+            elif selected_decklist.placing is not None:
+                title_parts.append(f"#{selected_decklist.placing} Decklist")
+            else:
+                title_parts.append("Decklist")
+            
+            if selected_decklist.player_id:
+                title_parts.append(f"({selected_decklist.player_id})")
+            
+            title = " ".join(title_parts)
+            
+            # Create decklist selector if multiple decklists
+            decklist_selector = create_decklist_selector(
+                leader_decklists, 
+                selected_index, 
+                tournament_id, 
+                leader_id
+            )
+            
+            # Build components list, filtering out None values
+            components = [ft.H4(title, cls="text-lg font-bold text-white mb-4")]
+            
+            if decklist_selector:
+                components.append(decklist_selector)
+                
+            components.append(
+                create_decklist_view(
+                    selected_decklist.decklist,
+                    card_data,
+                    title=None,  # Title already shown above
+                    meta_format=meta_format,
+                    currency=CardCurrency.EURO
+                )
+            )
+            
+            return ft.Div(*components, cls="space-y-4")
+        
+        params_dict = get_query_params_as_dict(request)
+        tournament_id = params_dict.get("tournament_id")
+        selected_leader_id = params_dict.get("selected_leader_id")
+        selected_decklist_index = int(params_dict.get("selected_decklist_index", "0"))
+        params = TournamentPageParams(**params_dict)
+
+        if not tournament_id:
+            return ft.P("No tournament selected", cls="text-gray-400")
+            
+        # Get tournament data
+        tournaments = get_all_tournament_extened_data(
+            meta_formats=params.meta_format,
+        )
+        tournament = next((t for t in tournaments if t.id == tournament_id), None)
+        
+        if not tournament:
+            return ft.P("Tournament not found", cls="text-red-400")
+            
+        # Get card and leader data
+        card_id2card_data = get_card_id_card_data_lookup()
+        leader_data = get_leader_extended()
+        leader_extended_dict = {le.id: le for le in leader_data}
+        
+        # Get tournament decklists
+        tournament_decklists = get_tournament_decklist_data(params.meta_format)
+        tournament_decklists = [td for td in tournament_decklists if td.tournament_id == tournament_id]
+        
+        # Get winner decklist
+        winner_decklist = next((td for td in tournament_decklists if td.placing == 1), None)
+        
+        # Calculate leader participation stats
+        leader_stats = {}
+        if tournament.num_players:
+            for lid, placings in tournament.leader_ids_placings.items():
+                leader_stats[lid] = len(placings) / tournament.num_players
+        
+        # Set default selected leader if none provided
+        if not selected_leader_id:
+            selected_leader_id = winner_decklist.leader_id if winner_decklist else None
+        
+        # Get selected leader's decklists
+        selected_leader_decklists = []
+        if selected_leader_id:
+            selected_leader_decklists = [td for td in tournament_decklists if td.leader_id == selected_leader_id]
+            # Sort by placing (best placing first)
+            selected_leader_decklists.sort(key=lambda x: x.placing if x.placing is not None else 999)
+        
+        # Get selected leader info for display
+        selected_leader_data = leader_extended_dict.get(selected_leader_id) if selected_leader_id else None
+        selected_leader_image = None
+        if selected_leader_data:
+            selected_leader_image = selected_leader_data.aa_image_url or selected_leader_data.image_url
+        
+        # Get match data for selected leader
+        matches = []
+        if selected_leader_id:
+            matches = get_tournament_match_data(
+                tournament_id=tournament_id,
+                leader_id=selected_leader_id
+            )
+        
         return ft.Div(
             ft.Div(
-                # Tournament Facts and Winner Image Section
+                # Left Column: Tournament Facts, Selected Leader Image, and Match Progression
                 ft.Div(
                     # Tournament facts
                     create_tournament_keyfacts(
@@ -255,32 +553,64 @@ def setup_api_routes(rt):
                         winner_name=winner_decklist.leader_id if winner_decklist else "Unknown"
                     ),
                     
-                    # Winner Leader Image (if available)
+                    # Selected Leader Image
                     ft.Div(
+                        ft.H5(
+                            f"Selected Leader{' (Winner)' if selected_leader_id and winner_decklist and selected_leader_id == winner_decklist.leader_id else ''}", 
+                            cls="text-lg font-bold text-white mb-2"
+                        ) if selected_leader_id else None,
                         ft.Img(
-                            src=leader_image_url if winner_decklist else None,
+                            src=selected_leader_image,
                             cls="w-full h-auto rounded-lg shadow-lg max-w-[300px] mx-auto"
-                        ) if winner_decklist and winner_decklist.leader_id in card_id2card_data else ft.P("No winner image available", cls="text-gray-400"),
-                        cls="mt-6"
-                    ),
-                    cls="w-full lg:w-1/3"
-                ),
-                
-                # Leader Stats and Decklist Section
-                ft.Div(
-                    # Leader participation section
-                    ft.Div(
-                        ft.H4("Leader Participation", cls="text-lg font-bold text-white mb-4"),
-                        create_leader_grid(leader_stats, leader_extended_dict, card_id2card_data)
+                        ) if selected_leader_image else ft.P("No leader selected", cls="text-gray-400 text-center"),
+                        cls="mt-6 mb-6"
                     ),
                     
-                    # Winner decklist section
+                    # Match Progression (moved here)
                     ft.Div(
-                        create_decklist_view(
-                            winner_decklist.decklist if winner_decklist else {},
+                        ft.H5("Match Progression", cls="text-lg font-bold text-white mb-4"),
+                        create_loading_spinner(
+                            id="tournament-leader-loading",
+                            size="w-6 h-6",
+                            container_classes="min-h-[50px]"
+                        ),
+                        create_match_progression(
+                            matches=matches,
+                            leader_extended_dict=leader_extended_dict,
+                            cid2cdata_dict=card_id2card_data,
+                            selected_leader_id=selected_leader_id or ""
+                        ) if selected_leader_id else ft.P("Click on a leader above to see their match progression", cls="text-gray-400"),
+                        cls="bg-gray-800 rounded-lg p-4"
+                    ),
+                    
+                    cls="w-full lg:w-1/3 space-y-6"
+                ),
+                
+                # Right Column: Leader Participation and Decklist
+                ft.Div(
+                    # Leader participation section (now clickable)
+                    ft.Div(
+                        ft.H4("Leader Participation (Click to Select)", cls="text-lg font-bold text-white mb-4"),
+                        create_leader_grid(
+                            leader_stats, 
+                            leader_extended_dict, 
+                            card_id2card_data, 
+                            selected_leader_id=selected_leader_id,
+                            tournament_id=tournament_id
+                        )
+                    ),
+                    
+                    # Decklist section
+                    ft.Div(
+                        _create_leader_decklist_section(
+                            selected_leader_decklists,
+                            selected_decklist_index,
                             card_id2card_data,
-                            title="Winner's Decklist"
-                        ) if winner_decklist else ft.P("No winner decklist available", cls="text-gray-400"),
+                            params.meta_format[0],
+                            tournament_id,
+                            selected_leader_id,
+                            winner_decklist
+                        ),
                         cls="mt-8"
                     ),
                     cls="w-full lg:w-2/3 lg:pl-8 mt-8 lg:mt-0"

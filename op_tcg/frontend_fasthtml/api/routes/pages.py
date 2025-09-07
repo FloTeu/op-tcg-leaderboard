@@ -1,16 +1,22 @@
+from collections import defaultdict
 from fasthtml import ft
 from starlette.requests import Request
-from op_tcg.backend.models.leader import LeaderboardSortBy
-from op_tcg.frontend_fasthtml.utils.extract import get_card_data, get_leader_extended, get_card_popularity_data, get_card_id_card_data_lookup
+from op_tcg.backend.models.leader import LeaderExtended, LeaderboardSortBy
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
+from op_tcg.backend.models.cards import CardCurrency
+from op_tcg.frontend_fasthtml.utils.extract import (
+    get_card_data, 
+    get_leader_extended, 
+    get_card_popularity_data, 
+    get_card_id_card_data_lookup
+)
 from op_tcg.frontend_fasthtml.pages.home import create_leaderboard_table
-from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended
-from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict, get_filtered_leaders
+from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended, get_leaders_with_decklist_data
+from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict, get_filtered_leaders, get_effective_meta_format_with_fallback, create_fallback_notification
 from op_tcg.frontend_fasthtml.pages.leader import create_leader_content, HX_INCLUDE
 from op_tcg.frontend_fasthtml.pages.tournaments import create_tournament_content
 from op_tcg.frontend_fasthtml.pages.card_popularity import create_card_popularity_content
 from op_tcg.frontend_fasthtml.api.models import LeaderboardSort, LeaderDataParams, TournamentPageParams, CardPopularityParams
-from op_tcg.backend.models.input import MetaFormat
-from op_tcg.backend.models.cards import CardCurrency
 from op_tcg.frontend_fasthtml.components.card_modal import create_card_modal
 
 def filter_cards(cards_data: list, params: CardPopularityParams) -> list:
@@ -44,14 +50,17 @@ def filter_cards(cards_data: list, params: CardPopularityParams) -> list:
         if params.card_attributes and not any(attr in params.card_attributes for attr in card.attributes):
             continue
             
-        # Filter by counter
-        if params.card_counter is not None and card.counter != params.card_counter:
-            continue
-            
         # Filter by card category
-        if card.card_category not in params.card_category:
+        if params.card_category and card.card_category not in params.card_category:
             continue
             
+        # Filter by counter
+        if params.card_counter == 0 and card.counter not in [None, 0]:
+            continue
+
+        elif params.card_counter not in [0, None] and card.counter != params.card_counter:
+            continue
+
         # Filter by card types
         if params.card_types and not any(t in params.card_types for t in card.types):
             continue
@@ -101,7 +110,14 @@ def setup_api_routes(rt):
         sort_params = LeaderboardSort(**get_query_params_as_dict(request))
         
         # Get filtered leaders
-        filtered_leaders = get_filtered_leaders(request)
+        leader_extended_data: list[LeaderExtended] = get_leader_extended(meta_format_region=get_query_params_as_dict(request).get("region"))
+        filtered_leaders = get_filtered_leaders(request, leader_extended_data=leader_extended_data)
+        
+        # Use utility function to get effective meta format with fallback
+        effective_meta_format, fallback_used = get_effective_meta_format_with_fallback(
+            sort_params.meta_format, 
+            filtered_leaders
+        )
         
         display_name2df_col_name = {
             "Name": "name",
@@ -115,62 +131,102 @@ def setup_api_routes(rt):
 
         # Sort leaders by the specified sort criteria
         if sort_params.sort_by == LeaderboardSortBy.TOURNAMENT_WINS:
-            filtered_leaders.sort(key=lambda x: (x.tournament_wins > 0, x.tournament_wins, x.elo), reverse=True)
+            filtered_leaders.sort(key=lambda x: (x.tournament_wins > 0, x.tournament_wins, x.elo or 0), reverse=True)
         else:
-            filtered_leaders.sort(key=lambda x: getattr(x, display_name2df_col_name.get(sort_params.sort_by)), reverse=True)
+            # Handle None values in sorting by providing default values
+            def get_sort_key(leader):
+                attr_name = display_name2df_col_name.get(sort_params.sort_by)
+                value = getattr(leader, attr_name)
+                # Return 0 for None values to sort them to the end
+                return value if value is not None else 0
+            
+            filtered_leaders.sort(key=get_sort_key, reverse=True)
         
-        # Create the leaderboard table
-        return create_leaderboard_table(
+        # Create the leaderboard table using the effective meta format
+        table_content = create_leaderboard_table(
             filtered_leaders,
-            sort_params.meta_format
+            leader_extended_data,
+            effective_meta_format
         )
+        
+        # If fallback was used, add a notification message
+        if fallback_used:
+            notification = create_fallback_notification(
+                sort_params.meta_format,
+                effective_meta_format
+            )
+            return ft.Div(notification, table_content)
+        
+        return table_content
 
     @rt("/api/leader-data")
     async def get_leader_data(request: Request):
         # Parse params using Pydantic model
         params = LeaderDataParams(**get_query_params_as_dict(request))
-            
-        # Get leader data
+        match_data_exists = True
+
+        # Get leader data with meta format region filtering
         if params.lid:
             # If a leader ID is provided, get data for that specific leader
-            leader_data = get_leader_extended(leader_ids=[params.lid])
+            leader_data = get_leader_extended(
+                leader_ids=[params.lid],
+                meta_format_region=params.meta_format_region
+            )
         else:
             # Otherwise, get all leaders and find the one with highest d_score
-            leader_data = get_leader_extended()
+            leader_data = get_leader_extended(meta_format_region=params.meta_format_region)
             
-        # Filter by meta format
+        # Filter by meta format and apply additional filters
         filtered_by_meta = [l for l in leader_data if l.meta_format in params.meta_format]
         
-        # Apply filters
+        # Get leaders that have decklist data in these meta formats
+        leaders_with_decklists = get_leaders_with_decklist_data(params.meta_format)
+        
+        # Apply standard filtering
         filtered_data = filter_leader_extended(
             leaders=filtered_by_meta,
             only_official=params.only_official
         )
         
-        if not filtered_data:
-            return ft.P("No data available for this leader.", cls="text-red-400")
-            
-        # If no specific leader was requested, find the one with highest d_score
-        if not params.lid:
-            # Sort by d_score and elo, handling None values
-            def sort_key(leader):
-                d_score = leader.d_score if leader.d_score is not None else 0
-                elo = leader.elo if leader.elo is not None else 0
-                return (-d_score, -elo)
-            
-            filtered_data.sort(key=sort_key)
-            if filtered_data:
-                leader_data = filtered_data[0]
-            else:
-                return ft.P("No data available for leaders in the selected meta format.", cls="text-red-400")
-        else:
-            leader_data = next((l for l in filtered_data if l.id == params.lid), None)
-            
-            if not leader_data:
-                return ft.P("No data available for this leader in the selected meta format.", cls="text-red-400")
+        # Create a set of leader IDs that are already included in filtered_data
+        already_included_ids = {fl.id for fl in filtered_data}
         
-        # Use the shared create_leader_content function
-        return create_leader_content(leader_data)
+        # Add leaders that have decklist data but might not have match data
+        # Only include if they are not already in the filtered_data set
+        additional_leaders_with_decklist = [
+            l for l in filtered_by_meta 
+            if l.id in leaders_with_decklists and l.id not in already_included_ids
+        ]
+        
+        # Combine both sets of leaders
+        all_filtered_data = filtered_data + additional_leaders_with_decklist
+        
+        # If no match data exists, but the leader has decklist data, use the latest leader data
+        if not all_filtered_data and params.lid in leaders_with_decklists:
+            all_filtered_data = filter_leader_extended(
+                leaders=[l for l in leader_data if l.id == params.lid],
+                only_official=params.only_official
+            )
+            match_data_exists = False
+
+        
+        # Data found for requested meta formats - no fallback needed
+        if params.lid:
+            # Find the specific leader
+            leader_data_result = next((l for l in all_filtered_data if l.id == params.lid), None)
+            if not leader_data_result:
+                return ft.P("No data available for this leader in the selected meta format.", cls="text-red-400")
+        else:
+            # Get the top leader
+            all_filtered_data.sort(key=lambda x: (x.d_score or 0, x.elo or 0), reverse=True)
+            leader_data_result = all_filtered_data[0]
+        
+        return create_leader_content(
+            leader_id=leader_data_result.id,
+            leader_name=leader_data_result.name,
+            aa_image_url=leader_data_result.aa_image_url,
+            total_matches=leader_data_result.total_matches if match_data_exists else None
+        )
 
     @rt("/api/card-popularity")
     def get_card_popularity(request: Request):
@@ -182,10 +238,16 @@ def setup_api_routes(rt):
         card_data_lookup = get_card_id_card_data_lookup()
         card_popularity_list = get_card_popularity_data()
         
-        # Filter card popularity data by meta format
+        # Use utility function to get effective meta format with fallback
+        effective_meta_format, fallback_used = get_effective_meta_format_with_fallback(
+            params.meta_format,
+            card_popularity_list
+        )
+        
+        # Filter card popularity data by effective meta format
         card_popularity_dict = {}
         for cp in card_popularity_list:
-            if cp.meta_format == params.meta_format:
+            if cp.meta_format == effective_meta_format:
                 if cp.card_id not in card_popularity_dict:
                     card_popularity_dict[cp.card_id] = []
                 card_popularity_dict[cp.card_id].append(cp.popularity)
@@ -194,7 +256,8 @@ def setup_api_routes(rt):
             for cid, popularity_list in card_popularity_dict.items() 
         }
         
-        # Get all cards and apply filters
+        # Get all cards and apply filters (update params to use effective meta format)
+        params.meta_format = effective_meta_format
         cards_data = list(card_data_lookup.values())
         filtered_cards = filter_cards(cards_data, params)
         
@@ -204,8 +267,27 @@ def setup_api_routes(rt):
             reverse=True
         )
         
-        # Create and return the card popularity content
-        return create_card_popularity_content(filtered_cards, card_popularity_dict, params.page, search_term=params.search_term, currency=params.currency)
+        # Create the card popularity content
+        content = create_card_popularity_content(
+            filtered_cards, 
+            card_popularity_dict, 
+            params.page, 
+            search_term=params.search_term, 
+            currency=params.currency
+        )
+        
+        # If fallback was used, add notification
+        if fallback_used:
+            # Get the original requested meta format
+            original_params = CardPopularityParams(**get_query_params_as_dict(request))
+            notification = create_fallback_notification(
+                original_params.meta_format,
+                effective_meta_format,
+                dropdown_id="meta-format-select"
+            )
+            return ft.Div(notification, content)
+        
+        return content
 
     @rt("/api/card-modal")
     def get_card_modal(request: Request):

@@ -12,7 +12,7 @@ from op_tcg.frontend_fasthtml.pages.matchups import create_filter_components, cr
 from op_tcg.frontend_fasthtml.api.models import LeaderDataParams, MatchupParams
 from op_tcg.frontend_fasthtml.utils.win_rate import get_radar_chart_data
 from op_tcg.frontend_fasthtml.utils.table import create_leader_image_cell, create_win_rate_cell
-import pandas as pd
+from typing import Dict, List, Tuple, Set
 
 def setup_api_routes(rt):
     @rt("/api/leader-matchups")
@@ -187,25 +187,24 @@ def setup_api_routes(rt):
         if not win_rate_data:
             return ft.P("No matchup data available for the selected criteria", cls="text-red-400")
 
-        # Create DataFrame for win rates
-        df_data = []
+        # Create data structure for win rates
+        matchup_data = []
         for wr in win_rate_data:
             if wr.leader_id in params.leader_ids and wr.opponent_id in params.leader_ids:
-                df_data.append({
+                matchup_data.append({
                     'leader_id': wr.leader_id,
                     'opponent_id': wr.opponent_id,
                     'win_rate': round(wr.win_rate * 100, 1),
                     'total_matches': wr.total_matches
                 })
-        
-        df = pd.DataFrame(df_data)
-        
+
         # Calculate overall win rates for each leader
         leader_overall_wr = {}
         for leader_id in params.leader_ids:
-            leader_matches = df[df['leader_id'] == leader_id]
-            if not leader_matches.empty:
-                weighted_wr = (leader_matches['win_rate'] * leader_matches['total_matches']).sum() / leader_matches['total_matches'].sum()
+            leader_matches = [m for m in matchup_data if m['leader_id'] == leader_id]
+            if leader_matches:
+                total_matches = sum(m['total_matches'] for m in leader_matches)
+                weighted_wr = sum(m['win_rate'] * m['total_matches'] for m in leader_matches) / total_matches
                 leader_overall_wr[leader_id] = round(weighted_wr, 1)
             else:
                 leader_overall_wr[leader_id] = 0.0
@@ -213,14 +212,16 @@ def setup_api_routes(rt):
         # Sort leaders by win rate
         sorted_leader_ids = sorted(leader_overall_wr.keys(), key=lambda x: leader_overall_wr[x], reverse=True)
 
-        # Create pivot table for win rates
-        df_pivot = df.pivot(index='leader_id', columns='opponent_id', values=['win_rate', 'total_matches'])
-        df_pivot = df_pivot.fillna(0)
+        # Create win rate lookup dictionary
+        win_rate_lookup = {
+            (m['leader_id'], m['opponent_id']): (m['win_rate'], m['total_matches'])
+            for m in matchup_data
+        }
 
         # Create header cells
         header_cells = [
-            ft.Th("Leader", cls="text-left py-2 px-4 w-[200px]"),  # Fixed width for leader column
-            ft.Th("Win Rate", cls="text-left py-2 px-4 w-[120px]")  # Fixed width for win rate column
+            ft.Th("Leader", cls="text-left py-2 px-4 w-[200px]"),
+            ft.Th("Win Rate", cls="text-left py-2 px-4 w-[120px]")
         ]
         
         # Add leader columns to header
@@ -270,23 +271,11 @@ def setup_api_routes(rt):
                 # Add matchup cells
                 for opponent_id in sorted_leader_ids:
                     if opponent_id in leader_dict:
-                        # Check if both leader_id and opponent_id exist in df_pivot
-                        has_data = (
-                            leader_id in df_pivot.index and 
-                            ('win_rate', opponent_id) in df_pivot.columns and
-                            ('total_matches', opponent_id) in df_pivot.columns
-                        )
-                        
-                        if has_data:
-                            win_rate = df_pivot.loc[leader_id, ('win_rate', opponent_id)]
-                            total_matches = df_pivot.loc[leader_id, ('total_matches', opponent_id)]
-                        else:
-                            win_rate = None
-                            total_matches = 0
-                        
-                        # If it's a mirror match, show 50%
                         if leader_id == opponent_id:
                             win_rate = 50.0
+                            total_matches = 0
+                        else:
+                            win_rate, total_matches = win_rate_lookup.get((leader_id, opponent_id), (None, 0))
                             
                         row_cells.append(
                             create_win_rate_cell(

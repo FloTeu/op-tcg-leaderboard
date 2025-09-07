@@ -56,7 +56,7 @@ function initializeMultiSelect(selectId) {
         const clearAllBtn = display.querySelector('.clear-all');
         if (clearAllBtn) {
             clearAllBtn.onclick = (e) => {
-                e.stopPropagation();  // Prevent dropdown from opening
+                e.stopPropagation();  // Prevent dropdown from opening and sidebar from closing
                 Array.from(select.options).forEach(option => option.selected = false);
                 dropdown.querySelectorAll('.dropdown-option').forEach(option => {
                     option.classList.remove('selected');
@@ -89,6 +89,7 @@ function initializeMultiSelect(selectId) {
     // Handle removing items from display
     display.addEventListener('click', (e) => {
         if (e.target.classList.contains('remove-item')) {
+            e.stopPropagation(); // Prevent event bubbling that could close sidebar
             const value = e.target.dataset.value;
             const option = Array.from(select.options).find(opt => opt.value === value);
             if (option) {
