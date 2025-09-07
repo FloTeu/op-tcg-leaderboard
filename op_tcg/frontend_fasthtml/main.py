@@ -99,7 +99,7 @@ app, rt = fast_app(
         # Page utilities
         ft.Script(src="/public/js/sidebar.js"),
     ],
-    static_path='public'
+    #static_path='public'
 )
 
 

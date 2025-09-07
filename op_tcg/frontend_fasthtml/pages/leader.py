@@ -5,7 +5,7 @@ from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 from op_tcg.frontend_fasthtml.components.filters import create_leader_select_component
 
 # Common HTMX attributes for filter components - Updated to include meta_format_region
-HX_INCLUDE = "[name='meta_format'],[name='lid'],[name='only_official'],[name='meta_format_region']"
+HX_INCLUDE = "[name='meta_format'],[name='lid'],[name='meta_format_region']"
 FILTER_HX_ATTRS = {
     "hx_get": "/api/leader-data",
     "hx_trigger": "change", 
@@ -112,11 +112,7 @@ def create_filter_components(selected_meta_formats=None, selected_leader_id=None
                 params.set('meta_format_region', regionSelect.value);
             }
             
-            // Get only official toggle
-            const officialToggle = document.querySelector('[name="only_official"]');
-            if (officialToggle) {
-                params.set('only_official', officialToggle.checked ? 'true' : 'false');
-            }
+            // Only official is default true in API; no UI toggle
             
             // Update URL
             const newURL = '/leader' + (params.toString() ? '?' + params.toString() : '');
@@ -143,7 +139,7 @@ def create_filter_components(selected_meta_formats=None, selected_leader_id=None
         
         // Handle filter changes
         document.addEventListener('change', function(evt) {
-            if (evt.target.matches('[name="meta_format"], [name="meta_format_region"], [name="only_official"]')) {
+            if (evt.target.matches('[name="meta_format"], [name="meta_format_region"]')) {
                 setTimeout(updateLeaderURL, 10);
             }
             
@@ -198,25 +194,11 @@ def create_filter_components(selected_meta_formats=None, selected_leader_id=None
         cls="relative"  # Required for proper styling
     )
     
-    # Only official toggle
-    official_toggle = ft.Div(
-        ft.Label("Only Official Matches", cls="text-white font-medium"),
-        ft.Input(
-            type="checkbox",
-            checked=True,
-            id="official-toggle",
-            name="only_official",
-            **FILTER_HX_ATTRS
-        ),
-        cls="flex items-center space-x-2"
-    )
-    
     # Components to return
     components = [
         meta_format_select,
         region_select,  # Add region select to the filter components
         leader_select_wrapper,
-        official_toggle,
         content_trigger,
         trigger_script
     ]

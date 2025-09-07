@@ -3,7 +3,7 @@ from op_tcg.backend.models.input import MetaFormat
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 
 # Common HTMX attributes for filter components
-HX_INCLUDE = "[name='meta_format'],[name='only_official'],[name='leader_ids']"
+HX_INCLUDE = "[name='meta_format'],[name='leader_ids']"
 FILTER_HX_ATTRS = {
     "hx_get": "/api/matchup-content",
     "hx_trigger": "change",
@@ -48,30 +48,7 @@ def create_filter_components(selected_meta_formats=None, selected_leader_ids=Non
         }
     )
 
-    # Only official toggle
-    only_official_toggle = ft.Div(
-        ft.Label(
-            "Only Official Tournaments",
-            htmlFor="only-official-toggle",
-            cls="block text-sm font-medium text-gray-300 mb-1"
-        ),
-        ft.Input(
-            type="checkbox",
-            id="only-official-toggle",
-            name="only_official",
-            checked=only_official,
-            cls="form-checkbox h-5 w-5 text-blue-600 bg-gray-700 border-gray-500 rounded focus:ring-blue-500",
-            **{
-                "hx_get": "/api/leader-multiselect",
-                "hx_target": "#leader-multiselect-wrapper",
-                "hx_include": HX_INCLUDE,
-                "hx_trigger": "change",
-                "hx_swap": "innerHTML",
-                "hx_params": "*"
-            }
-        ),
-        cls="flex items-center space-x-2"
-    )
+    # Only official is default true in API; no UI toggle
 
     # Add a hidden div that will trigger the content update
     content_trigger = ft.Div(
@@ -122,7 +99,6 @@ def create_filter_components(selected_meta_formats=None, selected_leader_ids=Non
 
     return ft.Div(
         meta_format_select,
-        only_official_toggle,
         leader_multiselect_wrapper,
         content_trigger,
         trigger_script,

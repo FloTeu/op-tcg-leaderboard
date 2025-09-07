@@ -8,7 +8,7 @@ from op_tcg.frontend_fasthtml.components.loading import create_loading_overlay, 
 
 
 # Common HTMX attributes for filter components
-HX_INCLUDE = "[name='meta_format'],[name='region'],[name='only_official'],[name='sort_by'],[name='release_meta_formats'],[name='min_matches'],[name='max_matches']"
+HX_INCLUDE = "[name='meta_format'],[name='region'],[name='sort_by'],[name='release_meta_formats'],[name='min_matches'],[name='max_matches']"
 FILTER_HX_ATTRS = {
     "hx_get": "/api/leaderboard",
     "hx_trigger": "change", 
@@ -52,19 +52,6 @@ def create_filter_components(max_match_count: int = 10000):
         cls=SELECT_CLS + " styled-select",
         *[ft.Option(r, value=r, selected=(r == MetaFormatRegion.ALL)) for r in regions],
         **FILTER_HX_ATTRS,
-    )
-    
-    # Only official toggle
-    official_toggle = ft.Div(
-        ft.Label("Only Official Matches", cls="text-white font-medium"),
-        ft.Input(
-            type="checkbox",
-            checked=True,
-            id="official-toggle",
-            name="only_official",
-            **FILTER_HX_ATTRS
-        ),
-        cls="flex items-center space-x-2"
     )
     
     # Sort by select
@@ -120,9 +107,8 @@ def create_filter_components(max_match_count: int = 10000):
     
     return ft.Div(
         meta_format_select,
-        release_meta_formats_select,
         region_select,
-        official_toggle,
+        release_meta_formats_select,
         sort_by_select,
         match_count_slider,
         cls="space-y-4"
