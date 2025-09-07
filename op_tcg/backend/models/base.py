@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 class EnumBase(Enum):
     @classmethod
-    def to_list(cls):
+    def to_list(cls) -> list[str]:
         return list(map(lambda c: c.value, cls))
 
 

@@ -18,7 +18,7 @@ from op_tcg.backend.utils.utils import timeit
 from op_tcg.frontend.sidebar import display_meta_select, display_leader_select, display_sortby_select, \
     LeaderCardMovementSortBy
 from op_tcg.frontend.utils.chart import create_line_chart
-from op_tcg.frontend.utils.extract import get_leader_elo_data, get_tournament_standing_data, get_leader_extended, \
+from op_tcg.frontend.utils.extract import get_leader_extended, \
     get_tournament_decklist_data, get_card_id_card_data_lookup
 from op_tcg.frontend.utils.js import execute_js_file, is_mobile
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid, lname_and_lid_to_lid, \

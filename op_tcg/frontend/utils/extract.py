@@ -4,7 +4,6 @@ import streamlit as st
 from cachetools import TTLCache
 
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
-from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.cards import LatestCardPrice, CardPopularity, Card, CardReleaseSet, ExtendedCardData, \
     CardCurrency
 from op_tcg.backend.models.decklists import Decklist

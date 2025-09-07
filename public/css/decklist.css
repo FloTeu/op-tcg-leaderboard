@@ -1,0 +1,117 @@
+/* Decklist Modal - matching original modal.css */
+.decklist-list-container {
+  position: relative; /* Positioning context for the modal */
+  max-height: 500px; /* Match the original max-height */
+  overflow-y: auto; /* Restore scrolling */
+  margin-bottom: 20px; /* Keep the original margin */
+}
+
+.decklist-modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 10px;
+  cursor: pointer; /* Indicate clickable area for closing */
+  width: 100%; /* Take full width of the container */
+  height: 100%; /* Take full height of the container */
+  top: 0;
+  left: 0;
+}
+
+.decklist-modal-close {
+  color: #f1f1f1;
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 1001;
+}
+
+.decklist-modal-close:hover,
+.decklist-modal-close:focus {
+  color: #bbb;
+  text-decoration: none;
+}
+
+.decklist-modal-image {
+  max-width: 300px;
+  max-height: 400px;
+  object-fit: contain;
+  display: block;
+  cursor: pointer;
+  pointer-events: auto;
+  position: relative;
+  z-index: 1001;
+  margin: 0; /* Reset margin to ensure proper positioning */
+}
+
+/* List view styles */
+.decklist-list-view {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.decklist-item {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #444;
+  padding: 10px;
+  background-color: transparent;
+}
+
+.decklist-item:last-child {
+  border-bottom: none;
+}
+
+.decklist-image {
+  width: 100px;
+  height: 100px;
+  margin-right: 20px;
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.decklist-image img {
+  width: 100%;
+  height: auto;
+}
+
+.decklist-details {
+  flex-grow: 1;
+}
+
+.decklist-title {
+  font-size: 1.2em;
+  margin: 0 0 5px;
+  color: white;
+}
+
+.decklist-facts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: white;
+}
+
+.decklist-facts li {
+  margin-bottom: 5px;
+  font-size: 0.9em;
+}
+
+.decklist-circle {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-weight: bold;
+}
+
+/* overflow: hidden; /* Optionally, if you strictly want to clip modal content to this container's bounds, though modal has overflow:auto */ 

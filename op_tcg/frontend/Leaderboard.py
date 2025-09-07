@@ -21,14 +21,13 @@ from op_tcg.frontend.sub_pages.constants import SUB_PAGE_LEADER_MATCHUP, SUB_PAG
 from op_tcg.backend.utils.utils import booleanize
 from op_tcg.backend.etl.load import bq_insert_rows, get_or_create_table
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
-from op_tcg.backend.models.leader import LeaderExtended
+from op_tcg.backend.models.leader import LeaderExtended, LeaderboardSortBy
 from op_tcg.backend.models.cards import OPTcgColor
 from op_tcg.backend.models.matches import Match, MatchResult
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.frontend.utils.session import get_session_id, reset_session_state, SessionKeys
 from op_tcg.frontend.sidebar import display_meta_select, display_only_official_toggle, display_release_meta_select, \
-    display_match_count_slider_slider, display_leader_color_multiselect, display_leader_select, LeaderboardSortBy, \
-    display_sortby_select, display_meta_format_region
+    display_match_count_slider_slider, display_leader_color_multiselect, display_leader_select, display_sortby_select, display_meta_format_region
 from op_tcg.frontend.utils.extract import get_leader_extended
 from op_tcg.frontend.utils.styles import execute_style_sheet, read_style_sheet, css_rule_to_dict
 from op_tcg.frontend.utils.material_ui_fns import display_table, create_image_cell, value2color_table_cell
