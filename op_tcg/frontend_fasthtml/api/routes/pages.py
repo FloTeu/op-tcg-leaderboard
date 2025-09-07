@@ -16,7 +16,7 @@ from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict, get_fil
 from op_tcg.frontend_fasthtml.pages.leader import create_leader_content, HX_INCLUDE
 from op_tcg.frontend_fasthtml.pages.tournaments import create_tournament_content
 from op_tcg.frontend_fasthtml.pages.card_popularity import create_card_popularity_content
-from op_tcg.frontend_fasthtml.api.models import LeaderboardSort, LeaderDataParams, TournamentPageParams, CardPopularityParams
+from op_tcg.frontend_fasthtml.api.models import LeaderboardFilter, LeaderboardSort, LeaderDataParams, TournamentPageParams, CardPopularityParams
 from op_tcg.frontend_fasthtml.components.card_modal import create_card_modal
 
 def filter_cards(cards_data: list, params: CardPopularityParams) -> list:
@@ -108,6 +108,7 @@ def setup_api_routes(rt):
     def api_leaderboard(request: Request):
         # Parse the sort and meta format parameters
         sort_params = LeaderboardSort(**get_query_params_as_dict(request))
+        filter_params = LeaderboardFilter(**get_query_params_as_dict(request))
         
         # Get filtered leaders
         leader_extended_data: list[LeaderExtended] = get_leader_extended(meta_format_region=get_query_params_as_dict(request).get("region"))
@@ -146,9 +147,9 @@ def setup_api_routes(rt):
         table_content = create_leaderboard_table(
             filtered_leaders,
             leader_extended_data,
-            effective_meta_format
+            effective_meta_format,
+            region=filter_params.region
         )
-        
         # If fallback was used, add a notification message
         if fallback_used:
             notification = create_fallback_notification(
@@ -170,11 +171,11 @@ def setup_api_routes(rt):
             # If a leader ID is provided, get data for that specific leader
             leader_data = get_leader_extended(
                 leader_ids=[params.lid],
-                meta_format_region=params.meta_format_region
+                meta_format_region=params.region
             )
         else:
             # Otherwise, get all leaders and find the one with highest d_score
-            leader_data = get_leader_extended(meta_format_region=params.meta_format_region)
+            leader_data = get_leader_extended(meta_format_region=params.region)
             
         # Filter by meta format and apply additional filters
         filtered_by_meta = [l for l in leader_data if l.meta_format in params.meta_format]

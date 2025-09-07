@@ -99,7 +99,7 @@ app, rt = fast_app(
         # Page utilities
         ft.Script(src="/public/js/sidebar.js"),
     ],
-    static_path='public'
+    #static_path='public'
 )
 
 
@@ -161,6 +161,18 @@ def home(request: Request):
     canonical_url = canonical_base(request)
     title = "OP TCG Leaderboard – Meta, Decklists, Prices & Matchups"
     description = "Track One Piece TCG leaders, meta trends, decklists, prices, and matchups. Updated regularly with official and community results."
+    # Build persisted query object for navigation links
+    persist_query = {
+        "meta_format": request.query_params.get("meta_format"),
+        "region": request.query_params.get("region")
+    }
+    
+    # Determine selected values for filters
+    selected_meta_format = request.query_params.get("meta_format")
+    selected_region = request.query_params.get("region")
+    selected_meta_format_enum = MetaFormat(selected_meta_format) if selected_meta_format else None
+    selected_region_enum = MetaFormatRegion(selected_region) if selected_region else None
+    
     return (
         ft.Title(title),
         ft.Meta(name="description", value=description),
@@ -168,7 +180,12 @@ def home(request: Request):
         ft.Meta(property="og:description", value=description),
         ft.Meta(property="og:url", value=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
-        layout(home_page(), filter_component=home_filters(), current_path="/")
+        layout(
+            home_page(),
+            filter_component=home_filters(selected_meta_format=selected_meta_format_enum, selected_region=selected_region_enum),
+            current_path="/",
+            persist_query=persist_query
+        )
     )
 
 @rt("/leader")
@@ -176,7 +193,7 @@ def leader_default(request: Request):
     # Get selected meta formats from query params (can be multiple)
     selected_meta_format = request.query_params.getlist("meta_format")
     leader_id = request.query_params.get("lid")
-    selected_meta_format_region = request.query_params.get("meta_format_region")
+    selected_meta_format_region = request.query_params.get("region")
     
     # Convert to MetaFormat enum if present
     if selected_meta_format:
@@ -192,6 +209,10 @@ def leader_default(request: Request):
     description = "Explore leader performance across formats, with meta share, win rates, and top decklists."
     
     # Pass to leader_page which will handle HTMX loading
+    persist_query = {
+        "meta_format": request.query_params.get("meta_format"),
+        "region": request.query_params.get("region")
+    }
     return (
         ft.Title(title),
         ft.Meta(name="description", value=description),
@@ -204,9 +225,10 @@ def leader_default(request: Request):
             filter_component=leader_filters(
                 selected_meta_formats=selected_meta_format, 
                 selected_leader_id=leader_id,
-                selected_meta_format_region=selected_meta_format_region
+                selected_region=selected_meta_format_region
             ),
-            current_path="/leader"
+            current_path="/leader",
+            persist_query=persist_query
         )
     )
 
@@ -217,6 +239,15 @@ def tournaments(request: Request):
     title = "Tournaments – Results & Decklists – OP TCG Leaderboard"
     description = "Browse tournament results, standings, and decklists across regions and formats."
     
+    persist_query = {
+        "meta_format": request.query_params.get("meta_format"),
+        "region": request.query_params.get("region")
+    }
+    # Parse selections
+    selected_meta_formats = request.query_params.getlist("meta_format")
+    selected_meta_formats = [MetaFormat(mf) for mf in selected_meta_formats] if selected_meta_formats else None
+    selected_region = request.query_params.get("region")
+    selected_region_enum = MetaFormatRegion(selected_region) if selected_region else None
     return (
         ft.Title(title),
         ft.Meta(name="description", value=description),
@@ -224,7 +255,7 @@ def tournaments(request: Request):
         ft.Meta(property="og:description", value=description),
         ft.Meta(property="og:url", value=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
-        layout(tournaments_page(), filter_component=tournament_filters(), current_path="/tournaments")
+        layout(tournaments_page(), filter_component=tournament_filters(selected_meta_formats=selected_meta_formats, selected_region=selected_region_enum), current_path="/tournaments", persist_query=persist_query)
     )
 
 @rt("/card-movement")
@@ -243,6 +274,10 @@ def card_movement(request: Request):
     description = "Track card price trends and popularity changes to spot rising staples and value."
     
     # Pass to card_movement_page which will handle HTMX loading
+    persist_query = {
+        "meta_format": request.query_params.get("meta_format"),
+        "region": request.query_params.get("region")
+    }
     return (
         ft.Title(title),
         ft.Meta(name="description", value=description),
@@ -250,14 +285,7 @@ def card_movement(request: Request):
         ft.Meta(property="og:description", value=description),
         ft.Meta(property="og:url", value=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
-        layout(
-            card_movement_page(), 
-            filter_component=card_movement_filters(
-                selected_meta_format=selected_meta_format,
-                selected_leader_id=selected_leader_id
-            ), 
-            current_path="/card-movement"
-        )
+        layout(card_movement_page(), filter_component=card_movement_filters(selected_meta_format=selected_meta_format, selected_leader_id=selected_leader_id), current_path="/card-movement", persist_query=persist_query)
     )
 
 @rt("/matchups")
@@ -277,6 +305,10 @@ def matchups(request: Request):
     description = "Analyze leader vs leader matchups, win rates, and counter picks across formats."
     
     # Pass to matchups_page which will handle HTMX loading
+    persist_query = {
+        "meta_format": request.query_params.get("meta_format"),
+        "region": request.query_params.get("region")
+    }
     return (
         ft.Title(title),
         ft.Meta(name="description", value=description),
@@ -284,15 +316,7 @@ def matchups(request: Request):
         ft.Meta(property="og:description", value=description),
         ft.Meta(property="og:url", value=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
-        layout(
-            matchups_page(), 
-            filter_component=matchups_filters(
-                selected_meta_formats=selected_meta_formats,
-                selected_leader_ids=selected_leader_ids,
-                only_official=only_official
-            ), 
-            current_path="/matchups"
-        )
+        layout(matchups_page(), filter_component=matchups_filters(selected_meta_formats=selected_meta_formats, selected_leader_ids=selected_leader_ids, only_official=only_official), current_path="/matchups", persist_query=persist_query)
     )
 
 # Card pages
@@ -303,6 +327,16 @@ def card_popularity(request: Request):
     title = "Card Popularity – Usage & Trends – OP TCG Leaderboard"
     description = "Discover the most played cards and shifting usage trends across formats and leaders."
     
+    persist_query = {
+        "meta_format": request.query_params.get("meta_format"),
+        "region": request.query_params.get("region")
+    }
+    # Parse selections
+    selected_meta_format = request.query_params.get("meta_format")
+    selected_meta_format_enum = MetaFormat(selected_meta_format) if selected_meta_format else None
+    from op_tcg.backend.models.cards import CardCurrency
+    selected_currency = request.query_params.get("currency")
+    selected_currency_enum = CardCurrency(selected_currency) if selected_currency else None
     return (
         ft.Title(title),
         ft.Meta(name="description", value=description),
@@ -310,7 +344,7 @@ def card_popularity(request: Request):
         ft.Meta(property="og:description", value=description),
         ft.Meta(property="og:url", value=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
-        layout(card_popularity_page(), filter_component=card_popularity_filters(), current_path="/card-popularity")
+        layout(card_popularity_page(), filter_component=card_popularity_filters(selected_meta_format=selected_meta_format_enum, currency=selected_currency_enum), current_path="/card-popularity", persist_query=persist_query)
     )
 
 # Prices page
@@ -337,6 +371,10 @@ def bug_report(request: Request):
     title = "Report a Bug – OP TCG Leaderboard"
     description = "Spotted an issue? Report bugs and help us improve OP TCG Leaderboard."
     
+    persist_query = {
+        "meta_format": request.query_params.get("meta_format"),
+        "region": request.query_params.get("region")
+    }
     return (
         ft.Title(title),
         ft.Meta(name="description", value=description),
@@ -344,7 +382,7 @@ def bug_report(request: Request):
         ft.Meta(property="og:description", value=description),
         ft.Meta(property="og:url", value=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
-        layout(bug_report_page(), filter_component=None, current_path="/bug-report")
+        layout(bug_report_page(), filter_component=None, current_path="/bug-report", persist_query=persist_query)
     )
 
 if __name__ == "__main__":

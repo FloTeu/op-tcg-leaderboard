@@ -14,7 +14,7 @@ def setup_api_routes(rt):
         leader_data_list = get_leader_extended(
             meta_formats=params.meta_format, 
             leader_ids=[params.lid],
-            meta_format_region=params.meta_format_region
+            meta_format_region=params.region
         )
         
         # Filter list by official, but include leaders without match data (only_official is None)

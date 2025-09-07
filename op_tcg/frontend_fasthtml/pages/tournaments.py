@@ -11,12 +11,15 @@ FILTER_HX_ATTRS = {
     "hx_indicator": "#tournament-loading-indicator"
 }
 
-def create_filter_components(selected_meta_formats=None):
+def create_filter_components(selected_meta_formats=None, selected_region: MetaFormatRegion | None = None):
     latest_meta = MetaFormat.latest_meta_format()
     
     # If no selected formats provided, default to latest
     if not selected_meta_formats:
         selected_meta_formats = [latest_meta]
+    
+    # Default region
+    selected_region = selected_region or MetaFormatRegion.ALL
 
     # Release meta formats multi-select
     meta_format_select = ft.Select(
@@ -36,7 +39,7 @@ def create_filter_components(selected_meta_formats=None):
         id="region-select",
         name="region",
         cls=SELECT_CLS + " styled-select",
-        *[ft.Option(r, value=r, selected=(r == MetaFormatRegion.ALL)) for r in regions],
+        *[ft.Option(r, value=r, selected=(r == selected_region)) for r in regions],
         **FILTER_HX_ATTRS
     )
 
