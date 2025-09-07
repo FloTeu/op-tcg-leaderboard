@@ -1,12 +1,11 @@
-import os
 from dotenv import load_dotenv
-
-from op_tcg.backend.utils.environment import is_debug
 load_dotenv()
 
 from fasthtml import ft
 from fasthtml.common import fast_app, serve
+from starlette.responses import FileResponse
 from contextlib import asynccontextmanager
+from op_tcg.backend.utils.environment import is_debug
 from op_tcg.frontend_fasthtml.components.layout import layout
 from op_tcg.frontend_fasthtml.pages.home import home_page, create_filter_components as home_filters
 from op_tcg.frontend_fasthtml.pages.leader import leader_page, create_filter_components as leader_filters
@@ -20,7 +19,7 @@ from op_tcg.frontend_fasthtml.api.routes.main import setup_api_routes
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from starlette.requests import Request
 from op_tcg.frontend_fasthtml.utils.cache_warmer import start_cache_warming, stop_cache_warming, warm_cache_now
-from op_tcg.frontend_fasthtml.utils.seo import canonical_base, write_static_sitemap, CANONICAL_HOST
+from op_tcg.frontend_fasthtml.utils.seo import canonical_base, write_static_sitemap
 from op_tcg.frontend_fasthtml.utils.middleware import canonical_redirect_middleware
 import logging
 
@@ -41,6 +40,7 @@ async def lifespan(app):
             logger.info("Cache warming started successfully")
         # Generate static sitemap on startup so /sitemap.xml is always available
         write_static_sitemap()
+        logger.info("Static sitemap.xml generated successfully")
     except Exception as e:
         logger.error(f"Failed to start cache warming: {e}")
     
@@ -102,6 +102,15 @@ app, rt = fast_app(
     static_path='public'
 )
 
+
+
+# Sitemap works reliably 
+@rt("/sitemap.xml")
+async def serve_sitemap():
+    return FileResponse("public/sitemap.xml", media_type="application/xml")
+
+
+
 # Setup API routes
 setup_api_routes(rt)
 
@@ -120,18 +129,6 @@ def cache_stats():
     """Get cache performance statistics"""
     from op_tcg.frontend_fasthtml.utils.cache_monitor import get_cache_summary
     return get_cache_summary()
-
-
-@rt("/robots")
-def robots_txt(request: Request):
-    base = canonical_base(request)
-    content = (
-        "User-agent: *\n"
-        "Disallow:\n"
-        f"Sitemap: {base}/sitemap.xml\n"
-    )
-    from starlette.responses import PlainTextResponse
-    return PlainTextResponse(content, media_type="text/plain")
 
 
 @rt("/api/cache/warm")
@@ -153,22 +150,6 @@ def clear_cache():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# Leader pages
-CANONICAL_HOST = os.environ.get("CANONICAL_HOST")  # e.g., "op-leaderboard.com" or "www.op-leaderboard.com"
-
-def _canonical_base(request: Request) -> str:
-    """Return canonical base using incoming host and scheme.
-
-    Preserves www vs non-www based on the Host header and respects proxies via X-Forwarded-Proto.
-    """
-    # Prefer X-Forwarded-Proto when deployed behind a proxy (e.g., Cloud Run, Nginx)
-    forwarded_proto = request.headers.get("x-forwarded-proto")
-    scheme = (forwarded_proto or request.url.scheme or "https").split(",")[0].strip()
-    # On Cloud Run, Host header will be the custom domain if mapped; allow override via env
-    host = CANONICAL_HOST or request.headers.get("host") or request.url.netloc
-    # Normalize host casing
-    host = host.strip()
-    return f"{scheme}://{host}"
 
 @app.middleware("http")
 async def enforce_canonical_host(request, call_next):
