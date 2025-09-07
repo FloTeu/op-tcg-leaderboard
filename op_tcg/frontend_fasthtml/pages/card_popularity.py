@@ -18,14 +18,16 @@ FILTER_HX_ATTRS = {
 # Common CSS classes for select components
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
-def create_filter_components():
+def create_filter_components(selected_meta_format: MetaFormat | None = None, currency: CardCurrency | None = None):
+    selected_meta_format = selected_meta_format or MetaFormat.latest_meta_format()
+    currency = currency or CardCurrency.EURO
     # Meta format select
     meta_format_select = ft.Select(
         label="Meta Format",
         id="meta-format-select",
         name="meta_format",
         cls=SELECT_CLS + " styled-select",
-        *[ft.Option(mf, value=mf, selected=mf == MetaFormat.latest_meta_format()) for mf in reversed(MetaFormat.to_list())],
+        *[ft.Option(mf, value=mf, selected=mf == selected_meta_format) for mf in reversed(MetaFormat.to_list())],
         **FILTER_HX_ATTRS
     )
 
@@ -103,7 +105,7 @@ def create_filter_components():
         id="currency-select",
         name="currency",
         cls=SELECT_CLS + " styled-select",
-        *[ft.Option(curr, value=curr) for curr in [CardCurrency.EURO, CardCurrency.US_DOLLAR]],
+        *[ft.Option(curr, value=curr, selected=(curr == currency)) for curr in [CardCurrency.EURO, CardCurrency.US_DOLLAR]],
         **FILTER_HX_ATTRS
     )
 

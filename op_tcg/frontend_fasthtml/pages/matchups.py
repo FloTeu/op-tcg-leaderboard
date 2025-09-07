@@ -105,6 +105,7 @@ def create_filter_components(selected_meta_formats=None, selected_leader_ids=Non
         cls="space-y-4"
     )
 
+
 def create_matchup_content(selected_meta_formats=None, selected_leader_ids=None, only_official=True):
     """Create the matchup charts and tables content that will be loaded via HTMX."""
     return ft.Div(
@@ -145,6 +146,7 @@ def create_matchup_content(selected_meta_formats=None, selected_leader_ids=None,
         ),
         cls="space-y-8"
     )
+
 
 def matchups_page():
     """Create the main matchups page with HTMX-driven content loading."""

@@ -30,7 +30,7 @@ def setup_api_routes(rt):
         # Get leader data with meta format region filtering
         leader_data: list[LeaderExtended] = get_leader_extended(
             meta_formats=params.meta_format[0],
-            meta_format_region=params.meta_format_region,
+            meta_format_region=params.region,
             only_official=params.only_official
         )
         
@@ -49,7 +49,7 @@ def setup_api_routes(rt):
                 "hx_get": "/api/leader-data",
                 "hx_trigger": "change", 
                 "hx_target": "#leader-content",
-                "hx_include": "[name='meta_format'],[name='lid'],[name='only_official'],[name='meta_format_region']",
+                "hx_include": "[name='meta_format'],[name='lid'],[name='only_official'],[name='region']",
                 "hx_indicator": "#loading-indicator"
             }
         )

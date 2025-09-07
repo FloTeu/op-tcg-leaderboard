@@ -20,14 +20,18 @@ FILTER_HX_ATTRS = {
 # Common CSS classes for select components
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
-def create_filter_components(max_match_count: int = 10000):
+def create_filter_components(max_match_count: int = 10000, selected_meta_format: MetaFormat | None = None, selected_region: MetaFormatRegion | None = None):
     # Meta format select
+    # Determine selected values with fallbacks
+    selected_meta_format = selected_meta_format or MetaFormat.latest_meta_format
+    selected_region = selected_region or MetaFormatRegion.ALL
+    
     meta_format_select = ft.Select(
         label="Meta Format",
         id="meta-format-select", 
         name="meta_format",
         cls=SELECT_CLS + " styled-select",
-        *[ft.Option(mf, value=mf, selected=mf == MetaFormat.latest_meta_format) for mf in reversed(MetaFormat.to_list())],
+        *[ft.Option(mf, value=mf, selected=mf == selected_meta_format) for mf in reversed(MetaFormat.to_list())],
         **FILTER_HX_ATTRS,
     )
     
@@ -50,7 +54,7 @@ def create_filter_components(max_match_count: int = 10000):
         id="region-select",
         name="region",
         cls=SELECT_CLS + " styled-select",
-        *[ft.Option(r, value=r, selected=(r == MetaFormatRegion.ALL)) for r in regions],
+        *[ft.Option(r, value=r, selected=(r == selected_region)) for r in regions],
         **FILTER_HX_ATTRS,
     )
     
@@ -160,7 +164,7 @@ def create_chart_data_for_leader(leader: LeaderExtended, all_leaders: list[Leade
     
     return chart_data
 
-def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders: list[LeaderExtended], meta_format: MetaFormat):
+def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders: list[LeaderExtended], meta_format: MetaFormat, region: MetaFormatRegion | None = None):
     # Filter leaders for the selected meta format
     relevant_meta_formats = MetaFormat.to_list()[:MetaFormat.to_list().index(meta_format) + 1]
     
@@ -238,7 +242,7 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
             ft.Td(
                 ft.A(
                     leader.name.replace('"', " ").replace('.', " "),
-                    href=f"/leader?lid={leader.id}&meta_format={meta_format}",
+                    href=f"/leader?lid={leader.id}&meta_format={meta_format}{f'&region={region}' if region else ''}",
                     cls="text-blue-400 hover:text-blue-300"
                 ),
                 cls="px-4 py-2"
@@ -300,6 +304,24 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
     return table_container
 
 def home_page():
+    # Add script to persist meta_format and region in URL on changes
+    persist_script = ft.Script("""
+        function updateHomeURL() {
+            const params = new URLSearchParams(window.location.search);
+            const mf = document.getElementById('meta-format-select');
+            const rg = document.getElementById('region-select');
+            if (mf && mf.value) { params.set('meta_format', mf.value); } else { params.delete('meta_format'); }
+            if (rg && rg.value) { params.set('region', rg.value); } else { params.delete('region'); }
+            const newURL = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+            window.history.replaceState({}, '', newURL);
+        }
+        document.addEventListener('change', function(evt) {
+            if (evt.target && (evt.target.id === 'meta-format-select' || evt.target.id === 'region-select')) {
+                setTimeout(updateHomeURL, 10);
+            }
+        });
+        document.addEventListener('DOMContentLoaded', function(){ setTimeout(updateHomeURL, 50); });
+    """)
     return ft.Div(
         ft.H1("Leaderboard", cls="text-3xl font-bold text-white mb-6"),
         ft.Div(
@@ -324,5 +346,6 @@ def home_page():
             ),
             cls="space-y-4 overflow-x-auto"
         ),
+        persist_script,
         cls="relative"  # Changed from min-h-screen to relative to work with layout
     ) 

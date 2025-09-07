@@ -22,23 +22,38 @@ def create_nav_section(title: str, links: list[tuple[str, str, str, bool]]) -> f
         cls="mb-6"
     )
 
-def sidebar_content(filter_component=None, current_path="/"):
-    # Define navigation sections
+def sidebar_content(filter_component=None, current_path="/", persist_query: dict | None = None):
+    # Helper to build href with optional persisted query params
+    def build_href(base_path: str) -> str:
+        if not persist_query:
+            return base_path
+        # Map region param for leader page
+        query_params = {}
+        if persist_query.get("region"):
+            query_params["region"] = persist_query.get("region")
+        if persist_query.get("meta_format"):
+            query_params["meta_format"] = persist_query.get("meta_format")
+        if not query_params:
+            return base_path
+        qp = "&".join([f"{k}={v}" for k, v in query_params.items() if v is not None and v != ""])
+        return f"{base_path}?{qp}" if qp else base_path
+
+    # Define navigation sections with persisted params
     leader_links = [
-        ("/", "Leaderboard", "🏆", current_path == "/"),
-        ("/leader", "Leader", "👤", current_path == "/leader"),
-        ("/tournaments", "Tournaments", "🏅", current_path == "/tournaments"),
-        ("/card-movement", "Card Movement", "📈", current_path == "/card-movement"),
-        ("/matchups", "Matchups", "🥊", current_path == "/matchups"),
+        (build_href("/"), "Leaderboard", "🏆", current_path == "/"),
+        (build_href("/leader"), "Leader", "👤", current_path == "/leader"),
+        (build_href("/tournaments"), "Tournaments", "🏅", current_path == "/tournaments"),
+        (build_href("/card-movement"), "Card Movement", "📈", current_path == "/card-movement"),
+        (build_href("/matchups"), "Matchups", "🥊", current_path == "/matchups"),
     ]
     
     card_links = [
-        ("/card-popularity", "Card Popularity", "💃", current_path == "/card-popularity"),
-        #("/prices", "Card Prices", "💰", current_path == "/prices"),
+        (build_href("/card-popularity"), "Card Popularity", "💃", current_path == "/card-popularity"),
+        #(build_href("/prices"), "Card Prices", "💰", current_path == "/prices"),
     ]
     
     support_links = [
-        ("/bug-report", "Bug Report", "👾", current_path == "/bug-report"),
+        (build_href("/bug-report"), "Bug Report", "👾", current_path == "/bug-report"),
     ]
 
     return ft.Div(
@@ -55,7 +70,7 @@ def sidebar_content(filter_component=None, current_path="/"):
         cls="space-y-2"
     )
 
-def sidebar(filter_component=None, current_path="/"):
+def sidebar(filter_component=None, current_path="/", persist_query: dict | None = None):
     return ft.Div(
         ft.Div(
             ft.Div(
@@ -73,7 +88,7 @@ def sidebar(filter_component=None, current_path="/"):
                 ),
                 cls="flex justify-between items-center mb-4"
             ),
-            sidebar_content(filter_component, current_path),
+            sidebar_content(filter_component, current_path, persist_query),
             cls="p-4"
         ),
         cls="fixed left-0 top-0 h-full w-80 bg-gray-800 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800 hover:scrollbar-thumb-gray-500 z-50 shadow-lg",

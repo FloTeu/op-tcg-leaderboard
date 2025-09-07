@@ -87,7 +87,7 @@ def setup_api_routes(rt):
                     hx_get="/api/leader-similar",
                     hx_trigger="change",
                     hx_target="#leader-similar-container",
-                    hx_include="[name='meta_format'],[name='lid'],[name='only_official'],[name='similar_lid'],[name='meta_format_region']"
+                    hx_include="[name='meta_format'],[name='lid'],[name='only_official'],[name='similar_lid'],[name='region']"
                 ),
                 cls="relative mb-4"  # Required for proper styling
             ),

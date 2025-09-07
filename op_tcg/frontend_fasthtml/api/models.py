@@ -110,7 +110,7 @@ class LeaderDataParams(BaseModel):
     similar_lid: Optional[str] = None
     meta_format: list[MetaFormat]
     only_official: bool = True
-    meta_format_region: Optional[MetaFormatRegion] = MetaFormatRegion.ALL
+    region: Optional[MetaFormatRegion] = MetaFormatRegion.ALL
     
     @field_validator('meta_format', mode='before')
     def validate_meta_formats(cls, value):
@@ -134,8 +134,8 @@ class LeaderDataParams(BaseModel):
             return value.lower() in ("true", "on", "1", "yes")
         return bool(value)
     
-    @field_validator('meta_format_region', mode='before')
-    def validate_meta_format_region(cls, value):
+    @field_validator('region', mode='before')
+    def validate_region(cls, value):
         if isinstance(value, list) and value:
             value = value[0]
         if isinstance(value, str):
