@@ -20,11 +20,14 @@ from op_tcg.frontend_fasthtml.api.routes.main import setup_api_routes
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from starlette.requests import Request
 from op_tcg.frontend_fasthtml.utils.cache_warmer import start_cache_warming, stop_cache_warming, warm_cache_now
+from op_tcg.frontend_fasthtml.utils.seo import canonical_base, write_static_sitemap, CANONICAL_HOST
+from op_tcg.frontend_fasthtml.utils.middleware import canonical_redirect_middleware
 import logging
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app):
@@ -36,6 +39,8 @@ async def lifespan(app):
         if not is_debug():
             start_cache_warming()
             logger.info("Cache warming started successfully")
+        # Generate static sitemap on startup so /sitemap.xml is always available
+        write_static_sitemap()
     except Exception as e:
         logger.error(f"Failed to start cache warming: {e}")
     
@@ -56,6 +61,13 @@ app, rt = fast_app(
     hdrs=[
         # Impact site verification
         ft.Meta(name="impact-site-verification", value="42884b40-0e25-4302-9ead-e1bd322b1ed8"),
+        # Basic SEO defaults (can be overridden per-route)
+        ft.Meta(name="viewport", value="width=device-width, initial-scale=1"),
+        ft.Meta(name="theme-color", value="#111827"),
+        ft.Meta(property="og:site_name", value="OP TCG Leaderboard"),
+        ft.Meta(property="og:type", value="website"),
+        ft.Meta(name="twitter:card", value="summary_large_image"),
+        ft.Meta(name="twitter:site", value="@op_leaderboard"),
         ft.Style(':root { --pico-font-size: 100%; }'),
         ft.Style('body { background-color: rgb(17, 24, 39); }'),
         ft.Link(
@@ -87,7 +99,7 @@ app, rt = fast_app(
         # Page utilities
         ft.Script(src="/public/js/sidebar.js"),
     ],
-    #static_path=''
+    static_path='public'
 )
 
 # Setup API routes
@@ -108,6 +120,19 @@ def cache_stats():
     """Get cache performance statistics"""
     from op_tcg.frontend_fasthtml.utils.cache_monitor import get_cache_summary
     return get_cache_summary()
+
+
+@rt("/robots")
+def robots_txt(request: Request):
+    base = canonical_base(request)
+    content = (
+        "User-agent: *\n"
+        "Disallow:\n"
+        f"Sitemap: {base}/sitemap.xml\n"
+    )
+    from starlette.responses import PlainTextResponse
+    return PlainTextResponse(content, media_type="text/plain")
+
 
 @rt("/api/cache/warm")
 def warm_cache_manual():
@@ -145,27 +170,22 @@ def _canonical_base(request: Request) -> str:
     host = host.strip()
     return f"{scheme}://{host}"
 
-# Middleware-like redirect: enforce single host if CANONICAL_HOST is set
 @app.middleware("http")
 async def enforce_canonical_host(request, call_next):
-    if CANONICAL_HOST:
-        request_host = (request.headers.get("host") or request.url.netloc or "").strip()
-        if request_host and request_host.lower() != CANONICAL_HOST.lower():
-            forwarded_proto = request.headers.get("x-forwarded-proto")
-            scheme = (forwarded_proto or request.url.scheme or "https").split(",")[0].strip()
-            destination = f"{scheme}://{CANONICAL_HOST}{request.url.path}"
-            if request.url.query:
-                destination += f"?{request.url.query}"
-            from starlette.responses import RedirectResponse
-            # 308 preserves method and body; best for SEO permanence
-            return RedirectResponse(url=destination, status_code=308)
-    return await call_next(request)
+    return await canonical_redirect_middleware(request, call_next)
 
 @rt("/")
 def home(request: Request):
     # Add canonical link to head for home page using incoming host
-    canonical_url = _canonical_base(request)
+    canonical_url = canonical_base(request)
+    title = "OP TCG Leaderboard – Meta, Decklists, Prices & Matchups"
+    description = "Track One Piece TCG leaders, meta trends, decklists, prices, and matchups. Updated regularly with official and community results."
     return (
+        ft.Title(title),
+        ft.Meta(name="description", value=description),
+        ft.Meta(property="og:title", value=title),
+        ft.Meta(property="og:description", value=description),
+        ft.Meta(property="og:url", value=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
         layout(home_page(), filter_component=home_filters(), current_path="/")
     )
@@ -186,10 +206,17 @@ def leader_default(request: Request):
         selected_meta_format_region = MetaFormatRegion(selected_meta_format_region)
     
     # Add canonical link to head based on incoming host
-    canonical_url = f"{_canonical_base(request)}/leader"
+    canonical_url = f"{canonical_base(request)}/leader"
+    title = "Leader Meta & Performance – OP TCG Leaderboard"
+    description = "Explore leader performance across formats, with meta share, win rates, and top decklists."
     
     # Pass to leader_page which will handle HTMX loading
     return (
+        ft.Title(title),
+        ft.Meta(name="description", value=description),
+        ft.Meta(property="og:title", value=title),
+        ft.Meta(property="og:description", value=description),
+        ft.Meta(property="og:url", value=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
         layout(
             leader_page(leader_id, selected_meta_format=selected_meta_format),
@@ -205,9 +232,16 @@ def leader_default(request: Request):
 @rt("/tournaments")
 def tournaments(request: Request):
     # Add canonical link to head based on incoming host
-    canonical_url = f"{_canonical_base(request)}/tournaments"
+    canonical_url = f"{canonical_base(request)}/tournaments"
+    title = "Tournaments – Results & Decklists – OP TCG Leaderboard"
+    description = "Browse tournament results, standings, and decklists across regions and formats."
     
     return (
+        ft.Title(title),
+        ft.Meta(name="description", value=description),
+        ft.Meta(property="og:title", value=title),
+        ft.Meta(property="og:description", value=description),
+        ft.Meta(property="og:url", value=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
         layout(tournaments_page(), filter_component=tournament_filters(), current_path="/tournaments")
     )
@@ -223,10 +257,17 @@ def card_movement(request: Request):
         selected_meta_format = MetaFormat(selected_meta_format)
     
     # Add canonical link to head based on incoming host
-    canonical_url = f"{_canonical_base(request)}/card-movement"
+    canonical_url = f"{canonical_base(request)}/card-movement"
+    title = "Card Movement – Prices & Popularity – OP TCG Leaderboard"
+    description = "Track card price trends and popularity changes to spot rising staples and value."
     
     # Pass to card_movement_page which will handle HTMX loading
     return (
+        ft.Title(title),
+        ft.Meta(name="description", value=description),
+        ft.Meta(property="og:title", value=title),
+        ft.Meta(property="og:description", value=description),
+        ft.Meta(property="og:url", value=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
         layout(
             card_movement_page(), 
@@ -250,10 +291,17 @@ def matchups(request: Request):
         selected_meta_formats = [MetaFormat(mf) for mf in selected_meta_formats]
     
     # Add canonical link to head based on incoming host
-    canonical_url = f"{_canonical_base(request)}/matchups"
+    canonical_url = f"{canonical_base(request)}/matchups"
+    title = "Leader Matchups – Win Rates & Counters – OP TCG Leaderboard"
+    description = "Analyze leader vs leader matchups, win rates, and counter picks across formats."
     
     # Pass to matchups_page which will handle HTMX loading
     return (
+        ft.Title(title),
+        ft.Meta(name="description", value=description),
+        ft.Meta(property="og:title", value=title),
+        ft.Meta(property="og:description", value=description),
+        ft.Meta(property="og:url", value=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
         layout(
             matchups_page(), 
@@ -270,9 +318,16 @@ def matchups(request: Request):
 @rt("/card-popularity")
 def card_popularity(request: Request):
     # Add canonical link to head based on incoming host
-    canonical_url = f"{_canonical_base(request)}/card-popularity"
+    canonical_url = f"{canonical_base(request)}/card-popularity"
+    title = "Card Popularity – Usage & Trends – OP TCG Leaderboard"
+    description = "Discover the most played cards and shifting usage trends across formats and leaders."
     
     return (
+        ft.Title(title),
+        ft.Meta(name="description", value=description),
+        ft.Meta(property="og:title", value=title),
+        ft.Meta(property="og:description", value=description),
+        ft.Meta(property="og:url", value=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
         layout(card_popularity_page(), filter_component=card_popularity_filters(), current_path="/card-popularity")
     )
@@ -280,8 +335,15 @@ def card_popularity(request: Request):
 # Prices page
 @rt("/prices")
 def prices(request: Request):
-    canonical_url = f"{_canonical_base(request)}/prices"
+    canonical_url = f"{canonical_base(request)}/prices"
+    title = "Card Prices – Market Trends – OP TCG Leaderboard"
+    description = "See current OP TCG card prices and market movement with historical trends."
     return (
+        ft.Title(title),
+        ft.Meta(name="description", value=description),
+        ft.Meta(property="og:title", value=title),
+        ft.Meta(property="og:description", value=description),
+        ft.Meta(property="og:url", value=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
         layout(prices_page(), filter_component=prices_filters(), current_path="/prices")
     )
@@ -290,9 +352,16 @@ def prices(request: Request):
 @rt("/bug-report")
 def bug_report(request: Request):
     # Add canonical link to head based on incoming host
-    canonical_url = f"{_canonical_base(request)}/bug-report"
+    canonical_url = f"{canonical_base(request)}/bug-report"
+    title = "Report a Bug – OP TCG Leaderboard"
+    description = "Spotted an issue? Report bugs and help us improve OP TCG Leaderboard."
     
     return (
+        ft.Title(title),
+        ft.Meta(name="description", value=description),
+        ft.Meta(property="og:title", value=title),
+        ft.Meta(property="og:description", value=description),
+        ft.Meta(property="og:url", value=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
         layout(bug_report_page(), filter_component=None, current_path="/bug-report")
     )
