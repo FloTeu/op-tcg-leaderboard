@@ -669,19 +669,6 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
     colors_json = json.dumps(colors)
     
     return ft.Div(
-        # Header with tooltip
-        ft.Div(
-            ft.H2(
-                "Tournament Statistics Overview",
-                ft.Span(
-                    "ⓘ",
-                    cls="ml-2 cursor-help",
-                    data_tooltip="Size of the bubbles increases with the tournament wins"
-                ),
-                cls="text-2xl font-bold text-white mb-4 flex items-center"
-            ),
-            cls="mb-6"
-        ),
         # Chart container with canvas
         ft.Div(
             ft.Canvas(id=container_id),
@@ -738,13 +725,59 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                     const ctx = container.getContext('2d');
                     ctx.clearRect(0, 0, container.width, container.height);
                     
-                    // Add transparency to colors
-                    const transparentColors = chartColors.map(color => {{
-                        // Convert hex to rgba with 0.7 opacity
+                    // Helper function to create stripe pattern for multi-color leaders
+                    function createStripePattern(colors, stripeWidth) {{
+                        const patternCanvas = document.createElement('canvas');
+                        const patternCtx = patternCanvas.getContext('2d');
+                        
+                        // Set pattern canvas size
+                        patternCanvas.width = stripeWidth * colors.length;
+                        patternCanvas.height = stripeWidth;
+                        
+                        // Draw color stripes
+                        colors.forEach((color, index) => {{
+                            patternCtx.fillStyle = color;
+                            patternCtx.fillRect(index * stripeWidth, 0, stripeWidth, stripeWidth);
+                        }});
+                        
+                        return patternCanvas;
+                    }}
+                    
+                    // Process colors for multi-color support
+                    const processedColors = chartColors.map((colorData, index) => {{
+                        if (Array.isArray(colorData) && colorData.length > 1) {{
+                            // Multi-color leader - create striped pattern
+                            const pattern = ctx.createPattern(createStripePattern(colorData, 10), 'repeat');
+                            return pattern || colorData[0]; // Fallback to first color if pattern fails
+                        }} else {{
+                            // Single color leader - add transparency
+                            const color = Array.isArray(colorData) ? colorData[0] : colorData;
                         const r = parseInt(color.slice(1,3), 16);
                         const g = parseInt(color.slice(3,5), 16);
                         const b = parseInt(color.slice(5,7), 16);
                         return `rgba(${{r}},${{g}},${{b}},0.7)`;
+                        }}
+                    }});
+                    
+                    // Process hover colors for multi-color support (slightly more opaque)
+                    const processedHoverColors = chartColors.map((colorData, index) => {{
+                        if (Array.isArray(colorData) && colorData.length > 1) {{
+                            // Multi-color leader - create striped pattern (same as normal for patterns)
+                            const pattern = ctx.createPattern(createStripePattern(colorData, 10), 'repeat');
+                            return pattern || colorData[0]; // Fallback to first color if pattern fails
+                        }} else {{
+                            // Single color leader - more opaque on hover
+                            const color = Array.isArray(colorData) ? colorData[0] : colorData;
+                            const r = parseInt(color.slice(1,3), 16);
+                            const g = parseInt(color.slice(3,5), 16);
+                            const b = parseInt(color.slice(5,7), 16);
+                            return `rgba(${{r}},${{g}},${{b}},0.9)`; // More opaque on hover
+                        }}
+                    }});
+                    
+                    // Process border colors (use first color for multi-color leaders)
+                    const borderColors = chartColors.map(colorData => {{
+                        return Array.isArray(colorData) ? colorData[0] : colorData;
                     }});
                     
                     const chart = new Chart(container, {{
@@ -752,10 +785,10 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                         data: {{
                             datasets: [{{
                                 data: chartData,
-                                backgroundColor: transparentColors,
-                                borderColor: chartColors,
+                                backgroundColor: processedColors,
+                                borderColor: borderColors,
                                 borderWidth: 1,
-                                hoverBackgroundColor: chartColors,
+                                hoverBackgroundColor: processedHoverColors, // Enhanced hover colors
                                 radius: (context) => {{
                                     // Get the bubble size from the data
                                     return context.raw.r;
@@ -809,13 +842,20 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                                 
                                 if (!chartElements || chartElements.length === 0) {{
                                     if (tooltipEl) {{
-                                        tooltipEl.style.opacity = 0;
+                                    tooltipEl.style.opacity = 0;
                                     }}
                                     return;
                                 }}
                                 
                                 const element = chartElements[0];
                                 const data = element.element.$context.raw;
+                                const dataIndex = element.index;
+                                const leaderColors = chartColors[dataIndex];
+                                
+                                // Create color indicators for multi-color leaders
+                                const colorIndicators = Array.isArray(leaderColors) && leaderColors.length > 1 
+                                    ? leaderColors.map(color => `<span style="display: inline-block; width: 12px; height: 12px; background-color: ${{color}}; margin-right: 4px; border-radius: 2px;"></span>`).join('')
+                                    : '';
                                 
                                 // Create tooltip content with responsive layout
                                 const isMobile = window.innerWidth <= 768;
@@ -850,6 +890,7 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                                             <div style="margin: ${{isMobile ? '2px' : '4px'}} 0; font-size: ${{isMobile ? '0.9em' : '1em'}};">Win Rate: ${{(data.y * 100).toFixed(1)}}%</div>
                                             <div style="margin: ${{isMobile ? '2px' : '4px'}} 0; font-size: ${{isMobile ? '0.9em' : '1em'}};">Tournament Matches: ${{data.x}}</div>
                                             <div style="margin: ${{isMobile ? '2px' : '4px'}} 0; font-size: ${{isMobile ? '0.9em' : '1em'}};">Tournament Wins: ${{data.raw_wins}}</div>
+                                            ${{colorIndicators ? `<div style="margin: ${{isMobile ? '6px' : '8px'}} 0 ${{isMobile ? '2px' : '4px'}} 0; font-size: ${{isMobile ? '0.85em' : '0.9em'}};"><strong>Colors:</strong></div><div style="margin: ${{isMobile ? '2px' : '4px'}} 0;">${{colorIndicators}}</div>` : ''}}
                                         </div>
                                     </div>
                                 `;
@@ -870,14 +911,14 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                                 
                                 // Position the tooltip safely
                                 try {{
-                                    const position = element.element.tooltipPosition();
-                                    const chartPosition = container.getBoundingClientRect();
-                                    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-                                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                                    
+                                const position = element.element.tooltipPosition();
+                                const chartPosition = container.getBoundingClientRect();
+                                const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+                                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                                
                                     if (position && chartPosition && tooltipEl) {{
-                                        tooltipEl.style.left = (chartPosition.left + scrollLeft + position.x) + 'px';
-                                        tooltipEl.style.top = (chartPosition.top + scrollTop + position.y - 10) + 'px';
+                                tooltipEl.style.left = (chartPosition.left + scrollLeft + position.x) + 'px';
+                                tooltipEl.style.top = (chartPosition.top + scrollTop + position.y - 10) + 'px';
                                     }}
                                 }} catch (error) {{
                                     console.warn('Error positioning tooltip:', error);
@@ -967,6 +1008,255 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
             }})();
         """),
         style="height: 300px; width: 100%;"  # Reduced height to leave room for slider
+    ) 
+
+def create_donut_chart(container_id: str, labels: List[str], values: List[int], colors: List, images: List[str]) -> ft.Div:
+    """
+    Create a donut chart for displaying data with multi-color support.
+    
+    Args:
+        container_id: Unique ID for the chart container
+        labels: List of labels for each segment
+        values: List of values for each segment  
+        colors: List of colors (can be arrays for multi-color leaders)
+        images: List of image URLs for tooltips
+    """
+    # Convert data to JSON strings
+    labels_json = json.dumps(labels)
+    values_json = json.dumps(values)
+    colors_json = json.dumps(colors)
+    images_json = json.dumps(images)
+    
+    return ft.Div(
+        # Chart container with canvas
+        ft.Div(
+            ft.Canvas(id=container_id),
+            cls="h-full w-full"
+        ),
+        ft.Script(f"""
+            (function() {{
+                const chartId = '{container_id}';
+                const labels = {labels_json};
+                const values = {values_json};
+                const colors = {colors_json};
+                const images = {images_json};
+                
+                function createDonutChart() {{
+                    const canvas = document.getElementById(chartId);
+                    if (!canvas || !window.Chart) return;
+                    
+                    // Destroy existing chart more thoroughly
+                    const existing = window.Chart.getChart ? window.Chart.getChart(chartId) : null;
+                    if (existing) {{
+                        existing.destroy();
+                    }}
+                    
+                    // Clear canvas completely
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Reset canvas size to container
+                    const container = canvas.parentElement;
+                    if (container) {{
+                        canvas.width = container.clientWidth;
+                        canvas.height = container.clientHeight;
+                    }}
+                    
+                    const total = (Array.isArray(values) ? values : []).reduce((a,b)=>a+(+b||0),0) || 1;
+                    
+                    // Helper function to create stripe pattern for multi-color leaders
+                    function createStripePattern(colors, stripeWidth) {{
+                        const patternCanvas = document.createElement('canvas');
+                        const patternCtx = patternCanvas.getContext('2d');
+                        
+                        // Set pattern canvas size
+                        patternCanvas.width = stripeWidth * colors.length;
+                        patternCanvas.height = stripeWidth;
+                        
+                        // Draw color stripes
+                        colors.forEach((color, index) => {{
+                            patternCtx.fillStyle = color;
+                            patternCtx.fillRect(index * stripeWidth, 0, stripeWidth, stripeWidth);
+                        }});
+                        
+                        return patternCanvas;
+                    }}
+                    
+                    // Process colors to handle multi-color leaders
+                    const processedColors = colors.map((colorData, index) => {{
+                        if (Array.isArray(colorData) && colorData.length > 1) {{
+                            // Multi-color leader - create striped pattern
+                            const pattern = ctx.createPattern(createStripePattern(colorData, 20), 'repeat');
+                            return pattern || colorData[0]; // Fallback to first color if pattern fails
+                        }} else {{
+                            // Single color leader
+                            return Array.isArray(colorData) ? colorData[0] : colorData;
+                        }}
+                    }});
+                    
+                    const data = {{
+                        labels: labels,
+                        datasets: [{{
+                            data: values,
+                            backgroundColor: processedColors,
+                            borderColor: colors.map(c => Array.isArray(c) ? c[0] : c), // Use first color for border
+                            borderWidth: 1
+                        }}]
+                    }};
+                    
+                    const options = {{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        layout: {{
+                            padding: 20  // Add padding to ensure chart fits fully
+                        }},
+                        plugins: {{
+                            legend: {{
+                                display: false
+                            }},
+                            tooltip: {{
+                                enabled: false  // Disable default tooltip, use custom one
+                            }}
+                        }},
+                        hover: {{
+                            mode: 'nearest',
+                            intersect: true
+                        }},
+                        events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'],
+                        onHover: function(event, chartElements) {{
+                            let tooltipEl = document.getElementById('chartjs-tooltip');
+                            
+                            if (!tooltipEl) {{
+                                const div = document.createElement('div');
+                                div.id = 'chartjs-tooltip';
+                                div.style.position = 'absolute';
+                                div.style.pointerEvents = 'none';
+                                div.style.opacity = '0';
+                                div.style.transition = 'all .1s ease';
+                                document.body.appendChild(div);
+                                tooltipEl = div;
+                            }}
+                            
+                            if (!chartElements || chartElements.length === 0) {{
+                                if (tooltipEl) {{
+                                    tooltipEl.style.opacity = 0;
+                                }}
+                                return;
+                            }}
+                            
+                            const element = chartElements[0];
+                            const dataIndex = element.index;
+                            const label = labels[dataIndex];
+                            const value = values[dataIndex];
+                            const image = images && images[dataIndex] ? images[dataIndex] : '';
+                            const pct = ((value/total)*100).toFixed(1);
+                            const leaderColors = colors[dataIndex];
+                            
+                            // Create color indicators for multi-color leaders
+                            const colorIndicators = Array.isArray(leaderColors) && leaderColors.length > 1 
+                                ? leaderColors.map(color => `<span style="display: inline-block; width: 12px; height: 12px; background-color: ${{color}}; margin-right: 4px; border-radius: 2px;"></span>`).join('')
+                                : '';
+                            
+                            // Create tooltip content with flex layout
+                            const tooltipContent = `
+                                <div style="
+                                    display: flex;
+                                    gap: 16px;
+                                    min-width: 300px;
+                                    height: 120px;
+                                    padding: 0;
+                                ">
+                                    <div style="
+                                        flex: 0 0 30%;
+                                        height: 100%;
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        overflow: hidden;
+                                        padding: 0;
+                                        margin: 0;
+                                    ">
+                                        ${{image ? `<img src="${{image}}" style="width: 100%; height: 100%; object-fit: contain; display: block;">` : ''}}
+                                    </div>
+                                    <div style="
+                                        flex: 0 0 70%;
+                                        padding: 12px 16px 12px 0;
+                                        display: flex;
+                                        flex-direction: column;
+                                        justify-content: center;
+                                    ">
+                                        <div style="font-weight: bold; margin-bottom: 12px; font-size: 1.2em; white-space: normal;">${{label}}</div>
+                                        <div style="margin: 4px 0;">Count: ${{value}}</div>
+                                        <div style="margin: 4px 0;">Percentage: ${{pct}}%</div>
+                                        ${{colorIndicators ? `<div style="margin: 8px 0 4px 0;"><strong>Colors:</strong></div><div style="margin: 4px 0;">${{colorIndicators}}</div>` : ''}}
+                                    </div>
+                                </div>
+                            `;
+                            
+                            tooltipEl.innerHTML = tooltipContent;
+                            tooltipEl.style.opacity = 1;
+                            tooltipEl.style.backgroundColor = '{ChartColors.TOOLTIP_BG}';
+                            tooltipEl.style.color = '#ffffff';
+                            tooltipEl.style.borderRadius = '4px';
+                            tooltipEl.style.border = '1px solid {ChartColors.TOOLTIP_BORDER}';
+                            tooltipEl.style.zIndex = 9999;
+                            tooltipEl.style.transform = 'translate(-50%, -100%)';
+                            tooltipEl.style.padding = '0';
+                            tooltipEl.style.overflow = 'hidden';
+                            
+                            // Position the tooltip
+                            try {{
+                                const canvasPosition = canvas.getBoundingClientRect();
+                                const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+                                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                                
+                                if (canvasPosition && tooltipEl) {{
+                                    tooltipEl.style.left = (canvasPosition.left + scrollLeft + event.x) + 'px';
+                                    tooltipEl.style.top = (canvasPosition.top + scrollTop + event.y - 10) + 'px';
+                                }}
+                            }} catch (error) {{
+                                console.warn('Error positioning donut tooltip:', error);
+                                if (tooltipEl) {{
+                                    tooltipEl.style.opacity = 0;
+                                }}
+                            }}
+                        }},
+                        cutout: '50%',  // Donut hole size
+                        animation: {{
+                            duration: 300  // Faster animation for HTMX updates
+                        }}
+                    }};
+                    
+                    // Small delay to ensure DOM is ready
+                    setTimeout(() => {{
+                        new Chart(ctx, {{ type: 'doughnut', data, options }});
+                    }}, 50);
+                }}
+                
+                // Create the chart
+                createDonutChart();
+                
+                // Cleanup on HTMX swaps
+                document.addEventListener('htmx:beforeSwap', function(event) {{
+                    try {{
+                        if (!window.Chart) return;
+                        const target = event.target || (event.detail && event.detail.target);
+                        const root = target || document;
+                        const canvases = root.querySelectorAll && root.querySelectorAll('canvas[id]');
+                        if (!canvases) return;
+                        canvases.forEach(cv => {{
+                            const id = cv.getAttribute('id');
+                            if (!id) return;
+                            const chart = window.Chart.getChart ? window.Chart.getChart(id) : null;
+                            if (chart) chart.destroy();
+                        }});
+                        const tooltip = document.getElementById('chartjs-tooltip');
+                        if (tooltip) tooltip.remove();
+                    }} catch(e) {{ /* noop */ }}
+                }});
+            }})();
+        """),
+        style="height: 340px; width: 100%;"
     ) 
 
 def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[str, Any]], 

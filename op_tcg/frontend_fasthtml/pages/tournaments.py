@@ -73,7 +73,7 @@ def create_tournament_content():
                 # Decklist Popularity Section
                 ft.Div(
                     ft.Div(
-                        ft.H3("Decklist Popularity", cls="text-lg md:text-xl font-semibold text-white mb-3 md:mb-4"),
+                        ft.H3("Tournament Decklist Popularity", cls="text-lg md:text-xl font-semibold text-white mb-3 md:mb-4"),
                         ft.Div(
                             ft.Label("Timeframe", cls="text-white font-medium block mb-2 text-sm md:text-base"),
                             ft.Select(
@@ -107,10 +107,16 @@ def create_tournament_content():
                     cls="w-full"
                 ),
                 
-                # Tournament Statistics Overview Section
+                # Tournament Leader Popularity Section
                 ft.Div(
                     ft.Div(
-                        ft.H3("Tournament Statistics Overview", cls="text-lg md:text-xl font-semibold text-white mb-3 md:mb-6"),
+                        ft.H3("Tournament Leader Popularity",
+                            ft.Span(
+                                "ⓘ",
+                                cls="ml-2 cursor-help",
+                                data_tooltip="Size of the bubbles increases with the tournament wins"
+                            ),
+                        cls="text-lg md:text-xl font-semibold text-white mb-3 md:mb-6"),
                         ft.Div(
                             id="tournament-chart-container",
                             hx_get="/api/tournaments/chart",

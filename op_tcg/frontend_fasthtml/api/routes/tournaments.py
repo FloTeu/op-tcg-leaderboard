@@ -20,7 +20,7 @@ from op_tcg.frontend_fasthtml.components.tournament import (
 from op_tcg.frontend_fasthtml.components.tournament_decklist import create_decklist_view
 from op_tcg.frontend_fasthtml.api.models import LeaderDataParams, TournamentPageParams
 from op_tcg.frontend_fasthtml.pages.leader import HX_INCLUDE
-from op_tcg.frontend_fasthtml.utils.charts import create_bubble_chart
+from op_tcg.frontend_fasthtml.utils.charts import create_bubble_chart, create_donut_chart
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 import json
 from datetime import datetime, timedelta, timezone
@@ -152,7 +152,14 @@ def setup_api_routes(rt):
                 continue
             if ld.get("total_matches", 0) > 0:  # Only include leaders with matches
                 card = card_data.get(ld.get("leader_id"))
-                color = card.to_hex_color() if card else "#808080"
+                
+                # Create color data for multi-color support (same as donut chart)
+                if card and card.colors:
+                    # For multi-color leaders, pass array of hex colors
+                    leader_colors = [color.to_hex_color() for color in card.colors]
+                else:
+                    # Single color fallback
+                    leader_colors = ["#808080"]
                 
                 # Scale bubble size based on tournament wins relative to max
                 relative_size = (ld.get("total_wins") / max_tournament_wins) if max_tournament_wins > 0 else 0
@@ -166,14 +173,14 @@ def setup_api_routes(rt):
                     "image": ld.get("image_url"),  # Add leader image URL
                     "raw_wins": ld.get("total_wins", 0)  # Store raw wins for tooltip
                 })
-                colors.append(color)
+                colors.append(leader_colors)
         
         # Create the chart with slider
         chart_div = create_bubble_chart(
             container_id="tournament-chart",
             data=chart_data,
             colors=colors,
-            title="Leader Tournament Popularity"
+            title=""
         )
         
         # Add the slider below the chart
@@ -311,7 +318,7 @@ def setup_api_routes(rt):
         
         labels: list[str] = []
         values: list[int] = []
-        colors: list[str] = []
+        colors: list[str] = []  # This will now contain arrays of colors for multi-color leaders
         images: list[str] = []
 
         # Sort by count desc and show all leaders (no "Others" category)
@@ -322,12 +329,21 @@ def setup_api_routes(rt):
             leader = leader_extended_dict.get(lid)
             labels.append(card.name if card else lid)
             values.append(v)
-            colors.append(card.to_hex_color() if card else "#808080")
+            
             # Get leader image (prefer AA version)
             image_url = ""
             if leader:
                 image_url = leader.aa_image_url or leader.image_url or ""
             images.append(image_url)
+            
+            # Create color data for multi-color support
+            if card and card.colors:
+                # For multi-color leaders, pass array of hex colors
+                leader_colors = [color.to_hex_color() for color in card.colors]
+                colors.append(leader_colors)
+            else:
+                # Single color fallback
+                colors.append(["#808080"])
 
         # Compute subtitle based on timeframe
         if days_param == "all":
@@ -335,30 +351,22 @@ def setup_api_routes(rt):
         else:
             subtitle = f"{total} decklists in last {days_param} days"
 
-        # Build container with canvas and script to render with reusable JS
+        # Create donut chart using the new unified chart function
         container_id = "tournament-decklist-donut-canvas"
-
+        
         return ft.Div(
             ft.Div(
-                ft.H3("Decklist Popularity (Donut)", cls="text-lg font-semibold text-white mb-2"),
                 ft.P(subtitle, cls="text-gray-300 text-sm mb-2"),
+                cls="mb-2"
             ),
-            ft.Div(
-                ft.Canvas(id=container_id),
-                cls="w-full flex-1",
-                style="min-height: 250px;"
+            create_donut_chart(
+                container_id=container_id,
+                labels=labels,
+                values=values,
+                colors=colors,
+                images=images
             ),
-            ft.Script(f"""
-                (function() {{
-                    if (window.renderDonutChart) {{
-                        window.renderDonutChart('{container_id}', {json.dumps(labels)}, {json.dumps(values)}, {json.dumps(colors)}, {json.dumps(images)});
-                    }} else {{
-                        console.warn('renderDonutChart not found');
-                    }}
-                }})();
-            """),
-            style="height: 340px; width: 100%; display: flex; flex-direction: column;",
-            cls="bg-gray-800 rounded-lg p-4"
+            cls="bg-gray-800/30 rounded-lg p-4"
         )
 
     @rt("/api/leader-tournaments")
