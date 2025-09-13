@@ -32,7 +32,8 @@ def setup_api_routes(rt):
     async def get_decklist_modal(request: Request):
         """Return the tournament decklist modal content."""
         # Parse params using Pydantic model
-        params = LeaderDataParams(**get_query_params_as_dict(request))
+        params_dict = get_query_params_as_dict(request)
+        params = LeaderDataParams(**params_dict)
         
         # Get tournament decklist data
         tournament_decklists = get_tournament_decklist_data(
@@ -61,11 +62,19 @@ def setup_api_routes(rt):
             )
     
         
+        # Optional deep-link selection
+        selected_tournament_id = params_dict.get("tournament_id")
+        selected_player_id = params_dict.get("player_id")
+        selected_currency = params_dict.get("currency", "EUR")
+
         # Create and return the modal - it will handle showing the best ranked decklist by default
         return create_decklist_modal(
             leader_id=params.lid,
             tournament_decklists=tournament_decklists,
-            card_id2card_data=card_id2card_data
+            card_id2card_data=card_id2card_data,
+            selected_tournament_id=selected_tournament_id,
+            selected_player_id=selected_player_id,
+            selected_currency=selected_currency
         )
     
     @rt("/api/decklist/tournament-decklist-modal")

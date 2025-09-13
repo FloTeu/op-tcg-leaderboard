@@ -90,7 +90,10 @@ def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str
 def create_decklist_modal(
     leader_id: str,
     tournament_decklists: list,
-    card_id2card_data: dict[str, ExtendedCardData]
+    card_id2card_data: dict[str, ExtendedCardData],
+    selected_tournament_id: str | None = None,
+    selected_player_id: str | None = None,
+    selected_currency: str = "EUR"
 ) -> ft.Div:
     """Create a modal dialog for displaying tournament decklists.
     
@@ -129,8 +132,13 @@ def create_decklist_modal(
         decklist_options.append((option_display_text, value))
     
     
-    # use best ranked
+    # use deep-linked selection if provided; otherwise best ranked
     selected_td = tournament_decklists[0] if tournament_decklists else None
+    if selected_tournament_id and selected_player_id:
+        for td in tournament_decklists:
+            if td.tournament_id == selected_tournament_id and td.player_id == selected_player_id:
+                selected_td = td
+                break
     
     # Create tournament decklist select component with enhanced styling
     tournament_decklist_select_component = ft.Div()  # Default to empty div
@@ -163,15 +171,16 @@ def create_decklist_modal(
                             "tournament_id": event.target.value.split(":")[0],
                             "player_id": event.target.value.split(":")[1]
                         }''',
-                        hx_indicator="#tournament-decklist-loading"
+                        hx_indicator="#tournament-decklist-loading",
+                        onchange='(function(){try{const p=new URLSearchParams(window.location.search);const v=document.getElementById("tournament-decklist-select-modal").value.split(":");p.set("tournament_id",v[0]);p.set("player_id",v[1]);const c=document.getElementById("currency-select-modal");if(c&&c.value){p.set("currency",c.value)}p.set("modal","decklist");const u=window.location.pathname+"?"+p.toString();window.history.replaceState({},"",u);}catch(e){}})()'
                     ),
                     cls="flex-1"
                 ),
                 ft.Div(
                     ft.Label("Currency:", cls="text-white font-medium block mb-3"),
                     ft.Select(
-                        ft.Option("EUR (€)", value="EUR", selected=True),
-                        ft.Option("USD ($)", value="USD"),
+                        ft.Option("EUR (€)", value="EUR", selected=(selected_currency == "EUR")),
+                        ft.Option("USD ($)", value="USD", selected=(selected_currency == "USD")),
                         id="currency-select-modal",
                         name="currency",
                         cls=SELECT_CLS + " styled-select mb-4",
@@ -184,7 +193,8 @@ def create_decklist_modal(
                             "tournament_id": document.getElementById("tournament-decklist-select-modal").value.split(":")[0],
                             "player_id": document.getElementById("tournament-decklist-select-modal").value.split(":")[1]
                         }''',
-                        hx_indicator="#tournament-decklist-loading"
+                        hx_indicator="#tournament-decklist-loading",
+                        onchange='(function(){try{const p=new URLSearchParams(window.location.search);const v=document.getElementById("tournament-decklist-select-modal").value.split(":");p.set("tournament_id",v[0]);p.set("player_id",v[1]);const c=document.getElementById("currency-select-modal");if(c&&c.value){p.set("currency",c.value)}p.set("modal","decklist");const u=window.location.pathname+"?"+p.toString();window.history.replaceState({},"",u);}catch(e){}})()'
                     ),
                     cls="flex-none w-40 ml-4"
                 ),
@@ -238,9 +248,9 @@ def create_decklist_modal(
     # Initial decklist content with export functionality - use best ranked decklist
     initial_decklist_content = ft.Div()
     
-    if selected_td.decklist:
+    if selected_td and selected_td.decklist:
         initial_decklist_content = ft.Div(
-            display_decklist_modal(selected_td.decklist, card_id2card_data, leader_id, "EUR"),
+            display_decklist_modal(selected_td.decklist, card_id2card_data, leader_id, selected_currency or "EUR"),
             create_decklist_export_component(selected_td.decklist, leader_id, "initial")
         )
     else:
@@ -255,11 +265,26 @@ def create_decklist_modal(
         ft.Div(
             # Modal content container
             ft.Div(
-                # Close button
-                ft.Button(
-                    ft.I("×", cls="text-3xl leading-none"),
-                    cls="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors z-20 w-8 h-8 flex items-center justify-center",
-                    onclick="event.stopPropagation(); document.getElementById('decklist-modal-backdrop').remove();"
+                # Close button + Share
+                ft.Div(
+                    ft.Button(
+                        ft.Span(
+                            ft.Span("🔗", cls="text-base"),
+                            ft.Span("Copy link", cls="hidden sm:inline"),
+                            cls="inline-flex items-center gap-2"
+                        ),
+                        type="button",
+                        title="Copy shareable link",
+                        cls="ml-2 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 px-4 py-2 text-white font-semibold shadow-sm hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 active:translate-y-px transition",
+                        onclick='(function(evt){evt.preventDefault();var btn=evt.currentTarget; (async function(){ try{const p=new URLSearchParams(window.location.search);const sel=document.getElementById("tournament-decklist-select-modal");if(!sel||!sel.value)return;const v=sel.value.split(":");p.set("tournament_id",v[0]);p.set("player_id",v[1]);const c=document.getElementById("currency-select-modal");if(c&&c.value){p.set("currency",c.value)}p.set("modal","decklist");const url=window.location.origin+window.location.pathname+"?"+p.toString(); try{ if(navigator.clipboard&&navigator.clipboard.writeText){ await navigator.clipboard.writeText(url); } else { throw new Error("no-async-clipboard"); } } catch(e){ var ta=document.createElement("textarea"); ta.value=url; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); } if(!btn) return; var orig=btn.getAttribute("data-orig-html"); if(!orig){orig=btn.innerHTML; btn.setAttribute("data-orig-html", orig);} btn.innerHTML = "<span class=\"inline-flex items-center gap-2\">✅ <span class=\"hidden sm:inline\">Copied!</span></span>"; btn.classList.add("ring-2","ring-green-400"); setTimeout(function(){btn.innerHTML=orig; btn.classList.remove("ring-2","ring-green-400");}, 1500); } catch(e){} })(); })(event)'
+                    ),
+                    ft.Button(
+                        ft.Span("×", cls="text-lg"),
+                        type="button",
+                        cls="inline-flex items-center justify-center w-9 h-9 rounded-full bg-gray-700/60 hover:bg-gray-700 text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 transition",
+                        onclick='event.stopPropagation();(function(){try{const p=new URLSearchParams(window.location.search);p.delete("tournament_id");p.delete("player_id");p.delete("currency");p.delete("modal");const u=window.location.pathname+(p.toString()?"?"+p.toString():"");window.history.replaceState({},"",u);}catch(e){};var el=document.getElementById("decklist-modal-backdrop");if(el)el.remove();})()'
+                    ),
+                    cls="absolute top-4 right-4 flex items-center"
                 ),
                 
                 # Modal header - NOT in scrollable area
@@ -299,7 +324,7 @@ def create_decklist_modal(
                 onclick="event.stopPropagation()"  # Prevent clicks inside modal from closing it
             ),
             cls="decklist-modal-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-start justify-center overflow-y-auto py-4",
-            onclick="if (event.target === this) { event.target.remove(); }",
+            onclick='if (event.target === this) { (function(){try{const p=new URLSearchParams(window.location.search);p.delete("tournament_id");p.delete("player_id");p.delete("currency");p.delete("modal");const u=window.location.pathname+(p.toString()?"?"+p.toString():"");window.history.replaceState({},"",u);}catch(e){};var el=document.getElementById("decklist-modal-backdrop");if(el)el.remove();})() }',
             id="decklist-modal-backdrop"  # Add ID for specific targeting
         ),
         
@@ -335,8 +360,52 @@ def create_decklist_modal(
             }
         """),
         
-        # JavaScript to prevent card modal from closing decklist modal
+        # JavaScript: attach robust click handler for Share after insertion and prevent card modal closing decklist modal
         ft.Script("""
+            (function(){
+                function attachDecklistShareHandler(){
+                    var btn = document.querySelector('#decklist-modal-backdrop button[title="Copy shareable link"]');
+                    if (!btn || btn.dataset.bound === '1') return;
+                    btn.dataset.bound = '1';
+                    btn.addEventListener('click', async function(evt){
+                        evt.preventDefault();
+                        try{
+                            const p = new URLSearchParams(window.location.search);
+                            const sel = document.getElementById('tournament-decklist-select-modal');
+                            if(!sel||!sel.value) return;
+                            const v = sel.value.split(':');
+                            p.set('tournament_id', v[0]);
+                            p.set('player_id', v[1]);
+                            const c = document.getElementById('currency-select-modal');
+                            if(c&&c.value){ p.set('currency', c.value); }
+                            p.set('modal','decklist');
+                            const url = window.location.origin + window.location.pathname + '?' + p.toString();
+                            try { await navigator.clipboard.writeText(url); }
+                            catch(e){
+                                const ta = document.createElement('textarea');
+                                ta.value = url; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+                            }
+                            var orig = btn.getAttribute('data-orig-html');
+                            if(!orig){ orig = btn.innerHTML; btn.setAttribute('data-orig-html', orig); }
+                            btn.innerHTML = '<span class="inline-flex items-center gap-2">✅ <span class="hidden sm:inline">Copied!</span></span>';
+                            btn.classList.add('ring-2','ring-green-400');
+                            setTimeout(function(){ btn.innerHTML = orig; btn.classList.remove('ring-2','ring-green-400'); }, 1500);
+                        }catch(e){}
+                    });
+                }
+                // Bind after DOM is ready and after HTMX swaps content inside the modal
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', function(){ setTimeout(attachDecklistShareHandler, 50); });
+                } else {
+                    setTimeout(attachDecklistShareHandler, 50);
+                }
+                document.addEventListener('htmx:afterSwap', function(evt){
+                    if (evt.target && evt.target.id === 'selected-tournament-decklist-content-modal') {
+                        setTimeout(attachDecklistShareHandler, 10);
+                    }
+                });
+            })();
+
             document.addEventListener('htmx:beforeSwap', function(evt) {
                 // If a card modal is being closed, don't affect the decklist modal
                 if (evt.target.classList && evt.target.classList.contains('modal-backdrop') && 
