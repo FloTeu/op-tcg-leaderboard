@@ -709,6 +709,19 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                         oldTooltip.remove();
                     }}
                     
+                    // Clean up old chart event listeners
+                    document.removeEventListener('mouseout', hideTooltip);
+                    
+                    function hideTooltip() {{
+                        const tooltipEl = document.getElementById('chartjs-tooltip');
+                        if (tooltipEl) {{
+                            tooltipEl.style.opacity = 0;
+                        }}
+                    }}
+                    
+                    // Add global mouse out listener to hide tooltip when mouse leaves chart area
+                    document.addEventListener('mouseout', hideTooltip);
+                    
                     const container = document.getElementById(chartId);
                     if (!container) {{
                         console.error('Chart container not found:', chartId);
@@ -752,6 +765,14 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                         options: {{
                             responsive: true,
                             maintainAspectRatio: false,
+                            layout: {{
+                                padding: {{
+                                    top: 20,
+                                    right: 20,
+                                    bottom: 50,  // Increased bottom padding to show x-axis properly
+                                    left: window.innerWidth > 768 ? 50 : 30
+                                }}
+                            }},
                             plugins: {{
                                 title: {{
                                     display: true,
@@ -773,29 +794,37 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                             }},
                             events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'],
                             onHover: function(event, chartElements) {{
-                                const tooltipEl = document.getElementById('chartjs-tooltip');
+                                let tooltipEl = document.getElementById('chartjs-tooltip');
                                 
                                 if (!tooltipEl) {{
                                     const div = document.createElement('div');
                                     div.id = 'chartjs-tooltip';
+                                    div.style.position = 'absolute';
+                                    div.style.pointerEvents = 'none';
+                                    div.style.opacity = '0';
+                                    div.style.transition = 'all .1s ease';
                                     document.body.appendChild(div);
+                                    tooltipEl = div;
                                 }}
                                 
                                 if (!chartElements || chartElements.length === 0) {{
-                                    tooltipEl.style.opacity = 0;
+                                    if (tooltipEl) {{
+                                        tooltipEl.style.opacity = 0;
+                                    }}
                                     return;
                                 }}
                                 
                                 const element = chartElements[0];
                                 const data = element.element.$context.raw;
                                 
-                                // Create tooltip content with flex layout
+                                // Create tooltip content with responsive layout
+                                const isMobile = window.innerWidth <= 768;
                                 const tooltipContent = `
                                     <div style="
                                         display: flex;
-                                        gap: 16px;
-                                        min-width: 400px;
-                                        height: 150px;
+                                        gap: ${{isMobile ? '8px' : '16px'}};
+                                        min-width: ${{isMobile ? '280px' : '400px'}};
+                                        height: ${{isMobile ? '120px' : '150px'}};
                                         padding: 0;
                                     ">
                                         <div style="
@@ -812,15 +841,15 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                                         </div>
                                         <div style="
                                             flex: 0 0 70%;
-                                            padding: 12px 16px 12px 0;
+                                            padding: ${{isMobile ? '8px 12px 8px 0' : '12px 16px 12px 0'}};
                                             display: flex;
                                             flex-direction: column;
                                             justify-content: center;
                                         ">
-                                            <div style="font-weight: bold; margin-bottom: 12px; font-size: 1.2em; white-space: normal;">${{data.name}}</div>
-                                            <div style="margin: 4px 0;">Win Rate: ${{(data.y * 100).toFixed(1)}}%</div>
-                                            <div style="margin: 4px 0;">Tournament Matches: ${{data.x}}</div>
-                                            <div style="margin: 4px 0;">Tournament Wins: ${{data.raw_wins}}</div>
+                                            <div style="font-weight: bold; margin-bottom: ${{isMobile ? '8px' : '12px'}}; font-size: ${{isMobile ? '1em' : '1.2em'}}; white-space: normal;">${{data.name}}</div>
+                                            <div style="margin: ${{isMobile ? '2px' : '4px'}} 0; font-size: ${{isMobile ? '0.9em' : '1em'}};">Win Rate: ${{(data.y * 100).toFixed(1)}}%</div>
+                                            <div style="margin: ${{isMobile ? '2px' : '4px'}} 0; font-size: ${{isMobile ? '0.9em' : '1em'}};">Tournament Matches: ${{data.x}}</div>
+                                            <div style="margin: ${{isMobile ? '2px' : '4px'}} 0; font-size: ${{isMobile ? '0.9em' : '1em'}};">Tournament Wins: ${{data.raw_wins}}</div>
                                         </div>
                                     </div>
                                 `;
@@ -839,51 +868,76 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                                 tooltipEl.style.padding = '0';
                                 tooltipEl.style.overflow = 'hidden';
                                 
-                                // Position the tooltip
-                                const position = element.element.tooltipPosition();
-                                const chartPosition = container.getBoundingClientRect();
-                                const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-                                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                                
-                                tooltipEl.style.left = (chartPosition.left + scrollLeft + position.x) + 'px';
-                                tooltipEl.style.top = (chartPosition.top + scrollTop + position.y - 10) + 'px';
+                                // Position the tooltip safely
+                                try {{
+                                    const position = element.element.tooltipPosition();
+                                    const chartPosition = container.getBoundingClientRect();
+                                    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+                                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                                    
+                                    if (position && chartPosition && tooltipEl) {{
+                                        tooltipEl.style.left = (chartPosition.left + scrollLeft + position.x) + 'px';
+                                        tooltipEl.style.top = (chartPosition.top + scrollTop + position.y - 10) + 'px';
+                                    }}
+                                }} catch (error) {{
+                                    console.warn('Error positioning tooltip:', error);
+                                    if (tooltipEl) {{
+                                        tooltipEl.style.opacity = 0;
+                                    }}
+                                }}
                             }},
                             scales: {{
                                 x: {{
                                     type: 'logarithmic',
+                                    display: true,  // Always show x-axis
                                     title: {{
-                                        display: true,
+                                        display: window.innerWidth > 768,  // Hide title on mobile, but show axis
                                         text: 'Number of Tournament Matches',
-                                        color: 'white'
+                                        color: 'white',
+                                        font: {{
+                                            size: window.innerWidth > 768 ? 12 : 10
+                                        }}
                                     }},
                                     ticks: {{
+                                        display: true,  // Always show ticks
                                         color: '{ChartColors.TICK_TEXT}',
                                         font: {{
-                                            size: 10
+                                            size: window.innerWidth > 768 ? 10 : 8
                                         }},
-                                        padding: 5
+                                        padding: window.innerWidth > 768 ? 5 : 2,
+                                        maxTicksLimit: window.innerWidth > 768 ? 8 : 5,  // Fewer ticks on mobile
+                                        maxRotation: 0,  // Prevent label rotation on mobile
+                                        minRotation: 0
                                     }},
                                     grid: {{
+                                        display: true,  // Always show grid
                                         color: 'rgba(255, 255, 255, 0.1)'
                                     }}
                                 }},
                                 y: {{
+                                    display: true,  // Always show y-axis
                                     title: {{
-                                        display: true,
+                                        display: window.innerWidth > 768,  // Hide title on mobile, but show axis
                                         text: 'Win Rate',
-                                        color: 'white'
+                                        color: 'white',
+                                        font: {{
+                                            size: window.innerWidth > 768 ? 12 : 10
+                                        }}
                                     }},
                                     ticks: {{
+                                        display: true,  // Always show ticks
                                         color: '{ChartColors.TICK_TEXT}',
                                         font: {{
-                                            size: 10
+                                            size: window.innerWidth > 768 ? 10 : 8
                                         }},
-                                        padding: 5,
+                                        padding: window.innerWidth > 768 ? 5 : 2,
+                                        maxTicksLimit: window.innerWidth > 768 ? 8 : 5,  // Fewer ticks on mobile
                                         callback: function(value) {{
                                             return (value * 100).toFixed(0) + '%';
                                         }}
                                     }},
                                     grid: {{
+                                        display: true,  // Always show grid
                                         color: 'rgba(255, 255, 255, 0.1)'
                                     }}
                                 }}
@@ -912,7 +966,7 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                 createBubbleChart();
             }})();
         """),
-        style="height: 400px; width: 100%;"  # Explicit height and width
+        style="height: 300px; width: 100%;"  # Reduced height to leave room for slider
     ) 
 
 def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[str, Any]], 

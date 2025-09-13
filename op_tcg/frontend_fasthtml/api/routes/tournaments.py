@@ -23,6 +23,7 @@ from op_tcg.frontend_fasthtml.pages.leader import HX_INCLUDE
 from op_tcg.frontend_fasthtml.utils.charts import create_bubble_chart
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 import json
+from datetime import datetime, timedelta, timezone
 
 def aggregate_leader_data(leader_data: list[LeaderExtended]):
     """Aggregate leader data by leader_id and calculate relative mean win rate."""
@@ -129,18 +130,24 @@ def setup_api_routes(rt):
         # Filter by match count range
         final_leader_data = [ld for ld in final_leader_data if params.min_matches <= ld.get("total_matches", 0) <= effective_max_matches]
         
-        # Process data for bubble chart
+        # Process data for bubble chart - optimize for mobile by limiting data points
         chart_data = []
         colors = []
         
+        # Sort by total matches descending to get most active leaders first
+        sorted_leader_data = sorted(final_leader_data, key=lambda x: x.get("total_matches", 0), reverse=True)
+        
+        # Limit data points for better mobile experience - show top 25 most active leaders
+        mobile_optimized_data = sorted_leader_data[:25]
+        
         # First pass to get max values for scaling
-        max_tournament_wins = max((ld.get("total_wins", 0) for ld in final_leader_data), default=1)
+        max_tournament_wins = max((ld.get("total_wins", 0) for ld in mobile_optimized_data), default=1)
         
-        # Calculate bubble size scaling factor based on number of data points
-        base_size = 5  # Minimum bubble size
-        max_size = 35 if len(final_leader_data) > 20 else 50  # Smaller max size for larger datasets
+        # Calculate bubble size scaling factor - smaller sizes for mobile
+        base_size = 8   # Increased minimum bubble size for better visibility
+        max_size = 25   # Reduced max size to prevent overcrowding
         
-        for ld in final_leader_data:
+        for ld in mobile_optimized_data:
             if ld.get("total_matches", 0) is None:
                 continue
             if ld.get("total_matches", 0) > 0:  # Only include leaders with matches
@@ -251,7 +258,7 @@ def setup_api_routes(rt):
         content = ft.Div(
             chart_div,
             slider_div,
-            cls="space-y-6"
+            cls="space-y-4"  # Reduced spacing to fit better
         )
         
         # If fallback was used, add notification
@@ -264,6 +271,95 @@ def setup_api_routes(rt):
             return ft.Div(notification, content)
         
         return content
+
+    @rt("/api/tournaments/decklist-donut")
+    def get_tournament_decklist_donut(request: Request):
+        """Return a donut chart for most popular tournament decklists in timeframe."""
+        # Parse params
+        params = TournamentPageParams(**get_query_params_as_dict(request))
+        query = get_query_params_as_dict(request)
+        
+        days_param = query.get("days", "14")
+        
+        # Get decklists filtered by meta formats and region
+        decklists = get_tournament_decklist_data(
+            meta_formats=params.meta_format,
+            meta_format_region=params.region
+        )
+
+        # Filter by time window if not "all"
+        if days_param != "all":
+            try:
+                days = int(days_param)
+                since_ts = datetime.now(timezone.utc) - timedelta(days=days)
+                decklists = [d for d in decklists if d.tournament_timestamp >= since_ts]
+            except (TypeError, ValueError):
+                # If parsing fails, use all decklists
+                pass
+
+        # Aggregate by leader_id
+        counts: dict[str,int] = defaultdict(int)
+        for d in decklists:
+            counts[d.leader_id] += 1
+
+        total = sum(counts.values()) or 1
+
+        # Map to names/colors/images
+        card_data = get_card_id_card_data_lookup()
+        leader_data = get_leader_extended()
+        leader_extended_dict = {le.id: le for le in leader_data}
+        
+        labels: list[str] = []
+        values: list[int] = []
+        colors: list[str] = []
+        images: list[str] = []
+
+        # Sort by count desc and show all leaders (no "Others" category)
+        sorted_items = sorted(counts.items(), key=lambda x: x[1], reverse=True)
+
+        for lid, v in sorted_items:
+            card = card_data.get(lid)
+            leader = leader_extended_dict.get(lid)
+            labels.append(card.name if card else lid)
+            values.append(v)
+            colors.append(card.to_hex_color() if card else "#808080")
+            # Get leader image (prefer AA version)
+            image_url = ""
+            if leader:
+                image_url = leader.aa_image_url or leader.image_url or ""
+            images.append(image_url)
+
+        # Compute subtitle based on timeframe
+        if days_param == "all":
+            subtitle = f"{total} decklists (all available)"
+        else:
+            subtitle = f"{total} decklists in last {days_param} days"
+
+        # Build container with canvas and script to render with reusable JS
+        container_id = "tournament-decklist-donut-canvas"
+
+        return ft.Div(
+            ft.Div(
+                ft.H3("Decklist Popularity (Donut)", cls="text-lg font-semibold text-white mb-2"),
+                ft.P(subtitle, cls="text-gray-300 text-sm mb-2"),
+            ),
+            ft.Div(
+                ft.Canvas(id=container_id),
+                cls="w-full flex-1",
+                style="min-height: 250px;"
+            ),
+            ft.Script(f"""
+                (function() {{
+                    if (window.renderDonutChart) {{
+                        window.renderDonutChart('{container_id}', {json.dumps(labels)}, {json.dumps(values)}, {json.dumps(colors)}, {json.dumps(images)});
+                    }} else {{
+                        console.warn('renderDonutChart not found');
+                    }}
+                }})();
+            """),
+            style="height: 340px; width: 100%; display: flex; flex-direction: column;",
+            cls="bg-gray-800 rounded-lg p-4"
+        )
 
     @rt("/api/leader-tournaments")
     async def get_leader_tournaments(request: Request):

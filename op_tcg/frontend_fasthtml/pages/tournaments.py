@@ -64,33 +64,96 @@ def create_tournament_content():
             container_classes="min-h-[100px]"
         ),
 
-        # Chart Container
+        # Analytics Dashboard Section - Mobile-optimized layout
         ft.Div(
-            id="tournament-chart-container",
-            hx_get="/api/tournaments/chart",
-            hx_trigger="load",
-            hx_indicator="#tournament-loading-indicator",
-            hx_include="[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']",
-            cls="mt-8"
+            ft.H2("Tournament Analytics Dashboard", cls="text-2xl md:text-3xl font-bold text-white mb-6 md:mb-8 text-center px-2"),
+            
+            # Chart Grid Container - Mobile-first responsive design
+            ft.Div(
+                # Decklist Popularity Section
+                ft.Div(
+                    ft.Div(
+                        ft.H3("Decklist Popularity", cls="text-lg md:text-xl font-semibold text-white mb-3 md:mb-4"),
+                        ft.Div(
+                            ft.Label("Timeframe", cls="text-white font-medium block mb-2 text-sm md:text-base"),
+                            ft.Select(
+                                ft.Option("Last 7 days", value="7"),
+                                ft.Option("Last 14 days", value="14", selected=True),
+                                ft.Option("Last 30 days", value="30"),
+                                ft.Option("Last 90 days", value="90"),
+                                ft.Option("All", value="all"),
+                                id="decklist-timeframe-select",
+                                name="days",
+                                cls=SELECT_CLS + " styled-select w-full text-sm md:text-base",
+                                hx_get="/api/tournaments/decklist-donut",
+                                hx_trigger="change",
+                                hx_target="#tournament-decklist-donut",
+                                hx_include="[name='meta_format'],[name='region'],[name='days']",
+                                hx_indicator="#tournament-loading-indicator"
+                            ),
+                            cls="mb-3 md:mb-4"
+                        ),
+                        ft.Div(
+                            id="tournament-decklist-donut",
+                            hx_get="/api/tournaments/decklist-donut",
+                            hx_trigger="load",
+                            hx_include="[name='meta_format'],[name='region'],[name='days']",
+                            hx_indicator="#tournament-loading-indicator",
+                            cls="bg-gray-800/30 rounded-lg p-2 md:p-4 overflow-hidden",
+                            style="min-height: 320px; height: 400px; width: 100%;"
+                        ),
+                        cls="bg-gray-900/50 rounded-xl p-3 md:p-6 backdrop-blur-sm border border-gray-700/30"
+                    ),
+                    cls="w-full"
+                ),
+                
+                # Tournament Statistics Overview Section
+                ft.Div(
+                    ft.Div(
+                        ft.H3("Tournament Statistics Overview", cls="text-lg md:text-xl font-semibold text-white mb-3 md:mb-6"),
+                        ft.Div(
+                            id="tournament-chart-container",
+                            hx_get="/api/tournaments/chart",
+                            hx_trigger="load",
+                            hx_indicator="#tournament-loading-indicator",
+                            hx_include="[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']",
+                            cls="bg-gray-800/30 rounded-lg p-2 md:p-4 overflow-hidden",
+                            style="min-height: 400px; height: auto; width: 100%;"
+                        ),
+                        cls="bg-gray-900/50 rounded-xl p-3 md:p-6 backdrop-blur-sm border border-gray-700/30"
+                    ),
+                    cls="w-full"
+                ),
+                
+                cls="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 lg:gap-8 w-full"
+            ),
+            cls="mt-6 md:mt-8 w-full"
         ),
         
         # Tournament List Section
         ft.Div(
-            ft.H2("Tournament List", cls="text-2xl font-bold text-white mb-6"),
             ft.Div(
-                id="tournament-list-container",
-                hx_get="/api/tournaments/all",
-                hx_trigger="load",
-                hx_include="[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']",
+                ft.H2("Tournament List", cls="text-2xl md:text-3xl font-bold text-white mb-6 md:mb-8 text-center px-2"),
+                ft.Div(
+                    id="tournament-list-container",
+                    hx_get="/api/tournaments/all",
+                    hx_trigger="load",
+                    hx_include="[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']",
+                    cls="bg-gray-900/30 rounded-xl p-3 md:p-6 backdrop-blur-sm border border-gray-700/20 overflow-x-auto"
+                ),
+                cls="bg-gradient-to-br from-gray-900/40 to-gray-800/40 rounded-2xl p-4 md:p-8 backdrop-blur-sm border border-gray-600/20"
             ),
-            cls="mt-32"
+            cls="mt-8 md:mt-16"
         ),
         
-        cls="min-h-screen p-6 max-w-7xl mx-auto",
+        cls="min-h-screen p-3 md:p-6 max-w-7xl mx-auto w-full",
         id="tournament-content"
     )
 
 def tournaments_page():
     return ft.Div(
+        # Include CSS and JS for double range slider
+        ft.Link(rel="stylesheet", href="/public/css/double_range_slider.css"),
+        ft.Script(src="/public/js/double_range_slider.js"),
         create_tournament_content()
     ) 
