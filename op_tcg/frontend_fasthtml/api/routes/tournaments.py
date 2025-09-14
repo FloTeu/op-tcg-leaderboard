@@ -381,7 +381,7 @@ def setup_api_routes(rt):
                 images=images,
                 leader_ids=leader_ids
             ),
-            cls="bg-gray-800/30 rounded-lg p-4"
+            cls="bg-gray-800/30 rounded-lg px-4"
         )
 
     @rt("/api/leader-tournaments")

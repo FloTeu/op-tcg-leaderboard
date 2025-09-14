@@ -1,6 +1,6 @@
 from fasthtml import ft
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
-from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
+from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner, create_loading_overlay
 
 SELECT_CLS = "bg-gray-700 text-white p-2 rounded"
 FILTER_HX_ATTRS = {
@@ -106,19 +106,21 @@ def create_tournament_content():
                         ),
                             cls="flex flex-col md:flex-row gap-3 md:gap-4 mb-3 md:mb-4"
                         ),
-                        # Loading spinner for decklist donut
-                        create_loading_spinner(
-                            id="decklist-donut-loading",
-                            size="w-6 h-6",
-                            container_classes="min-h-[60px] mb-4"
-                        ),
                         ft.Div(
-                            id="tournament-decklist-donut",
-                            hx_get="/api/tournaments/decklist-donut",
-                            hx_trigger="load",
-                            hx_include="[name='meta_format'],[name='region'],[name='days'],[name='placing']",
-                            hx_indicator="#decklist-donut-loading",
-                            cls="bg-gray-800/30 rounded-lg p-2 md:p-4 overflow-hidden",
+                            # Loading overlay positioned absolutely within the chart container
+                            create_loading_overlay(
+                                id="decklist-donut-loading",
+                                size="w-8 h-8"
+                            ),
+                            ft.Div(
+                                id="tournament-decklist-donut",
+                                hx_get="/api/tournaments/decklist-donut",
+                                hx_trigger="load",
+                                hx_include="[name='meta_format'],[name='region'],[name='days'],[name='placing']",
+                                hx_indicator="#decklist-donut-loading",
+                                cls="w-full h-full"
+                            ),
+                            cls="relative bg-gray-800/30 rounded-lg p-2 md:p-4 overflow-hidden",
                             style="min-height: 320px; height: 400px; width: 100%;"
                         ),
                         cls="bg-gray-900/50 rounded-xl p-3 md:p-6 backdrop-blur-sm border border-gray-700/30"
@@ -136,19 +138,21 @@ def create_tournament_content():
                                 data_tooltip="Size of the bubbles increases with the tournament wins"
                             ),
                         cls="text-lg md:text-xl font-semibold text-white mb-3 md:mb-6"),
-                        # Loading spinner for tournament chart
-                        create_loading_spinner(
-                            id="tournament-chart-loading",
-                            size="w-6 h-6",
-                            container_classes="min-h-[60px] mb-4"
-                        ),
                         ft.Div(
-                            id="tournament-chart-container",
-                            hx_get="/api/tournaments/chart",
-                            hx_trigger="load",
-                            hx_indicator="#tournament-chart-loading",
-                            hx_include="[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']",
-                            cls="bg-gray-800/30 rounded-lg p-2 md:p-4 overflow-hidden",
+                            # Loading overlay positioned absolutely within the chart container
+                            create_loading_overlay(
+                                id="tournament-chart-loading",
+                                size="w-8 h-8"
+                            ),
+                            ft.Div(
+                                id="tournament-chart-container",
+                                hx_get="/api/tournaments/chart",
+                                hx_trigger="load",
+                                hx_indicator="#tournament-chart-loading",
+                                hx_include="[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']",
+                                cls="w-full h-full"
+                            ),
+                            cls="relative bg-gray-800/30 rounded-lg p-2 md:p-4 overflow-hidden",
                             style="min-height: 400px; height: auto; width: 100%;"
                         ),
                         cls="bg-gray-900/50 rounded-xl p-3 md:p-6 backdrop-blur-sm border border-gray-700/30"
@@ -165,19 +169,22 @@ def create_tournament_content():
         ft.Div(
             ft.Div(
                 ft.H2("Tournament Explorer", cls="text-2xl md:text-3xl font-bold text-white mb-6 md:mb-8 text-center px-2"),
-                # Loading spinner for tournament list
-                create_loading_spinner(
-                    id="tournament-list-loading",
-                    size="w-6 h-6",
-                    container_classes="min-h-[60px] mb-4"
-                ),
                 ft.Div(
-                    id="tournament-list-container",
-                    hx_get="/api/tournaments/all",
-                    hx_trigger="load",
-                    hx_include="[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']",
-                    hx_indicator="#tournament-list-loading",
-                    cls="bg-gray-900/30 rounded-xl p-3 md:p-6 backdrop-blur-sm border border-gray-700/20 overflow-x-auto"
+                    # Loading overlay positioned absolutely within the list container
+                    create_loading_overlay(
+                        id="tournament-list-loading",
+                        size="w-8 h-8"
+                    ),
+                    ft.Div(
+                        id="tournament-list-container",
+                        hx_get="/api/tournaments/all",
+                        hx_trigger="load",
+                        hx_include="[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']",
+                        hx_indicator="#tournament-list-loading",
+                        cls="w-full h-full"
+                    ),
+                    cls="relative bg-gray-900/30 rounded-xl p-3 md:p-6 backdrop-blur-sm border border-gray-700/20 overflow-x-auto",
+                    style="min-height: 200px;"
                 ),
                 cls="bg-gradient-to-br from-gray-900/40 to-gray-800/40 rounded-2xl p-4 md:p-8 backdrop-blur-sm border border-gray-600/20"
             ),

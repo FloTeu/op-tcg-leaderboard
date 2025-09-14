@@ -82,7 +82,7 @@ def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str
     return ft.Div(
         ft.Div(
             *card_items,
-            cls="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 gap-2"
+            cls="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2"
         ),
         style="max-height: 600px; overflow-y: auto;"  # Increased height
     )
@@ -206,9 +206,9 @@ def create_decklist_modal(
                         hx_indicator="#tournament-decklist-loading",
                         onchange='(function(){try{const p=new URLSearchParams(window.location.search);const v=document.getElementById("tournament-decklist-select-modal").value.split(":");p.set("tournament_id",v[0]);p.set("player_id",v[1]);const c=document.getElementById("currency-select-modal");if(c&&c.value){p.set("currency",c.value)}p.set("modal","decklist");const u=window.location.pathname+"?"+p.toString();window.history.replaceState({},"",u);}catch(e){}})()'
                     ),
-                    cls="flex-none w-40 ml-4"
+                    cls="flex-none w-full sm:w-40 sm:ml-4 mt-4 sm:mt-0"
                 ),
-                cls="flex items-end gap-4"
+                cls="flex flex-col sm:flex-row sm:items-end gap-4"
             ),
             # Add loading indicator
             create_loading_spinner(
@@ -250,7 +250,7 @@ def create_decklist_modal(
                     ft.Div("Wins", cls="text-gray-300 text-sm"),
                     cls="text-center"
                 ),
-                cls="grid grid-cols-4 gap-4 mb-6"
+                cls="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6"
             ),
             cls="bg-gray-750 rounded-lg p-4 mb-6"
         )
@@ -330,7 +330,7 @@ def create_decklist_modal(
                     cls="max-h-[60vh] overflow-y-auto"
                 ),
                 
-                cls="bg-gray-800 rounded-lg p-6 max-w-6xl w-full mx-4 relative",
+                cls="bg-gray-800 rounded-lg p-4 sm:p-6 max-w-sm sm:max-w-lg md:max-w-2xl lg:max-w-4xl xl:max-w-6xl w-full mx-2 sm:mx-4 relative",
                 onclick="event.stopPropagation()"  # Prevent clicks inside modal from closing it
             ),
             cls="decklist-modal-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-start justify-center overflow-y-auto py-4",
