@@ -725,30 +725,31 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                     const ctx = container.getContext('2d');
                     ctx.clearRect(0, 0, container.width, container.height);
                     
-                    // Helper function to create stripe pattern for multi-color leaders
-                    function createStripePattern(colors, stripeWidth) {{
-                        const patternCanvas = document.createElement('canvas');
-                        const patternCtx = patternCanvas.getContext('2d');
-                        
-                        // Set pattern canvas size
-                        patternCanvas.width = stripeWidth * colors.length;
-                        patternCanvas.height = stripeWidth;
-                        
-                        // Draw color stripes
-                        colors.forEach((color, index) => {{
-                            patternCtx.fillStyle = color;
-                            patternCtx.fillRect(index * stripeWidth, 0, stripeWidth, stripeWidth);
-                        }});
-                        
-                        return patternCanvas;
-                    }}
+                    // Store multi-color data for custom drawing
+                    const multiColorData = chartColors.map((colorData, index) => {{
+                        if (Array.isArray(colorData) && colorData.length > 1) {{
+                            return {{
+                                isMultiColor: true,
+                                colors: colorData,
+                                dataIndex: index
+                            }};
+                        }}
+                        return {{
+                            isMultiColor: false,
+                            colors: [Array.isArray(colorData) ? colorData[0] : colorData],
+                            dataIndex: index
+                        }};
+                    }});
                     
-                    // Process colors for multi-color support
+                    // Process colors for Chart.js (use first color for multi-color leaders)
                     const processedColors = chartColors.map((colorData, index) => {{
                         if (Array.isArray(colorData) && colorData.length > 1) {{
-                            // Multi-color leader - create striped pattern
-                            const pattern = ctx.createPattern(createStripePattern(colorData, 10), 'repeat');
-                            return pattern || colorData[0]; // Fallback to first color if pattern fails
+                            // Multi-color leader - use first color as base (will be overdrawn by plugin)
+                            const color = colorData[0];
+                        const r = parseInt(color.slice(1,3), 16);
+                        const g = parseInt(color.slice(3,5), 16);
+                        const b = parseInt(color.slice(5,7), 16);
+                        return `rgba(${{r}},${{g}},${{b}},0.7)`;
                         }} else {{
                             // Single color leader - add transparency
                             const color = Array.isArray(colorData) ? colorData[0] : colorData;
@@ -762,9 +763,12 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                     // Process hover colors for multi-color support (slightly more opaque)
                     const processedHoverColors = chartColors.map((colorData, index) => {{
                         if (Array.isArray(colorData) && colorData.length > 1) {{
-                            // Multi-color leader - create striped pattern (same as normal for patterns)
-                            const pattern = ctx.createPattern(createStripePattern(colorData, 10), 'repeat');
-                            return pattern || colorData[0]; // Fallback to first color if pattern fails
+                            // Multi-color leader - use first color but more opaque
+                            const color = colorData[0];
+                            const r = parseInt(color.slice(1,3), 16);
+                            const g = parseInt(color.slice(3,5), 16);
+                            const b = parseInt(color.slice(5,7), 16);
+                            return `rgba(${{r}},${{g}},${{b}},0.9)`;
                         }} else {{
                             // Single color leader - more opaque on hover
                             const color = Array.isArray(colorData) ? colorData[0] : colorData;
@@ -779,6 +783,56 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                     const borderColors = chartColors.map(colorData => {{
                         return Array.isArray(colorData) ? colorData[0] : colorData;
                     }});
+                    
+                    // Custom plugin to draw multi-color segments
+                    const multiColorPlugin = {{
+                        id: 'multiColorBubbles',
+                        afterDatasetsDraw: function(chart) {{
+                            const ctx = chart.ctx;
+                            const meta = chart.getDatasetMeta(0);
+                            
+                            meta.data.forEach((element, index) => {{
+                                const colorInfo = multiColorData[index];
+                                if (colorInfo && colorInfo.isMultiColor && colorInfo.colors.length > 1) {{
+                                    const model = element;
+                                    const x = model.x;
+                                    const y = model.y;
+                                    const radius = model.options.radius;
+                                    
+                                    // Draw pie-like segments within the bubble
+                                    const colors = colorInfo.colors;
+                                    const angleStep = (2 * Math.PI) / colors.length;
+                                    
+                                    ctx.save();
+                                    
+                                    colors.forEach((color, colorIndex) => {{
+                                        ctx.beginPath();
+                                        ctx.moveTo(x, y);
+                                        
+                                        const startAngle = colorIndex * angleStep;
+                                        const endAngle = (colorIndex + 1) * angleStep;
+                                        
+                                        ctx.arc(x, y, radius, startAngle, endAngle);
+                                        ctx.closePath();
+                                        
+                                        // Parse color and add transparency
+                                        const r = parseInt(color.slice(1,3), 16);
+                                        const g = parseInt(color.slice(3,5), 16);
+                                        const b = parseInt(color.slice(5,7), 16);
+                                        ctx.fillStyle = `rgba(${{r}}, ${{g}}, ${{b}}, 0.7)`;
+                                        ctx.fill();
+                                        
+                                        // Add subtle border
+                                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                                        ctx.lineWidth = 0.5;
+                                        ctx.stroke();
+                                    }});
+                                    
+                                    ctx.restore();
+                                }}
+                            }});
+                        }}
+                    }};
                     
                     const chart = new Chart(container, {{
                         type: 'bubble',
@@ -795,6 +849,7 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                                 }}
                             }}]
                         }},
+                        plugins: [multiColorPlugin],
                         options: {{
                             responsive: true,
                             maintainAspectRatio: false,
@@ -1067,30 +1122,27 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                     
                     const total = (Array.isArray(values) ? values : []).reduce((a,b)=>a+(+b||0),0) || 1;
                     
-                    // Helper function to create stripe pattern for multi-color leaders
-                    function createStripePattern(colors, stripeWidth) {{
-                        const patternCanvas = document.createElement('canvas');
-                        const patternCtx = patternCanvas.getContext('2d');
-                        
-                        // Set pattern canvas size
-                        patternCanvas.width = stripeWidth * colors.length;
-                        patternCanvas.height = stripeWidth;
-                        
-                        // Draw color stripes
-                        colors.forEach((color, index) => {{
-                            patternCtx.fillStyle = color;
-                            patternCtx.fillRect(index * stripeWidth, 0, stripeWidth, stripeWidth);
-                        }});
-                        
-                        return patternCanvas;
-                    }}
+                    // Store multi-color data for custom drawing
+                    const multiColorData = colors.map((colorData, index) => {{
+                        if (Array.isArray(colorData) && colorData.length > 1) {{
+                            return {{
+                                isMultiColor: true,
+                                colors: colorData,
+                                dataIndex: index
+                            }};
+                        }}
+                        return {{
+                            isMultiColor: false,
+                            colors: [Array.isArray(colorData) ? colorData[0] : colorData],
+                            dataIndex: index
+                        }};
+                    }});
                     
-                    // Process colors to handle multi-color leaders
+                    // Process colors for Chart.js (make multi-color leaders transparent; plugin will paint them)
                     const processedColors = colors.map((colorData, index) => {{
                         if (Array.isArray(colorData) && colorData.length > 1) {{
-                            // Multi-color leader - create striped pattern
-                            const pattern = ctx.createPattern(createStripePattern(colorData, 20), 'repeat');
-                            return pattern || colorData[0]; // Fallback to first color if pattern fails
+                            // Multi-color leader - transparent base so plugin colors are the only visible fill
+                            return 'rgba(0,0,0,0)';
                         }} else {{
                             // Single color leader
                             return Array.isArray(colorData) ? colorData[0] : colorData;
@@ -1101,13 +1153,107 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                         labels: labels,
                         datasets: [{{
                             data: values,
-                            backgroundColor: processedColors,
-                            borderColor: 'rgba(0, 0, 0, 0.1)', // Transparent borders for spacing
-                            borderWidth: 3, // Increased border width for visible spacing
-                            hoverBackgroundColor: processedColors.map(color => color), // Keep original colors on hover
-                            hoverBorderColor: 'rgba(0, 0, 0, 0.2)', // Slightly more visible border on hover
-                            hoverBorderWidth: 4,
-                            hoverOffset: 8 // Increase segment size on hover
+                            backgroundColor: function(ctx) {{
+                                try {{
+                                    const idx = ctx.dataIndex;
+                                    const colorData = colors[idx];
+                                    // Single color: return the color directly
+                                    if (!Array.isArray(colorData) || colorData.length <= 1) {{
+                                        return Array.isArray(colorData) ? colorData[0] : colorData;
+                                    }}
+                                    // Multi color: build conic gradient aligned to the arc
+                                    const el = ctx.chart.getDatasetMeta(0).data[idx];
+                                    if (!el) return 'rgba(0,0,0,0)';
+                                    
+                                    // Get arc properties - try multiple methods to ensure we get valid values
+                                    let x, y, startAngle, endAngle;
+                                    
+                                    if (el.getProps) {{
+                                        // Try animated properties first
+                                        const props = el.getProps(['x','y','startAngle','endAngle'], true);
+                                        if (props && props.x != null) {{
+                                            x = props.x;
+                                            y = props.y;
+                                            startAngle = props.startAngle;
+                                            endAngle = props.endAngle;
+                                        }}
+                                    }}
+                                    
+                                    // Fallback to static properties if needed
+                                    if (x == null) {{
+                                        x = el.x;
+                                        y = el.y;
+                                        startAngle = el.startAngle;
+                                        endAngle = el.endAngle;
+                                    }}
+                                    
+                                    // Final fallback to chart center
+                                    if (x == null) {{
+                                        const chartArea = ctx.chart.chartArea;
+                                        x = (chartArea.left + chartArea.right) / 2;
+                                        y = (chartArea.top + chartArea.bottom) / 2;
+                                        startAngle = 0;
+                                        endAngle = Math.PI * 2;
+                                    }}
+                                    
+                                    const totalAngle = Math.max(1e-6, endAngle - startAngle);
+                                    const grad = ctx.chart.ctx.createConicGradient(startAngle, x, y);
+                                    const step = totalAngle / colorData.length;
+                                    
+                                    for (let i=0; i<colorData.length; i++) {{
+                                        const start = (i*step) / (Math.PI*2);
+                                        const end = ((i+1)*step) / (Math.PI*2);
+                                        const col = colorData[i];
+                                        grad.addColorStop(start, col);
+                                        grad.addColorStop(end, col);
+                                    }}
+                                    return grad;
+                                }} catch (e) {{
+                                    console.warn('Error creating gradient:', e);
+                                    return 'rgba(0,0,0,0)';
+                                }}
+                            }},
+                            borderColor: 'transparent', // Remove grey borders for cleaner look
+                            borderWidth: 0, // No borders
+                            hoverBackgroundColor: function(ctx) {{
+                                try {{
+                                    const idx = ctx.dataIndex;
+                                    const colorData = colors[idx];
+                                    // Single color: brighten a bit
+                                    if (!Array.isArray(colorData) || colorData.length <= 1) {{
+                                        const base = Array.isArray(colorData) ? colorData[0] : colorData;
+                                        const r = parseInt(base.slice(1,3),16), g = parseInt(base.slice(3,5),16), b = parseInt(base.slice(5,7),16);
+                                        const br = Math.min(255, Math.round(r*1.1)), bg = Math.min(255, Math.round(g*1.1)), bb = Math.min(255, Math.round(b*1.1));
+                                        return `rgb(${{br}}, ${{bg}}, ${{bb}})`;
+                                    }}
+                                    // Multi color: brighten each stop
+                                    const el = ctx.chart.getDatasetMeta(0).data[idx];
+                                    if (!el || !el.getProps) return 'rgba(0,0,0,0)';
+                                    const props = el.getProps(['x','y','startAngle','endAngle'], true);
+                                    const totalAngle = Math.max(1e-6, props.endAngle - props.startAngle);
+                                    const grad = ctx.chart.ctx.createConicGradient(props.startAngle, props.x, props.y);
+                                    const step = totalAngle / colorData.length;
+                                    for (let i=0; i<colorData.length; i++) {{
+                                        const start = (i*step) / (Math.PI*2);
+                                        const end = ((i+1)*step) / (Math.PI*2);
+                                        const base = colorData[i];
+                                        const r = parseInt(base.slice(1,3),16), g = parseInt(base.slice(3,5),16), b = parseInt(base.slice(5,7),16);
+                                        const br = Math.min(255, Math.round(r*1.1)), bg = Math.min(255, Math.round(g*1.1)), bb = Math.min(255, Math.round(b*1.1));
+                                        const col = `rgb(${{br}}, ${{bg}}, ${{bb}})`;
+                                        grad.addColorStop(start, col);
+                                        grad.addColorStop(end, col);
+                                    }}
+                                    return grad;
+                                }} catch (e) {{
+                                    return 'rgba(0,0,0,0)';
+                                }}
+                            }},
+                            hoverBorderColor: 'transparent', // No border on hover
+                            hoverBorderWidth: 0, // No border thickness
+                            hoverOffset: 8, // Native bounce for all segments
+                            spacing: 4, // Increased spacing between segments for natural separation
+                            borderRadius: 8, // Rounded edges for modern look
+                            borderSkipped: false // Ensure all edges are rounded
                         }}]
                     }};
                     
@@ -1115,7 +1261,14 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                         responsive: true,
                         maintainAspectRatio: false,
                         layout: {{
-                            padding: 20  // Add padding to ensure chart fits fully
+                            padding: 30  // More padding for better visual breathing room
+                        }},
+                        elements: {{
+                            arc: {{
+                                borderWidth: 0, // Ensure no borders on arcs
+                                borderRadius: 6, // Rounded corners for individual segments
+                                spacing: 3 // Additional spacing between elements
+                            }}
                         }},
                         plugins: {{
                             legend: {{
@@ -1128,7 +1281,11 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                         hover: {{
                             mode: 'nearest',
                             intersect: true,
-                            animationDuration: 200 // Smooth hover animation
+                            animationDuration: 200 // Match Chart.js default for consistency
+                        }},
+                        animation: {{
+                            duration: 300,
+                            easing: 'easeOutQuart' // Smooth animation curve
                         }},
                         events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'],
                         onClick: function(event, chartElements) {{
@@ -1269,9 +1426,103 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                         }}
                     }};
                     
+                    // Custom plugin to draw multi-color segments in donut chart
+                    const multiColorDonutPlugin = {{
+                        id: 'multiColorDonut',
+                        afterDatasetsDraw: function(chart) {{
+                            const ctx = chart.ctx;
+                            const meta = chart.getDatasetMeta(0);
+                            const active = chart.getActiveElements ? chart.getActiveElements() : [];
+
+                            meta.data.forEach((element, index) => {{
+                                const colorInfo = multiColorData[index];
+                                if (colorInfo && colorInfo.isMultiColor && colorInfo.colors.length > 1) {{
+                                    // Use animated properties for perfect sync with native bounce
+                                    const props = element.getProps
+                                        ? element.getProps(['x','y','innerRadius','outerRadius','startAngle','endAngle'], true)
+                                        : element; // fallback
+                                    const centerX = props.x;
+                                    const centerY = props.y;
+                                    const innerRadius = props.innerRadius;
+                                    const outerRadius = props.outerRadius;
+                                    const startAngle = props.startAngle;
+                                    const endAngle = props.endAngle;
+
+                                    // Determine hover state using active elements
+                                    const isHovered = Array.isArray(active) && active.some(a => a && a.datasetIndex === 0 && a.index === index);
+                                    
+                                    // Calculate the total angle of this segment
+                                    const totalAngle = endAngle - startAngle;
+                                    const colors = colorInfo.colors;
+                                    const angleStep = totalAngle / colors.length;
+
+                                    // Clip to current arc and paint wedges inside so native bounce stays
+                                    ctx.save();
+                                    ctx.beginPath();
+                                    ctx.arc(centerX, centerY, outerRadius, startAngle, endAngle);
+                                    ctx.arc(centerX, centerY, innerRadius, endAngle, startAngle, true);
+                                    ctx.closePath();
+                                    ctx.clip();
+
+                                    colors.forEach((color, colorIndex) => {{
+                                        ctx.beginPath();
+                                        
+                                        const segmentStartAngle = startAngle + (colorIndex * angleStep);
+                                        const segmentEndAngle = startAngle + ((colorIndex + 1) * angleStep);
+                                        // Draw sub-arc inside the clipped arc
+                                        ctx.arc(centerX, centerY, outerRadius, segmentStartAngle, segmentEndAngle);
+                                        ctx.arc(centerX, centerY, innerRadius, segmentEndAngle, segmentStartAngle, true);
+                                        ctx.closePath();
+                                        
+                                        // Apply slight brightness increase on hover for better visual feedback
+                                        let fillColor = color;
+                                        if (isHovered) {{
+                                            // Parse color and brighten it slightly
+                                            const r = parseInt(color.slice(1,3), 16);
+                                            const g = parseInt(color.slice(3,5), 16);
+                                            const b = parseInt(color.slice(5,7), 16);
+                                            const brightR = Math.min(255, Math.round(r * 1.1));
+                                            const brightG = Math.min(255, Math.round(g * 1.1));
+                                            const brightB = Math.min(255, Math.round(b * 1.1));
+                                            fillColor = `rgb(${{brightR}}, ${{brightG}}, ${{brightB}})`;
+                                        }}
+                                        
+                                        ctx.fillStyle = fillColor;
+                                        ctx.fill();
+                                        
+                                        // Add rounded caps for polished look
+                                        ctx.lineCap = 'round';
+                                        ctx.lineJoin = 'round';
+                                    }});
+                                    
+                                    ctx.restore();
+                                }}
+                            }});
+                        }}
+                    }};
+                    
                     // Small delay to ensure DOM is ready
                     setTimeout(() => {{
-                        new Chart(ctx, {{ type: 'doughnut', data, options }});
+                        // Create chart with immediate render
+                        const chart = new Chart(ctx, {{ 
+                            type: 'doughnut', 
+                            data, 
+                            options: {{
+                                ...options,
+                                animation: {{
+                                    ...options.animation,
+                                    duration: 0  // Disable initial animation to ensure immediate render
+                                }}
+                            }}
+                        }});
+
+                        // Force immediate draw of multi-color segments
+                        requestAnimationFrame(() => {{
+                            // Re-enable animations for subsequent updates
+                            chart.options.animation = options.animation;
+                            // Force a redraw to apply multi-color gradients
+                            chart.update('none');
+                        }});
                     }}, 50);
                 }}
                 

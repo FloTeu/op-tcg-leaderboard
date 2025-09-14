@@ -206,7 +206,7 @@ def create_decklist_modal(
                         hx_indicator="#tournament-decklist-loading",
                         onchange='(function(){try{const p=new URLSearchParams(window.location.search);const v=document.getElementById("tournament-decklist-select-modal").value.split(":");p.set("tournament_id",v[0]);p.set("player_id",v[1]);const c=document.getElementById("currency-select-modal");if(c&&c.value){p.set("currency",c.value)}p.set("modal","decklist");const u=window.location.pathname+"?"+p.toString();window.history.replaceState({},"",u);}catch(e){}})()'
                     ),
-                    cls="flex-none w-full sm:w-40 sm:ml-4 mt-4 sm:mt-0"
+                    cls="flex-none w-full sm:w-40 sm:ml-4 mt-0"
                 ),
                 cls="flex flex-col sm:flex-row sm:items-end gap-4"
             ),
