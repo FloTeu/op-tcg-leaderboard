@@ -145,8 +145,6 @@ def create_filter_components(selected_meta_format: MetaFormat | None = None, cur
             ),
             cls="relative w-full"
         ),
-        ft.Script(src="/public/js/double_range_slider.js"),
-        ft.Link(rel="stylesheet", href="/public/css/double_range_slider.css"),
         cls="mb-6"
     )
 

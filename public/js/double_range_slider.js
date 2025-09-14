@@ -60,8 +60,18 @@ class DoubleRangeSlider {
 }
 
 // Initialize all double range sliders on the page
-document.addEventListener('DOMContentLoaded', function() {
+function initializeDoubleRangeSliders() {
     document.querySelectorAll('[data-double-range-slider]').forEach(container => {
-        new DoubleRangeSlider(container.id);
+        // Avoid re-initializing already initialized sliders
+        if (!container.hasAttribute('data-slider-initialized')) {
+            new DoubleRangeSlider(container.id);
+            container.setAttribute('data-slider-initialized', 'true');
+        }
     });
-}); 
+}
+
+// Initialize on DOM ready
+document.addEventListener('DOMContentLoaded', initializeDoubleRangeSliders);
+
+// Re-initialize after HTMX swaps (for dynamic content)
+document.addEventListener('htmx:afterSwap', initializeDoubleRangeSliders); 

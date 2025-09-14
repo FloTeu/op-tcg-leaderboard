@@ -200,7 +200,7 @@ def setup_api_routes(rt):
                         hx_trigger="change",
                         hx_target="#tournament-chart-container",
                         hx_include="[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']",
-                        hx_indicator="#tournament-loading-indicator"
+                        hx_indicator="#tournament-chart-loading"
                     ),
                     ft.Input(
                         type="range",
@@ -213,7 +213,7 @@ def setup_api_routes(rt):
                         hx_trigger="change",
                         hx_target="#tournament-chart-container",
                         hx_include="[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']",
-                        hx_indicator="#tournament-loading-indicator"
+                        hx_indicator="#tournament-chart-loading"
                     ),
                     ft.Div(
                         ft.Span(str(params.min_matches), cls="min-value text-white"),
@@ -227,8 +227,6 @@ def setup_api_routes(rt):
                 ),
                 cls="relative w-full"
             ),
-            ft.Script(src="/public/js/double_range_slider.js"),
-            ft.Link(rel="stylesheet", href="/public/css/double_range_slider.css"),
             ft.Script(f"""
                 // Ensure chart recreation after HTMX swap
                 document.addEventListener('htmx:afterSwap', function(event) {{

@@ -97,6 +97,7 @@ app, rt = fast_app(
         # Core utilities and libraries
         ft.Script(src="/public/js/utils.js"),  # Global utilities
         ft.Script(src="/public/js/multiselect.js"),  # Base select functionality
+        ft.Script(src="/public/js/double_range_slider.js"),  # Range slider functionality
         # Page utilities
         ft.Script(src="/public/js/sidebar.js"),
     ],
