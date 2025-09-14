@@ -6,6 +6,7 @@ from fasthtml.common import fast_app, serve
 from starlette.responses import FileResponse
 from contextlib import asynccontextmanager
 from op_tcg.backend.utils.environment import is_debug
+from op_tcg.frontend_fasthtml.utils.scripts import create_decklist_deep_link_script
 from op_tcg.frontend_fasthtml.components.layout import layout
 from op_tcg.frontend_fasthtml.pages.home import home_page, create_filter_components as home_filters
 from op_tcg.frontend_fasthtml.pages.leader import leader_page, create_filter_components as leader_filters
@@ -188,6 +189,8 @@ def home(request: Request):
         )
     )
 
+
+
 @rt("/leader")
 def leader_default(request: Request):
     # Get selected meta formats from query params (can be multiple)
@@ -220,49 +223,8 @@ def leader_default(request: Request):
         ft.Meta(property="og:description", value=description),
         ft.Meta(property="og:url", value=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
-        # Ensure decklist deep links auto-open even before HTMX content loads
-        ft.Script("""
-            (function(){
-                function openDecklistFromURL(){
-                    try {
-                        const params = new URLSearchParams(window.location.search);
-                        const tid = params.get('tournament_id');
-                        const pid = params.get('player_id');
-                        if (!tid || !pid) return;
-                        const include = {};
-                        const lid = params.get('lid');
-                        if (lid) include.lid = lid;
-                        const metas = params.getAll('meta_format');
-                        if (metas && metas.length) include.meta_format = metas;
-                        const region = params.get('region');
-                        if (region) include.region = region;
-                        include.tournament_id = tid;
-                        include.player_id = pid;
-                        const currency = params.get('currency');
-                        if (currency) include.currency = currency;
-                        if (window.htmx && htmx.ajax) {
-                            htmx.ajax('GET','/api/decklist-modal',{target:'body',swap:'beforeend',values:include});
-                        } else {
-                            const qs = new URLSearchParams();
-                            Object.entries(include).forEach(([k,v])=>{
-                                if (Array.isArray(v)) v.forEach(val=>qs.append(k,val));
-                                else if (v !== undefined && v !== '') qs.append(k,v);
-                            });
-                            fetch('/api/decklist-modal?'+qs.toString()).then(r=>r.text()).then(html=>{
-                                const container=document.createElement('div');
-                                container.innerHTML=html; 
-                                if (container.firstElementChild) document.body.appendChild(container.firstElementChild);
-                            }).catch(()=>{});
-                        }
-                    } catch(e) { /* noop */ }
-                }
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', function(){ setTimeout(openDecklistFromURL, 50); });
-                } else {
-                    setTimeout(openDecklistFromURL, 50);
-                }
-            })();
-        """),
+        # Shared deep-linking functionality for decklist modals
+        create_decklist_deep_link_script(),
         layout(
             leader_page(leader_id, selected_meta_format=selected_meta_format),
             filter_component=leader_filters(
@@ -298,6 +260,8 @@ def tournaments(request: Request):
         ft.Meta(property="og:description", value=description),
         ft.Meta(property="og:url", value=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
+        # Shared deep-linking functionality for decklist modals
+        create_decklist_deep_link_script(),
         layout(tournaments_page(), filter_component=tournament_filters(selected_meta_formats=selected_meta_formats, selected_region=selected_region_enum), current_path="/tournaments", persist_query=persist_query)
     )
 

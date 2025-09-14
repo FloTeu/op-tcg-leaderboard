@@ -1010,7 +1010,7 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
         style="height: 300px; width: 100%;"  # Reduced height to leave room for slider
     ) 
 
-def create_donut_chart(container_id: str, labels: List[str], values: List[int], colors: List, images: List[str]) -> ft.Div:
+def create_donut_chart(container_id: str, labels: List[str], values: List[int], colors: List, images: List[str], leader_ids: List[str] = None) -> ft.Div:
     """
     Create a donut chart for displaying data with multi-color support.
     
@@ -1020,12 +1020,14 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
         values: List of values for each segment  
         colors: List of colors (can be arrays for multi-color leaders)
         images: List of image URLs for tooltips
+        leader_ids: List of leader IDs corresponding to each segment (for click handling)
     """
     # Convert data to JSON strings
     labels_json = json.dumps(labels)
     values_json = json.dumps(values)
     colors_json = json.dumps(colors)
     images_json = json.dumps(images)
+    leader_ids_json = json.dumps(leader_ids or labels)
     
     return ft.Div(
         # Chart container with canvas
@@ -1040,6 +1042,7 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                 const values = {values_json};
                 const colors = {colors_json};
                 const images = {images_json};
+                const leaderIds = {leader_ids_json};
                 
                 function createDonutChart() {{
                     const canvas = document.getElementById(chartId);
@@ -1128,6 +1131,33 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                             animationDuration: 200 // Smooth hover animation
                         }},
                         events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'],
+                        onClick: function(event, chartElements) {{
+                            if (chartElements && chartElements.length > 0) {{
+                                const element = chartElements[0];
+                                const dataIndex = element.index;
+                                const leaderId = leaderIds[dataIndex]; // Use the actual leader ID
+                                
+                                // Get current filter values from the page
+                                const metaFormat = document.querySelector('[name="meta_format"]')?.value || '';
+                                const region = document.querySelector('[name="region"]')?.value || '';
+                                const days = document.querySelector('[name="days"]')?.value || '14';
+                                const placing = document.querySelector('[name="placing"]')?.value || 'all';
+                                
+                                // Build URL with all current filters
+                                const params = new URLSearchParams();
+                                params.set('lid', leaderId);
+                                if (metaFormat) params.set('meta_format', metaFormat);
+                                if (region) params.set('region', region);
+                                params.set('days', days);
+                                params.set('placing', placing);
+                                
+                                // Open decklist modal with tournament filters
+                                htmx.ajax('GET', '/api/decklist-modal?' + params.toString(), {{
+                                    target: 'body',
+                                    swap: 'beforeend'
+                                }});
+                            }}
+                        }},
                         onHover: function(event, chartElements) {{
                             let tooltipEl = document.getElementById('chartjs-tooltip');
                             
@@ -1248,22 +1278,19 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                 // Create the chart
                 createDonutChart();
                 
-                // Cleanup on HTMX swaps
+                // Cleanup on HTMX swaps - only when this specific chart's container is being replaced
                 document.addEventListener('htmx:beforeSwap', function(event) {{
                     try {{
                         if (!window.Chart) return;
                         const target = event.target || (event.detail && event.detail.target);
-                        const root = target || document;
-                        const canvases = root.querySelectorAll && root.querySelectorAll('canvas[id]');
-                        if (!canvases) return;
-                        canvases.forEach(cv => {{
-                            const id = cv.getAttribute('id');
-                            if (!id) return;
-                            const chart = window.Chart.getChart ? window.Chart.getChart(id) : null;
+                        
+                        // Only cleanup if the target is exactly this chart's container
+                        if (target && target.id === 'tournament-decklist-donut') {{
+                            const chart = window.Chart.getChart ? window.Chart.getChart('{container_id}') : null;
                             if (chart) chart.destroy();
-                        }});
-                        const tooltip = document.getElementById('chartjs-tooltip');
-                        if (tooltip) tooltip.remove();
+                            const tooltip = document.getElementById('chartjs-tooltip');
+                            if (tooltip) tooltip.remove();
+                        }}
                     }} catch(e) {{ /* noop */ }}
                 }});
             }})();

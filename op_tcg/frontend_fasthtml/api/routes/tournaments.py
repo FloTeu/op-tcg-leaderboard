@@ -330,6 +330,7 @@ def setup_api_routes(rt):
         values: list[int] = []
         colors: list[str] = []  # This will now contain arrays of colors for multi-color leaders
         images: list[str] = []
+        leader_ids: list[str] = []
 
         # Sort by count desc and show all leaders (no "Others" category)
         sorted_items = sorted(counts.items(), key=lambda x: x[1], reverse=True)
@@ -339,6 +340,7 @@ def setup_api_routes(rt):
             leader = leader_extended_dict.get(lid)
             labels.append(card.name if card else lid)
             values.append(v)
+            leader_ids.append(lid)
             
             # Get leader image (prefer AA version)
             image_url = ""
@@ -378,7 +380,8 @@ def setup_api_routes(rt):
                 labels=labels,
                 values=values,
                 colors=colors,
-                images=images
+                images=images,
+                leader_ids=leader_ids
             ),
             cls="bg-gray-800/30 rounded-lg p-4"
         )
@@ -736,4 +739,4 @@ def setup_api_routes(rt):
                 cls="flex flex-col lg:flex-row gap-8"
             ),
             cls="space-y-6"
-        ) 
+        )

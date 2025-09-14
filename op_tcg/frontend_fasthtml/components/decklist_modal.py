@@ -93,7 +93,9 @@ def create_decklist_modal(
     card_id2card_data: dict[str, ExtendedCardData],
     selected_tournament_id: str | None = None,
     selected_player_id: str | None = None,
-    selected_currency: str = "EUR"
+    selected_currency: str = "EUR",
+    days: str | None = None,
+    placing: str | None = None
 ) -> ft.Div:
     """Create a modal dialog for displaying tournament decklists.
     
@@ -148,7 +150,15 @@ def create_decklist_modal(
         if selected_td and selected_td.tournament_id and selected_td.player_id:
             selected_value = f"{selected_td.tournament_id}:{selected_td.player_id}"
         
+        # Create hidden inputs for preserving filter parameters
+        hidden_inputs = [ft.Input(type="hidden", name="lid", value=leader_id)]
+        if days is not None:
+            hidden_inputs.append(ft.Input(type="hidden", name="days", value=days))
+        if placing is not None:
+            hidden_inputs.append(ft.Input(type="hidden", name="placing", value=placing))
+        
         tournament_decklist_select_component = ft.Div(
+            *hidden_inputs,
             ft.Div(
                 ft.Div(
                     ft.Label("Select Tournament Decklist:", cls="text-white font-medium block mb-3"),
@@ -164,7 +174,7 @@ def create_decklist_modal(
                         cls=SELECT_CLS + " styled-select mb-4",
                         hx_get="/api/decklist/tournament-decklist-modal",
                         hx_target="#selected-tournament-decklist-content-modal",
-                        hx_include="[name='lid'], [name='meta_format'], #currency-select-modal",
+                        hx_include="[name='lid'], [name='meta_format'], [name='days'], [name='placing'], #currency-select-modal",
                         hx_trigger="change",
                         hx_swap="innerHTML",
                         hx_vals='''js:{
@@ -186,7 +196,7 @@ def create_decklist_modal(
                         cls=SELECT_CLS + " styled-select mb-4",
                         hx_get="/api/decklist/tournament-decklist-modal",
                         hx_target="#selected-tournament-decklist-content-modal",
-                        hx_include="#tournament-decklist-select-modal, [name='lid'], [name='meta_format']",
+                        hx_include="#tournament-decklist-select-modal, [name='lid'], [name='meta_format'], [name='days'], [name='placing']",
                         hx_trigger="change",
                         hx_swap="innerHTML",
                         hx_vals='''js:{
@@ -276,7 +286,7 @@ def create_decklist_modal(
                         type="button",
                         title="Copy shareable link",
                         cls="ml-2 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 px-4 py-2 text-white font-semibold shadow-sm hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 active:translate-y-px transition",
-                        onclick='(function(evt){evt.preventDefault();var btn=evt.currentTarget; (async function(){ try{const p=new URLSearchParams(window.location.search);const sel=document.getElementById("tournament-decklist-select-modal");if(!sel||!sel.value)return;const v=sel.value.split(":");p.set("tournament_id",v[0]);p.set("player_id",v[1]);const c=document.getElementById("currency-select-modal");if(c&&c.value){p.set("currency",c.value)}p.set("modal","decklist");const url=window.location.origin+window.location.pathname+"?"+p.toString(); try{ if(navigator.clipboard&&navigator.clipboard.writeText){ await navigator.clipboard.writeText(url); } else { throw new Error("no-async-clipboard"); } } catch(e){ var ta=document.createElement("textarea"); ta.value=url; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); } if(!btn) return; var orig=btn.getAttribute("data-orig-html"); if(!orig){orig=btn.innerHTML; btn.setAttribute("data-orig-html", orig);} btn.innerHTML = "<span class=\"inline-flex items-center gap-2\">✅ <span class=\"hidden sm:inline\">Copied!</span></span>"; btn.classList.add("ring-2","ring-green-400"); setTimeout(function(){btn.innerHTML=orig; btn.classList.remove("ring-2","ring-green-400");}, 1500); } catch(e){} })(); })(event)'
+                        onclick='(function(evt){evt.preventDefault();var btn=evt.currentTarget; (async function(){ try{function buildShareURL(){const p=new URLSearchParams(window.location.search);const lidInput=document.querySelector("[name=lid]");if(lidInput&&lidInput.value){p.set("lid",lidInput.value);}const daysInput=document.querySelector("[name=days]");if(daysInput&&daysInput.value){p.set("days",daysInput.value);}const placingInput=document.querySelector("[name=placing]");if(placingInput&&placingInput.value){p.set("placing",placingInput.value);}const sel=document.getElementById("tournament-decklist-select-modal");if(sel&&sel.value){const v=sel.value.split(":");p.set("tournament_id",v[0]);p.set("player_id",v[1]);}const c=document.getElementById("currency-select-modal");if(c&&c.value){p.set("currency",c.value)}p.set("modal","decklist");return window.location.origin+window.location.pathname+"?"+p.toString();}const url=buildShareURL(); try{ if(navigator.clipboard&&navigator.clipboard.writeText){ await navigator.clipboard.writeText(url); } else { throw new Error("no-async-clipboard"); } } catch(e){ var ta=document.createElement("textarea"); ta.value=url; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); } if(!btn) return; var orig=btn.getAttribute("data-orig-html"); if(!orig){orig=btn.innerHTML; btn.setAttribute("data-orig-html", orig);} btn.innerHTML = "<span class=\"inline-flex items-center gap-2\">✅ <span class=\"hidden sm:inline\">Copied!</span></span>"; btn.classList.add("ring-2","ring-green-400"); setTimeout(function(){btn.innerHTML=orig; btn.classList.remove("ring-2","ring-green-400");}, 1500); } catch(e){} })(); })(event)'
                     ),
                     ft.Button(
                         ft.Span("×", cls="text-lg"),
@@ -370,16 +380,47 @@ def create_decklist_modal(
                     btn.addEventListener('click', async function(evt){
                         evt.preventDefault();
                         try{
-                            const p = new URLSearchParams(window.location.search);
-                            const sel = document.getElementById('tournament-decklist-select-modal');
-                            if(!sel||!sel.value) return;
-                            const v = sel.value.split(':');
-                            p.set('tournament_id', v[0]);
-                            p.set('player_id', v[1]);
-                            const c = document.getElementById('currency-select-modal');
-                            if(c&&c.value){ p.set('currency', c.value); }
-                            p.set('modal','decklist');
-                            const url = window.location.origin + window.location.pathname + '?' + p.toString();
+                            // Use unified share URL building function
+                            function buildShareURL() {{
+                                const p = new URLSearchParams(window.location.search);
+                                
+                                // Get leader ID from hidden input (for tournament page context)
+                                const lidInput = document.querySelector('[name="lid"]');
+                                if (lidInput && lidInput.value) {{
+                                    p.set('lid', lidInput.value);
+                                }}
+                                
+                                // Get tournament filter parameters from hidden inputs
+                                const daysInput = document.querySelector('[name="days"]');
+                                if (daysInput && daysInput.value) {{
+                                    p.set('days', daysInput.value);
+                                }}
+                                
+                                const placingInput = document.querySelector('[name="placing"]');
+                                if (placingInput && placingInput.value) {{
+                                    p.set('placing', placingInput.value);
+                                }}
+                                
+                                // Always try to get selected decklist if available
+                                const sel = document.getElementById('tournament-decklist-select-modal');
+                                if (sel && sel.value) {{
+                                    const v = sel.value.split(':');
+                                    p.set('tournament_id', v[0]);
+                                    p.set('player_id', v[1]);
+                                }}
+                                
+                                // Currency selection
+                                const c = document.getElementById('currency-select-modal');
+                                if (c && c.value) {{ p.set('currency', c.value); }}
+                                
+                                // Always set modal parameter
+                                p.set('modal', 'decklist');
+                                
+                                return window.location.origin + window.location.pathname + '?' + p.toString();
+                            }}
+                            
+                            const url = buildShareURL();
+                            if (!url) return;
                             try { await navigator.clipboard.writeText(url); }
                             catch(e){
                                 const ta = document.createElement('textarea');
