@@ -134,11 +134,12 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
         ft.Div(
             # Single modal content container
             ft.Div(
-                # Close button
+                # Close button (styled consistent with decklist modal)
                 ft.Button(
-                    ft.I("×", cls="text-2xl"),
-                    cls="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors z-30",
-                    onclick="document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove())"
+                    ft.Span("×", cls="text-lg"),
+                    type="button",
+                    cls="absolute top-4 right-4 inline-flex items-center justify-center w-9 h-9 rounded-full bg-gray-700/60 hover:bg-gray-700 text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 transition z-30",
+                    onclick="event.stopPropagation(); document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove())"
                 ),
                 
                 # Card navigation areas (full height on left and right sides)

@@ -6,6 +6,7 @@ from fasthtml.common import fast_app, serve
 from starlette.responses import FileResponse
 from contextlib import asynccontextmanager
 from op_tcg.backend.utils.environment import is_debug
+from op_tcg.frontend_fasthtml.utils.scripts import create_decklist_deep_link_script
 from op_tcg.frontend_fasthtml.components.layout import layout
 from op_tcg.frontend_fasthtml.pages.home import home_page, create_filter_components as home_filters
 from op_tcg.frontend_fasthtml.pages.leader import leader_page, create_filter_components as leader_filters
@@ -96,6 +97,7 @@ app, rt = fast_app(
         # Core utilities and libraries
         ft.Script(src="/public/js/utils.js"),  # Global utilities
         ft.Script(src="/public/js/multiselect.js"),  # Base select functionality
+        ft.Script(src="/public/js/double_range_slider.js"),  # Range slider functionality
         # Page utilities
         ft.Script(src="/public/js/sidebar.js"),
     ],
@@ -188,6 +190,8 @@ def home(request: Request):
         )
     )
 
+
+
 @rt("/leader")
 def leader_default(request: Request):
     # Get selected meta formats from query params (can be multiple)
@@ -220,6 +224,8 @@ def leader_default(request: Request):
         ft.Meta(property="og:description", value=description),
         ft.Meta(property="og:url", value=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
+        # Shared deep-linking functionality for decklist modals
+        create_decklist_deep_link_script(),
         layout(
             leader_page(leader_id, selected_meta_format=selected_meta_format),
             filter_component=leader_filters(
@@ -255,6 +261,8 @@ def tournaments(request: Request):
         ft.Meta(property="og:description", value=description),
         ft.Meta(property="og:url", value=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
+        # Shared deep-linking functionality for decklist modals
+        create_decklist_deep_link_script(),
         layout(tournaments_page(), filter_component=tournament_filters(selected_meta_formats=selected_meta_formats, selected_region=selected_region_enum), current_path="/tournaments", persist_query=persist_query)
     )
 
