@@ -1099,8 +1099,12 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                         datasets: [{{
                             data: values,
                             backgroundColor: processedColors,
-                            borderColor: colors.map(c => Array.isArray(c) ? c[0] : c), // Use first color for border
-                            borderWidth: 1
+                            borderColor: 'rgba(0, 0, 0, 0.1)', // Transparent borders for spacing
+                            borderWidth: 3, // Increased border width for visible spacing
+                            hoverBackgroundColor: processedColors.map(color => color), // Keep original colors on hover
+                            hoverBorderColor: 'rgba(0, 0, 0, 0.2)', // Slightly more visible border on hover
+                            hoverBorderWidth: 4,
+                            hoverOffset: 8 // Increase segment size on hover
                         }}]
                     }};
                     
@@ -1120,7 +1124,8 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                         }},
                         hover: {{
                             mode: 'nearest',
-                            intersect: true
+                            intersect: true,
+                            animationDuration: 200 // Smooth hover animation
                         }},
                         events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'],
                         onHover: function(event, chartElements) {{
@@ -1223,7 +1228,14 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                         }},
                         cutout: '50%',  // Donut hole size
                         animation: {{
-                            duration: 300  // Faster animation for HTMX updates
+                            duration: 300,  // Faster animation for HTMX updates
+                            easing: 'easeOutQuart'
+                        }},
+                        elements: {{
+                            arc: {{
+                                borderWidth: 3,
+                                borderColor: 'rgba(0, 0, 0, 0.1)'
+                            }}
                         }}
                     }};
                     

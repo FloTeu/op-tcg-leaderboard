@@ -287,6 +287,7 @@ def setup_api_routes(rt):
         query = get_query_params_as_dict(request)
         
         days_param = query.get("days", "14")
+        placing_param = query.get("placing", "all")
         
         # Get decklists filtered by meta formats and region
         decklists = get_tournament_decklist_data(
@@ -300,6 +301,15 @@ def setup_api_routes(rt):
                 days = int(days_param)
                 since_ts = datetime.now(timezone.utc) - timedelta(days=days)
                 decklists = [d for d in decklists if d.tournament_timestamp >= since_ts]
+            except (TypeError, ValueError):
+                # If parsing fails, use all decklists
+                pass
+
+        # Filter by tournament placing if not "all"
+        if placing_param != "all":
+            try:
+                max_placing = int(placing_param)
+                decklists = [d for d in decklists if d.placing is not None and d.placing <= max_placing]
             except (TypeError, ValueError):
                 # If parsing fails, use all decklists
                 pass
@@ -345,11 +355,15 @@ def setup_api_routes(rt):
                 # Single color fallback
                 colors.append(["#808080"])
 
-        # Compute subtitle based on timeframe
+        # Compute subtitle based on timeframe and placing
+        placing_text = ""
+        if placing_param != "all":
+            placing_text = f" (Top {placing_param})"
+        
         if days_param == "all":
-            subtitle = f"{total} decklists (all available)"
+            subtitle = f"{total} decklists{placing_text} (all available)"
         else:
-            subtitle = f"{total} decklists in last {days_param} days"
+            subtitle = f"{total} decklists{placing_text} in last {days_param} days"
 
         # Create donut chart using the new unified chart function
         container_id = "tournament-decklist-donut-canvas"

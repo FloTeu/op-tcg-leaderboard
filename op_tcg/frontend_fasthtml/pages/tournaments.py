@@ -75,29 +75,50 @@ def create_tournament_content():
                     ft.Div(
                         ft.H3("Tournament Decklist Popularity", cls="text-lg md:text-xl font-semibold text-white mb-3 md:mb-4"),
                         ft.Div(
-                            ft.Label("Timeframe", cls="text-white font-medium block mb-2 text-sm md:text-base"),
-                            ft.Select(
-                                ft.Option("Last 7 days", value="7"),
-                                ft.Option("Last 14 days", value="14", selected=True),
-                                ft.Option("Last 30 days", value="30"),
-                                ft.Option("Last 90 days", value="90"),
-                                ft.Option("All", value="all"),
-                                id="decklist-timeframe-select",
-                                name="days",
-                                cls=SELECT_CLS + " styled-select w-full text-sm md:text-base",
-                                hx_get="/api/tournaments/decklist-donut",
-                                hx_trigger="change",
-                                hx_target="#tournament-decklist-donut",
-                                hx_include="[name='meta_format'],[name='region'],[name='days']",
-                                hx_indicator="#tournament-loading-indicator"
+                            ft.Div(
+                                ft.Label("Timeframe", cls="text-white font-medium block mb-2 text-sm md:text-base"),
+                                ft.Select(
+                                    ft.Option("Last 7 days", value="7"),
+                                    ft.Option("Last 14 days", value="14", selected=True),
+                                    ft.Option("Last 30 days", value="30"),
+                                    ft.Option("Last 90 days", value="90"),
+                                    ft.Option("All", value="all"),
+                                    id="decklist-timeframe-select",
+                                    name="days",
+                                    cls=SELECT_CLS + " styled-select w-full text-sm md:text-base",
+                                    hx_get="/api/tournaments/decklist-donut",
+                                    hx_trigger="change",
+                                    hx_target="#tournament-decklist-donut",
+                                    hx_include="[name='meta_format'],[name='region'],[name='days'],[name='placing']",
+                                    hx_indicator="#tournament-loading-indicator"
+                                ),
+                                cls="flex-1"
                             ),
-                            cls="mb-3 md:mb-4"
+                            ft.Div(
+                                ft.Label("Tournament Placing", cls="text-white font-medium block mb-2 text-sm md:text-base"),
+                                ft.Select(
+                                    ft.Option("All", value="all", selected=True),
+                                    ft.Option("Top 1", value="1"),
+                                    ft.Option("Top 4", value="4"),
+                                    ft.Option("Top 8", value="8"),
+                                    id="decklist-placing-select",
+                                    name="placing",
+                                    cls=SELECT_CLS + " styled-select w-full text-sm md:text-base",
+                                    hx_get="/api/tournaments/decklist-donut",
+                                    hx_trigger="change",
+                                    hx_target="#tournament-decklist-donut",
+                                    hx_include="[name='meta_format'],[name='region'],[name='days'],[name='placing']",
+                                    hx_indicator="#tournament-loading-indicator"
+                                ),
+                                cls="flex-1"
+                            ),
+                            cls="flex flex-col md:flex-row gap-3 md:gap-4 mb-3 md:mb-4"
                         ),
                         ft.Div(
                             id="tournament-decklist-donut",
                             hx_get="/api/tournaments/decklist-donut",
                             hx_trigger="load",
-                            hx_include="[name='meta_format'],[name='region'],[name='days']",
+                            hx_include="[name='meta_format'],[name='region'],[name='days'],[name='placing']",
                             hx_indicator="#tournament-loading-indicator",
                             cls="bg-gray-800/30 rounded-lg p-2 md:p-4 overflow-hidden",
                             style="min-height: 320px; height: 400px; width: 100%;"
