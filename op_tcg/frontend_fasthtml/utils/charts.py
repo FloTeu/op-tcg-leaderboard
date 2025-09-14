@@ -30,7 +30,7 @@ def create_line_chart(container_id: str, data: List[dict[str, Any]],
     return ft.Div(
         # Chart container with canvas
         ft.Div(
-            ft.Canvas(id=container_id),
+            ft.Canvas(id=container_id, style="width:100%; height:100%; display:block"),
             cls="h-full w-full"  # Use full height and width
         ),
         ft.Script(f"""
@@ -671,7 +671,7 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
     return ft.Div(
         # Chart container with canvas
         ft.Div(
-            ft.Canvas(id=container_id),
+            ft.Canvas(id=container_id, style="width:100%; height:100%; display:block"),
             cls="h-full w-full"  # Use full height and width
         ),
         ft.Script(f"""
@@ -696,8 +696,10 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                         oldTooltip.remove();
                     }}
                     
-                    // Clean up old chart event listeners
-                    document.removeEventListener('mouseout', hideTooltip);
+                    // Clean up old chart event listeners using a stable reference
+                    if (window.bubbleChartHideTooltipHandler) {{
+                        try {{ document.removeEventListener('mouseout', window.bubbleChartHideTooltipHandler); }} catch (e) {{}}
+                    }}
                     
                     function hideTooltip() {{
                         const tooltipEl = document.getElementById('chartjs-tooltip');
@@ -707,7 +709,8 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                     }}
                     
                     // Add global mouse out listener to hide tooltip when mouse leaves chart area
-                    document.addEventListener('mouseout', hideTooltip);
+                    window.bubbleChartHideTooltipHandler = hideTooltip;
+                    document.addEventListener('mouseout', window.bubbleChartHideTooltipHandler);
                     
                     const container = document.getElementById(chartId);
                     if (!container) {{
@@ -721,9 +724,16 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                         existingChart.destroy();
                     }}
                     
-                    // Clear the canvas
+                    // Clear the canvas and reset its size
                     const ctx = container.getContext('2d');
                     ctx.clearRect(0, 0, container.width, container.height);
+                    
+                    // Reset canvas size to match container
+                    const containerElement = container.parentElement;
+                    if (containerElement) {{
+                        container.width = containerElement.clientWidth;
+                        container.height = containerElement.clientHeight;
+                    }}
                     
                     // Store multi-color data for custom drawing
                     const multiColorData = chartColors.map((colorData, index) => {{
@@ -966,14 +976,28 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                                 
                                 // Position the tooltip safely
                                 try {{
-                                const position = element.element.tooltipPosition();
-                                const chartPosition = container.getBoundingClientRect();
-                                const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-                                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                                
-                                    if (position && chartPosition && tooltipEl) {{
-                                tooltipEl.style.left = (chartPosition.left + scrollLeft + position.x) + 'px';
-                                tooltipEl.style.top = (chartPosition.top + scrollTop + position.y - 10) + 'px';
+                                    const chartRect = container.getBoundingClientRect();
+                                    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+                                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                                    
+                                    // Try multiple methods to get element position
+                                    let x, y;
+                                    if (element.element && element.element.tooltipPosition) {{
+                                        const position = element.element.tooltipPosition();
+                                        x = position.x;
+                                        y = position.y;
+                                    }} else if (element.element && element.element.x !== undefined) {{
+                                        x = element.element.x;
+                                        y = element.element.y;
+                                    }} else {{
+                                        // Fallback to chart center
+                                        x = chartRect.width / 2;
+                                        y = chartRect.height / 2;
+                                    }}
+                                    
+                                    if (x !== undefined && y !== undefined && tooltipEl) {{
+                                        tooltipEl.style.left = (chartRect.left + scrollLeft + x) + 'px';
+                                        tooltipEl.style.top = (chartRect.top + scrollTop + y - 10) + 'px';
                                     }}
                                 }} catch (error) {{
                                     console.warn('Error positioning tooltip:', error);
@@ -1050,7 +1074,7 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                 // Global function to recreate chart with current data
                 window.recreateBubbleChart = function() {{
                     if (window.bubbleChartData) {{
-                        console.log('Recreating bubble chart with stored data');
+                        console.log('Recreating bubble chart with data:', window.bubbleChartData);
                         return createBubbleChart();
                     }} else {{
                         console.warn('No bubble chart data available for recreation');
@@ -1087,7 +1111,7 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
     return ft.Div(
         # Chart container with canvas
         ft.Div(
-            ft.Canvas(id=container_id),
+            ft.Canvas(id=container_id, style="width:100%; height:100%; display:block"),
             cls="h-full w-full"
         ),
         ft.Script(f"""

@@ -175,96 +175,54 @@ def setup_api_routes(rt):
                 })
                 colors.append(leader_colors)
         
-        # Create the chart with slider
+        # Create the chart (slider lives outside the swap target on the page)
         chart_div = create_bubble_chart(
             container_id="tournament-chart",
             data=chart_data,
             colors=colors,
             title=""
         )
-        
-        # Add the slider below the chart
-        slider_div = ft.Div(
-            ft.Label("Tournament Match Count Range", cls="text-white font-medium block mb-2"),
-            ft.Div(
-                ft.Div(
-                    ft.Div(cls="slider-track"),
-                    ft.Input(
-                        type="range",
-                        min="0",
-                        max=str(max_matches),
-                        value=str(params.min_matches),
-                        name="min_matches",
-                        cls="slider-range min-range",
-                        hx_get="/api/tournaments/chart",
-                        hx_trigger="change",
-                        hx_target="#tournament-chart-container",
-                        hx_include="[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']",
-                        hx_indicator="#tournament-chart-loading"
-                    ),
-                    ft.Input(
-                        type="range",
-                        min="0",
-                        max=str(max_matches),
-                        value=str(effective_max_matches),
-                        name="max_matches",
-                        cls="slider-range max-range",
-                        hx_get="/api/tournaments/chart",
-                        hx_trigger="change",
-                        hx_target="#tournament-chart-container",
-                        hx_include="[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']",
-                        hx_indicator="#tournament-chart-loading"
-                    ),
-                    ft.Div(
-                        ft.Span(str(params.min_matches), cls="min-value text-white"),
-                        ft.Span(" - ", cls="text-white mx-2"),
-                        ft.Span(str(effective_max_matches), cls="max-value text-white"),
-                        cls="slider-values"
-                    ),
-                    cls="double-range-slider",
-                    id="tournament-match-slider",
-                    data_double_range_slider="true"
-                ),
-                cls="relative w-full"
-            ),
-            ft.Script(f"""
-                // Ensure chart recreation after HTMX swap
-                document.addEventListener('htmx:afterSwap', function(event) {{
-                    if (event.target.id === 'tournament-chart-container') {{
-                        // Force chart recreation with a small delay
-                        setTimeout(() => {{
-                            if (window.recreateBubbleChart) {{
-                                console.log('Recreating bubble chart after slider change');
-                                window.recreateBubbleChart();
-                            }}
-                        }}, 150);
-                    }}
-                }});
-                
-                // Also trigger on slider change for immediate feedback
-                document.addEventListener('DOMContentLoaded', function() {{
-                    const sliders = document.querySelectorAll('#tournament-match-slider input[type="range"]');
-                    sliders.forEach(slider => {{
-                        slider.addEventListener('input', function() {{
-                            // Small delay to allow HTMX to process
-                            setTimeout(() => {{
-                                if (window.recreateBubbleChart) {{
-                                    console.log('Recreating bubble chart after slider input');
-                                    window.recreateBubbleChart();
-                                }}
-                            }}, 200);
-                        }});
-                    }});
-                }});
-            """),
-            cls="mt-6"
-        )
-        
-        content = ft.Div(
-            chart_div,
-            slider_div,
-            cls="space-y-4"  # Reduced spacing to fit better
-        )
+        # Script to update external slider max based on data and keep values in range
+        slider_update_script = ft.Script(f"""
+            (function(){{
+                const newMax = {max_matches};
+                const slider = document.getElementById('tournament-match-slider');
+                if (!slider) return;
+                const minInput = slider.querySelector('.min-range');
+                const maxInput = slider.querySelector('.max-range');
+                const minValSpan = slider.querySelector('.min-value');
+                const maxValSpan = slider.querySelector('.max-value');
+                const track = slider.querySelector('.slider-track');
+                if (!minInput || !maxInput) return;
+
+                // Update max bounds
+                const oldMax = parseInt(minInput.max || '0');
+                if (oldMax !== newMax) {{
+                    minInput.max = String(newMax);
+                    maxInput.max = String(newMax);
+                }}
+
+                // Clamp current values within new bounds
+                let minVal = parseInt(minInput.value || '0');
+                let maxVal = parseInt(maxInput.value || String(newMax));
+                if (maxVal > newMax) maxVal = newMax;
+                if (minVal > maxVal) minVal = maxVal;
+                minInput.value = String(minVal);
+                maxInput.value = String(maxVal);
+
+                // Update displayed value labels
+                if (minValSpan) minValSpan.textContent = minVal.toLocaleString();
+                if (maxValSpan) maxValSpan.textContent = maxVal.toLocaleString();
+
+                // Update slider track CSS variables
+                if (track) {{
+                    const minBase = parseInt(minInput.min || '0');
+                    const pct = (v) => ((v - minBase) / Math.max(1, (newMax - minBase))) * 100;
+                    track.style.setProperty('--left-percent', pct(minVal) + '%');
+                    track.style.setProperty('--right-percent', (100 - pct(maxVal)) + '%');
+                }}
+            }})();
+        """)
         
         # If fallback was used, add notification
         if fallback_used:
@@ -273,9 +231,9 @@ def setup_api_routes(rt):
                 effective_meta_formats[0],  # Show first effective meta format
                 dropdown_id="meta-formats-select"
             )
-            return ft.Div(notification, content)
+            return ft.Div(notification, chart_div, slider_update_script)
         
-        return content
+        return ft.Div(chart_div, slider_update_script)
 
     @rt("/api/tournaments/decklist-donut")
     def get_tournament_decklist_donut(request: Request):
@@ -368,6 +326,89 @@ def setup_api_routes(rt):
         # Create donut chart using the new unified chart function
         container_id = "tournament-decklist-donut-canvas"
         
+        return ft.Div(
+            ft.Div(
+                ft.P(subtitle, cls="text-gray-300 text-sm mb-2"),
+                cls="mb-2"
+            ),
+            create_donut_chart(
+                container_id=container_id,
+                labels=labels,
+                values=values,
+                colors=colors,
+                images=images,
+                leader_ids=leader_ids
+            ),
+            cls="bg-gray-800/30 rounded-lg px-4"
+        )
+
+    @rt("/api/tournaments/decklist-donut-colors")
+    def get_tournament_decklist_donut_colors(request: Request):
+        """Return a donut chart aggregated by leader colors (multi-colored leaders count in each color)."""
+        # Parse params
+        params = TournamentPageParams(**get_query_params_as_dict(request))
+        query = get_query_params_as_dict(request)
+        
+        days_param = query.get("days", "14")
+        placing_param = query.get("placing", "all")
+        
+        # Get decklists filtered by meta formats and region
+        decklists = get_tournament_decklist_data(
+            meta_formats=params.meta_format,
+            meta_format_region=params.region
+        )
+
+        # Filter by time window if not "all"
+        if days_param != "all":
+            try:
+                days = int(days_param)
+                since_ts = datetime.now(timezone.utc) - timedelta(days=days)
+                decklists = [d for d in decklists if d.tournament_timestamp >= since_ts]
+            except (TypeError, ValueError):
+                pass
+
+        # Filter by tournament placing if not "all"
+        if placing_param != "all":
+            try:
+                max_placing = int(placing_param)
+                decklists = [d for d in decklists if d.placing is not None and d.placing <= max_placing]
+            except (TypeError, ValueError):
+                pass
+
+        # Aggregate counts by color
+        color_counts: dict[str, int] = defaultdict(int)
+        # Also assemble display metadata
+        color_to_hex: dict[str, str] = {}
+
+        card_data = get_card_id_card_data_lookup()
+
+        for d in decklists:
+            card = card_data.get(d.leader_id)
+            if not card or not card.colors:
+                continue
+            for c in card.colors:
+                color_name = str(c)
+                color_counts[color_name] += 1
+                color_to_hex[color_name] = c.to_hex_color()
+
+        # Map to lists sorted by count desc
+        sorted_items = sorted(color_counts.items(), key=lambda x: x[1], reverse=True)
+        labels: list[str] = [name for name, _ in sorted_items]
+        values: list[int] = [cnt for _, cnt in sorted_items]
+        colors: list[str] = [[color_to_hex[name]] for name in labels]  # wrap as single-color arrays for chart
+        images: list[str] = [""] * len(labels)
+        leader_ids: list[str] = labels
+
+        total = sum(values) or 1
+        placing_text = ""
+        if placing_param != "all":
+            placing_text = f" (Top {placing_param})"
+        if days_param == "all":
+            subtitle = f"{total} decklists by color{placing_text} (all available)"
+        else:
+            subtitle = f"{total} decklists by color{placing_text} in last {days_param} days"
+
+        container_id = "tournament-decklist-donut-canvas"
         return ft.Div(
             ft.Div(
                 ft.P(subtitle, cls="text-gray-300 text-sm mb-2"),
