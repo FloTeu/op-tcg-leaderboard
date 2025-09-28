@@ -66,6 +66,13 @@ def create_tournament_content():
                 ft.Div(
                     ft.Div(
                         ft.H3("Tournament Decklist Popularity", cls="text-lg md:text-xl font-semibold text-white mb-3 md:mb-4"),
+                        # Hidden input to track toggle state (leaders/colors)
+                        ft.Input(
+                            type="hidden",
+                            name="view_mode",
+                            value="leaders",
+                            id="donut-view-mode"
+                        ),
                         ft.Div(
                         ft.Div(
                             ft.Label("Timeframe", cls="text-white font-medium block mb-2 text-sm md:text-base"),
@@ -78,10 +85,10 @@ def create_tournament_content():
                                 id="decklist-timeframe-select",
                                 name="days",
                                 cls=SELECT_CLS + " styled-select w-full text-sm md:text-base",
-                                hx_get="/api/tournaments/decklist-donut",
+                                hx_get="/api/tournaments/decklist-donut-smart",
                                 hx_trigger="change",
                                 hx_target="#tournament-decklist-donut",
-                                hx_include="[name='meta_format'],[name='region'],[name='days'],[name='placing']",
+                                hx_include="[name='meta_format'],[name='region'],[name='days'],[name='placing'],[name='view_mode']",
                                 hx_indicator="#decklist-donut-loading"
                             ),
                             cls="flex-1"
@@ -96,10 +103,10 @@ def create_tournament_content():
                                 id="decklist-placing-select",
                                 name="placing",
                                 cls=SELECT_CLS + " styled-select w-full text-sm md:text-base",
-                                hx_get="/api/tournaments/decklist-donut",
+                                hx_get="/api/tournaments/decklist-donut-smart",
                                 hx_trigger="change",
                                 hx_target="#tournament-decklist-donut",
-                                hx_include="[name='meta_format'],[name='region'],[name='days'],[name='placing']",
+                                hx_include="[name='meta_format'],[name='region'],[name='days'],[name='placing'],[name='view_mode']",
                                 hx_indicator="#decklist-donut-loading"
                             ),
                             cls="flex-1"
@@ -118,10 +125,10 @@ def create_tournament_content():
                                         "bg-blue-600 text-white shadow-sm"
                                     ),
                                     aria_pressed="true",
-                                    hx_get="/api/tournaments/decklist-donut",
+                                    hx_get="/api/tournaments/decklist-donut-smart",
                                     hx_trigger="click",
                                     hx_target="#tournament-decklist-donut",
-                                    hx_include="[name='meta_format'],[name='region'],[name='days'],[name='placing']",
+                                    hx_include="[name='meta_format'],[name='region'],[name='days'],[name='placing'],[name='view_mode']",
                                     hx_indicator="#decklist-donut-loading"
                                 ),
                                 ft.Button(
@@ -133,10 +140,10 @@ def create_tournament_content():
                                         "bg-gray-700 text-gray-200 hover:bg-gray-600"
                                     ),
                                     aria_pressed="false",
-                                    hx_get="/api/tournaments/decklist-donut-colors",
+                                    hx_get="/api/tournaments/decklist-donut-smart",
                                     hx_trigger="click",
                                     hx_target="#tournament-decklist-donut",
-                                    hx_include="[name='meta_format'],[name='region'],[name='days'],[name='placing']",
+                                    hx_include="[name='meta_format'],[name='region'],[name='days'],[name='placing'],[name='view_mode']",
                                     hx_indicator="#decklist-donut-loading",
                                     style="margin-left:6px;"
                                 ),
@@ -154,9 +161,9 @@ def create_tournament_content():
                             ),
                             ft.Div(
                                 id="tournament-decklist-donut",
-                                hx_get="/api/tournaments/decklist-donut",
+                                hx_get="/api/tournaments/decklist-donut-smart",
                                 hx_trigger="load",
-                                hx_include="[name='meta_format'],[name='region'],[name='days'],[name='placing']",
+                                hx_include="[name='meta_format'],[name='region'],[name='days'],[name='placing'],[name='view_mode']",
                                 hx_indicator="#decklist-donut-loading",
                                 cls="w-full h-full"
                             ),
@@ -166,8 +173,13 @@ def create_tournament_content():
                                 (function(){
                                   const leadersBtn = document.getElementById('donut-toggle-leaders');
                                   const colorsBtn = document.getElementById('donut-toggle-colors');
-                                  if (!leadersBtn || !colorsBtn) return;
+                                  const viewModeInput = document.getElementById('donut-view-mode');
+                                  if (!leadersBtn || !colorsBtn || !viewModeInput) return;
+                                  
                                   function activate(isLeaders){
+                                    // Update hidden input to track current mode
+                                    viewModeInput.value = isLeaders ? 'leaders' : 'colors';
+                                    
                                     if (isLeaders){
                                       leadersBtn.className = 'inline-flex items-center justify-center text-sm font-medium transition-colors px-3 py-1 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-600 text-white shadow-sm';
                                       leadersBtn.setAttribute('aria-pressed','true');
@@ -180,6 +192,7 @@ def create_tournament_content():
                                       leadersBtn.setAttribute('aria-pressed','false');
                                     }
                                   }
+                                  
                                   // Default: leaders
                                   activate(true);
                                   leadersBtn.addEventListener('click', function(){ activate(true); });

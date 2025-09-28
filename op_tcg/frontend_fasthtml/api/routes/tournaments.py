@@ -425,6 +425,19 @@ def setup_api_routes(rt):
             cls="bg-gray-800/30 rounded-lg px-4"
         )
 
+    @rt("/api/tournaments/decklist-donut-smart")
+    def get_tournament_decklist_donut_smart(request: Request):
+        """Smart router that delegates to either leaders or colors endpoint based on view_mode parameter."""
+        # Get view_mode parameter
+        query = get_query_params_as_dict(request)
+        view_mode = query.get("view_mode", "leaders")
+        
+        # Route to appropriate endpoint
+        if view_mode == "colors":
+            return get_tournament_decklist_donut_colors(request)
+        else:
+            return get_tournament_decklist_donut(request)
+
     @rt("/api/leader-tournaments")
     async def get_leader_tournaments(request: Request):
         # Parse params using Pydantic model
