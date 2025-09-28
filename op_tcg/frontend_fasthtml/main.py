@@ -61,14 +61,14 @@ app, rt = fast_app(
     lifespan=lifespan,  # Add lifespan manager here
     hdrs=[
         # Impact site verification
-        ft.Meta(name="impact-site-verification", value="42884b40-0e25-4302-9ead-e1bd322b1ed8"),
+        ft.Meta(name="impact-site-verification", content="42884b40-0e25-4302-9ead-e1bd322b1ed8"),
         # Basic SEO defaults (can be overridden per-route)
-        ft.Meta(name="viewport", value="width=device-width, initial-scale=1"),
-        ft.Meta(name="theme-color", value="#111827"),
-        ft.Meta(property="og:site_name", value="OP TCG Leaderboard"),
-        ft.Meta(property="og:type", value="website"),
-        ft.Meta(name="twitter:card", value="summary_large_image"),
-        ft.Meta(name="twitter:site", value="@op_leaderboard"),
+        ft.Meta(name="viewport", content="width=device-width, initial-scale=1"),
+        ft.Meta(name="theme-color", content="#111827"),
+        ft.Meta(property="og:site_name", content="OP TCG Leaderboard"),
+        ft.Meta(property="og:type", content="website"),
+        ft.Meta(name="twitter:card", content="summary_large_image"),
+        ft.Meta(name="twitter:site", content="@op_leaderboard"),
         ft.Style(':root { --pico-font-size: 100%; }'),
         ft.Style('body { background-color: rgb(17, 24, 39); }'),
         ft.Link(
@@ -177,10 +177,10 @@ def home(request: Request):
     
     return (
         ft.Title(title),
-        ft.Meta(name="description", value=description),
-        ft.Meta(property="og:title", value=title),
-        ft.Meta(property="og:description", value=description),
-        ft.Meta(property="og:url", value=canonical_url),
+        ft.Meta(name="description", content=description),
+        ft.Meta(property="og:title", content=title),
+        ft.Meta(property="og:description", content=description),
+        ft.Meta(property="og:url", content=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
         layout(
             home_page(),
@@ -219,10 +219,10 @@ def leader_default(request: Request):
     }
     return (
         ft.Title(title),
-        ft.Meta(name="description", value=description),
-        ft.Meta(property="og:title", value=title),
-        ft.Meta(property="og:description", value=description),
-        ft.Meta(property="og:url", value=canonical_url),
+        ft.Meta(name="description", content=description),
+        ft.Meta(property="og:title", content=title),
+        ft.Meta(property="og:description", content=description),
+        ft.Meta(property="og:url", content=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
         # Shared deep-linking functionality for decklist modals
         create_decklist_deep_link_script(),
@@ -256,10 +256,10 @@ def tournaments(request: Request):
     selected_region_enum = MetaFormatRegion(selected_region) if selected_region else None
     return (
         ft.Title(title),
-        ft.Meta(name="description", value=description),
-        ft.Meta(property="og:title", value=title),
-        ft.Meta(property="og:description", value=description),
-        ft.Meta(property="og:url", value=canonical_url),
+        ft.Meta(name="description", content=description),
+        ft.Meta(property="og:title", content=title),
+        ft.Meta(property="og:description", content=description),
+        ft.Meta(property="og:url", content=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
         # Shared deep-linking functionality for decklist modals
         create_decklist_deep_link_script(),
@@ -288,10 +288,10 @@ def card_movement(request: Request):
     }
     return (
         ft.Title(title),
-        ft.Meta(name="description", value=description),
-        ft.Meta(property="og:title", value=title),
-        ft.Meta(property="og:description", value=description),
-        ft.Meta(property="og:url", value=canonical_url),
+        ft.Meta(name="description", content=description),
+        ft.Meta(property="og:title", content=title),
+        ft.Meta(property="og:description", content=description),
+        ft.Meta(property="og:url", content=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
         layout(card_movement_page(), filter_component=card_movement_filters(selected_meta_format=selected_meta_format, selected_leader_id=selected_leader_id), current_path="/card-movement", persist_query=persist_query)
     )
@@ -319,10 +319,10 @@ def matchups(request: Request):
     }
     return (
         ft.Title(title),
-        ft.Meta(name="description", value=description),
-        ft.Meta(property="og:title", value=title),
-        ft.Meta(property="og:description", value=description),
-        ft.Meta(property="og:url", value=canonical_url),
+        ft.Meta(name="description", content=description),
+        ft.Meta(property="og:title", content=title),
+        ft.Meta(property="og:description", content=description),
+        ft.Meta(property="og:url", content=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
         layout(matchups_page(), filter_component=matchups_filters(selected_meta_formats=selected_meta_formats, selected_leader_ids=selected_leader_ids, only_official=only_official), current_path="/matchups", persist_query=persist_query)
     )
@@ -347,10 +347,10 @@ def card_popularity(request: Request):
     selected_currency_enum = CardCurrency(selected_currency) if selected_currency else None
     return (
         ft.Title(title),
-        ft.Meta(name="description", value=description),
-        ft.Meta(property="og:title", value=title),
-        ft.Meta(property="og:description", value=description),
-        ft.Meta(property="og:url", value=canonical_url),
+        ft.Meta(name="description", content=description),
+        ft.Meta(property="og:title", content=title),
+        ft.Meta(property="og:description", content=description),
+        ft.Meta(property="og:url", content=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
         layout(card_popularity_page(), filter_component=card_popularity_filters(selected_meta_format=selected_meta_format_enum, currency=selected_currency_enum), current_path="/card-popularity", persist_query=persist_query)
     )
@@ -363,10 +363,10 @@ def prices(request: Request):
     description = "See current OP TCG card prices and market movement with historical trends."
     return (
         ft.Title(title),
-        ft.Meta(name="description", value=description),
-        ft.Meta(property="og:title", value=title),
-        ft.Meta(property="og:description", value=description),
-        ft.Meta(property="og:url", value=canonical_url),
+        ft.Meta(name="description", content=description),
+        ft.Meta(property="og:title", content=title),
+        ft.Meta(property="og:description", content=description),
+        ft.Meta(property="og:url", content=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
         layout(prices_page(), filter_component=prices_filters(), current_path="/prices")
     )
@@ -385,10 +385,10 @@ def bug_report(request: Request):
     }
     return (
         ft.Title(title),
-        ft.Meta(name="description", value=description),
-        ft.Meta(property="og:title", value=title),
-        ft.Meta(property="og:description", value=description),
-        ft.Meta(property="og:url", value=canonical_url),
+        ft.Meta(name="description", content=description),
+        ft.Meta(property="og:title", content=title),
+        ft.Meta(property="og:description", content=description),
+        ft.Meta(property="og:url", content=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
         layout(bug_report_page(), filter_component=None, current_path="/bug-report", persist_query=persist_query)
     )
