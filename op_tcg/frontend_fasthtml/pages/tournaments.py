@@ -20,7 +20,7 @@ def create_filter_components(selected_meta_formats=None, selected_region: MetaFo
     # Default region
     selected_region = selected_region or MetaFormatRegion.ALL
 
-    # Release meta formats multi-select
+    # Release meta formats multi-select - use region for filtering available formats
     meta_format_select = ft.Select(
         label="Meta Formats",
         id="meta-formats-select",
@@ -28,7 +28,7 @@ def create_filter_components(selected_meta_formats=None, selected_region: MetaFo
         multiple=True,
         size=1,
         cls=SELECT_CLS + " multiselect",
-        *[ft.Option(mf, value=mf, selected=(mf in selected_meta_formats)) for mf in reversed(MetaFormat.to_list())],
+        *[ft.Option(mf, value=mf, selected=(mf in selected_meta_formats)) for mf in reversed(MetaFormat.to_list(region=selected_region))],
         **FILTER_HX_ATTRS
     )
 

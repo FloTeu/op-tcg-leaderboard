@@ -97,6 +97,9 @@ def ensure_json_serializability(row_to_insert):
 def bq_insert_rows(rows_to_insert: list[dict[str, Any]], table: bigquery.Table,
                    client: bigquery.Client | None = None) -> None:
     """Adds a new row to BigQuery"""
+    if len(rows_to_insert) == 0:
+        _logger.warning(f"Skip bq insert in table {table}, as no rows are provided.")
+        return None
     client = client if client else bigquery.Client()
     for row in rows_to_insert:
         ensure_json_serializability(row)

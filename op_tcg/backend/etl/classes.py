@@ -172,12 +172,10 @@ class CardImageUpdateToGCPEtlJob(AbstractETLJob[list[Card], list[Card]]):
         if len(cards) > 0:
             # create tmp table
             card_table = get_or_create_table(Card, table_id=Card.__tablename__)
+            # ensure table is new
+            self.bq_client.delete_table(f"{Card.get_dataset_id()}.{Card.__tablename__}_tmp", not_found_ok=True)  # Make an API request.
             card_tmp_table = get_or_create_table(Card, table_id=f"{Card.__tablename__}_tmp")
             time.sleep(2) # ensure table exist
-            # ensure table is empty
-            self.bq_client.query(
-                f"DELETE FROM `{card_tmp_table.full_table_id.replace(':', '.')}` WHERE TRUE;").result()
-
             rows_to_insert = []
             for card in cards:
                 rows_to_insert.append(json.loads(card.model_dump_json()))

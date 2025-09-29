@@ -122,7 +122,7 @@ def get_card_data() -> list[LatestCardPrice]:
     latest_card_rows = run_bq_query(
             f"""SELECT t0.*, t1.* except(id, name, language, create_timestamp), t1.name as release_set_name
             FROM `{get_bq_table_id(LatestCardPrice)}` t0
-            LEFT JOIN `{get_bq_table_id(CardReleaseSet)}` t1 on t0.release_set_id = t1.id
+            LEFT JOIN `{get_bq_table_id(CardReleaseSet)}` t1 on t0.release_set_id = t1.id and t0.language = t1.language
     """, ttl_hours=24.0)
     return [ExtendedCardData(**d) for d in latest_card_rows]
 

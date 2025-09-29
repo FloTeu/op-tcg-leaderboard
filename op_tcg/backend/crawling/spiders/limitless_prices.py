@@ -17,7 +17,8 @@ from op_tcg.backend.models.cards import CardPrice, Card, OPTcgLanguage, CardRele
 from google.cloud import bigquery
 
 from op_tcg.backend.models.common import DataSource
-from op_tcg.backend.models.input import get_meta_format_by_datetime, MetaFormat, meta_format2release_datetime
+from op_tcg.backend.models.input import get_meta_format_by_datetime, MetaFormat, meta_format2release_datetime, \
+    MetaFormatRegion
 
 
 class ReleaseSetCardsInfo(BaseModel):
@@ -45,17 +46,23 @@ class LimitlessPricesSpider(scrapy.Spider):
             release_sets.append(CardReleaseSet(**dict(card_row)))
         return release_sets
 
+    @staticmethod
+    def get_id_language(id: str, language: OPTcgLanguage | str) -> str:
+        return f"{id}_{language}"
+
     def get_card_ids(self) -> dict[str, list[str]]:
-        """Returns dict of card ids and aa versions stored in bq"""
+        """Returns dict of card ids + language and aa versions stored in bq"""
         card_ids_to_aa_version: dict[str, list[str]] = {}
         for card_row in self.bq_client.query(
-                f"SELECT id, aa_version FROM `{self.card_table.full_table_id.replace(':', '.')}` order by aa_version").result():
+                f"SELECT id, language, aa_version FROM `{self.card_table.full_table_id.replace(':', '.')}` order by aa_version").result():
             id = dict(card_row).get("id")
+            language = dict(card_row).get("language")
+            id_language = self.get_id_language(id, language)
             aa_version = dict(card_row).get("aa_version")
-            if id not in card_ids_to_aa_version:
-                card_ids_to_aa_version[id] = [aa_version]
+            if id_language not in card_ids_to_aa_version:
+                card_ids_to_aa_version[id_language] = [aa_version]
             else:
-                card_ids_to_aa_version[id].append(aa_version)
+                card_ids_to_aa_version[id_language].append(aa_version)
         return card_ids_to_aa_version
 
     def start_requests(self):
@@ -69,8 +76,7 @@ class LimitlessPricesSpider(scrapy.Spider):
         self.bq_card_ids = self.get_card_ids()
         self.release_set_it_to_cards_info: dict[str, ReleaseSetCardsInfo] = {}
 
-
-        start_url = "https://onepiece.limitlesstcg.com/cards/en"
+        start_url = "https://onepiece.limitlesstcg.com/cards"
         yield scrapy.Request(url=start_url,
                              callback=self.parse_set_url,
                              errback=self.errback_httpbin,
@@ -79,7 +85,7 @@ class LimitlessPricesSpider(scrapy.Spider):
     def parse_set_url(self, response):
         # Format of date column
         bq_release_sets = self.get_release_sets()
-        bq_release_set_ids = [bq_release_set.id for bq_release_set in bq_release_sets]
+        bq_release_set_ids = [self.get_id_language(bq_release_set.id, bq_release_set.language) for bq_release_set in bq_release_sets]
 
         try:
             limitless_release_sets: list[CardReleaseSet] = self.get_parsed_release_sets(response)
@@ -89,12 +95,12 @@ class LimitlessPricesSpider(scrapy.Spider):
 
         release_sets_not_yet_crawled = []
         for limitless_release_set in limitless_release_sets:
-            if limitless_release_set.id not in bq_release_set_ids:
+            if self.get_id_language(limitless_release_set.id, limitless_release_set.language) not in bq_release_set_ids:
                 release_sets_not_yet_crawled.append(limitless_release_set)
                 # send to pipeline which updates big query
                 yield ReleaseSetItem(release_set=limitless_release_set)
 
-        for release_set in (bq_release_sets + release_sets_not_yet_crawled):
+        for release_set in (release_sets_not_yet_crawled + bq_release_sets):
             yield scrapy.Request(url=f"{release_set.url}?display=list&sort=id&show=all&unique=prints",
                                  callback=self.parse_price_page,
                                  errback=self.errback_httpbin,
@@ -102,7 +108,8 @@ class LimitlessPricesSpider(scrapy.Spider):
                                      # 'dont_redirect': True,
                                      # 'handle_httpstatus_list': [302],
                                      'release_set': release_set,
-                                     'language': response.meta.get('language')
+                                     'language': response.meta.get('language'),
+                                     'release_set_language': release_set.language
                                  })
 
     @staticmethod
@@ -153,19 +160,20 @@ class LimitlessPricesSpider(scrapy.Spider):
                         release_datetime = release_datetime.replace(day=28)
 
                     release_datetime = max(release_datetime, meta_format2release_datetime(MetaFormat.OP01))
-                    meta_format = get_meta_format_by_datetime(release_datetime)
+                    meta_format = get_meta_format_by_datetime(release_datetime, region=MetaFormatRegion.ALL)
                 else:
                     release_datetime = None
                     meta_format = None
                 # ignore sets with japanese suffix or future release
-                if row_data["Name"].get_text(strip=True)[-2:] == "JP" or (
-                        release_datetime and (release_datetime > datetime.now())):
-                    continue
-                release_set_name = row_data["Name"].get_text(strip=True)
+                # if row_data["Name"].get_text(strip=True)[-2:] == "JP" or (
+                #         release_datetime and (release_datetime > datetime.now())):
+                #     continue
+                is_jp_set = row_data["Name"].get_text(strip=True)[-2:] == "JP"
+                release_set_name = row_data["Name"].get_text(strip=True).strip("JP")
                 id = LimitlessPricesSpider.get_release_set_id(release_set_name, code, release_datetime)
                 release_sets.append(CardReleaseSet(
                     id=id,
-                    language=language,
+                    language=OPTcgLanguage.JP if is_jp_set else language,
                     name=release_set_name,
                     meta_format=meta_format,
                     release_date=release_datetime.date() if release_datetime else None,
@@ -235,8 +243,7 @@ class LimitlessPricesSpider(scrapy.Spider):
     def parse_price_page(self, response):
         release_set: CardReleaseSet = response.meta.get("release_set")
         language = response.meta.get("language")
-        if OPTcgLanguage.JP in urlparse(response.url).path.split('/'):
-            language = OPTcgLanguage.JP
+        release_set_language = response.meta.get("release_set_language")
 
         # Parse the HTML content
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -274,15 +281,16 @@ class LimitlessPricesSpider(scrapy.Spider):
                 if type(aa_version) == list:
                     aa_version = int(aa_version[0])
                 card_id = row_data["Card"]
+                card_id_language = self.get_id_language(card_id, release_set_language)
                 # (not in bq yet) or (card_id in bq but not aa version)
-                if (card_id not in self.bq_card_ids) or (aa_version not in self.bq_card_ids[card_id]):
-                    add_card_id_aa_version(card_id, aa_version)
+                if (card_id_language not in self.bq_card_ids) or (aa_version not in self.bq_card_ids[card_id_language]):
+                    add_card_id_aa_version(card_id_language, aa_version)
 
                 rows.append(LimitlessPriceRow(
                     card_id=card_id,
                     name=row_data["Rarity"],
                     aa_version=aa_version,
-                    language=language,
+                    language=OPTcgLanguage.EN, # prices are always for western markets on limitless
                     card_category=row_data["Category"],
                     rarity=row_data["Rarity"],
                     price_usd=None if row_data["USD"].strip() in ["-", ""] else self.extract_price_usd(row_data["USD"]),
@@ -297,7 +305,8 @@ class LimitlessPricesSpider(scrapy.Spider):
 
         total_cards_to_crawl = sum(len(aa_versions) for aa_versions in card_ids_not_yet_crawled.values())
         self.release_set_it_to_cards_info[release_set.id] = ReleaseSetCardsInfo(total_cards_to_crawl=total_cards_to_crawl, cards=[])
-        for card_id, aa_versions in card_ids_not_yet_crawled.items():
+        for card_id_language, aa_versions in card_ids_not_yet_crawled.items():
+            card_id, set_language = "_".join(card_id_language.split("_")[:-1]), card_id_language.split("_")[-1]
             limitless_url = f"https://onepiece.limitlesstcg.com/cards/{language}/{card_id}?v=0"
             yield scrapy.Request(url=limitless_url,
                                  callback=self.parse_card_page,
@@ -306,6 +315,7 @@ class LimitlessPricesSpider(scrapy.Spider):
                                  meta={
                                      'release_set': release_set,
                                      'language': language,
+                                     'release_set_language': release_set_language,
                                      'card_id': card_id,
                                      'aa_versions': aa_versions,
                                  })
@@ -314,6 +324,9 @@ class LimitlessPricesSpider(scrapy.Spider):
         release_set: CardReleaseSet = response.meta.get("release_set")
         aa_versions: list[int] = response.meta.get("aa_versions")
         language: OPTcgLanguage = response.meta.get("language")
+        release_set_language: OPTcgLanguage = response.meta.get("release_set_language")
+        if release_set_language == OPTcgLanguage.JP:
+            pass
         card_id: str = response.meta.get("card_id")
 
         # Parse the HTML content
@@ -323,7 +336,7 @@ class LimitlessPricesSpider(scrapy.Spider):
         cards: list[Card] = []
         for aa_version in aa_versions:
             try:
-                base_card: BaseCard = limitless_soup2base_card(card_id, language, soup, aa_version=aa_version)
+                base_card: BaseCard = limitless_soup2base_card(card_id, release_set_language, soup, aa_version=aa_version)
                 base_card.release_set_id = release_set.id
                 cards.append(base_card2bq_card(base_card, soup))
             except Exception as e:

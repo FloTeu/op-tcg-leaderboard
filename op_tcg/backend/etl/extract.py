@@ -151,7 +151,7 @@ def base_card2bq_card(base_card: BaseCard, soup: BeautifulSoup) -> Card:
         power = int(
             re.search(r'(\d+)(?=\s*Power)', soup.find('p', {'class': 'card-text-section'}).text).group(0))
         attributes = soup.findAll('p', {'class': 'card-text-section'})[0].find("span", {
-            'data-tooltip': 'Attribute'}).text.strip().split("/")
+            'data-tooltip': 'Attribute'}).text.strip().removeprefix("card.attribute.").split("/")
         attributes = [OPTcgAttribute(a) for a in attributes]
     if base_card.card_category == OPTcgCardCatagory.LEADER:
         life = int(re.search(r'(\d+)(?=\s*Life)', soup.find('p', {'class': 'card-text-type'}).text).group(0))

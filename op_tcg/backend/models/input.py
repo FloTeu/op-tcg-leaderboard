@@ -159,7 +159,7 @@ def get_meta_format_by_datetime(dt: datetime, region: MetaFormatRegion = MetaFor
         The meta format that was active at the given datetime
     """
     # starts with latest (released) meta format
-    for meta_format in sorted(MetaFormat.to_list(only_after_release=True), reverse=True):
+    for meta_format in sorted(MetaFormat.to_list(only_after_release=True, region=region), reverse=True):
         if dt >= meta_format2release_datetime(meta_format, region):
             return meta_format
     raise ValueError(f"Could not match meta format to datetime: {dt} for region: {region}")

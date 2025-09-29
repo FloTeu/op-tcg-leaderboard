@@ -41,10 +41,12 @@ class OPTcgAttribute(EnumBase, StrEnum):
     SPECIAL="Special"
     WISDOM="Wisdom"
     RANGED="Ranged"
+    UNKNOWN="?"
 
 class OPTcgTournamentStatus(EnumBase, StrEnum):
     BANNED="banned"
     LEGAL="legal"
+    UNRELEASED="unreleased"
 
 
 class OPTcgLanguage(StrEnum):

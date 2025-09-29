@@ -2,23 +2,32 @@ import json
 import logging
 import os
 import click
+import asyncio
 
+from functools import wraps
 from pathlib import Path
 
 from google.cloud import bigquery
 from scrapy.crawler import CrawlerProcess
 from tqdm import tqdm
 
+from op_tcg.backend.crawling.items import ReleaseSetItem
 from op_tcg.backend.crawling.spiders.limitless_matches import LimitlessMatchSpider
 from op_tcg.backend.crawling.spiders.limitless_prices import LimitlessPricesSpider
 from op_tcg.backend.crawling.spiders.limitless_tournaments import LimitlessTournamentSpider
 from op_tcg.backend.crawling.spiders.op_top_decks_decklists import OPTopDeckDecklistSpider
 from op_tcg.backend.etl.extract import get_leader_ids, crawl_limitless_card
 from op_tcg.backend.etl.load import get_or_create_table, bq_insert_rows
-from op_tcg.backend.models.cards import Card, CardPrice, LimitlessCardData
+from op_tcg.backend.models.cards import Card, CardPrice, LimitlessCardData, OPTcgLanguage
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.tournaments import TournamentStanding
 
+
+def async_cmd(func):
+  @wraps(func)
+  def wrapper(*args, **kwargs):
+    return asyncio.run(func(*args, **kwargs))
+  return wrapper
 
 @click.group("crawl", help="Crawling functionality")
 def crawling_group() -> None:
@@ -106,10 +115,42 @@ def tournaments(
 
 
 @limitless_group.command()
+@async_cmd
+async def crawl_cards(
+) -> None:
+    # TODO: this code is currently in development and only for experiment purposes
+    from crawl4ai import AsyncWebCrawler, CacheMode
+    from crawl4ai.async_configs import BrowserConfig, CrawlerRunConfig, LLMExtractionStrategy, LLMConfig
+    from pydantic import BaseModel
+
+    class LimitlessCardData(BaseModel):
+        cards: list[Card]
+        release_sets: list[ReleaseSetItem]
+        prices: list[CardPrice]
+
+    llm_strategy = LLMExtractionStrategy(
+        llmConfig=LLMConfig(provider="openai/gpt-4o", api_token=os.getenv('OPENAI_API_KEY')),
+        schema=LimitlessCardData.model_json_schema(),
+        extraction_type="schema",
+        instruction="Extract all card data, release set and price information from the page.",
+        chunk_token_threshold=5000,
+        input_format="markdown"
+    )
+
+    crawl_config = CrawlerRunConfig(extraction_strategy=llm_strategy, cache_mode=CacheMode.BYPASS)
+
+    async with AsyncWebCrawler() as crawler:
+        result = await crawler.arun(f"https://onepiece.limitlesstcg.com/cards/?q=lang%3A{OPTcgLanguage.EN}+display%3Afull+sort%3Aid&show=25&page=105", config=crawl_config)
+        if result.success:
+            data = json.loads(result.extracted_content)
+            data_parsed = LimitlessCardData(**data[0])
+            print("Extracted Data:", data)
+
+@limitless_group.command()
 def crawl_prices(
 ) -> None:
     """
-    Starts a limitless crawler for tournament data
+    Starts a limitless crawler for card data incl. prices, cards and release set
     """
     process = CrawlerProcess({
         'ITEM_PIPELINES': {
@@ -118,6 +159,7 @@ def crawl_prices(
                 'op_tcg.backend.crawling.pipelines.CardPipeline': 3,
         }
     })
+
     process.crawl(LimitlessPricesSpider)
     process.start() # the script will block here until the crawling is finished
 
