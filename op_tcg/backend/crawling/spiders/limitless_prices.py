@@ -76,19 +76,21 @@ class LimitlessPricesSpider(scrapy.Spider):
         self.bq_card_ids = self.get_card_ids()
         self.release_set_it_to_cards_info: dict[str, ReleaseSetCardsInfo] = {}
 
-        start_url = "https://onepiece.limitlesstcg.com/cards"
-        yield scrapy.Request(url=start_url,
-                             callback=self.parse_set_url,
-                             errback=self.errback_httpbin,
-                             meta={"language": OPTcgLanguage.EN})
+        start_urls = ["https://onepiece.limitlesstcg.com/cards/promos", "https://onepiece.limitlesstcg.com/cards"]
+        for start_url in start_urls:
+            yield scrapy.Request(url=start_url,
+                                 callback=self.parse_set_url,
+                                 errback=self.errback_httpbin,
+                                 meta={"language": OPTcgLanguage.EN})
 
     def parse_set_url(self, response):
+        is_promo_crawl = "promos" in response.url
         # Format of date column
         bq_release_sets = self.get_release_sets()
         bq_release_set_ids = [self.get_id_language(bq_release_set.id, bq_release_set.language) for bq_release_set in bq_release_sets]
 
         try:
-            limitless_release_sets: list[CardReleaseSet] = self.get_parsed_release_sets(response)
+            limitless_release_sets: list[CardReleaseSet] = self.get_parsed_release_sets(response, is_promo_crawl=is_promo_crawl)
         except Exception as e:
             logging.warning(f"Something went wrong during release set crawling, {str(e)}")
             limitless_release_sets = []
@@ -100,7 +102,12 @@ class LimitlessPricesSpider(scrapy.Spider):
                 # send to pipeline which updates big query
                 yield ReleaseSetItem(release_set=limitless_release_set)
 
-        for release_set in (release_sets_not_yet_crawled + bq_release_sets):
+        release_sets_to_crawl = release_sets_not_yet_crawled
+        if not is_promo_crawl:
+            # in case of standard crawl we also update price information of existing sets in BQ
+            release_sets_to_crawl.extend(bq_release_sets)
+
+        for release_set in release_sets_to_crawl:
             yield scrapy.Request(url=f"{release_set.url}?display=list&sort=id&show=all&unique=prints",
                                  callback=self.parse_price_page,
                                  errback=self.errback_httpbin,
@@ -113,14 +120,14 @@ class LimitlessPricesSpider(scrapy.Spider):
                                  })
 
     @staticmethod
-    def get_parsed_release_sets(response: Response) -> list[CardReleaseSet]:
+    def get_parsed_release_sets(response: Response, is_promo_crawl: bool = False) -> list[CardReleaseSet]:
         release_sets: list[CardReleaseSet] = []
 
         language: OPTcgLanguage = response.meta.get("language")
         base_url = f"{urlparse(response.url).scheme}://{urlparse(response.url).netloc}"
 
         # index must match the right table, as each table has different date format
-        date_formats = ["%d %b %y"]
+        date_formats = ["%b %y" if is_promo_crawl else "%d %b %y"]
         # Parse the HTML content
         soup = BeautifulSoup(response.text, 'html.parser')
         # Find the table with the class 'data-table striped highlight card-list'
@@ -160,7 +167,7 @@ class LimitlessPricesSpider(scrapy.Spider):
                         release_datetime = release_datetime.replace(day=28)
 
                     release_datetime = max(release_datetime, meta_format2release_datetime(MetaFormat.OP01))
-                    meta_format = get_meta_format_by_datetime(release_datetime, region=MetaFormatRegion.ALL)
+                    meta_format = get_meta_format_by_datetime(release_datetime, region=MetaFormatRegion.WEST)
                 else:
                     release_datetime = None
                     meta_format = None
