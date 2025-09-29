@@ -3,11 +3,10 @@ import os
 from collections import Counter
 
 from cachetools import TTLCache, cached
-from pydantic import ValidationError
 
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
 from op_tcg.backend.models.cards import LatestCardPrice, CardPopularity, Card, CardReleaseSet, ExtendedCardData, \
-    CardCurrency, CardPrice
+    CardCurrency, CardPrice, OPTcgLanguage
 from op_tcg.backend.models.decklists import Decklist
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import Leader, TournamentWinner, LeaderElo, LeaderExtended
@@ -118,11 +117,17 @@ def get_all_tournament_extened_data(meta_formats: list[MetaFormat] | None = None
     return tournaments
 
 
-def get_card_data() -> list[LatestCardPrice]:
+def get_card_data(default_language: OPTcgLanguage = OPTcgLanguage.EN) -> list[LatestCardPrice]:
+    # default to english, but if card_id has not english language, the japanese version is used
     latest_card_rows = run_bq_query(
-            f"""SELECT t0.*, t1.* except(id, name, language, create_timestamp), t1.name as release_set_name
-            FROM `{get_bq_table_id(LatestCardPrice)}` t0
-            LEFT JOIN `{get_bq_table_id(CardReleaseSet)}` t1 on t0.release_set_id = t1.id and t0.language = t1.language
+            f"""WITH ranked_cards AS (
+                SELECT t0.*, t1.* except(id, name, language, create_timestamp), t1.name as release_set_name,
+                       ROW_NUMBER() OVER (PARTITION BY t0.id, t0.aa_version ORDER BY 
+                           CASE WHEN t0.language = '{default_language}' THEN 1 ELSE 2 END) as rn
+                FROM `{get_bq_table_id(LatestCardPrice)}` t0
+                LEFT JOIN `{get_bq_table_id(CardReleaseSet)}` t1 on t0.release_set_id = t1.id and t0.language = t1.language
+            )
+            SELECT * except(rn) FROM ranked_cards WHERE rn = 1
     """, ttl_hours=24.0)
     return [ExtendedCardData(**d) for d in latest_card_rows]
 
@@ -158,12 +163,12 @@ def get_card_types() -> list[str]:
     return [d["types"] for d in latest_card_rows]
 
 
-def get_card_id_card_data_lookup(aa_version: int = 0, ensure_latest_price_not_null=True) -> dict[str, ExtendedCardData]:
+def get_card_id_card_data_lookup(aa_version: int = 0, ensure_latest_price_not_null=True, default_language: OPTcgLanguage = OPTcgLanguage.EN) -> dict[str, ExtendedCardData]:
     card_data = get_card_data()
     card_data = [cdata for cdata in card_data if cdata.aa_version == aa_version]
     if ensure_latest_price_not_null:
         for cdata in card_data:
-            cdata.ensure_latest_price_not_none()
+            cdata.ensure_latest_price_not_none()    
     return {card.id: card for card in card_data}
 
 def get_tournament_match_data(tournament_id: str, leader_id: str | None = None) -> list[Match]:

@@ -279,7 +279,7 @@ def setup_api_routes(rt):
 
         # Map to names/colors/images
         card_data = get_card_id_card_data_lookup()
-        leader_data = get_leader_extended()
+        leader_data = get_leader_extended(meta_formats=MetaFormat.to_list(region=params.region))
         leader_extended_dict = {le.id: le for le in leader_data}
         
         labels: list[str] = []
