@@ -2,49 +2,49 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>http://localhost:5003/</loc>
-    <lastmod>2025-09-29</lastmod>
+    <lastmod>2025-10-03</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>http://localhost:5003/leader</loc>
-    <lastmod>2025-09-29</lastmod>
+    <lastmod>2025-10-03</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>http://localhost:5003/tournaments</loc>
-    <lastmod>2025-09-29</lastmod>
+    <lastmod>2025-10-03</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>http://localhost:5003/card-movement</loc>
-    <lastmod>2025-09-29</lastmod>
+    <lastmod>2025-10-03</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>http://localhost:5003/matchups</loc>
-    <lastmod>2025-09-29</lastmod>
+    <lastmod>2025-10-03</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>http://localhost:5003/card-popularity</loc>
-    <lastmod>2025-09-29</lastmod>
+    <lastmod>2025-10-03</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>http://localhost:5003/prices</loc>
-    <lastmod>2025-09-29</lastmod>
+    <lastmod>2025-10-03</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>http://localhost:5003/bug-report</loc>
-    <lastmod>2025-09-29</lastmod>
+    <lastmod>2025-10-03</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>

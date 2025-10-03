@@ -33,7 +33,7 @@ def filter_cards(cards_data: list, params: CardPopularityParams) -> list:
     
     for card in cards_data:
         # Skip if card is from a newer meta format
-        if card.meta_format and MetaFormat.to_list().index(card.meta_format) > MetaFormat.to_list().index(params.meta_format):
+        if card.meta_format and MetaFormat.to_list(only_after_release=False).index(card.meta_format) > MetaFormat.to_list(only_after_release=False).index(params.meta_format):
             continue
             
         # Filter by search term

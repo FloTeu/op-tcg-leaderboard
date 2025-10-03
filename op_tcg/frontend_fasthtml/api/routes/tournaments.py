@@ -388,7 +388,7 @@ def setup_api_routes(rt):
                 continue
             for c in card.colors:
                 color_name = str(c)
-                color_counts[color_name] += 1
+                color_counts[color_name] += (1/len(card.colors))
                 color_to_hex[color_name] = c.to_hex_color()
 
         # Map to lists sorted by count desc
@@ -547,8 +547,6 @@ def setup_api_routes(rt):
         if not tournament:
             return ft.P("Tournament not found", cls="text-red-400")
             
-        # Get card data
-        card_id2card_data = get_card_id_card_data_lookup()
         
         # Get tournament decklists
         tournament_decklists = get_tournament_decklist_data(params.meta_format)
@@ -675,7 +673,7 @@ def setup_api_routes(rt):
             
         # Get card and leader data
         card_id2card_data = get_card_id_card_data_lookup()
-        leader_data = get_leader_extended()
+        leader_data = get_leader_extended(meta_formats=MetaFormat.to_list(region=params.region))
         leader_extended_dict = {le.id: le for le in leader_data}
         
         # Get tournament decklists
