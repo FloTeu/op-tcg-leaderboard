@@ -474,6 +474,7 @@ def card_popularity_page():
             cls="min-h-screen",
             hx_get="/api/card-popularity",
             hx_trigger="load",
+            hx_include=HX_INCLUDE,
             hx_indicator="#card-popularity-loading-indicator"
         ),
         # JavaScript to handle card subtype loading sequence
