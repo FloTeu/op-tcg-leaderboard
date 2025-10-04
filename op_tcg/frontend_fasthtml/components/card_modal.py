@@ -183,6 +183,8 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                         ft.Div(
                             # Type
                             create_key_fact("Type", card.card_category, "🎴"),
+                            # Subtype
+                            create_key_fact("Subtype", ", ".join(card.types) if card.types else None, "🏷️"),
                             # Colors
                             create_key_fact("Colors", ", ".join(card.colors), "🎨"),
                             # Attributes
