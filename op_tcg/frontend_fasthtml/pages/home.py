@@ -320,7 +320,31 @@ def home_page():
         });
         document.addEventListener('DOMContentLoaded', function(){ setTimeout(updateHomeURL, 50); });
     """)
+    
+    # CSS for the notification animations and styling
+    notification_styles = ft.Style("""
+        .no-match-data-notification {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .no-match-data-notification button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+        }
+        
+        /* Add subtle glow effect */
+        .no-match-data-notification {
+            box-shadow: 0 4px 20px rgba(251, 146, 60, 0.1);
+        }
+    """)
+    
     return ft.Div(
+        notification_styles,
         ft.H1("Leaderboard", cls="text-3xl font-bold text-white mb-6"),
         ft.Div(
             ft.Div(

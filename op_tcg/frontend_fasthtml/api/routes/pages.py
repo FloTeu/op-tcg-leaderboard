@@ -12,7 +12,7 @@ from op_tcg.frontend_fasthtml.utils.extract import (
 )
 from op_tcg.frontend_fasthtml.pages.home import create_leaderboard_table
 from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended, get_leaders_with_decklist_data
-from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict, get_filtered_leaders, get_effective_meta_format_with_fallback, create_fallback_notification
+from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict, get_filtered_leaders, get_effective_meta_format_with_fallback, create_fallback_notification, create_no_match_data_notification, detect_no_match_data
 from op_tcg.frontend_fasthtml.pages.leader import create_leader_content, HX_INCLUDE
 from op_tcg.frontend_fasthtml.pages.tournaments import create_tournament_content
 from op_tcg.frontend_fasthtml.pages.card_popularity import create_card_popularity_content
@@ -150,10 +150,18 @@ def setup_api_routes(rt):
             effective_meta_format,
             region=filter_params.region
         )
-        # If fallback was used, add a notification message
+        
+        # Check for different notification scenarios
         if fallback_used:
+            # Standard fallback notification (no data available)
             notification = create_fallback_notification(
                 sort_params.meta_format,
+                effective_meta_format
+            )
+            return ft.Div(notification, table_content)
+        elif detect_no_match_data(filtered_leaders):
+            # Special notification for when leaders exist but have no match data
+            notification = create_no_match_data_notification(
                 effective_meta_format
             )
             return ft.Div(notification, table_content)

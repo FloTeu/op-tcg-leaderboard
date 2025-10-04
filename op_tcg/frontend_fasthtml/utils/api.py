@@ -89,6 +89,89 @@ def create_fallback_notification(
     )
 
 
+def create_no_match_data_notification(
+    current_meta_format: MetaFormat,
+    dropdown_id: str = "meta-format-select"
+):
+    """
+    Create a notification component when leaders exist but have no match data.
+    
+    Args:
+        current_meta_format: The current meta format with no match data
+        dropdown_id: ID of the dropdown to update (default: "meta-format-select")
+        
+    Returns:
+        FastHTML Div component with notification and JavaScript
+    """
+    from fasthtml import ft
+    
+    # Get the previous meta format that likely has match data
+    all_meta_formats = MetaFormat.to_list(region=MetaFormatRegion.ASIA)
+    current_index = all_meta_formats.index(current_meta_format)
+    previous_meta = all_meta_formats[current_index - 1] if current_index > 0 else None
+    
+    if previous_meta:
+        return ft.Div(
+            ft.Div(
+                ft.Div(
+                    ft.I(cls="fas fa-chart-line mr-3 text-orange-400"),
+                    ft.Div(
+                        ft.Div(
+                            f"Leaders are available for {current_meta_format}, but detailed match data is not yet available.",
+                            cls="text-white font-medium mb-2"
+                        ),
+                        ft.Div(
+                            "For comprehensive win rates, match statistics, and performance analysis, view ",
+                            ft.Button(
+                                f"{previous_meta}",
+                                cls="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-sm font-medium mx-1 transition-colors duration-200",
+                                onclick=f"""
+                                    const metaSelect = document.getElementById('{dropdown_id}');
+                                    if (metaSelect) {{
+                                        metaSelect.value = '{previous_meta}';
+                                        const event = new Event('change', {{ bubbles: true }});
+                                        metaSelect.dispatchEvent(event);
+                                    }}
+                                """
+                            ),
+                            " with detailed tournament data.",
+                            cls="text-gray-300 text-sm"
+                        ),
+                        cls="flex-1"
+                    ),
+                    cls="flex items-start"
+                ),
+                cls="bg-gradient-to-r from-orange-900/30 to-blue-900/30 border border-orange-500/50 rounded-lg p-4 mb-4 backdrop-blur-sm"
+            ),
+            cls="no-match-data-notification animate-fade-in"
+        )
+    
+    return None
+
+
+def detect_no_match_data(leaders: List[LeaderExtended]) -> bool:
+    """
+    Detect if leaders exist but have no meaningful match data.
+    
+    Args:
+        leaders: List of leader data
+        
+    Returns:
+        True if leaders exist but have no match data, False otherwise
+    """
+    if not leaders:
+        return False
+    
+    # Check if most leaders have no match data (total_matches is None or 0)
+    leaders_without_matches = [
+        leader for leader in leaders 
+        if leader.total_matches is None or leader.total_matches == 0
+    ]
+    
+    # If more than 80% of leaders have no match data, consider it as "no match data available"
+    return len(leaders_without_matches) / len(leaders) > 0.8
+
+
 def get_query_params_as_dict(request: Request) -> Dict[str, Any]:
     """
     Get query params as a dict.
