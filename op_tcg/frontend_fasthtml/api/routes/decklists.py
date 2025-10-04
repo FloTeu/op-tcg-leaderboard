@@ -38,7 +38,7 @@ def setup_api_routes(rt):
         params = LeaderDataParams(**params_dict)
         
         # Get additional tournament-specific parameters
-        days_param = params_dict.get("days", "14")
+        days_param = params_dict.get("days", "all")
         placing_param = params_dict.get("placing", "all")
         
         # Get tournament decklist data
