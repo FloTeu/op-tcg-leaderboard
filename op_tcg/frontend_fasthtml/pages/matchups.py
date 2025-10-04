@@ -1,5 +1,5 @@
 from fasthtml import ft
-from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 
 # Common HTMX attributes for filter components
@@ -23,10 +23,11 @@ def create_filter_components(selected_meta_formats=None, selected_leader_ids=Non
         selected_leader_ids: Optional list of leader IDs to pre-select
         only_official: Whether to filter for official matches only
     """
-    latest_meta = MetaFormat.latest_meta_format()
+    latest_meta = MetaFormat.latest_meta_format(region=MetaFormatRegion.WEST)
+    available_meta_formats = MetaFormat.to_list(region=MetaFormatRegion.WEST)
     
     # If no selected formats provided, default to latest
-    if not selected_meta_formats:
+    if not selected_meta_formats or all(selected_meta_format not in available_meta_formats for selected_meta_format in selected_meta_formats):
         selected_meta_formats = [latest_meta]
 
     # Meta format multi-select
@@ -37,7 +38,7 @@ def create_filter_components(selected_meta_formats=None, selected_leader_ids=Non
         multiple=True,
         size=1,
         cls=SELECT_CLS + " multiselect",
-        *[ft.Option(mf, value=mf, selected=(mf in selected_meta_formats)) for mf in reversed(MetaFormat.to_list())],
+        *[ft.Option(mf, value=mf, selected=(mf in selected_meta_formats)) for mf in reversed(available_meta_formats)],
         **{
             "hx_get": "/api/leader-multiselect",
             "hx_target": "#leader-multiselect-wrapper",

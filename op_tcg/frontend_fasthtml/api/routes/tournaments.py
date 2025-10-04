@@ -5,7 +5,7 @@ from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.cards import CardCurrency
 from op_tcg.frontend_fasthtml.utils.extract import get_tournament_decklist_data, get_all_tournament_extened_data, get_tournament_match_data
-from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict, get_effective_meta_format_with_fallback, create_fallback_notification
+from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict, create_proxy_data_notification
 from op_tcg.frontend_fasthtml.utils.extract import (
     get_leader_extended,
     get_card_id_card_data_lookup
@@ -45,24 +45,78 @@ def aggregate_leader_data(leader_data: list[LeaderExtended]):
 
     # Calculate relative mean win rate and prepare final data for chart
     final_leader_data = []
+    # Check if any leader has match data to determine if we need fallback
+    has_any_match_data = any(len(data["total_matches"]) > 0 for data in aggregated_data.values())
+    is_fallback_data = not has_any_match_data
+    
     for leader_id, data in aggregated_data.items():
         
-        if len(data["total_matches"]) > 0:
-            # for each list element get a relative factor by dividing the element by the sum of the list
+        # Check if we have any meaningful data
+        has_matches = len(data["total_matches"]) > 0
+        has_wins = sum(data["total_wins"]) > 0
+        has_win_rates = len(data["win_rate"]) > 0
+        
+        if has_matches and has_win_rates:
+            # Standard case: have both matches and win rates
             relative_factors = [x / sum(data["total_matches"]) for x in data["total_matches"]]
-            # multiply the win rate list by the relative factors
             win_rates = [x * y for x, y in zip(data["win_rate"], relative_factors)]
-            # calculate the mean of the win rates
             relative_mean_win_rate = sum(win_rates)
+            
             final_leader_data.append({
                 "leader_id": leader_id,
                 "total_matches": sum(data["total_matches"]),
-                "total_wins": sum(data["total_wins"]),
+                "total_wins": sum(data["total_wins"]) if has_wins else 0,
                 "relative_mean_win_rate": relative_mean_win_rate,
                 "image_url": data["image_url"]
             })
+        elif has_wins and not has_matches:
+            # Fallback case: have tournament wins but no match data
+            # Use tournament wins as a proxy for activity
+            total_wins = sum(data["total_wins"])
+            if total_wins > 0:
+                final_leader_data.append({
+                    "leader_id": leader_id,
+                    "total_matches": total_wins * 5,  # Estimate matches based on wins (rough proxy)
+                    "total_wins": total_wins,
+                    "relative_mean_win_rate": 0.5,  # Default to 50% win rate when unknown
+                    "image_url": data["image_url"]
+                })
     
-    return final_leader_data
+    return final_leader_data, is_fallback_data
+
+
+def apply_simple_jittering(chart_data, colors):
+    """
+    Apply simple horizontal jittering to prevent bubble overlaps in fallback scenarios.
+    Only affects leaders with identical tournament wins (same x-coordinate).
+    
+    Args:
+        chart_data: List of chart data points
+        colors: List of corresponding colors
+        
+    Returns:
+        Tuple of (adjusted_chart_data, colors) - same order maintained
+    """
+    if len(chart_data) <= 1:
+        return chart_data, colors
+    
+    # Group points by identical x-coordinates (same tournament wins)
+    x_groups = defaultdict(list)
+    for i, point in enumerate(chart_data):
+        x_groups[point["x"]].append((i, point))
+    
+    # Apply simple horizontal jittering only to groups with multiple points
+    adjusted_data = chart_data.copy()
+    for x_coord, point_indices in x_groups.items():
+        if len(point_indices) > 1:
+            # Spread overlapping points horizontally with small offsets
+            for j, (original_index, point) in enumerate(point_indices):
+                if j > 0:  # Keep first point at original position
+                    # Small horizontal offset: 10% of x-value, minimum 0.3
+                    offset = max(0.3, x_coord * 0.1) * j
+                    adjusted_data[original_index]["x"] = x_coord + offset
+    
+    return adjusted_data, colors
 
 
 def setup_api_routes(rt):
@@ -80,7 +134,7 @@ def setup_api_routes(rt):
         leader_data = [ld for ld in leader_data if ld.meta_format in params.meta_format and ld.only_official]
 
         # Calculate relative mean win rate and prepare final data for chart
-        final_leader_data = aggregate_leader_data(leader_data)
+        final_leader_data, _ = aggregate_leader_data(leader_data)
         
         # Get maximum match count
         max_matches = max((ld.get("total_matches", 0) for ld in final_leader_data), default=1000)
@@ -99,26 +153,9 @@ def setup_api_routes(rt):
         
         # Filter by meta formats first
         filtered_data = [ld for ld in leader_data if ld.meta_format in params.meta_format and ld.only_official]
-        
-        # Check if fallback is needed for any of the selected meta formats
-        fallback_used = False
-        effective_meta_formats = []
-        
-        for meta_format in params.meta_format:
-            effective_meta, is_fallback = get_effective_meta_format_with_fallback(
-                meta_format,
-                filtered_data
-            )
-            effective_meta_formats.append(effective_meta)
-            if is_fallback:
-                fallback_used = True
-        
-        # If fallback was used, re-filter data to use effective meta formats
-        if fallback_used:
-            filtered_data = [ld for ld in leader_data if ld.meta_format in effective_meta_formats and ld.only_official]
 
         # Calculate relative mean win rate and prepare final data for chart
-        final_leader_data = aggregate_leader_data(filtered_data)
+        final_leader_data, is_fallback_data = aggregate_leader_data(filtered_data)
         
         # Get max matches for slider bounds and set default if not provided
         max_matches = max((ld.get("total_matches", 0) for ld in final_leader_data), default=1000)
@@ -147,6 +184,7 @@ def setup_api_routes(rt):
         base_size = 8   # Increased minimum bubble size for better visibility
         max_size = 25   # Reduced max size to prevent overcrowding
         
+        # Create chart data
         for ld in mobile_optimized_data:
             if ld.get("total_matches", 0) is None:
                 continue
@@ -166,14 +204,18 @@ def setup_api_routes(rt):
                 bubble_size = base_size + (relative_size * (max_size - base_size))
                 
                 chart_data.append({
-                    "x": ld.get("total_matches", 0),  # Number of tournaments on x-axis
-                    "y": ld.get("relative_mean_win_rate", 0),       # Win rate on y-axis
-                    "r": bubble_size,       # Scaled bubble size
+                    "x": ld.get("total_matches", 0),
+                    "y": ld.get("relative_mean_win_rate", 0),
+                    "r": bubble_size,
                     "name": card.name if card else ld.get("leader_id"),
-                    "image": ld.get("image_url"),  # Add leader image URL
-                    "raw_wins": ld.get("total_wins", 0)  # Store raw wins for tooltip
+                    "image": ld.get("image_url"),
+                    "raw_wins": ld.get("total_wins", 0)
                 })
                 colors.append(leader_colors)
+        
+        # Apply jittering only in fallback scenarios to prevent overlaps
+        if is_fallback_data:
+            chart_data, colors = apply_simple_jittering(chart_data, colors)
         
         # Create the chart (slider lives outside the swap target on the page)
         chart_div = create_bubble_chart(
@@ -224,14 +266,10 @@ def setup_api_routes(rt):
             }})();
         """)
         
-        # If fallback was used, add notification
-        if fallback_used:
-            notification = create_fallback_notification(
-                params.meta_format[0],  # Show first requested meta format
-                effective_meta_formats[0],  # Show first effective meta format
-                dropdown_id="meta-formats-select"
-            )
-            return ft.Div(notification, chart_div, slider_update_script)
+        # Add proxy data notification when using tournament wins as proxy
+        if is_fallback_data:
+            proxy_notification = create_proxy_data_notification()
+            return ft.Div(proxy_notification, chart_div, slider_update_script)
         
         return ft.Div(chart_div, slider_update_script)
 
