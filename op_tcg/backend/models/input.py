@@ -34,7 +34,7 @@ class MetaFormat(EnumBase, StrEnum):
     OP18 = "OP18"
 
     @classmethod
-    def to_list(cls, only_after_release: bool = True, until_meta_format: str | None = None, region: MetaFormatRegion = MetaFormatRegion.WEST) -> list[str]:
+    def to_list(cls, only_after_release: bool = True, until_meta_format: str | None = None, region: MetaFormatRegion = MetaFormatRegion.ALL) -> list[str]:
         """
         Get a list of meta format values.
         
@@ -61,8 +61,8 @@ class MetaFormat(EnumBase, StrEnum):
         return return_meta_formats
 
     @classmethod
-    def latest_meta_format(cls, only_after_release: bool = True) -> "MetaFormat":
-        return cls.to_list(only_after_release=only_after_release)[-1]
+    def latest_meta_format(cls, only_after_release: bool = True, region: MetaFormatRegion = MetaFormatRegion.ALL) -> "MetaFormat":
+        return cls.to_list(only_after_release=only_after_release, region=region)[-1]
 
 
 
