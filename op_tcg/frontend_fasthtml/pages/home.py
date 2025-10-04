@@ -323,7 +323,8 @@ def home_page():
     
     # CSS for the notification animations and styling
     notification_styles = ft.Style("""
-        .no-match-data-notification {
+        .no-match-data-notification,
+        .proxy-data-notification {
             animation: fadeIn 0.5s ease-in-out;
         }
         
@@ -337,9 +338,13 @@ def home_page():
             box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
         }
         
-        /* Add subtle glow effect */
+        /* Add subtle glow effects */
         .no-match-data-notification {
             box-shadow: 0 4px 20px rgba(251, 146, 60, 0.1);
+        }
+        
+        .proxy-data-notification {
+            box-shadow: 0 4px 20px rgba(251, 191, 36, 0.15);
         }
     """)
     

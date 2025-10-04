@@ -149,6 +149,38 @@ def create_no_match_data_notification(
     return None
 
 
+def create_proxy_data_notification():
+    """
+    Create a notification component when proxy tournament match data is being used.
+    
+    Returns:
+        FastHTML Div component with notification
+    """
+    from fasthtml import ft
+    
+    return ft.Div(
+        ft.Div(
+            ft.Div(
+                ft.I(cls="fas fa-chart-area mr-3 text-yellow-400"),
+                ft.Div(
+                    ft.Div(
+                        "Using proxy tournament data",
+                        cls="text-white font-medium mb-2"
+                    ),
+                    ft.Div(
+                        "Match counts are estimated based on tournament wins since detailed match data is not yet available. ",
+                        cls="text-gray-300 text-sm"
+                    ),
+                    cls="flex-1"
+                ),
+                cls="flex items-start"
+            ),
+            cls="bg-gradient-to-r from-yellow-900/30 to-amber-900/30 border border-yellow-500/50 rounded-lg p-4 mb-4 backdrop-blur-sm"
+        ),
+        cls="proxy-data-notification animate-fade-in"
+    )
+
+
 def detect_no_match_data(leaders: List[LeaderExtended]) -> bool:
     """
     Detect if leaders exist but have no meaningful match data.
