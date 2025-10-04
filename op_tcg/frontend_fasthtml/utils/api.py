@@ -1,50 +1,11 @@
 from starlette.requests import Request
-from typing import Dict, Any, List, Union, TypeVar, Tuple
+from typing import Dict, Any, List
 
 from op_tcg.frontend_fasthtml.api.models import LeaderboardFilter
 from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended
 from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended, get_leaders_with_decklist_data
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
-
-T = TypeVar('T')
-
-def get_effective_meta_format_with_fallback(
-    requested_meta_format: MetaFormat,
-    data_list: List[Any],
-    meta_format_attr: str = "meta_format"
-) -> Tuple[MetaFormat, bool]:
-    """
-    Get effective (the last with data) meta format with automatic fallback to previous meta if no data exists.
-    
-    Args:
-        requested_meta_format: The originally requested meta format
-        data_list: List of data objects that have a meta_format attribute
-        meta_format_attr: Name of the meta format attribute (default: "meta_format")
-        
-    Returns:
-        Tuple of (effective_meta_format, fallback_used)
-    """
-    # Check if requested meta format has data
-    matching_data = [
-        item for item in data_list 
-        if getattr(item, meta_format_attr) == requested_meta_format
-    ]
-    
-    if matching_data:
-        return requested_meta_format, False
-        
-    # No data found, try previous meta format
-    all_meta_formats = MetaFormat.to_list(region=MetaFormatRegion.ASIA)
-    current_index = all_meta_formats.index(requested_meta_format)
-    
-    if current_index > 0:
-        fallback_meta_format = all_meta_formats[current_index - 1]
-        return fallback_meta_format, True
-    
-    # If we're already at the first meta format, return the requested one anyway
-    return requested_meta_format, False
-
 
 def create_fallback_notification(
     requested_meta_format: MetaFormat,
