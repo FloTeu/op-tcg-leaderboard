@@ -279,6 +279,45 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                         size="w-8 h-8",
                         container_classes="min-h-[300px]"
                     ),
+                    cls="w-full mb-6"
+                ),
+                
+                # Price development chart section
+                ft.Div(
+                    ft.Div(
+                        ft.H3("Price Development", cls="text-lg font-semibold text-white mb-4"),
+                        # Time period selector
+                        ft.Div(
+                            ft.Select(
+                                ft.Option("30 days", value="30"),
+                                ft.Option("60 days", value="60"),
+                                ft.Option("90 days", value="90", selected=True),
+                                ft.Option("180 days", value="180"),
+                                ft.Option("365 days", value="365"),
+                                id=f"price-period-selector-{card.id}",
+                                cls="bg-gray-700 text-white border border-gray-600 rounded px-3 py-1 text-sm",
+                                hx_get=f"/api/card-price-development-chart",
+                                hx_target=f"#price-chart-container-{card.id}",
+                                hx_indicator=f"#price-chart-loading-{card.id}",
+                                hx_vals=f'js:{{"card_id": "{card.id}", "days": document.getElementById("price-period-selector-{card.id}").value, "include_alt_art": "false"}}',
+                                **{"hx-on::before-request": f"document.getElementById('price-chart-container-{card.id}').innerHTML = ''; document.getElementById('price-chart-loading-{card.id}').style.display = 'flex';"}
+                            ),
+                            cls="flex justify-end mb-4"
+                        ),
+                        cls="flex justify-between items-start mb-4"
+                    ),
+                    ft.Div(
+                        id=f"price-chart-container-{card.id}",
+                        hx_get=f"/api/card-price-development-chart?card_id={card.id}&days=90",
+                        hx_trigger="load",
+                        hx_indicator=f"#price-chart-loading-{card.id}",
+                        cls="min-h-[300px]"
+                    ),
+                    create_loading_spinner(
+                        id=f"price-chart-loading-{card.id}",
+                        size="w-8 h-8",
+                        container_classes="min-h-[300px]"
+                    ),
                     cls="w-full"
                 ),
                 
@@ -615,4 +654,4 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 height: auto !important;
             }
         """)
-    ) 
+    )

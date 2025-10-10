@@ -71,10 +71,10 @@ def create_line_chart(container_id: str, data: List[dict[str, Any]],
                             }}]
                         }},
                         options: {{
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            animation: {{
-                                duration: 300
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {{
+                            duration: 300
                             }},
                             plugins: {{
                                 legend: {{
@@ -861,8 +861,8 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                         }},
                         plugins: [multiColorPlugin],
                         options: {{
-                            responsive: true,
-                            maintainAspectRatio: false,
+                        responsive: true,
+                        maintainAspectRatio: false,
                             layout: {{
                                 padding: {{
                                     top: 20,
@@ -1107,7 +1107,7 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
     colors_json = json.dumps(colors)
     images_json = json.dumps(images)
     leader_ids_json = json.dumps(leader_ids or labels)
-    
+
     return ft.Div(
         # Chart container with canvas
         ft.Div(
@@ -1449,7 +1449,7 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                             }}
                         }}
                     }};
-                    
+
                     // Custom plugin to draw multi-color segments in donut chart
                     const multiColorDonutPlugin = {{
                         id: 'multiColorDonut',
@@ -1474,7 +1474,7 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
 
                                     // Determine hover state using active elements
                                     const isHovered = Array.isArray(active) && active.some(a => a && a.datasetIndex === 0 && a.index === index);
-                                    
+
                                     // Calculate the total angle of this segment
                                     const totalAngle = endAngle - startAngle;
                                     const colors = colorInfo.colors;
@@ -1490,14 +1490,14 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
 
                                     colors.forEach((color, colorIndex) => {{
                                         ctx.beginPath();
-                                        
+
                                         const segmentStartAngle = startAngle + (colorIndex * angleStep);
                                         const segmentEndAngle = startAngle + ((colorIndex + 1) * angleStep);
                                         // Draw sub-arc inside the clipped arc
                                         ctx.arc(centerX, centerY, outerRadius, segmentStartAngle, segmentEndAngle);
                                         ctx.arc(centerX, centerY, innerRadius, segmentEndAngle, segmentStartAngle, true);
                                         ctx.closePath();
-                                        
+
                                         // Apply slight brightness increase on hover for better visual feedback
                                         let fillColor = color;
                                         if (isHovered) {{
@@ -1510,30 +1510,30 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                                             const brightB = Math.min(255, Math.round(b * 1.1));
                                             fillColor = `rgb(${{brightR}}, ${{brightG}}, ${{brightB}})`;
                                         }}
-                                        
+
                                         ctx.fillStyle = fillColor;
                                         ctx.fill();
-                                        
+
                                         // Add rounded caps for polished look
                                         ctx.lineCap = 'round';
                                         ctx.lineJoin = 'round';
                                     }});
-                                    
+
                                     ctx.restore();
                                 }}
                             }});
                         }}
                     }};
-                    
+
                     // Small delay to ensure DOM is ready
                     setTimeout(() => {{
                         // Create chart with immediate render
-                        const chart = new Chart(ctx, {{ 
-                            type: 'doughnut', 
-                            data, 
+                        const chart = new Chart(ctx, {{
+                            type: 'doughnut',
+                            data,
                             options: {{
                                 ...options,
-                                animation: {{
+                            animation: {{
                                     ...options.animation,
                                     duration: 0  // Disable initial animation to ensure immediate render
                                 }}
@@ -1549,16 +1549,16 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                         }});
                     }}, 50);
                 }}
-                
+
                 // Create the chart
                 createDonutChart();
-                
+
                 // Cleanup on HTMX swaps - only when this specific chart's container is being replaced
                 document.addEventListener('htmx:beforeSwap', function(event) {{
                     try {{
                         if (!window.Chart) return;
                         const target = event.target || (event.detail && event.detail.target);
-                        
+
                         // Only cleanup if the target is exactly this chart's container
                         if (target && target.id === 'tournament-decklist-donut') {{
                             const chart = window.Chart.getChart ? window.Chart.getChart('{container_id}') : null;
@@ -1571,7 +1571,7 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
             }})();
         """),
         style="height: 340px; width: 100%;"
-    ) 
+    )
 
 def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[str, Any]], 
                                         meta_formats: List[str], card_name: str, normalized: bool = False) -> ft.Div:
@@ -1780,9 +1780,9 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
                             datasets: datasets
                         }},
                         options: {{
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            animation: {{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {{
                                 duration: 800,
                                 easing: 'easeInOutQuart'
                             }},
@@ -1871,4 +1871,279 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
         """),
         style="height: 400px; width: 100%;",
         cls="bg-gray-800/30 rounded-lg p-4"
-    ) 
+    )
+
+
+def create_price_development_chart(container_id: str, price_data: dict[str, list[dict]], card_name: str = "") -> ft.Div:
+    """
+    Creates a price development chart showing EUR and USD prices over time using Chart.js
+    
+    Args:
+        container_id: Unique ID for the chart container
+        price_data: Dictionary with 'eur' and 'usd' keys containing price history data
+        card_name: Name of the card for the chart title
+    """
+    
+    # Extract data for both currencies
+    eur_data = price_data.get('eur', [])
+    usd_data = price_data.get('usd', [])
+    
+    # Get all unique dates and sort them
+    all_dates = set()
+    if eur_data:
+        all_dates.update(item['date'] for item in eur_data)
+    if usd_data:
+        all_dates.update(item['date'] for item in usd_data)
+
+    sorted_dates = sorted(list(all_dates))
+
+    # Create date-indexed data
+    eur_price_map = {item['date']: item['price'] for item in eur_data}
+    usd_price_map = {item['date']: item['price'] for item in usd_data}
+
+    # Build chart data
+    chart_data = []
+    for date in sorted_dates:
+        chart_data.append({
+            'date': date,
+            'eur_price': eur_price_map.get(date),
+            'usd_price': usd_price_map.get(date)
+        })
+
+    # Convert Python data to JSON string
+    json_data = json.dumps(chart_data)
+
+    return ft.Div(
+        # Chart container with canvas
+        ft.Div(
+            ft.Canvas(id=container_id, style="width:100%; height:100%; display:block"),
+            cls="h-full w-full"
+        ),
+        ft.Script(f"""
+            (function() {{
+                const chartId = '{container_id}';
+                const container = document.getElementById(chartId);
+                
+                // More comprehensive cleanup for price development charts
+                if (window.priceDevelopmentChartInstances) {{
+                    // Clean up all existing price development charts
+                    Object.keys(window.priceDevelopmentChartInstances).forEach(id => {{
+                        const chartInstance = window.priceDevelopmentChartInstances[id];
+                        if (chartInstance && typeof chartInstance.destroy === 'function') {{
+                            try {{
+                                chartInstance.destroy();
+                            }} catch(e) {{
+                                console.warn('Error destroying chart:', e);
+                            }}
+                        }}
+                        delete window.priceDevelopmentChartInstances[id];
+                    }});
+                }}
+                
+                // Initialize the instances object if it doesn't exist
+                window.priceDevelopmentChartInstances = window.priceDevelopmentChartInstances || {{}};
+                
+                if (!container) {{
+                    console.error('Chart container not found:', chartId);
+                    return;
+                }}
+                
+                // Comprehensive cleanup - destroy existing chart if it exists
+                const existingChart = Chart.getChart(chartId);
+                if (existingChart) {{
+                    existingChart.destroy();
+                }}
+                
+                // Clear canvas completely to prevent old chart artifacts
+                const ctx = container.getContext('2d');
+                ctx.clearRect(0, 0, container.width, container.height);
+                
+                // Reset canvas size to container to ensure proper rendering
+                const containerElement = container.parentElement;
+                if (containerElement) {{
+                    container.width = containerElement.clientWidth;
+                    container.height = containerElement.clientHeight;
+                }}
+
+                const data = {json_data};
+                
+                // Debug: Log chart creation
+                console.log('Creating price development chart:', {{
+                    chartId: chartId,
+                    dataLength: data.length,
+                    dateRange: data.length > 0 ? [data[0].date, data[data.length-1].date] : 'no data'
+                }});
+
+                // Prepare datasets
+                const datasets = [];
+
+                // EUR dataset
+                const eurData = data.map(d => d.eur_price);
+                if (eurData.some(price => price !== null && price !== undefined)) {{
+                    datasets.push({{
+                        label: 'EUR (€)',
+                        data: eurData,
+                        borderColor: '#10B981', // Emerald green
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.3,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        borderWidth: 2,
+                        spanGaps: true,
+                        segment: {{
+                            borderDash: ctx => !ctx.p0.raw || !ctx.p1.raw ? [6, 6] : undefined
+                        }},
+                        pointStyle: 'circle',
+                        pointBackgroundColor: eurData.map(price => price === null ? 'transparent' : '#10B981'),
+                        pointBorderColor: eurData.map(price => price === null ? '#10B981' : '#10B981')
+                    }});
+                }}
+
+                // USD dataset
+                const usdData = data.map(d => d.usd_price);
+                if (usdData.some(price => price !== null && price !== undefined)) {{
+                    datasets.push({{
+                        label: 'USD ($)',
+                        data: usdData,
+                        borderColor: '#3B82F6', // Blue
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.3,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        borderWidth: 2,
+                        spanGaps: true,
+                        segment: {{
+                            borderDash: ctx => !ctx.p0.raw || !ctx.p1.raw ? [6, 6] : undefined
+                        }},
+                        pointStyle: 'circle',
+                        pointBackgroundColor: usdData.map(price => price === null ? 'transparent' : '#3B82F6'),
+                        pointBorderColor: usdData.map(price => price === null ? '#3B82F6' : '#3B82F6')
+                    }});
+                }}
+
+                const chart = new Chart(container, {{
+                    type: 'line',
+                    data: {{
+                        labels: data.map(d => d.date),
+                        datasets: datasets
+                    }},
+                    options: {{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {{
+                            duration: 300
+                            }},
+                            interaction: {{
+                                intersect: false,
+                                mode: 'index'
+                            }},
+                            plugins: {{
+                                legend: {{
+                                    display: true,
+                                    position: 'top',
+                                    labels: {{
+                                        color: '#E5E7EB',
+                                        font: {{
+                                            size: 12
+                                        }},
+                                        usePointStyle: true,
+                                        pointStyle: 'circle',
+                                        padding: 20,
+                                        boxWidth: 10,
+                                        boxHeight: 10
+                                    }}
+                                }},
+                                tooltip: {{
+                                    backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                                    titleColor: '#ffffff',
+                                    bodyColor: '#ffffff',
+                                    borderColor: '#374151',
+                                    borderWidth: 1,
+                                    padding: 12,
+                                    displayColors: true,
+                                    callbacks: {{
+                                        title: function(context) {{
+                                            return 'Date: ' + context[0].label;
+                                        }},
+                                        label: function(context) {{
+                                            const value = context.parsed.y;
+                                            if (value === null || value === undefined) {{
+                                                return context.dataset.label + ': No data';
+                                            }}
+                                            const currency = context.dataset.label.includes('EUR') ? '€' : '$';
+                                            return context.dataset.label + ': ' + currency + value.toFixed(2);
+                                        }}
+                                    }}
+                                }}
+                            }},
+                            scales: {{
+                                x: {{
+                                    display: true,
+                                    grid: {{
+                                        display: true,
+                                        color: 'rgba(75, 85, 99, 0.3)'
+                                    }},
+                                    ticks: {{
+                                        color: '#9CA3AF',
+                                        font: {{
+                                            size: 11
+                                        }},
+                                        maxRotation: 45,
+                                        minRotation: 0,
+                                        padding: 8,
+                                        maxTicksLimit: 8
+                                    }}
+                                }},
+                                y: {{
+                                    display: true,
+                                    grid: {{
+                                        display: true,
+                                        color: 'rgba(75, 85, 99, 0.2)'
+                                    }},
+                                    ticks: {{
+                                        color: '#9CA3AF',
+                                        font: {{
+                                            size: 11
+                                        }},
+                                        padding: 8,
+                                        callback: function(value, index, values) {{
+                                            return '€/' + value.toFixed(2);
+                                        }}
+                                    }},
+                                    beginAtZero: true
+                                }}
+                            }},
+                            layout: {{
+                                padding: {{
+                                    top: 10,
+                                    right: 15,
+                                    bottom: 10,
+                                    left: 15
+                                }}
+                            }}
+                        }}
+                    }});
+
+                // Store chart instance for cleanup
+                window.priceDevelopmentChartInstances[chartId] = chart;
+                
+                // Add HTMX event listener to cleanup when content changes
+                document.addEventListener('htmx:beforeSwap', function(event) {{
+                    const target = event.target || (event.detail && event.detail.target);
+                    // Clean up if the target contains this chart or is a parent container
+                    if (target && (target.contains(container) || container.contains(target) || target.id === container.parentElement?.id)) {{
+                        if (window.priceDevelopmentChartInstances[chartId]) {{
+                            try {{
+                                window.priceDevelopmentChartInstances[chartId].destroy();
+                                delete window.priceDevelopmentChartInstances[chartId];
+                            }} catch(e) {{
+                                console.warn('Error cleaning up chart during swap:', e);
+                            }}
+                        }}
+                    }}
+                }});
+            }})();
+        """),
+        style="height: 300px; width: 100%;",
+        cls="bg-gray-800/30 rounded-lg p-4"
+    )
