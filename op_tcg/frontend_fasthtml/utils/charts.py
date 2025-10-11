@@ -4,6 +4,37 @@ from op_tcg.frontend_fasthtml.utils.colors import ChartColors
 import json
 import time
 
+# ======================================================================================
+# CHART CREATION FUNCTIONS - REFACTORED TO USE CHARTMANAGER
+# ======================================================================================
+# These functions now use the ChartManager class from charts.js instead of embedding
+# large amounts of JavaScript code directly in Python f-strings. This approach provides:
+#
+# 1. BETTER SEPARATION OF CONCERNS: Python handles data preparation, JS handles visualization
+# 2. IMPROVED MAINTAINABILITY: JavaScript code can be properly formatted and debugged
+# 3. REDUCED MEMORY USAGE: Less string interpolation and more efficient chart management
+# 4. ENVIRONMENTAL BENEFITS: More efficient code generation and execution
+# 5. REUSABILITY: ChartManager can be used across different parts of the application
+# ======================================================================================
+
+def _create_chart_script(chart_type: str, container_id: str, config: dict) -> ft.Script:
+    """Ultra-simple chart creation that works with HTMX."""
+    config_json = json.dumps(config)
+    
+    return ft.Script(f"""
+        (function() {{
+            // Wait for HTMX to fully settle before creating chart
+            setTimeout(function() {{
+                const container = document.getElementById('{container_id}');
+                if (!container) return;
+                
+                if (window.chartManager && window.chartManager.{chart_type}) {{
+                    window.chartManager.{chart_type}({config_json});
+                }}
+            }}, 100); // Give HTMX time to settle
+        }})();
+    """)
+
 def create_line_chart(container_id: str, data: List[dict[str, Any]], 
                      y_key: str = "winRate", x_key: str = "meta", 
                      y_label: str = "Win Rate", y_suffix: str = "%",
@@ -11,8 +42,15 @@ def create_line_chart(container_id: str, data: List[dict[str, Any]],
                      show_x_axis: bool = True,
                      show_y_axis: bool = True) -> ft.Div:
     """
-    Creates a line chart using Chart.js
-    
+    Creates a line chart using Chart.js ChartManager (REFACTORED)
+
+    This function now uses the ChartManager class from charts.js instead of 
+    embedding JavaScript directly in Python f-strings. Benefits:
+    - Cleaner separation of concerns (Python for data, JS for charts)
+    - Better maintainability and debugging
+    - More efficient memory usage
+    - Environmental friendly approach with less string interpolation
+
     Args:
         container_id: Unique ID for the chart container
         data: List of dictionaries containing the data points
@@ -24,131 +62,32 @@ def create_line_chart(container_id: str, data: List[dict[str, Any]],
         show_x_axis: Whether to show the x-axis
         show_y_axis: Whether to show the y-axis
     """
-    # Convert Python data to JSON string
-    json_data = json.dumps(data)
-    
+    # Prepare configuration for ChartManager
+    config = {
+        'containerId': container_id,
+        'data': data,
+        'yKey': y_key,
+        'xKey': x_key,
+        'ySuffix': y_suffix,
+        'color': str(color),
+        'showXAxis': show_x_axis,
+        'showYAxis': show_y_axis
+    }
+
     return ft.Div(
         # Chart container with canvas
         ft.Div(
             ft.Canvas(id=container_id, style="width:100%; height:100%; display:block"),
             cls="h-full w-full"  # Use full height and width
         ),
-        ft.Script(f"""
-            (function() {{
-                const chartId = '{container_id}';
-                const container = document.getElementById(chartId);
-                
-                if (!container) {{
-                    console.error('Chart container not found:', chartId);
-                }} else {{
-                    // Destroy existing chart if it exists
-                    const existingChart = Chart.getChart(chartId);
-                    if (existingChart) {{
-                        existingChart.destroy();
-                    }}
-                    
-                    const data = {json_data};
-                    
-                    new Chart(container, {{
-                        type: 'line',
-                        data: {{
-                            labels: data.map(d => d['{x_key}']),
-                            datasets: [{{
-                                data: data.map(d => d['{y_key}']),
-                                borderColor: '{color}',
-                                backgroundColor: '{color}',
-                                tension: 0.3,
-                                pointRadius: 4,
-                                pointHoverRadius: 6,
-                                borderWidth: 2,
-                                spanGaps: true,
-                                segment: {{
-                                    borderDash: ctx => !ctx.p0.raw || !ctx.p1.raw ? [6, 6] : undefined
-                                }},
-                                pointStyle: 'circle',
-                                pointBackgroundColor: data.map(d => d['{y_key}'] === null ? 'transparent' : '{color}'),
-                                pointBorderColor: data.map(d => d['{y_key}'] === null ? '{color}' : '{color}')
-                            }}]
-                        }},
-                        options: {{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        animation: {{
-                            duration: 300
-                            }},
-                            plugins: {{
-                                legend: {{
-                                    display: false
-                                }},
-                                tooltip: {{
-                                    backgroundColor: '{ChartColors.TOOLTIP_BG}',
-                                    titleColor: '#ffffff',
-                                    bodyColor: '#ffffff',
-                                    borderColor: '{ChartColors.TOOLTIP_BORDER}',
-                                    borderWidth: 1,
-                                    padding: 8,
-                                    displayColors: false,
-                                    callbacks: {{
-                                        label: function(context) {{
-                                            return context.raw === null ? 'No data' : context.parsed.y + '{y_suffix}';
-                                        }}
-                                    }}
-                                }}
-                            }},
-                            scales: {{
-                                x: {{
-                                    display: {str(show_x_axis).lower()},
-                                    grid: {{
-                                        display: false
-                                    }},
-                                    ticks: {{
-                                        color: '{ChartColors.TICK_TEXT}',
-                                        font: {{
-                                            size: 10
-                                        }},
-                                        maxRotation: 45,
-                                        minRotation: 45,
-                                        padding: 5
-                                    }}
-                                }},
-                                y: {{
-                                    display: {str(show_y_axis).lower()},
-                                    grid: {{
-                                        display: {str(show_y_axis).lower()}
-                                    }},
-                                    ticks: {{
-                                        display: {str(show_y_axis).lower()},
-                                        color: '{ChartColors.TICK_TEXT}',
-                                        font: {{
-                                            size: 10
-                                        }},
-                                        padding: 5,
-                                        callback: function(value) {{
-                                            return value + '{y_suffix}';
-                                        }}
-                                    }}
-                                }}
-                            }},
-                            layout: {{
-                                padding: {{
-                                    top: 5,
-                                    right: 5,
-                                    bottom: 5,
-                                    left: 5
-                                }}
-                            }}
-                        }}
-                    }});
-                }}
-            }})();
-        """),
+        _create_chart_script('createLineChart', container_id, config),
         style="height: 120px; width: 100%;"  # Explicit height in style attribute
-    ) 
+    )
 
 def create_leader_win_rate_radar_chart(container_id, data, leader_ids, colors=None, show_legend=True):
     """
     Create a radar chart to display leader win rates against different color matchups.
-    
+
     Args:
         container_id: HTML ID for the chart container
         data: Radar chart data with color matchups
@@ -164,29 +103,29 @@ def create_leader_win_rate_radar_chart(container_id, data, leader_ids, colors=No
     for item in data:
         if item.get('leader_id') in leader_ids:
             filtered_data.append(item)
-    
+
     # Default colors if none provided
     if not colors or len(colors) != len(leader_ids):
         colors = ["#3498db", "#e74c3c", "#2ecc71", "#f39c12", "#9b59b6"][:len(leader_ids)]
-    
+
     # Convert data to the format needed for the radar chart
     radar_data = []
     for item in filtered_data:
         leader_data = {"leader": item.get('leader_id', '')}
-        
+
         # Add color win rate data
         for key, value in item.items():
             if key != 'leader_id' and not key.startswith('__'):
                 leader_data[key] = value
-        
+
         radar_data.append(leader_data)
-    
+
     # Convert Python data to JSON safely
     import json
     json_radar_data = json.dumps(radar_data)
     json_leader_ids = json.dumps(leader_ids)
     json_colors = json.dumps(colors)
-    
+
     return ft.Div(
         # Chart container with canvas
         ft.Div(
@@ -197,31 +136,31 @@ def create_leader_win_rate_radar_chart(container_id, data, leader_ids, colors=No
             (function() {{
                 const chartId = '{container_id}';
                 const container = document.getElementById(chartId);
-                
+
                 if (!container) {{
                     console.error('Chart container not found:', chartId);
                     return;
                 }}
-                
+
                 // Destroy existing chart if it exists
                 const existingChart = Chart.getChart(chartId);
                 if (existingChart) {{
                     existingChart.destroy();
                 }}
-                
+
                 // Prepare data
                 const data = {json_radar_data};
                 const leaders = {json_leader_ids};
                 const colors = {json_colors};
-                
+
                 if (data.length === 0 || !data[0]) {{
                     console.error('No valid data for chart');
                     return;
                 }}
-                
+
                 // Extract labels from first data object
                 const labels = Object.keys(data[0]).filter(key => key !== 'leader');
-                
+
                 // Prepare datasets
                 const datasets = data.map((item, index) => {{
                     return {{
@@ -235,7 +174,7 @@ def create_leader_win_rate_radar_chart(container_id, data, leader_ids, colors=No
                         pointHoverBorderColor: colors[index]
                     }};
                 }});
-                
+
                 // Create chart
                 new Chart(container, {{
                     type: 'radar',
@@ -284,7 +223,7 @@ def create_leader_win_rate_radar_chart(container_id, data, leader_ids, colors=No
         """),
         cls="radar-chart-container bg-gray-800 rounded-lg p-4 shadow-lg",
         style="height: 300px; width: 100%;"  # Explicit height and width
-    ) 
+    )
 
 def create_bar_chart(container_id: str, data: List[dict[str, Any]], 
                     y_key: str = "matches", x_key: str = "meta",
@@ -293,8 +232,15 @@ def create_bar_chart(container_id: str, data: List[dict[str, Any]],
                     show_x_axis: bool = True,
                     show_y_axis: bool = True) -> ft.Div:
     """
-    Creates a bar chart using Chart.js
-    
+    Creates a bar chart using Chart.js ChartManager (REFACTORED)
+
+    This function now uses the ChartManager class from charts.js instead of 
+    embedding JavaScript directly in Python f-strings. Benefits:
+    - Cleaner separation of concerns (Python for data, JS for charts)
+    - Better maintainability and debugging
+    - More efficient memory usage
+    - Environmental friendly approach with less string interpolation
+
     Args:
         container_id: Unique ID for the chart container
         data: List of dictionaries containing the data points
@@ -306,103 +252,27 @@ def create_bar_chart(container_id: str, data: List[dict[str, Any]],
         show_x_axis: Whether to show the x-axis
         show_y_axis: Whether to show the y-axis
     """
-    # Convert Python data to JSON string
-    json_data = json.dumps(data)
-    
+    # Prepare configuration for ChartManager
+    config = {
+        'containerId': container_id,
+        'data': data,
+        'yKey': y_key,
+        'xKey': x_key,
+        'ySuffix': y_suffix,
+        'color': str(color),
+        'showXAxis': show_x_axis,
+        'showYAxis': show_y_axis
+    }
+
     return ft.Div(
         # Chart container with canvas
         ft.Div(
             ft.Canvas(id=container_id),
             cls="h-full w-full"  # Use full height and width
         ),
-        ft.Script(f"""
-            (function() {{
-                const chartId = '{container_id}';
-                const container = document.getElementById(chartId);
-                
-                if (!container) {{
-                    console.error('Chart container not found:', chartId);
-                    return;
-                }}
-                
-                // Destroy existing chart if it exists
-                const existingChart = Chart.getChart(chartId);
-                if (existingChart) {{
-                    existingChart.destroy();
-                }}
-                
-                const data = {json_data};
-                
-                new Chart(container, {{
-                    type: 'bar',
-                    data: {{
-                        labels: data.map(d => d['{x_key}']),
-                        datasets: [{{
-                            data: data.map(d => d['{y_key}']),
-                            backgroundColor: '{color}',
-                            borderColor: '{color}',
-                            borderWidth: 1
-                        }}]
-                    }},
-                    options: {{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {{
-                            legend: {{
-                                display: false
-                            }},
-                            tooltip: {{
-                                backgroundColor: '{ChartColors.TOOLTIP_BG}',
-                                titleColor: '#ffffff',
-                                bodyColor: '#ffffff',
-                                borderColor: '{ChartColors.TOOLTIP_BORDER}',
-                                borderWidth: 1,
-                                padding: 8,
-                                displayColors: false,
-                                callbacks: {{
-                                    label: function(context) {{
-                                        return context.raw + '{y_suffix}';
-                                    }}
-                                }}
-                            }}
-                        }},
-                        scales: {{
-                            x: {{
-                                display: {str(show_x_axis).lower()},
-                                grid: {{
-                                    display: false
-                                }},
-                                ticks: {{
-                                    color: '{ChartColors.TICK_TEXT}',
-                                    font: {{
-                                        size: 10
-                                    }},
-                                    maxRotation: 45,
-                                    minRotation: 45,
-                                    padding: 5
-                                }}
-                            }},
-                            y: {{
-                                display: {str(show_y_axis).lower()},
-                                grid: {{
-                                    display: {str(show_y_axis).lower()}
-                                }},
-                                ticks: {{
-                                    color: '{ChartColors.TICK_TEXT}',
-                                    font: {{
-                                        size: 10
-                                    }},
-                                    padding: 5,
-                                    stepSize: 1
-                                }}
-                            }}
-                        }}
-                    }}
-                }});
-            }})();
-        """),
+        _create_chart_script('createBarChart', container_id, config),
         style="height: 120px; width: 100%;"  # Explicit height in style attribute
-    ) 
+    )
 
 def create_stream_chart(container_id: str, data: List[dict[str, Any]], 
                        y_key: str = "wins", x_key: str = "date",
@@ -413,7 +283,7 @@ def create_stream_chart(container_id: str, data: List[dict[str, Any]],
     """
     Creates a stream chart using Chart.js with gradient fill and smooth transitions.
     Also includes a bar chart overlay for individual data points.
-    
+
     Args:
         container_id: Unique ID for the chart container
         data: List of dictionaries containing the data points
@@ -427,7 +297,7 @@ def create_stream_chart(container_id: str, data: List[dict[str, Any]],
     """
     # Convert Python data to JSON string
     json_data = json.dumps(data)
-    
+
     return ft.Div(
         # Chart container with canvas
         ft.Div(
@@ -438,26 +308,26 @@ def create_stream_chart(container_id: str, data: List[dict[str, Any]],
             (function() {{
                 const chartId = '{container_id}';
                 const container = document.getElementById(chartId);
-                
+
                 if (!container) {{
                     console.error('Chart container not found:', chartId);
                     return;
                 }}
-                
+
                 // Destroy existing chart if it exists
                 const existingChart = Chart.getChart(chartId);
                 if (existingChart) {{
                     existingChart.destroy();
                 }}
-                
+
                 const data = {json_data};
-                
+
                 // Get the chart context and create gradient
                 const ctx = container.getContext('2d');
                 const gradient = ctx.createLinearGradient(0, 0, 0, container.height);
                 gradient.addColorStop(0, '{color}');  // Start with full color
                 gradient.addColorStop(1, '{color}00'); // End with transparent
-                
+
                 // Create cumulative data for stream effect
                 let cumulativeData = [];
                 let runningTotal = 0;
@@ -465,7 +335,7 @@ def create_stream_chart(container_id: str, data: List[dict[str, Any]],
                     runningTotal += d['{y_key}'];
                     cumulativeData.push(runningTotal);
                 }});
-                
+
                 // Format dates for display - shorter format
                 const formatDate = (dateStr) => {{
                     const date = new Date(dateStr);
@@ -473,7 +343,7 @@ def create_stream_chart(container_id: str, data: List[dict[str, Any]],
                     const year = date.getFullYear().toString().slice(2); // Get last 2 digits of year
                     return `${{month}} '${{year}}`;
                 }};
-                
+
                 // Group data points by month to avoid duplicate labels
                 const monthLabels = new Map();
                 data.forEach((d, i) => {{
@@ -483,7 +353,7 @@ def create_stream_chart(container_id: str, data: List[dict[str, Any]],
                         monthLabels.set(monthKey, i);
                     }}
                 }});
-                
+
                 // Define consistent colors for dark mode
                 const COLORS = {{
                     BAR: '#9CA3AF',  // A medium gray that's visible but not too bright
@@ -491,11 +361,11 @@ def create_stream_chart(container_id: str, data: List[dict[str, Any]],
                     AXIS_TEXT: '#E5E7EB',  // Light gray for axis text
                     GRID: 'rgba(255, 255, 255, 0.1)'  // Subtle grid lines
                 }};
-                
+
                 // Find max values for scaling
                 const maxWins = Math.max(...data.map(d => d['{y_key}']));
                 const maxCumulative = Math.max(...cumulativeData);
-                
+
                 new Chart(container, {{
                     data: {{
                         labels: data.map(d => formatDate(d['{x_key}'])),
@@ -652,12 +522,12 @@ def create_stream_chart(container_id: str, data: List[dict[str, Any]],
             }})();
         """),
         style="height: 120px; width: 100%;"  # Explicit height in style attribute
-    ) 
+    )
 
 def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: List[str], title: str = "Leader Tournament Popularity"):
     """
     Create a bubble chart for leader tournament statistics.
-    
+
     Args:
         container_id: Unique ID for the chart container
         data: List of dictionaries containing the data points
@@ -667,7 +537,7 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
     # Convert data to JSON strings
     data_json = json.dumps(data)
     colors_json = json.dumps(colors)
-    
+
     return ft.Div(
         # Chart container with canvas
         ft.Div(
@@ -680,7 +550,7 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                 const chartData = {data_json};
                 const chartColors = {colors_json};
                 const chartTitle = '{title}';
-                
+
                 // Store data globally for recreation
                 window.bubbleChartData = {{
                     data: chartData,
@@ -688,53 +558,53 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                     title: chartTitle,
                     containerId: chartId
                 }};
-                
+
                 function createBubbleChart() {{
                     // Clean up old tooltip if it exists
                     const oldTooltip = document.getElementById('chartjs-tooltip');
                     if (oldTooltip) {{
                         oldTooltip.remove();
                     }}
-                    
+
                     // Clean up old chart event listeners using a stable reference
                     if (window.bubbleChartHideTooltipHandler) {{
                         try {{ document.removeEventListener('mouseout', window.bubbleChartHideTooltipHandler); }} catch (e) {{}}
                     }}
-                    
+
                     function hideTooltip() {{
                         const tooltipEl = document.getElementById('chartjs-tooltip');
                         if (tooltipEl) {{
                             tooltipEl.style.opacity = 0;
                         }}
                     }}
-                    
+
                     // Add global mouse out listener to hide tooltip when mouse leaves chart area
                     window.bubbleChartHideTooltipHandler = hideTooltip;
                     document.addEventListener('mouseout', window.bubbleChartHideTooltipHandler);
-                    
+
                     const container = document.getElementById(chartId);
                     if (!container) {{
                         console.error('Chart container not found:', chartId);
                         return null;
                     }}
-                    
+
                     // Destroy existing chart if it exists
                     const existingChart = Chart.getChart(chartId);
                     if (existingChart) {{
                         existingChart.destroy();
                     }}
-                    
+
                     // Clear the canvas and reset its size
                     const ctx = container.getContext('2d');
                     ctx.clearRect(0, 0, container.width, container.height);
-                    
+
                     // Reset canvas size to match container
                     const containerElement = container.parentElement;
                     if (containerElement) {{
                         container.width = containerElement.clientWidth;
                         container.height = containerElement.clientHeight;
                     }}
-                    
+
                     // Store multi-color data for custom drawing
                     const multiColorData = chartColors.map((colorData, index) => {{
                         if (Array.isArray(colorData) && colorData.length > 1) {{
@@ -750,7 +620,7 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                             dataIndex: index
                         }};
                     }});
-                    
+
                     // Process colors for Chart.js (use first color for multi-color leaders)
                     const processedColors = chartColors.map((colorData, index) => {{
                         if (Array.isArray(colorData) && colorData.length > 1) {{
@@ -769,7 +639,7 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                         return `rgba(${{r}},${{g}},${{b}},0.7)`;
                         }}
                     }});
-                    
+
                     // Process hover colors for multi-color support (slightly more opaque)
                     const processedHoverColors = chartColors.map((colorData, index) => {{
                         if (Array.isArray(colorData) && colorData.length > 1) {{
@@ -788,19 +658,19 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                             return `rgba(${{r}},${{g}},${{b}},0.9)`; // More opaque on hover
                         }}
                     }});
-                    
+
                     // Process border colors (use first color for multi-color leaders)
                     const borderColors = chartColors.map(colorData => {{
                         return Array.isArray(colorData) ? colorData[0] : colorData;
                     }});
-                    
+
                     // Custom plugin to draw multi-color segments
                     const multiColorPlugin = {{
                         id: 'multiColorBubbles',
                         afterDatasetsDraw: function(chart) {{
                             const ctx = chart.ctx;
                             const meta = chart.getDatasetMeta(0);
-                            
+
                             meta.data.forEach((element, index) => {{
                                 const colorInfo = multiColorData[index];
                                 if (colorInfo && colorInfo.isMultiColor && colorInfo.colors.length > 1) {{
@@ -808,42 +678,42 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                                     const x = model.x;
                                     const y = model.y;
                                     const radius = model.options.radius;
-                                    
+
                                     // Draw pie-like segments within the bubble
                                     const colors = colorInfo.colors;
                                     const angleStep = (2 * Math.PI) / colors.length;
-                                    
+
                                     ctx.save();
-                                    
+
                                     colors.forEach((color, colorIndex) => {{
                                         ctx.beginPath();
                                         ctx.moveTo(x, y);
-                                        
+
                                         const startAngle = colorIndex * angleStep;
                                         const endAngle = (colorIndex + 1) * angleStep;
-                                        
+
                                         ctx.arc(x, y, radius, startAngle, endAngle);
                                         ctx.closePath();
-                                        
+
                                         // Parse color and add transparency
                                         const r = parseInt(color.slice(1,3), 16);
                                         const g = parseInt(color.slice(3,5), 16);
                                         const b = parseInt(color.slice(5,7), 16);
                                         ctx.fillStyle = `rgba(${{r}}, ${{g}}, ${{b}}, 0.7)`;
                                         ctx.fill();
-                                        
+
                                         // Add subtle border
                                         ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
                                         ctx.lineWidth = 0.5;
                                         ctx.stroke();
                                     }});
-                                    
+
                                     ctx.restore();
                                 }}
                             }});
                         }}
                     }};
-                    
+
                     const chart = new Chart(container, {{
                         type: 'bubble',
                         data: {{
@@ -893,7 +763,7 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                             events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'],
                             onHover: function(event, chartElements) {{
                                 let tooltipEl = document.getElementById('chartjs-tooltip');
-                                
+
                                 if (!tooltipEl) {{
                                     const div = document.createElement('div');
                                     div.id = 'chartjs-tooltip';
@@ -904,24 +774,24 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                                     document.body.appendChild(div);
                                     tooltipEl = div;
                                 }}
-                                
+
                                 if (!chartElements || chartElements.length === 0) {{
                                     if (tooltipEl) {{
                                     tooltipEl.style.opacity = 0;
                                     }}
                                     return;
                                 }}
-                                
+
                                 const element = chartElements[0];
                                 const data = element.element.$context.raw;
                                 const dataIndex = element.index;
                                 const leaderColors = chartColors[dataIndex];
-                                
+
                                 // Create color indicators for multi-color leaders
-                                const colorIndicators = Array.isArray(leaderColors) && leaderColors.length > 1 
+                                const colorIndicators = Array.isArray(leaderColors) && leaderColors.length > 1
                                     ? leaderColors.map(color => `<span style="display: inline-block; width: 12px; height: 12px; background-color: ${{color}}; margin-right: 4px; border-radius: 2px;"></span>`).join('')
                                     : '';
-                                
+
                                 // Create tooltip content with responsive layout
                                 const isMobile = window.innerWidth <= 768;
                                 const tooltipContent = `
@@ -959,7 +829,7 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                                         </div>
                                     </div>
                                 `;
-                                
+
                                 tooltipEl.innerHTML = tooltipContent;
                                 tooltipEl.style.opacity = 1;
                                 tooltipEl.style.position = 'absolute';
@@ -973,13 +843,13 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                                 tooltipEl.style.transition = 'all .1s ease';
                                 tooltipEl.style.padding = '0';
                                 tooltipEl.style.overflow = 'hidden';
-                                
+
                                 // Position the tooltip safely
                                 try {{
                                     const chartRect = container.getBoundingClientRect();
                                     const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
                                     const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                                    
+
                                     // Try multiple methods to get element position
                                     let x, y;
                                     if (element.element && element.element.tooltipPosition) {{
@@ -994,7 +864,7 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                                         x = chartRect.width / 2;
                                         y = chartRect.height / 2;
                                     }}
-                                    
+
                                     if (x !== undefined && y !== undefined && tooltipEl) {{
                                         tooltipEl.style.left = (chartRect.left + scrollLeft + x) + 'px';
                                         tooltipEl.style.top = (chartRect.top + scrollTop + y - 10) + 'px';
@@ -1064,13 +934,13 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                             }}
                         }}
                     }});
-                    
+
                     // Store chart reference for cleanup
                     window.currentBubbleChart = chart;
-                    
+
                     return chart;
                 }}
-                
+
                 // Global function to recreate chart with current data
                 window.recreateBubbleChart = function() {{
                     if (window.bubbleChartData) {{
@@ -1081,22 +951,22 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
                         return null;
                     }}
                 }};
-                
+
                 // Create the initial chart
                 createBubbleChart();
             }})();
         """),
         style="height: 300px; width: 100%;"  # Reduced height to leave room for slider
-    ) 
+    )
 
 def create_donut_chart(container_id: str, labels: List[str], values: List[int], colors: List, images: List[str], leader_ids: List[str] = None) -> ft.Div:
     """
     Create a donut chart for displaying data with multi-color support.
-    
+
     Args:
         container_id: Unique ID for the chart container
         labels: List of labels for each segment
-        values: List of values for each segment  
+        values: List of values for each segment
         colors: List of colors (can be arrays for multi-color leaders)
         images: List of image URLs for tooltips
         leader_ids: List of leader IDs corresponding to each segment (for click handling)
@@ -1122,30 +992,30 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                 const colors = {colors_json};
                 const images = {images_json};
                 const leaderIds = {leader_ids_json};
-                
+
                 function createDonutChart() {{
                     const canvas = document.getElementById(chartId);
                     if (!canvas || !window.Chart) return;
-                    
+
                     // Destroy existing chart more thoroughly
                     const existing = window.Chart.getChart ? window.Chart.getChart(chartId) : null;
                     if (existing) {{
                         existing.destroy();
                     }}
-                    
+
                     // Clear canvas completely
                     const ctx = canvas.getContext('2d');
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    
+
                     // Reset canvas size to container
                     const container = canvas.parentElement;
                     if (container) {{
                         canvas.width = container.clientWidth;
                         canvas.height = container.clientHeight;
                     }}
-                    
+
                     const total = (Array.isArray(values) ? values : []).reduce((a,b)=>a+(+b||0),0) || 1;
-                    
+
                     // Store multi-color data for custom drawing
                     const multiColorData = colors.map((colorData, index) => {{
                         if (Array.isArray(colorData) && colorData.length > 1) {{
@@ -1161,7 +1031,7 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                             dataIndex: index
                         }};
                     }});
-                    
+
                     // Process colors for Chart.js (make multi-color leaders transparent; plugin will paint them)
                     const processedColors = colors.map((colorData, index) => {{
                         if (Array.isArray(colorData) && colorData.length > 1) {{
@@ -1172,7 +1042,7 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                             return Array.isArray(colorData) ? colorData[0] : colorData;
                         }}
                     }});
-                    
+
                     const data = {{
                         labels: labels,
                         datasets: [{{
@@ -1188,10 +1058,10 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                                     // Multi color: build conic gradient aligned to the arc
                                     const el = ctx.chart.getDatasetMeta(0).data[idx];
                                     if (!el) return 'rgba(0,0,0,0)';
-                                    
+
                                     // Get arc properties - try multiple methods to ensure we get valid values
                                     let x, y, startAngle, endAngle;
-                                    
+
                                     if (el.getProps) {{
                                         // Try animated properties first
                                         const props = el.getProps(['x','y','startAngle','endAngle'], true);
@@ -1202,7 +1072,7 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                                             endAngle = props.endAngle;
                                         }}
                                     }}
-                                    
+
                                     // Fallback to static properties if needed
                                     if (x == null) {{
                                         x = el.x;
@@ -1210,7 +1080,7 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                                         startAngle = el.startAngle;
                                         endAngle = el.endAngle;
                                     }}
-                                    
+
                                     // Final fallback to chart center
                                     if (x == null) {{
                                         const chartArea = ctx.chart.chartArea;
@@ -1219,11 +1089,11 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                                         startAngle = 0;
                                         endAngle = Math.PI * 2;
                                     }}
-                                    
+
                                     const totalAngle = Math.max(1e-6, endAngle - startAngle);
                                     const grad = ctx.chart.ctx.createConicGradient(startAngle, x, y);
                                     const step = totalAngle / colorData.length;
-                                    
+
                                     for (let i=0; i<colorData.length; i++) {{
                                         const start = (i*step) / (Math.PI*2);
                                         const end = ((i+1)*step) / (Math.PI*2);
@@ -1280,7 +1150,7 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                             borderSkipped: false // Ensure all edges are rounded
                         }}]
                     }};
-                    
+
                     const options = {{
                         responsive: true,
                         maintainAspectRatio: false,
@@ -1317,13 +1187,13 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                                 const element = chartElements[0];
                                 const dataIndex = element.index;
                                 const leaderId = leaderIds[dataIndex]; // Use the actual leader ID
-                                
+
                                 // Get current filter values from the page
                                 const metaFormat = document.querySelector('[name="meta_format"]')?.value || '';
                                 const region = document.querySelector('[name="region"]')?.value || '';
                                 const days = document.querySelector('[name="days"]')?.value || '14';
                                 const placing = document.querySelector('[name="placing"]')?.value || 'all';
-                                
+
                                 // Build URL with all current filters
                                 const params = new URLSearchParams();
                                 params.set('lid', leaderId);
@@ -1331,7 +1201,7 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                                 if (region) params.set('region', region);
                                 params.set('days', days);
                                 params.set('placing', placing);
-                                
+
                                 // Open decklist modal with tournament filters
                                 htmx.ajax('GET', '/api/decklist-modal?' + params.toString(), {{
                                     target: 'body',
@@ -1341,7 +1211,7 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                         }},
                         onHover: function(event, chartElements) {{
                             let tooltipEl = document.getElementById('chartjs-tooltip');
-                            
+
                             if (!tooltipEl) {{
                                 const div = document.createElement('div');
                                 div.id = 'chartjs-tooltip';
@@ -1352,14 +1222,14 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                                 document.body.appendChild(div);
                                 tooltipEl = div;
                             }}
-                            
+
                             if (!chartElements || chartElements.length === 0) {{
                                 if (tooltipEl) {{
                                     tooltipEl.style.opacity = 0;
                                 }}
                                 return;
                             }}
-                            
+
                             const element = chartElements[0];
                             const dataIndex = element.index;
                             const label = labels[dataIndex];
@@ -1367,12 +1237,12 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                             const image = images && images[dataIndex] ? images[dataIndex] : '';
                             const pct = ((value/total)*100).toFixed(1);
                             const leaderColors = colors[dataIndex];
-                            
+
                             // Create color indicators for multi-color leaders
-                            const colorIndicators = Array.isArray(leaderColors) && leaderColors.length > 1 
+                            const colorIndicators = Array.isArray(leaderColors) && leaderColors.length > 1
                                 ? leaderColors.map(color => `<span style="display: inline-block; width: 12px; height: 12px; background-color: ${{color}}; margin-right: 4px; border-radius: 2px;"></span>`).join('')
                                 : '';
-                            
+
                             // Create tooltip content with flex layout
                             const tooltipContent = `
                                 <div style="
@@ -1408,7 +1278,7 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                                     </div>
                                 </div>
                             `;
-                            
+
                             tooltipEl.innerHTML = tooltipContent;
                             tooltipEl.style.opacity = 1;
                             tooltipEl.style.backgroundColor = '{ChartColors.TOOLTIP_BG}';
@@ -1419,13 +1289,13 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                             tooltipEl.style.transform = 'translate(-50%, -100%)';
                             tooltipEl.style.padding = '0';
                             tooltipEl.style.overflow = 'hidden';
-                            
+
                             // Position the tooltip
                             try {{
                                 const canvasPosition = canvas.getBoundingClientRect();
                                 const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
                                 const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                                
+
                                 if (canvasPosition && tooltipEl) {{
                                     tooltipEl.style.left = (canvasPosition.left + scrollLeft + event.x) + 'px';
                                     tooltipEl.style.top = (canvasPosition.top + scrollTop + event.y - 10) + 'px';
@@ -1577,7 +1447,7 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
                                         meta_formats: List[str], card_name: str, normalized: bool = False) -> ft.Div:
     """
     Creates a streaming chart showing card occurrences across meta formats and leaders using Chart.js.
-    
+
     Args:
         container_id: Unique ID for the chart container
         data: List of dictionaries, each containing leader names as keys and occurrence counts as values
@@ -1595,19 +1465,19 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
     all_leaders = set()
     for meta_data in data:
         all_leaders.update(meta_data.keys())
-    
+
     if not all_leaders:
         return ft.Div(
             ft.P("No leader data available for this card.", cls="text-gray-400 text-center py-8"),
             cls="w-full"
         )
-    
+
     # Convert to sorted list to maintain consistent ordering from API
     filtered_leaders = []
     if data:
         # Use the order from the first meta format data to preserve API ordering
         filtered_leaders = list(data[0].keys())
-    
+
     # Ensure all meta formats have all leaders (fill missing with 0)
     normalized_data = []
     for meta_data in data:
@@ -1615,7 +1485,7 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
         for leader in filtered_leaders:
             normalized_meta[leader] = meta_data.get(leader, 0)
         normalized_data.append(normalized_meta)
-    
+
     # Apply normalization if requested
     if normalized:
         for i, meta_data in enumerate(normalized_data):
@@ -1624,13 +1494,13 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
                 normalized_data[i] = {leader: value / total for leader, value in meta_data.items()}
             else:
                 normalized_data[i] = {leader: 0 for leader in filtered_leaders}
-    
+
     # Generate distinct colors for each leader
     color_palette = [
         "#3B82F6", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6",
         "#06B6D4", "#F97316", "#84CC16", "#EC4899", "#6366F1"
     ]
-    
+
     # Create a unique container ID to avoid conflicts
     unique_container_id = f"{container_id}-{int(time.time() * 1000)}"
     
@@ -1639,7 +1509,7 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
     meta_formats_json = json.dumps(meta_formats)
     leaders_json = json.dumps(filtered_leaders)
     colors_json = json.dumps(color_palette[:len(filtered_leaders)])
-    
+
     # Chart type and configuration based on normalization
     chart_type = "line"
     y_axis_config = {
@@ -1657,16 +1527,16 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
             "padding": 8,
             "stepSize": 0.1 if normalized else 1,
             "callback": "function(value) { return " + (
-                "(value * 100).toFixed(1) + '%'" if normalized else 
+                "(value * 100).toFixed(1) + '%'" if normalized else
                 'value + (value === 1 ? " occurrence" : " occurrences")'
             ) + "; }"
         },
         "beginAtZero": True
     }
-    
+
     if normalized:
         y_axis_config["max"] = 1
-    
+
     return ft.Div(
         ft.H3(
             f"Leader Occurrence for {card_name} ({'Normalized' if normalized else 'Absolute'})",
@@ -1690,10 +1560,10 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
                         }}
                     }});
                 }}
-                
+
                 // Alternative cleanup for newer Chart.js versions
                 if (window.Chart && window.Chart.registry) {{
-                    const chartInstances = window.Chart.getChart ? 
+                    const chartInstances = window.Chart.getChart ?
                         document.querySelectorAll('canvas[id*="card-occurrence-chart"]') : [];
                     chartInstances.forEach(canvas => {{
                         const chart = window.Chart.getChart(canvas);
@@ -1702,7 +1572,7 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
                         }}
                     }});
                 }}
-                
+
                 // Clean up global storage
                 if (window.cardOccurrenceChartInstances) {{
                     Object.keys(window.cardOccurrenceChartInstances).forEach(key => {{
@@ -1717,32 +1587,32 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
             (function() {{
                 const chartId = '{unique_container_id}';
                 const container = document.getElementById(chartId);
-                
+
                 if (!container) {{
                     console.error('Chart container not found:', chartId);
                     return;
                 }}
-                
+
                 // Clean up any existing tooltips
                 const oldTooltips = document.querySelectorAll('#chartjs-tooltip');
                 oldTooltips.forEach(tooltip => tooltip.remove());
-                
+
                 // Destroy existing chart if it exists
                 const existingChart = Chart.getChart(chartId);
                 if (existingChart) {{
                     existingChart.destroy();
                 }}
-                
+
                 // Clear the canvas completely
                 const ctx = container.getContext('2d');
                 ctx.clearRect(0, 0, container.width, container.height);
-                
+
                 const rawData = {data_json};
                 const metaFormats = {meta_formats_json};
                 const leaders = {leaders_json};
                 const colors = {colors_json};
                 const isNormalized = {str(normalized).lower()};
-                
+
                 // Store chart data globally for potential recreation
                 window.cardOccurrenceChartData = window.cardOccurrenceChartData || {{}};
                 window.cardOccurrenceChartData[chartId] = {{
@@ -1753,12 +1623,12 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
                     isNormalized: isNormalized,
                     containerId: chartId
                 }};
-                
+
                 function createChart() {{
                     // Create datasets for each leader
                     const datasets = leaders.map((leader, index) => {{
                         const leaderData = rawData.map(meta => meta[leader] || 0);
-                        
+
                         return {{
                             label: leader,
                             data: leaderData,
@@ -1772,7 +1642,7 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
                             stack: isNormalized ? 'Stack 0' : undefined // Enable stacking for normalized mode
                         }};
                     }});
-                    
+
                     const chart = new Chart(container, {{
                         type: 'line',
                         data: {{
@@ -1857,14 +1727,14 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
                             }}
                         }}
                     }});
-                    
+
                     // Store chart reference for cleanup
                     window.cardOccurrenceChartInstances = window.cardOccurrenceChartInstances || {{}};
                     window.cardOccurrenceChartInstances[chartId] = chart;
-                    
+
                     return chart;
                 }}
-                
+
                 // Create the chart
                 createChart();
             }})();
@@ -1877,17 +1747,17 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
 def create_price_development_chart(container_id: str, price_data: dict[str, list[dict]], card_name: str = "") -> ft.Div:
     """
     Creates a price development chart showing EUR and USD prices over time using Chart.js
-    
+
     Args:
         container_id: Unique ID for the chart container
         price_data: Dictionary with 'eur' and 'usd' keys containing price history data
         card_name: Name of the card for the chart title
     """
-    
+
     # Extract data for both currencies
     eur_data = price_data.get('eur', [])
     usd_data = price_data.get('usd', [])
-    
+
     # Get all unique dates and sort them
     all_dates = set()
     if eur_data:
@@ -1923,7 +1793,7 @@ def create_price_development_chart(container_id: str, price_data: dict[str, list
             (function() {{
                 const chartId = '{container_id}';
                 const container = document.getElementById(chartId);
-                
+
                 // More comprehensive cleanup for price development charts
                 if (window.priceDevelopmentChartInstances) {{
                     // Clean up all existing price development charts
@@ -1939,25 +1809,25 @@ def create_price_development_chart(container_id: str, price_data: dict[str, list
                         delete window.priceDevelopmentChartInstances[id];
                     }});
                 }}
-                
+
                 // Initialize the instances object if it doesn't exist
                 window.priceDevelopmentChartInstances = window.priceDevelopmentChartInstances || {{}};
-                
+
                 if (!container) {{
                     console.error('Chart container not found:', chartId);
                     return;
                 }}
-                
+
                 // Comprehensive cleanup - destroy existing chart if it exists
                 const existingChart = Chart.getChart(chartId);
                 if (existingChart) {{
                     existingChart.destroy();
                 }}
-                
+
                 // Clear canvas completely to prevent old chart artifacts
                 const ctx = container.getContext('2d');
                 ctx.clearRect(0, 0, container.width, container.height);
-                
+
                 // Reset canvas size to container to ensure proper rendering
                 const containerElement = container.parentElement;
                 if (containerElement) {{
@@ -1966,7 +1836,7 @@ def create_price_development_chart(container_id: str, price_data: dict[str, list
                 }}
 
                 const data = {json_data};
-                
+
                 // Debug: Log chart creation
                 console.log('Creating price development chart:', {{
                     chartId: chartId,
@@ -2126,7 +1996,7 @@ def create_price_development_chart(container_id: str, price_data: dict[str, list
 
                 // Store chart instance for cleanup
                 window.priceDevelopmentChartInstances[chartId] = chart;
-                
+
                 // Add HTMX event listener to cleanup when content changes
                 document.addEventListener('htmx:beforeSwap', function(event) {{
                     const target = event.target || (event.detail && event.detail.target);

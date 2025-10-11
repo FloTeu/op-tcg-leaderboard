@@ -96,6 +96,7 @@ app, rt = fast_app(
         ft.Script(src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"),
         # Core utilities and libraries
         ft.Script(src="/public/js/utils.js"),  # Global utilities
+        ft.Script(src="/public/js/charts.js"),  # Chart management library
         ft.Script(src="/public/js/multiselect.js"),  # Base select functionality
         ft.Script(src="/public/js/double_range_slider.js"),  # Range slider functionality
         # Page utilities
