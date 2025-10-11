@@ -84,20 +84,29 @@ def create_line_chart(container_id: str, data: List[dict[str, Any]],
         style="height: 120px; width: 100%;"  # Explicit height in style attribute
     )
 
-def create_leader_win_rate_radar_chart(container_id, data, leader_ids, colors=None, show_legend=True):
+def create_leader_win_rate_radar_chart(container_id: str, data: List[dict[str, Any]], 
+                                      leader_ids: List[str], colors: List[str] = None, 
+                                      show_legend: bool = True) -> ft.Div:
     """
-    Create a radar chart to display leader win rates against different color matchups.
+    Create a radar chart to display leader win rates against different color matchups (REFACTORED).
+
+    This function now uses the ChartManager class from charts.js instead of 
+    embedding JavaScript directly in Python f-strings. Benefits:
+    - Cleaner separation of concerns (Python for data, JS for charts)
+    - Better maintainability and debugging
+    - More efficient memory usage
+    - Environmental friendly approach with less string interpolation
 
     Args:
         container_id: HTML ID for the chart container
         data: Radar chart data with color matchups
         leader_ids: List of leader IDs to include in the chart
-        colors: List of colors for each leader
+        colors: List of colors for each leader (optional)
         show_legend: Whether to show the chart legend
     """
     if not data or not leader_ids:
         return ft.Div(ft.P("No data available for radar chart.", cls="text-gray-400"))
-    
+
     # Filter data for the specified leaders
     filtered_data = []
     for item in data:
@@ -108,23 +117,14 @@ def create_leader_win_rate_radar_chart(container_id, data, leader_ids, colors=No
     if not colors or len(colors) != len(leader_ids):
         colors = ["#3498db", "#e74c3c", "#2ecc71", "#f39c12", "#9b59b6"][:len(leader_ids)]
 
-    # Convert data to the format needed for the radar chart
-    radar_data = []
-    for item in filtered_data:
-        leader_data = {"leader": item.get('leader_id', '')}
-
-        # Add color win rate data
-        for key, value in item.items():
-            if key != 'leader_id' and not key.startswith('__'):
-                leader_data[key] = value
-
-        radar_data.append(leader_data)
-
-    # Convert Python data to JSON safely
-    import json
-    json_radar_data = json.dumps(radar_data)
-    json_leader_ids = json.dumps(leader_ids)
-    json_colors = json.dumps(colors)
+    # Prepare configuration for ChartManager
+    config = {
+        'containerId': container_id,
+        'data': filtered_data,
+        'leaderIds': leader_ids,
+        'colors': colors,
+        'showLegend': show_legend
+    }
 
     return ft.Div(
         # Chart container with canvas
@@ -132,95 +132,7 @@ def create_leader_win_rate_radar_chart(container_id, data, leader_ids, colors=No
             ft.Canvas(id=container_id),
             cls="h-full w-full"  # Use full height and width
         ),
-        ft.Script(f"""
-            (function() {{
-                const chartId = '{container_id}';
-                const container = document.getElementById(chartId);
-
-                if (!container) {{
-                    console.error('Chart container not found:', chartId);
-                    return;
-                }}
-
-                // Destroy existing chart if it exists
-                const existingChart = Chart.getChart(chartId);
-                if (existingChart) {{
-                    existingChart.destroy();
-                }}
-
-                // Prepare data
-                const data = {json_radar_data};
-                const leaders = {json_leader_ids};
-                const colors = {json_colors};
-
-                if (data.length === 0 || !data[0]) {{
-                    console.error('No valid data for chart');
-                    return;
-                }}
-
-                // Extract labels from first data object
-                const labels = Object.keys(data[0]).filter(key => key !== 'leader');
-
-                // Prepare datasets
-                const datasets = data.map((item, index) => {{
-                    return {{
-                        label: item.leader,
-                        data: labels.map(label => item[label]),
-                        backgroundColor: colors[index] + '33', // Add transparency
-                        borderColor: colors[index],
-                        pointBackgroundColor: colors[index],
-                        pointBorderColor: '#fff',
-                        pointHoverBackgroundColor: '#fff',
-                        pointHoverBorderColor: colors[index]
-                    }};
-                }});
-
-                // Create chart
-                new Chart(container, {{
-                    type: 'radar',
-                    data: {{
-                        labels: labels,
-                        datasets: datasets
-                    }},
-                    options: {{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {{
-                            legend: {{
-                                display: {str(show_legend).lower()},
-                                position: 'bottom',
-                                labels: {{
-                                    color: '#ffffff',
-                                    font: {{
-                                        size: 16 // Increased font size
-                                    }}
-                                }}
-                            }},
-                        }},
-                        scales: {{
-                            r: {{
-                                angleLines: {{
-                                    color: 'rgba(255, 255, 255, 0.2)'
-                                }},
-                                grid: {{
-                                    color: 'rgba(255, 255, 255, 0.2)'
-                                }},
-                                pointLabels: {{
-                                    color: '#ffffff',
-                                    font: {{
-                                        size: 16 // Increased font size
-                                    }}
-                                }},
-                                ticks: {{
-                                    color: '#ffffff',
-                                    backdropColor: 'transparent'
-                                }}
-                            }}
-                        }},
-                    }}
-                }});
-            }})();
-        """),
+        _create_chart_script('createRadarChart', container_id, config),
         cls="radar-chart-container bg-gray-800 rounded-lg p-4 shadow-lg",
         style="height: 300px; width: 100%;"  # Explicit height and width
     )
@@ -281,8 +193,15 @@ def create_stream_chart(container_id: str, data: List[dict[str, Any]],
                        show_x_axis: bool = True,
                        show_y_axis: bool = True) -> ft.Div:
     """
-    Creates a stream chart using Chart.js with gradient fill and smooth transitions.
+    Creates a stream chart using Chart.js with gradient fill and smooth transitions (REFACTORED).
     Also includes a bar chart overlay for individual data points.
+
+    This function now uses the ChartManager class from charts.js instead of 
+    embedding JavaScript directly in Python f-strings. Benefits:
+    - Cleaner separation of concerns (Python for data, JS for charts)
+    - Better maintainability and debugging
+    - More efficient memory usage
+    - Environmental friendly approach with less string interpolation
 
     Args:
         container_id: Unique ID for the chart container
@@ -295,8 +214,19 @@ def create_stream_chart(container_id: str, data: List[dict[str, Any]],
         show_x_axis: Whether to show the x-axis
         show_y_axis: Whether to show the y-axis
     """
-    # Convert Python data to JSON string
-    json_data = json.dumps(data)
+    # Prepare configuration for ChartManager
+    config = {
+        'containerId': container_id,
+        'data': data,
+        'yKey': y_key,
+        'xKey': x_key,
+        'ySuffix': y_suffix,
+        'color': str(color),
+        'showXAxis': show_x_axis,
+        'showYAxis': show_y_axis,
+        'tooltipBg': str(ChartColors.TOOLTIP_BG),
+        'tooltipBorder': str(ChartColors.TOOLTIP_BORDER)
+    }
 
     return ft.Div(
         # Chart container with canvas
@@ -304,223 +234,7 @@ def create_stream_chart(container_id: str, data: List[dict[str, Any]],
             ft.Canvas(id=container_id),
             cls="h-full w-full"  # Use full height and width
         ),
-        ft.Script(f"""
-            (function() {{
-                const chartId = '{container_id}';
-                const container = document.getElementById(chartId);
-
-                if (!container) {{
-                    console.error('Chart container not found:', chartId);
-                    return;
-                }}
-
-                // Destroy existing chart if it exists
-                const existingChart = Chart.getChart(chartId);
-                if (existingChart) {{
-                    existingChart.destroy();
-                }}
-
-                const data = {json_data};
-
-                // Get the chart context and create gradient
-                const ctx = container.getContext('2d');
-                const gradient = ctx.createLinearGradient(0, 0, 0, container.height);
-                gradient.addColorStop(0, '{color}');  // Start with full color
-                gradient.addColorStop(1, '{color}00'); // End with transparent
-
-                // Create cumulative data for stream effect
-                let cumulativeData = [];
-                let runningTotal = 0;
-                data.forEach(d => {{
-                    runningTotal += d['{y_key}'];
-                    cumulativeData.push(runningTotal);
-                }});
-
-                // Format dates for display - shorter format
-                const formatDate = (dateStr) => {{
-                    const date = new Date(dateStr);
-                    const month = date.toLocaleDateString('en-US', {{ month: 'short' }});
-                    const year = date.getFullYear().toString().slice(2); // Get last 2 digits of year
-                    return `${{month}} '${{year}}`;
-                }};
-
-                // Group data points by month to avoid duplicate labels
-                const monthLabels = new Map();
-                data.forEach((d, i) => {{
-                    const date = new Date(d['{x_key}']);
-                    const monthKey = `${{date.getFullYear()}}-${{date.getMonth()}}`;
-                    if (!monthLabels.has(monthKey)) {{
-                        monthLabels.set(monthKey, i);
-                    }}
-                }});
-
-                // Define consistent colors for dark mode
-                const COLORS = {{
-                    BAR: '#9CA3AF',  // A medium gray that's visible but not too bright
-                    BAR_BORDER: '#D1D5DB',  // Slightly lighter gray for bar borders
-                    AXIS_TEXT: '#E5E7EB',  // Light gray for axis text
-                    GRID: 'rgba(255, 255, 255, 0.1)'  // Subtle grid lines
-                }};
-
-                // Find max values for scaling
-                const maxWins = Math.max(...data.map(d => d['{y_key}']));
-                const maxCumulative = Math.max(...cumulativeData);
-
-                new Chart(container, {{
-                    data: {{
-                        labels: data.map(d => formatDate(d['{x_key}'])),
-                        datasets: [
-                            // Bar chart for individual wins
-                            {{
-                                type: 'bar',
-                                data: data.map(d => d['{y_key}']),
-                                backgroundColor: COLORS.BAR,
-                                borderColor: COLORS.BAR_BORDER,
-                                borderWidth: 1,
-                                barPercentage: 0.4,
-                                order: 2,
-                                yAxisID: 'y-axis-bars',
-                                barThickness: 'flex',
-                                minBarLength: 10
-                            }},
-                            // Line chart for cumulative wins
-                            {{
-                                type: 'line',
-                                data: cumulativeData,
-                                borderColor: '{color}',
-                                backgroundColor: gradient,
-                                fill: true,
-                                tension: 0.4,
-                                pointRadius: 2,
-                                pointHoverRadius: 4,
-                                borderWidth: 2,
-                                pointStyle: 'circle',
-                                pointBackgroundColor: '{color}',
-                                pointBorderColor: '#fff',
-                                order: 1,
-                                yAxisID: 'y-axis-line'
-                            }}
-                        ]
-                    }},
-                    options: {{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        animation: {{
-                            duration: 1000,
-                            easing: 'easeInOutQuart'
-                        }},
-                        interaction: {{
-                            mode: 'nearest',
-                            axis: 'x',
-                            intersect: false
-                        }},
-                        plugins: {{
-                            legend: {{
-                                display: false
-                            }},
-                            tooltip: {{
-                                backgroundColor: '{ChartColors.TOOLTIP_BG}',
-                                titleColor: '#ffffff',
-                                bodyColor: '#ffffff',
-                                borderColor: '{ChartColors.TOOLTIP_BORDER}',
-                                borderWidth: 1,
-                                padding: 8,
-                                displayColors: false,
-                                callbacks: {{
-                                    title: function(context) {{
-                                        return data[context[0].dataIndex]['{x_key}'];
-                                    }},
-                                    label: function(context) {{
-                                        if (context.datasetIndex === 0) {{
-                                            return 'Wins on this day: ' + context.parsed.y + '{y_suffix}';
-                                        }} else {{
-                                            return 'Total wins: ' + context.parsed.y + '{y_suffix}';
-                                        }}
-                                    }}
-                                }}
-                            }},
-                        }},
-                        scales: {{
-                            x: {{
-                                display: {str(show_x_axis).lower()},
-                                grid: {{
-                                    display: false
-                                }},
-                                ticks: {{
-                                    color: COLORS.AXIS_TEXT,
-                                    font: {{
-                                        size: 10
-                                    }},
-                                    maxRotation: 0,
-                                    minRotation: 0,
-                                    padding: 8,
-                                    autoSkip: false,
-                                    callback: function(value, index) {{
-                                        const date = new Date(data[index]['{x_key}']);
-                                        const monthKey = `${{date.getFullYear()}}-${{date.getMonth()}}`;
-                                        return monthLabels.get(monthKey) === index ? this.getLabelForValue(value) : '';
-                                    }}
-                                }}
-                            }},
-                            'y-axis-bars': {{
-                                display: {str(show_y_axis).lower()},
-                                position: 'left',
-                                grid: {{
-                                    display: false
-                                }},
-                                ticks: {{
-                                    color: COLORS.AXIS_TEXT,
-                                    font: {{
-                                        size: 10
-                                    }},
-                                    padding: 5,
-                                    callback: function(value) {{
-                                        return value + '{y_suffix}';
-                                    }},
-                                    stepSize: 1
-                                }},
-                                min: 0,
-                                max: Math.max(maxWins * 1.2, 4),
-                                border: {{
-                                    color: COLORS.BAR_BORDER
-                                }}
-                            }},
-                            'y-axis-line': {{
-                                display: {str(show_y_axis).lower()},
-                                position: 'right',
-                                grid: {{
-                                    display: {str(show_y_axis).lower()},
-                                    color: COLORS.GRID
-                                }},
-                                ticks: {{
-                                    color: COLORS.AXIS_TEXT,
-                                    font: {{
-                                        size: 10
-                                    }},
-                                    padding: 5,
-                                    callback: function(value) {{
-                                        return value + '{y_suffix}';
-                                    }}
-                                }},
-                                min: 0,
-                                max: Math.ceil(maxCumulative * 1.1),
-                                border: {{
-                                    color: COLORS.BAR_BORDER
-                                }}
-                            }}
-                        }},
-                        layout: {{
-                            padding: {{
-                                top: 20,
-                                right: 30,
-                                bottom: 20,
-                                left: 30
-                            }}
-                        }}
-                    }}
-                }});
-            }})();
-        """),
+        _create_chart_script('createStreamChart', container_id, config),
         style="height: 120px; width: 100%;"  # Explicit height in style attribute
     )
 
