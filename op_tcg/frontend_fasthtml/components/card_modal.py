@@ -139,7 +139,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     ft.Span("×", cls="text-lg"),
                     type="button",
                     cls="absolute top-4 right-4 inline-flex items-center justify-center w-9 h-9 rounded-full bg-gray-700/60 hover:bg-gray-700 text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 transition z-30",
-                    onclick="event.stopPropagation(); document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove())"
+                    onclick="event.stopPropagation(); closeCardModal();"
                 ),
                 
                 # Card navigation areas (full height on left and right sides)
@@ -150,7 +150,8 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     hx_swap="beforeend",
                     hx_include=HX_INCLUDE,
                     title="Previous Card",
-                    style="display: none" if not prev_card_id else None
+                    style="display: none" if not prev_card_id else None,
+                    **{"hx-on::before-request": "document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove());"}
                 ) if prev_card_id else None,
                 
                 ft.Div(
@@ -160,7 +161,8 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     hx_swap="beforeend",
                     hx_include=HX_INCLUDE,
                     title="Next Card",
-                    style="display: none" if not next_card_id else None
+                    style="display: none" if not next_card_id else None,
+                    **{"hx-on::before-request": "document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove());"}
                 ) if next_card_id else None,
                 
                 # Main card content section
@@ -324,10 +326,56 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 cls="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 relative"
             ),
             cls="modal-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 overflow-y-auto py-4",
-            onclick="if (event.target === this) document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove())"
+            onclick="if (event.target === this) closeCardModal();",
+            data_card_id=card.id
         ),
-        # Carousel JavaScript
+        # Carousel and URL management JavaScript
         ft.Script("""
+            // URL management for card modal sharing
+            function updateURLWithCardId(cardId) {
+                const url = new URL(window.location);
+                // Only change pathname if not already on card-popularity page
+                if (!url.pathname.includes('card-popularity')) {
+                    url.pathname = '/card-popularity';
+                }
+                url.searchParams.set('card_id', cardId);
+                window.history.pushState({cardId: cardId}, '', url);
+            }
+            
+            function removeCardIdFromURL() {
+                const url = new URL(window.location);
+                url.searchParams.delete('card_id');
+                window.history.replaceState({}, '', url);
+            }
+            
+            function closeCardModal() {
+                document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove());
+                removeCardIdFromURL();
+            }
+            
+            // Update URL when modal is opened via HTMX
+            document.addEventListener('htmx:afterSettle', function(evt) {
+                // Check if a modal backdrop was added to the body
+                const modalBackdrop = document.querySelector('.modal-backdrop[data-card-id]');
+                if (modalBackdrop && evt.detail.target === document.body) {
+                    const cardId = modalBackdrop.getAttribute('data-card-id');
+                    if (cardId) {
+                        updateURLWithCardId(cardId);
+                    }
+                }
+            });
+            
+            // Handle browser back/forward buttons
+            window.addEventListener('popstate', function(event) {
+                const url = new URL(window.location);
+                const cardId = url.searchParams.get('card_id');
+                
+                if (!cardId) {
+                    // Close modal if card_id is removed from URL
+                    document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove());
+                }
+            });
+            
             function getCarouselContainer(element) {
                 return element.closest('.modal-backdrop').querySelector('.carousel-item').parentElement;
             }

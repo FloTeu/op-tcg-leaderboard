@@ -477,7 +477,7 @@ def card_popularity_page():
             hx_include=HX_INCLUDE,
             hx_indicator="#card-popularity-loading-indicator"
         ),
-        # JavaScript to handle card subtype loading sequence
+        # JavaScript to handle card subtype loading sequence and auto-open card modal from URL
         ft.Script("""
             let initializationComplete = false;
             let initialLoadDone = false;
@@ -499,6 +499,37 @@ def card_popularity_page():
                 }
             }
             
+            // Check if URL contains card_id parameter and open modal
+            function checkAndOpenCardModal() {
+                const url = new URL(window.location);
+                const cardId = url.searchParams.get('card_id');
+                
+                if (cardId) {
+                    // Wait for content to load before opening modal
+                    const checkContentLoaded = setInterval(() => {
+                        const cardGridContainer = document.getElementById('card-grid-container');
+                        if (cardGridContainer) {
+                            clearInterval(checkContentLoaded);
+                            // Trigger the card modal
+                            const metaFormat = document.querySelector('[name="meta_format"]')?.value || 'latest';
+                            const currency = document.querySelector('[name="currency"]')?.value || 'EUR';
+                            
+                            fetch(`/api/card-modal?card_id=${cardId}&meta_format=${metaFormat}&currency=${currency}`)
+                                .then(response => response.text())
+                                .then(html => {
+                                    document.body.insertAdjacentHTML('beforeend', html);
+                                    htmx.process(document.body);
+                                    // Note: URL is already correct since we're opening from URL parameter
+                                })
+                                .catch(error => console.error('Error loading card modal:', error));
+                        }
+                    }, 100);
+                    
+                    // Timeout after 5 seconds to prevent infinite checking
+                    setTimeout(() => clearInterval(checkContentLoaded), 5000);
+                }
+            }
+            
             document.addEventListener('htmx:afterSettle', function(evt) {
                 if (evt.target.id === 'card-subtype-wrapper') {
                     // After card subtype loads, trigger content loading
@@ -508,6 +539,11 @@ def card_popularity_page():
                     setTimeout(() => {
                         initializationComplete = true;
                     }, 500);
+                }
+                
+                // Check if we should open a card modal after content is loaded
+                if (evt.target.id === 'card-popularity-content') {
+                    checkAndOpenCardModal();
                 }
             });
             
