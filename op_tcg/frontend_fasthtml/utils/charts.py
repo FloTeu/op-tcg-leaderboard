@@ -19,7 +19,9 @@ import time
 
 def _create_chart_script(chart_type: str, container_id: str, config: dict) -> ft.Script:
     """Ultra-simple chart creation that works with HTMX."""
-    config_json = json.dumps(config)
+    # Add containerId to config
+    config_with_id = {'containerId': container_id, **config}
+    config_json = json.dumps(config_with_id)
     
     return ft.Script(f"""
         (function() {{
@@ -186,7 +188,7 @@ def create_bar_chart(container_id: str, data: List[dict[str, Any]],
         style="height: 120px; width: 100%;"  # Explicit height in style attribute
     )
 
-def create_stream_chart(container_id: str, data: List[dict[str, Any]], 
+def create_stream_chart(container_id: str, data: List[dict[str, Any]],
                        y_key: str = "wins", x_key: str = "date",
                        y_label: str = "Tournament Wins", y_suffix: str = " wins",
                        color: str = ChartColors.POSITIVE,
@@ -196,7 +198,7 @@ def create_stream_chart(container_id: str, data: List[dict[str, Any]],
     Creates a stream chart using Chart.js with gradient fill and smooth transitions (REFACTORED).
     Also includes a bar chart overlay for individual data points.
 
-    This function now uses the ChartManager class from charts.js instead of 
+    This function now uses the ChartManager class from charts.js instead of
     embedding JavaScript directly in Python f-strings. Benefits:
     - Cleaner separation of concerns (Python for data, JS for charts)
     - Better maintainability and debugging
@@ -238,9 +240,17 @@ def create_stream_chart(container_id: str, data: List[dict[str, Any]],
         style="height: 120px; width: 100%;"  # Explicit height in style attribute
     )
 
-def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: List[str], title: str = "Leader Tournament Popularity"):
+def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: List[str], 
+                        title: str = "Leader Tournament Popularity") -> ft.Div:
     """
-    Create a bubble chart for leader tournament statistics.
+    Create a bubble chart for leader tournament statistics (REFACTORED).
+
+    This function now uses the ChartManager class from charts.js instead of 
+    embedding JavaScript directly in Python f-strings. Benefits:
+    - Cleaner separation of concerns (Python for data, JS for charts)
+    - Better maintainability and debugging
+    - More efficient memory usage
+    - Environmental friendly approach with less string interpolation
 
     Args:
         container_id: Unique ID for the chart container
@@ -248,9 +258,16 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
         colors: List of color strings for each bubble
         title: Chart title
     """
-    # Convert data to JSON strings
-    data_json = json.dumps(data)
-    colors_json = json.dumps(colors)
+    # Prepare configuration for ChartManager
+    config = {
+        'containerId': container_id,
+        'data': data,
+        'colors': colors,
+        'title': title,
+        'tooltipBg': str(ChartColors.TOOLTIP_BG),
+        'tooltipBorder': str(ChartColors.TOOLTIP_BORDER),
+        'tickTextColor': str(ChartColors.TICK_TEXT)
+    }
 
     return ft.Div(
         # Chart container with canvas
@@ -258,420 +275,10 @@ def create_bubble_chart(container_id: str, data: List[Dict[str, Any]], colors: L
             ft.Canvas(id=container_id, style="width:100%; height:100%; display:block"),
             cls="h-full w-full"  # Use full height and width
         ),
-        ft.Script(f"""
-            (function() {{
-                const chartId = '{container_id}';
-                const chartData = {data_json};
-                const chartColors = {colors_json};
-                const chartTitle = '{title}';
-
-                // Store data globally for recreation
-                window.bubbleChartData = {{
-                    data: chartData,
-                    colors: chartColors,
-                    title: chartTitle,
-                    containerId: chartId
-                }};
-
-                function createBubbleChart() {{
-                    // Clean up old tooltip if it exists
-                    const oldTooltip = document.getElementById('chartjs-tooltip');
-                    if (oldTooltip) {{
-                        oldTooltip.remove();
-                    }}
-
-                    // Clean up old chart event listeners using a stable reference
-                    if (window.bubbleChartHideTooltipHandler) {{
-                        try {{ document.removeEventListener('mouseout', window.bubbleChartHideTooltipHandler); }} catch (e) {{}}
-                    }}
-
-                    function hideTooltip() {{
-                        const tooltipEl = document.getElementById('chartjs-tooltip');
-                        if (tooltipEl) {{
-                            tooltipEl.style.opacity = 0;
-                        }}
-                    }}
-
-                    // Add global mouse out listener to hide tooltip when mouse leaves chart area
-                    window.bubbleChartHideTooltipHandler = hideTooltip;
-                    document.addEventListener('mouseout', window.bubbleChartHideTooltipHandler);
-
-                    const container = document.getElementById(chartId);
-                    if (!container) {{
-                        console.error('Chart container not found:', chartId);
-                        return null;
-                    }}
-
-                    // Destroy existing chart if it exists
-                    const existingChart = Chart.getChart(chartId);
-                    if (existingChart) {{
-                        existingChart.destroy();
-                    }}
-
-                    // Clear the canvas and reset its size
-                    const ctx = container.getContext('2d');
-                    ctx.clearRect(0, 0, container.width, container.height);
-
-                    // Reset canvas size to match container
-                    const containerElement = container.parentElement;
-                    if (containerElement) {{
-                        container.width = containerElement.clientWidth;
-                        container.height = containerElement.clientHeight;
-                    }}
-
-                    // Store multi-color data for custom drawing
-                    const multiColorData = chartColors.map((colorData, index) => {{
-                        if (Array.isArray(colorData) && colorData.length > 1) {{
-                            return {{
-                                isMultiColor: true,
-                                colors: colorData,
-                                dataIndex: index
-                            }};
-                        }}
-                        return {{
-                            isMultiColor: false,
-                            colors: [Array.isArray(colorData) ? colorData[0] : colorData],
-                            dataIndex: index
-                        }};
-                    }});
-
-                    // Process colors for Chart.js (use first color for multi-color leaders)
-                    const processedColors = chartColors.map((colorData, index) => {{
-                        if (Array.isArray(colorData) && colorData.length > 1) {{
-                            // Multi-color leader - use first color as base (will be overdrawn by plugin)
-                            const color = colorData[0];
-                        const r = parseInt(color.slice(1,3), 16);
-                        const g = parseInt(color.slice(3,5), 16);
-                        const b = parseInt(color.slice(5,7), 16);
-                        return `rgba(${{r}},${{g}},${{b}},0.7)`;
-                        }} else {{
-                            // Single color leader - add transparency
-                            const color = Array.isArray(colorData) ? colorData[0] : colorData;
-                        const r = parseInt(color.slice(1,3), 16);
-                        const g = parseInt(color.slice(3,5), 16);
-                        const b = parseInt(color.slice(5,7), 16);
-                        return `rgba(${{r}},${{g}},${{b}},0.7)`;
-                        }}
-                    }});
-
-                    // Process hover colors for multi-color support (slightly more opaque)
-                    const processedHoverColors = chartColors.map((colorData, index) => {{
-                        if (Array.isArray(colorData) && colorData.length > 1) {{
-                            // Multi-color leader - use first color but more opaque
-                            const color = colorData[0];
-                            const r = parseInt(color.slice(1,3), 16);
-                            const g = parseInt(color.slice(3,5), 16);
-                            const b = parseInt(color.slice(5,7), 16);
-                            return `rgba(${{r}},${{g}},${{b}},0.9)`;
-                        }} else {{
-                            // Single color leader - more opaque on hover
-                            const color = Array.isArray(colorData) ? colorData[0] : colorData;
-                            const r = parseInt(color.slice(1,3), 16);
-                            const g = parseInt(color.slice(3,5), 16);
-                            const b = parseInt(color.slice(5,7), 16);
-                            return `rgba(${{r}},${{g}},${{b}},0.9)`; // More opaque on hover
-                        }}
-                    }});
-
-                    // Process border colors (use first color for multi-color leaders)
-                    const borderColors = chartColors.map(colorData => {{
-                        return Array.isArray(colorData) ? colorData[0] : colorData;
-                    }});
-
-                    // Custom plugin to draw multi-color segments
-                    const multiColorPlugin = {{
-                        id: 'multiColorBubbles',
-                        afterDatasetsDraw: function(chart) {{
-                            const ctx = chart.ctx;
-                            const meta = chart.getDatasetMeta(0);
-
-                            meta.data.forEach((element, index) => {{
-                                const colorInfo = multiColorData[index];
-                                if (colorInfo && colorInfo.isMultiColor && colorInfo.colors.length > 1) {{
-                                    const model = element;
-                                    const x = model.x;
-                                    const y = model.y;
-                                    const radius = model.options.radius;
-
-                                    // Draw pie-like segments within the bubble
-                                    const colors = colorInfo.colors;
-                                    const angleStep = (2 * Math.PI) / colors.length;
-
-                                    ctx.save();
-
-                                    colors.forEach((color, colorIndex) => {{
-                                        ctx.beginPath();
-                                        ctx.moveTo(x, y);
-
-                                        const startAngle = colorIndex * angleStep;
-                                        const endAngle = (colorIndex + 1) * angleStep;
-
-                                        ctx.arc(x, y, radius, startAngle, endAngle);
-                                        ctx.closePath();
-
-                                        // Parse color and add transparency
-                                        const r = parseInt(color.slice(1,3), 16);
-                                        const g = parseInt(color.slice(3,5), 16);
-                                        const b = parseInt(color.slice(5,7), 16);
-                                        ctx.fillStyle = `rgba(${{r}}, ${{g}}, ${{b}}, 0.7)`;
-                                        ctx.fill();
-
-                                        // Add subtle border
-                                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-                                        ctx.lineWidth = 0.5;
-                                        ctx.stroke();
-                                    }});
-
-                                    ctx.restore();
-                                }}
-                            }});
-                        }}
-                    }};
-
-                    const chart = new Chart(container, {{
-                        type: 'bubble',
-                        data: {{
-                            datasets: [{{
-                                data: chartData,
-                                backgroundColor: processedColors,
-                                borderColor: borderColors,
-                                borderWidth: 1,
-                                hoverBackgroundColor: processedHoverColors, // Enhanced hover colors
-                                radius: (context) => {{
-                                    // Get the bubble size from the data
-                                    return context.raw.r;
-                                }}
-                            }}]
-                        }},
-                        plugins: [multiColorPlugin],
-                        options: {{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                            layout: {{
-                                padding: {{
-                                    top: 20,
-                                    right: 20,
-                                    bottom: 50,  // Increased bottom padding to show x-axis properly
-                                    left: window.innerWidth > 768 ? 50 : 30
-                                }}
-                            }},
-                            plugins: {{
-                                title: {{
-                                    display: true,
-                                    text: chartTitle,
-                                    color: 'white',
-                                    font: {{ size: 16 }},
-                                    padding: {{ bottom: 10 }}
-                                }},
-                                legend: {{
-                                    display: false
-                                }},
-                                tooltip: {{
-                                    enabled: false,  // Disable default tooltip
-                                }},
-                            }},
-                            hover: {{
-                                mode: 'nearest',
-                                intersect: true
-                            }},
-                            events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'],
-                            onHover: function(event, chartElements) {{
-                                let tooltipEl = document.getElementById('chartjs-tooltip');
-
-                                if (!tooltipEl) {{
-                                    const div = document.createElement('div');
-                                    div.id = 'chartjs-tooltip';
-                                    div.style.position = 'absolute';
-                                    div.style.pointerEvents = 'none';
-                                    div.style.opacity = '0';
-                                    div.style.transition = 'all .1s ease';
-                                    document.body.appendChild(div);
-                                    tooltipEl = div;
-                                }}
-
-                                if (!chartElements || chartElements.length === 0) {{
-                                    if (tooltipEl) {{
-                                    tooltipEl.style.opacity = 0;
-                                    }}
-                                    return;
-                                }}
-
-                                const element = chartElements[0];
-                                const data = element.element.$context.raw;
-                                const dataIndex = element.index;
-                                const leaderColors = chartColors[dataIndex];
-
-                                // Create color indicators for multi-color leaders
-                                const colorIndicators = Array.isArray(leaderColors) && leaderColors.length > 1
-                                    ? leaderColors.map(color => `<span style="display: inline-block; width: 12px; height: 12px; background-color: ${{color}}; margin-right: 4px; border-radius: 2px;"></span>`).join('')
-                                    : '';
-
-                                // Create tooltip content with responsive layout
-                                const isMobile = window.innerWidth <= 768;
-                                const tooltipContent = `
-                                    <div style="
-                                        display: flex;
-                                        gap: ${{isMobile ? '8px' : '16px'}};
-                                        min-width: ${{isMobile ? '280px' : '400px'}};
-                                        height: ${{isMobile ? '120px' : '150px'}};
-                                        padding: 0;
-                                    ">
-                                        <div style="
-                                            flex: 0 0 30%;
-                                            height: 100%;
-                                            display: flex;
-                                            align-items: center;
-                                            justify-content: center;
-                                            overflow: hidden;
-                                            padding: 0;
-                                            margin: 0;
-                                        ">
-                                            ${{data.image ? `<img src="${{data.image}}" style="width: 100%; height: 100%; object-fit: contain; display: block;">` : ''}}
-                                        </div>
-                                        <div style="
-                                            flex: 0 0 70%;
-                                            padding: ${{isMobile ? '8px 12px 8px 0' : '12px 16px 12px 0'}};
-                                            display: flex;
-                                            flex-direction: column;
-                                            justify-content: center;
-                                        ">
-                                            <div style="font-weight: bold; margin-bottom: ${{isMobile ? '8px' : '12px'}}; font-size: ${{isMobile ? '1em' : '1.2em'}}; white-space: normal;">${{data.name}}</div>
-                                            <div style="margin: ${{isMobile ? '2px' : '4px'}} 0; font-size: ${{isMobile ? '0.9em' : '1em'}};">Win Rate: ${{(data.y * 100).toFixed(1)}}%</div>
-                                            <div style="margin: ${{isMobile ? '2px' : '4px'}} 0; font-size: ${{isMobile ? '0.9em' : '1em'}};">Tournament Matches: ${{data.x}}</div>
-                                            <div style="margin: ${{isMobile ? '2px' : '4px'}} 0; font-size: ${{isMobile ? '0.9em' : '1em'}};">Tournament Wins: ${{data.raw_wins}}</div>
-                                            ${{colorIndicators ? `<div style="margin: ${{isMobile ? '6px' : '8px'}} 0 ${{isMobile ? '2px' : '4px'}} 0; font-size: ${{isMobile ? '0.85em' : '0.9em'}};"><strong>Colors:</strong></div><div style="margin: ${{isMobile ? '2px' : '4px'}} 0;">${{colorIndicators}}</div>` : ''}}
-                                        </div>
-                                    </div>
-                                `;
-
-                                tooltipEl.innerHTML = tooltipContent;
-                                tooltipEl.style.opacity = 1;
-                                tooltipEl.style.position = 'absolute';
-                                tooltipEl.style.backgroundColor = '{ChartColors.TOOLTIP_BG}';
-                                tooltipEl.style.color = '#ffffff';
-                                tooltipEl.style.borderRadius = '4px';
-                                tooltipEl.style.border = '1px solid {ChartColors.TOOLTIP_BORDER}';
-                                tooltipEl.style.pointerEvents = 'none';
-                                tooltipEl.style.zIndex = 9999;
-                                tooltipEl.style.transform = 'translate(-50%, -100%)';
-                                tooltipEl.style.transition = 'all .1s ease';
-                                tooltipEl.style.padding = '0';
-                                tooltipEl.style.overflow = 'hidden';
-
-                                // Position the tooltip safely
-                                try {{
-                                    const chartRect = container.getBoundingClientRect();
-                                    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-                                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-
-                                    // Try multiple methods to get element position
-                                    let x, y;
-                                    if (element.element && element.element.tooltipPosition) {{
-                                        const position = element.element.tooltipPosition();
-                                        x = position.x;
-                                        y = position.y;
-                                    }} else if (element.element && element.element.x !== undefined) {{
-                                        x = element.element.x;
-                                        y = element.element.y;
-                                    }} else {{
-                                        // Fallback to chart center
-                                        x = chartRect.width / 2;
-                                        y = chartRect.height / 2;
-                                    }}
-
-                                    if (x !== undefined && y !== undefined && tooltipEl) {{
-                                        tooltipEl.style.left = (chartRect.left + scrollLeft + x) + 'px';
-                                        tooltipEl.style.top = (chartRect.top + scrollTop + y - 10) + 'px';
-                                    }}
-                                }} catch (error) {{
-                                    console.warn('Error positioning tooltip:', error);
-                                    if (tooltipEl) {{
-                                        tooltipEl.style.opacity = 0;
-                                    }}
-                                }}
-                            }},
-                            scales: {{
-                                x: {{
-                                    type: 'logarithmic',
-                                    display: true,  // Always show x-axis
-                                    title: {{
-                                        display: window.innerWidth > 768,  // Hide title on mobile, but show axis
-                                        text: 'Number of Tournament Matches',
-                                        color: 'white',
-                                        font: {{
-                                            size: window.innerWidth > 768 ? 12 : 10
-                                        }}
-                                    }},
-                                    ticks: {{
-                                        display: true,  // Always show ticks
-                                        color: '{ChartColors.TICK_TEXT}',
-                                        font: {{
-                                            size: window.innerWidth > 768 ? 10 : 8
-                                        }},
-                                        padding: window.innerWidth > 768 ? 5 : 2,
-                                        maxTicksLimit: window.innerWidth > 768 ? 8 : 5,  // Fewer ticks on mobile
-                                        maxRotation: 0,  // Prevent label rotation on mobile
-                                        minRotation: 0
-                                    }},
-                                    grid: {{
-                                        display: true,  // Always show grid
-                                        color: 'rgba(255, 255, 255, 0.1)'
-                                    }}
-                                }},
-                                y: {{
-                                    display: true,  // Always show y-axis
-                                    title: {{
-                                        display: window.innerWidth > 768,  // Hide title on mobile, but show axis
-                                        text: 'Win Rate',
-                                        color: 'white',
-                                        font: {{
-                                            size: window.innerWidth > 768 ? 12 : 10
-                                        }}
-                                    }},
-                                    ticks: {{
-                                        display: true,  // Always show ticks
-                                        color: '{ChartColors.TICK_TEXT}',
-                                        font: {{
-                                            size: window.innerWidth > 768 ? 10 : 8
-                                        }},
-                                        padding: window.innerWidth > 768 ? 5 : 2,
-                                        maxTicksLimit: window.innerWidth > 768 ? 8 : 5,  // Fewer ticks on mobile
-                                        callback: function(value) {{
-                                            return (value * 100).toFixed(0) + '%';
-                                        }}
-                                    }},
-                                    grid: {{
-                                        display: true,  // Always show grid
-                                        color: 'rgba(255, 255, 255, 0.1)'
-                                    }}
-                                }}
-                            }}
-                        }}
-                    }});
-
-                    // Store chart reference for cleanup
-                    window.currentBubbleChart = chart;
-
-                    return chart;
-                }}
-
-                // Global function to recreate chart with current data
-                window.recreateBubbleChart = function() {{
-                    if (window.bubbleChartData) {{
-                        console.log('Recreating bubble chart with data:', window.bubbleChartData);
-                        return createBubbleChart();
-                    }} else {{
-                        console.warn('No bubble chart data available for recreation');
-                        return null;
-                    }}
-                }};
-
-                // Create the initial chart
-                createBubbleChart();
-            }})();
-        """),
+        _create_chart_script('createBubbleChart', container_id, config),
         style="height: 300px; width: 100%;"  # Reduced height to leave room for slider
     )
+
 
 def create_donut_chart(container_id: str, labels: List[str], values: List[int], colors: List, images: List[str], leader_ids: List[str] = None) -> ft.Div:
     """
@@ -1157,6 +764,49 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
         style="height: 340px; width: 100%;"
     )
 
+#
+# def create_donut_chart(container_id: str, labels: List[str], values: List[int], colors: List,
+#                        images: List[str], leader_ids: List[str] = None) -> ft.Div:
+#     """
+#     Create a donut chart for displaying data with multi-color support (REFACTORED).
+#
+#     This function now uses the ChartManager class from charts.js instead of
+#     embedding JavaScript directly in Python f-strings. Benefits:
+#     - Cleaner separation of concerns (Python for data, JS for charts)
+#     - Better maintainability and debugging
+#     - More efficient memory usage
+#     - Environmental friendly approach with less string interpolation
+#
+#     Args:
+#         container_id: Unique ID for the chart container
+#         labels: List of labels for each segment
+#         values: List of values for each segment
+#         colors: List of colors (can be arrays for multi-color leaders)
+#         images: List of image URLs for tooltips
+#         leader_ids: List of leader IDs corresponding to each segment (for click handling)
+#     """
+#     # Prepare configuration for ChartManager
+#     config = {
+#         'containerId': container_id,
+#         'labels': labels,
+#         'values': values,
+#         'colors': colors,
+#         'images': images,
+#         'leaderIds': leader_ids or labels,
+#         'tooltipBg': str(ChartColors.TOOLTIP_BG),
+#         'tooltipBorder': str(ChartColors.TOOLTIP_BORDER)
+#     }
+#
+#     return ft.Div(
+#         # Chart container with canvas
+#         ft.Div(
+#             ft.Canvas(id=container_id, style="width:100%; height:100%; display:block"),
+#             cls="h-full w-full"
+#         ),
+#         _create_chart_script('createDonutChart', container_id, config),
+#         style="height: 340px; width: 100%;"
+#     )
+
 def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[str, Any]], 
                                         meta_formats: List[str], card_name: str, normalized: bool = False) -> ft.Div:
     """
@@ -1218,38 +868,15 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
     # Create a unique container ID to avoid conflicts
     unique_container_id = f"{container_id}-{int(time.time() * 1000)}"
     
-    # Convert Python data to JSON strings
-    data_json = json.dumps(normalized_data)
-    meta_formats_json = json.dumps(meta_formats)
-    leaders_json = json.dumps(filtered_leaders)
-    colors_json = json.dumps(color_palette[:len(filtered_leaders)])
-
-    # Chart type and configuration based on normalization
-    chart_type = "line"
-    y_axis_config = {
-        "display": True,
-        "stacked": normalized,  # Enable stacking for normalized mode
-        "grid": {
-            "display": True,
-            "color": "rgba(255, 255, 255, 0.1)"
-        },
-        "ticks": {
-            "color": "#9CA3AF",
-            "font": {
-                "size": 11
-            },
-            "padding": 8,
-            "stepSize": 0.1 if normalized else 1,
-            "callback": "function(value) { return " + (
-                "(value * 100).toFixed(1) + '%'" if normalized else
-                'value + (value === 1 ? " occurrence" : " occurrences")'
-            ) + "; }"
-        },
-        "beginAtZero": True
+    # Prepare config for JavaScript ChartManager
+    config = {
+        'data': normalized_data,
+        'metaFormats': meta_formats,
+        'leaders': filtered_leaders,
+        'colors': color_palette[:len(filtered_leaders)],
+        'isNormalized': normalized,
+        'cardName': card_name
     }
-
-    if normalized:
-        y_axis_config["max"] = 1
 
     return ft.Div(
         ft.H3(
@@ -1261,198 +888,7 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
             ft.Canvas(id=unique_container_id),
             cls="h-full w-full"
         ),
-        # Script to clean up previous charts before this one loads
-        ft.Script(f"""
-            // Clean up any existing card occurrence charts first
-            (function() {{
-                // Destroy all existing Chart.js instances for card occurrence charts
-                if (window.Chart && window.Chart.instances) {{
-                    Object.keys(window.Chart.instances).forEach(key => {{
-                        const chart = window.Chart.instances[key];
-                        if (chart && chart.canvas && chart.canvas.id && chart.canvas.id.includes('card-occurrence-chart')) {{
-                            chart.destroy();
-                        }}
-                    }});
-                }}
-
-                // Alternative cleanup for newer Chart.js versions
-                if (window.Chart && window.Chart.registry) {{
-                    const chartInstances = window.Chart.getChart ?
-                        document.querySelectorAll('canvas[id*="card-occurrence-chart"]') : [];
-                    chartInstances.forEach(canvas => {{
-                        const chart = window.Chart.getChart(canvas);
-                        if (chart) {{
-                            chart.destroy();
-                        }}
-                    }});
-                }}
-
-                // Clean up global storage
-                if (window.cardOccurrenceChartInstances) {{
-                    Object.keys(window.cardOccurrenceChartInstances).forEach(key => {{
-                        if (key.includes('card-occurrence-chart')) {{
-                            delete window.cardOccurrenceChartInstances[key];
-                        }}
-                    }});
-                }}
-            }})();
-        """),
-        ft.Script(f"""
-            (function() {{
-                const chartId = '{unique_container_id}';
-                const container = document.getElementById(chartId);
-
-                if (!container) {{
-                    console.error('Chart container not found:', chartId);
-                    return;
-                }}
-
-                // Clean up any existing tooltips
-                const oldTooltips = document.querySelectorAll('#chartjs-tooltip');
-                oldTooltips.forEach(tooltip => tooltip.remove());
-
-                // Destroy existing chart if it exists
-                const existingChart = Chart.getChart(chartId);
-                if (existingChart) {{
-                    existingChart.destroy();
-                }}
-
-                // Clear the canvas completely
-                const ctx = container.getContext('2d');
-                ctx.clearRect(0, 0, container.width, container.height);
-
-                const rawData = {data_json};
-                const metaFormats = {meta_formats_json};
-                const leaders = {leaders_json};
-                const colors = {colors_json};
-                const isNormalized = {str(normalized).lower()};
-
-                // Store chart data globally for potential recreation
-                window.cardOccurrenceChartData = window.cardOccurrenceChartData || {{}};
-                window.cardOccurrenceChartData[chartId] = {{
-                    rawData: rawData,
-                    metaFormats: metaFormats,
-                    leaders: leaders,
-                    colors: colors,
-                    isNormalized: isNormalized,
-                    containerId: chartId
-                }};
-
-                function createChart() {{
-                    // Create datasets for each leader
-                    const datasets = leaders.map((leader, index) => {{
-                        const leaderData = rawData.map(meta => meta[leader] || 0);
-
-                        return {{
-                            label: leader,
-                            data: leaderData,
-                            borderColor: colors[index],
-                            backgroundColor: colors[index] + (isNormalized ? '60' : '40'), // More opacity for stacked areas
-                            fill: isNormalized ? (index === 0 ? 'origin' : '-1') : true, // Proper stacking: fill to previous dataset
-                            tension: isNormalized ? 0.2 : 0.4, // Less curve for normalized to avoid overlap appearance
-                            pointRadius: isNormalized ? 2 : 3,
-                            pointHoverRadius: isNormalized ? 4 : 5,
-                            borderWidth: isNormalized ? 1 : 2,
-                            stack: isNormalized ? 'Stack 0' : undefined // Enable stacking for normalized mode
-                        }};
-                    }});
-
-                    const chart = new Chart(container, {{
-                        type: 'line',
-                        data: {{
-                            labels: metaFormats,
-                            datasets: datasets
-                        }},
-                        options: {{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        animation: {{
-                                duration: 800,
-                                easing: 'easeInOutQuart'
-                            }},
-                            interaction: {{
-                                mode: 'index',
-                                intersect: false
-                            }},
-                            scales: {{
-                                x: {{
-                                    display: true,
-                                    grid: {{
-                                        display: false
-                                    }},
-                                    ticks: {{
-                                        color: '#9CA3AF',
-                                        font: {{
-                                            size: 11
-                                        }},
-                                        maxRotation: 45,
-                                        minRotation: 0,
-                                        padding: 8
-                                    }}
-                                }},
-                                y: {json.dumps(y_axis_config)}
-                            }},
-                            plugins: {{
-                                legend: {{
-                                    display: true,
-                                    position: 'bottom',
-                                    labels: {{
-                                        color: '#E5E7EB',
-                                        font: {{
-                                            size: 10
-                                        }},
-                                        usePointStyle: true,
-                                        pointStyle: 'circle',
-                                        padding: 15,
-                                        boxWidth: 8,
-                                        boxHeight: 8
-                                    }}
-                                }},
-                                tooltip: {{
-                                    backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                                    titleColor: '#ffffff',
-                                    bodyColor: '#ffffff',
-                                    borderColor: '#374151',
-                                    borderWidth: 1,
-                                    padding: 12,
-                                    displayColors: true,
-                                    callbacks: {{
-                                        title: function(context) {{
-                                            return 'Meta Format: ' + context[0].label;
-                                        }},
-                                        label: function(context) {{
-                                            const value = context.parsed.y;
-                                            if (isNormalized) {{
-                                                return context.dataset.label + ': ' + (value * 100).toFixed(1) + '%';
-                                            }} else {{
-                                                return context.dataset.label + ': ' + value + ' occurrences';
-                                            }}
-                                        }}
-                                    }}
-                                }}
-                            }},
-                            layout: {{
-                                padding: {{
-                                    top: 10,
-                                    right: 10,
-                                    bottom: 60, // Increased bottom padding for legend
-                                    left: 10
-                                }}
-                            }}
-                        }}
-                    }});
-
-                    // Store chart reference for cleanup
-                    window.cardOccurrenceChartInstances = window.cardOccurrenceChartInstances || {{}};
-                    window.cardOccurrenceChartInstances[chartId] = chart;
-
-                    return chart;
-                }}
-
-                // Create the chart
-                createChart();
-            }})();
-        """),
+        _create_chart_script('createCardOccurrenceChart', unique_container_id, config),
         style="height: 400px; width: 100%;",
         cls="bg-gray-800/30 rounded-lg p-4"
     )
@@ -1494,8 +930,11 @@ def create_price_development_chart(container_id: str, price_data: dict[str, list
             'usd_price': usd_price_map.get(date)
         })
 
-    # Convert Python data to JSON string
-    json_data = json.dumps(chart_data)
+    # Prepare config for JavaScript ChartManager
+    config = {
+        'data': chart_data,
+        'cardName': card_name
+    }
 
     return ft.Div(
         # Chart container with canvas
@@ -1503,231 +942,7 @@ def create_price_development_chart(container_id: str, price_data: dict[str, list
             ft.Canvas(id=container_id, style="width:100%; height:100%; display:block"),
             cls="h-full w-full"
         ),
-        ft.Script(f"""
-            (function() {{
-                const chartId = '{container_id}';
-                const container = document.getElementById(chartId);
-
-                // More comprehensive cleanup for price development charts
-                if (window.priceDevelopmentChartInstances) {{
-                    // Clean up all existing price development charts
-                    Object.keys(window.priceDevelopmentChartInstances).forEach(id => {{
-                        const chartInstance = window.priceDevelopmentChartInstances[id];
-                        if (chartInstance && typeof chartInstance.destroy === 'function') {{
-                            try {{
-                                chartInstance.destroy();
-                            }} catch(e) {{
-                                console.warn('Error destroying chart:', e);
-                            }}
-                        }}
-                        delete window.priceDevelopmentChartInstances[id];
-                    }});
-                }}
-
-                // Initialize the instances object if it doesn't exist
-                window.priceDevelopmentChartInstances = window.priceDevelopmentChartInstances || {{}};
-
-                if (!container) {{
-                    console.error('Chart container not found:', chartId);
-                    return;
-                }}
-
-                // Comprehensive cleanup - destroy existing chart if it exists
-                const existingChart = Chart.getChart(chartId);
-                if (existingChart) {{
-                    existingChart.destroy();
-                }}
-
-                // Clear canvas completely to prevent old chart artifacts
-                const ctx = container.getContext('2d');
-                ctx.clearRect(0, 0, container.width, container.height);
-
-                // Reset canvas size to container to ensure proper rendering
-                const containerElement = container.parentElement;
-                if (containerElement) {{
-                    container.width = containerElement.clientWidth;
-                    container.height = containerElement.clientHeight;
-                }}
-
-                const data = {json_data};
-
-                // Debug: Log chart creation
-                console.log('Creating price development chart:', {{
-                    chartId: chartId,
-                    dataLength: data.length,
-                    dateRange: data.length > 0 ? [data[0].date, data[data.length-1].date] : 'no data'
-                }});
-
-                // Prepare datasets
-                const datasets = [];
-
-                // EUR dataset
-                const eurData = data.map(d => d.eur_price);
-                if (eurData.some(price => price !== null && price !== undefined)) {{
-                    datasets.push({{
-                        label: 'EUR (€)',
-                        data: eurData,
-                        borderColor: '#10B981', // Emerald green
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        tension: 0.3,
-                        pointRadius: 3,
-                        pointHoverRadius: 5,
-                        borderWidth: 2,
-                        spanGaps: true,
-                        segment: {{
-                            borderDash: ctx => !ctx.p0.raw || !ctx.p1.raw ? [6, 6] : undefined
-                        }},
-                        pointStyle: 'circle',
-                        pointBackgroundColor: eurData.map(price => price === null ? 'transparent' : '#10B981'),
-                        pointBorderColor: eurData.map(price => price === null ? '#10B981' : '#10B981')
-                    }});
-                }}
-
-                // USD dataset
-                const usdData = data.map(d => d.usd_price);
-                if (usdData.some(price => price !== null && price !== undefined)) {{
-                    datasets.push({{
-                        label: 'USD ($)',
-                        data: usdData,
-                        borderColor: '#3B82F6', // Blue
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        tension: 0.3,
-                        pointRadius: 3,
-                        pointHoverRadius: 5,
-                        borderWidth: 2,
-                        spanGaps: true,
-                        segment: {{
-                            borderDash: ctx => !ctx.p0.raw || !ctx.p1.raw ? [6, 6] : undefined
-                        }},
-                        pointStyle: 'circle',
-                        pointBackgroundColor: usdData.map(price => price === null ? 'transparent' : '#3B82F6'),
-                        pointBorderColor: usdData.map(price => price === null ? '#3B82F6' : '#3B82F6')
-                    }});
-                }}
-
-                const chart = new Chart(container, {{
-                    type: 'line',
-                    data: {{
-                        labels: data.map(d => d.date),
-                        datasets: datasets
-                    }},
-                    options: {{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        animation: {{
-                            duration: 300
-                            }},
-                            interaction: {{
-                                intersect: false,
-                                mode: 'index'
-                            }},
-                            plugins: {{
-                                legend: {{
-                                    display: true,
-                                    position: 'top',
-                                    labels: {{
-                                        color: '#E5E7EB',
-                                        font: {{
-                                            size: 12
-                                        }},
-                                        usePointStyle: true,
-                                        pointStyle: 'circle',
-                                        padding: 20,
-                                        boxWidth: 10,
-                                        boxHeight: 10
-                                    }}
-                                }},
-                                tooltip: {{
-                                    backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                                    titleColor: '#ffffff',
-                                    bodyColor: '#ffffff',
-                                    borderColor: '#374151',
-                                    borderWidth: 1,
-                                    padding: 12,
-                                    displayColors: true,
-                                    callbacks: {{
-                                        title: function(context) {{
-                                            return 'Date: ' + context[0].label;
-                                        }},
-                                        label: function(context) {{
-                                            const value = context.parsed.y;
-                                            if (value === null || value === undefined) {{
-                                                return context.dataset.label + ': No data';
-                                            }}
-                                            const currency = context.dataset.label.includes('EUR') ? '€' : '$';
-                                            return context.dataset.label + ': ' + currency + value.toFixed(2);
-                                        }}
-                                    }}
-                                }}
-                            }},
-                            scales: {{
-                                x: {{
-                                    display: true,
-                                    grid: {{
-                                        display: true,
-                                        color: 'rgba(75, 85, 99, 0.3)'
-                                    }},
-                                    ticks: {{
-                                        color: '#9CA3AF',
-                                        font: {{
-                                            size: 11
-                                        }},
-                                        maxRotation: 45,
-                                        minRotation: 0,
-                                        padding: 8,
-                                        maxTicksLimit: 8
-                                    }}
-                                }},
-                                y: {{
-                                    display: true,
-                                    grid: {{
-                                        display: true,
-                                        color: 'rgba(75, 85, 99, 0.2)'
-                                    }},
-                                    ticks: {{
-                                        color: '#9CA3AF',
-                                        font: {{
-                                            size: 11
-                                        }},
-                                        padding: 8,
-                                        callback: function(value, index, values) {{
-                                            return '€/' + value.toFixed(2);
-                                        }}
-                                    }},
-                                    beginAtZero: true
-                                }}
-                            }},
-                            layout: {{
-                                padding: {{
-                                    top: 10,
-                                    right: 15,
-                                    bottom: 10,
-                                    left: 15
-                                }}
-                            }}
-                        }}
-                    }});
-
-                // Store chart instance for cleanup
-                window.priceDevelopmentChartInstances[chartId] = chart;
-
-                // Add HTMX event listener to cleanup when content changes
-                document.addEventListener('htmx:beforeSwap', function(event) {{
-                    const target = event.target || (event.detail && event.detail.target);
-                    // Clean up if the target contains this chart or is a parent container
-                    if (target && (target.contains(container) || container.contains(target) || target.id === container.parentElement?.id)) {{
-                        if (window.priceDevelopmentChartInstances[chartId]) {{
-                            try {{
-                                window.priceDevelopmentChartInstances[chartId].destroy();
-                                delete window.priceDevelopmentChartInstances[chartId];
-                            }} catch(e) {{
-                                console.warn('Error cleaning up chart during swap:', e);
-                            }}
-                        }}
-                    }}
-                }});
-            }})();
-        """),
+        _create_chart_script('createPriceDevelopmentChart', container_id, config),
         style="height: 300px; width: 100%;",
         cls="bg-gray-800/30 rounded-lg p-4"
     )
