@@ -297,13 +297,53 @@ def create_decklist_modal(
                     cls="absolute top-4 right-4 flex items-center"
                 ),
                 
-                # Modal header - NOT in scrollable area
-                ft.H2(
-                    ft.Span("Tournament Decklists", cls="text-3xl font-bold text-white"),
-                    ft.Span(f" ({leader_id})", cls="text-gray-400 text-xl ml-2"),
-                    cls="mb-2 pr-16"
+                # Modal header with leader image - NOT in scrollable area
+                ft.Div(
+                    # Leader card image section
+                    ft.Div(
+                        ft.A(
+                            ft.Img(
+                                src=card_id2card_data[leader_id].image_url if leader_id in card_id2card_data else get_card_image_url(leader_id, OPTcgLanguage.EN),
+                                alt=f"{leader_id} card",
+                                cls="w-full h-full object-cover rounded-lg shadow-2xl ring-2 transition-all duration-300",
+                                style="max-width: 180px; max-height: 250px; --tw-ring-color: rgb(250 204 21 / 0.5); --tw-ring-offset-shadow: 0 0 0 0 transparent; --tw-ring-shadow: 0 0 0 2px var(--tw-ring-color);",
+                            ),
+                            href="#",
+                            title="View leader details page",
+                            cls="block leader-link-to-page",
+                            data_leader_id=leader_id,
+                            onclick=f"""event.preventDefault(); 
+                                const params = new URLSearchParams(window.location.search); 
+                                params.set('lid', '{leader_id}'); 
+                                params.delete('tournament_id'); 
+                                params.delete('player_id'); 
+                                params.delete('currency'); 
+                                params.delete('modal'); 
+                                window.location.href = '/leader?' + params.toString();"""
+                        ),
+                        cls="decklist-modal-leader-card flex-shrink-0 mb-4 sm:mb-0 sm:mr-6"
+                    ),
+                    # Header text section
+                    ft.Div(
+                        ft.H2(
+                            ft.Span("Tournament Decklists", cls="text-3xl font-bold text-white"),
+                            cls="mb-2 pr-16"
+                        ),
+                        ft.Div(
+                            ft.Span(
+                                leader_id,
+                                cls="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-300 border border-yellow-500/30"
+                            ),
+                            cls="mb-3"
+                        ),
+                        ft.P(
+                            f"Explore {len(tournament_decklists)} tournament decklists from competitive play",
+                            cls="text-gray-400"
+                        ),
+                        cls="flex-1 flex flex-col justify-center"
+                    ),
+                    cls="flex flex-col sm:flex-row items-center sm:items-start mb-6 pb-6 border-b border-gray-700"
                 ),
-                ft.P(f"Explore {len(tournament_decklists)} tournament decklists from competitive play", cls="text-gray-400 mb-6"),
                 
                 # Scrollable content area
                 ft.Div(
@@ -339,7 +379,6 @@ def create_decklist_modal(
         ),
         
         # Include required CSS and JS
-        ft.Link(rel="stylesheet", href="/public/css/decklist.css", id="decklist-css-modal"),
         ft.Script(src="/public/js/decklist-modal.js", id="decklist-modal-js-modal"),
         
         # Enhanced modal styles with proper z-index management
