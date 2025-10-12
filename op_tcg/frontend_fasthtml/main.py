@@ -60,6 +60,8 @@ app, rt = fast_app(
     pico=False,
     lifespan=lifespan,  # Add lifespan manager here
     hdrs=[
+        # Favicon
+        ft.Link(rel="icon", type="image/png", href="/public/favicon32x23.png"),
         # Impact site verification
         ft.Meta(name="impact-site-verification", content="42884b40-0e25-4302-9ead-e1bd322b1ed8"),
         # Basic SEO defaults (can be overridden per-route)
