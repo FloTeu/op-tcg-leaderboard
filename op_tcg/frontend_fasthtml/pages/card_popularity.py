@@ -505,6 +505,12 @@ def card_popularity_page():
                 const cardId = url.searchParams.get('card_id');
                 
                 if (cardId) {
+                    // If page loaded with card_id in URL, the "original" URL should be without the card_id
+                    // So when modal closes, it removes the card_id parameter
+                    const urlWithoutCardId = new URL(window.location);
+                    urlWithoutCardId.searchParams.delete('card_id');
+                    window.originalUrlBeforeModal = urlWithoutCardId.href;
+                    
                     // Wait for content to load before opening modal
                     const checkContentLoaded = setInterval(() => {
                         const cardGridContainer = document.getElementById('card-grid-container');

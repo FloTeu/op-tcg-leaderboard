@@ -332,7 +332,15 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
         # Carousel and URL management JavaScript
         ft.Script("""
             // URL management for card modal sharing
+            // Store the original URL before modal opens (global variable)
+            window.originalUrlBeforeModal = window.originalUrlBeforeModal || null;
+            
             function updateURLWithCardId(cardId) {
+                // Store the original URL if not already stored
+                if (!window.originalUrlBeforeModal) {
+                    window.originalUrlBeforeModal = window.location.href;
+                }
+                
                 const url = new URL(window.location);
                 // Only change pathname if not already on card-popularity page
                 if (!url.pathname.includes('card-popularity')) {
@@ -342,15 +350,19 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 window.history.pushState({cardId: cardId}, '', url);
             }
             
-            function removeCardIdFromURL() {
-                const url = new URL(window.location);
-                url.searchParams.delete('card_id');
-                window.history.replaceState({}, '', url);
-            }
-            
             function closeCardModal() {
                 document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove());
-                removeCardIdFromURL();
+                
+                // Restore the original URL before modal was opened
+                if (window.originalUrlBeforeModal) {
+                    window.history.pushState({}, '', window.originalUrlBeforeModal);
+                    window.originalUrlBeforeModal = null;
+                } else {
+                    // Fallback: just remove card_id parameter if no original URL stored
+                    const url = new URL(window.location);
+                    url.searchParams.delete('card_id');
+                    window.history.replaceState({}, '', url);
+                }
             }
             
             // Update URL when modal is opened via HTMX
