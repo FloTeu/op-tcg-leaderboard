@@ -1557,7 +1557,12 @@ document.addEventListener('htmx:beforeSwap', function(event) {
     const swapTarget = event.detail.target || event.target;
     if (!swapTarget) return;
     
-    // Check if any existing charts are inside the swap target
+    // Special case: Never destroy charts when targeting body element
+    // Charts are in specific containers, and operations on body (like modal appends) shouldn't affect them
+    if (swapTarget === document.body || swapTarget.tagName === 'BODY') {
+        return;
+    }
+
     const chartsToDestroy = [];
     window.chartManager.charts.forEach((chart, containerId) => {
         const chartCanvas = document.getElementById(containerId);
@@ -1568,7 +1573,7 @@ document.addEventListener('htmx:beforeSwap', function(event) {
     
     // Only destroy charts that will actually be affected by the swap
     if (chartsToDestroy.length > 0) {
-        console.log('HTMX swap will affect charts:', chartsToDestroy, 'in target:', swapTarget.id || swapTarget.className);
+        console.log('HTMX swap will affect charts:', chartsToDestroy, 'in target:', swapTarget.id || swapTarget.className, 'swap style:', swapStyle);
         chartsToDestroy.forEach(containerId => {
             window.chartManager.destroyChart(containerId);
         });
