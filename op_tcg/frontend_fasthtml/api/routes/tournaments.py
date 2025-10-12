@@ -239,14 +239,26 @@ def setup_api_routes(rt):
 
                 // Update max bounds
                 const oldMax = parseInt(minInput.max || '0');
-                if (oldMax !== newMax) {{
+                const maxChanged = oldMax !== newMax;
+                
+                // Get current values before updating
+                let minVal = parseInt(minInput.value || '0');
+                let maxVal = parseInt(maxInput.value || String(oldMax));
+                const oldMaxVal = maxVal;
+                
+                // If slider was at the old maximum, update it to the new maximum
+                // This ensures we show all leaders when the range expands
+                if (maxChanged && maxVal === oldMax && newMax > oldMax) {{
+                    maxVal = newMax;
+                }}
+                
+                // Update max bounds
+                if (maxChanged) {{
                     minInput.max = String(newMax);
                     maxInput.max = String(newMax);
                 }}
 
-                // Clamp current values within new bounds
-                let minVal = parseInt(minInput.value || '0');
-                let maxVal = parseInt(maxInput.value || String(newMax));
+                // Clamp values within new bounds
                 if (maxVal > newMax) maxVal = newMax;
                 if (minVal > maxVal) minVal = maxVal;
                 minInput.value = String(minVal);
@@ -262,6 +274,12 @@ def setup_api_routes(rt):
                     const pct = (v) => ((v - minBase) / Math.max(1, (newMax - minBase))) * 100;
                     track.style.setProperty('--left-percent', pct(minVal) + '%');
                     track.style.setProperty('--right-percent', (100 - pct(maxVal)) + '%');
+                }}
+
+                // If the max value changed, trigger chart refresh to include all leaders
+                if (maxVal !== oldMaxVal) {{
+                    // Use htmx to trigger a chart refresh with the new max value
+                    htmx.trigger(maxInput, 'change');
                 }}
             }})();
         """)

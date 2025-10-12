@@ -118,6 +118,7 @@ def meta_format2release_datetime(meta_format: MetaFormat, region: MetaFormatRegi
         MetaFormat.OP11: datetime(2025, 3, 6),     # 3 months earlier
         MetaFormat.OP12: datetime(2025, 5, 31),    # 3 months earlier
         MetaFormat.OP13: datetime(2025, 8, 23),    # 3 months earlier
+        MetaFormat.OP14: datetime(2025, 11, 23),    # 3 months earlier
     }
     
     # Western release dates (existing dates)
@@ -135,6 +136,7 @@ def meta_format2release_datetime(meta_format: MetaFormat, region: MetaFormatRegi
         MetaFormat.OP11: datetime(2025, 6, 6),
         MetaFormat.OP12: datetime(2025, 8, 22),
         MetaFormat.OP13: datetime(2025, 11, 7),
+        MetaFormat.OP14: datetime(2026, 1, 7),
     }
     
     if region == MetaFormatRegion.ASIA:
