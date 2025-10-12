@@ -8,9 +8,10 @@ from op_tcg.frontend_fasthtml.utils.colors import ChartColors
 from op_tcg.frontend_fasthtml.utils.extract import (
     get_leader_extended, 
     get_card_id_card_data_lookup,
-    get_tournament_decklist_data
+    get_tournament_decklist_data,
+    get_card_price_development_data
 )
-from op_tcg.frontend_fasthtml.utils.charts import create_line_chart, create_leader_win_rate_radar_chart, create_card_occurrence_streaming_chart
+from op_tcg.frontend_fasthtml.utils.charts import create_line_chart, create_leader_win_rate_radar_chart, create_card_occurrence_streaming_chart, create_price_development_chart
 from op_tcg.frontend_fasthtml.utils.win_rate import get_radar_chart_data
 from op_tcg.frontend_fasthtml.utils.leader_data import lid_to_name_and_lid
 
@@ -343,4 +344,54 @@ def setup_api_routes(rt):
             )
             
         except Exception as e:
-            return ft.Div(f"Error loading chart: {str(e)}", cls="text-red-400") 
+            return ft.Div(f"Error loading chart: {str(e)}", cls="text-red-400")
+
+    @rt("/api/card-price-development-chart")
+    def get_card_price_development_chart(request: Request):
+        """Return the card price development chart data."""
+        card_id = request.query_params.get("card_id")
+        days = request.query_params.get("days", "90")
+        include_alt_art = request.query_params.get("include_alt_art", "false").lower() == "true"
+        
+        if not card_id:
+            return ft.Div("No card ID provided", cls="text-red-400")
+            
+        try:
+            # Convert days to int
+            days = int(days)
+        except (ValueError, TypeError):
+            days = 90
+            
+        try:
+            # Get card data for name
+            card_data_lookup = get_card_id_card_data_lookup()
+            card_data = card_data_lookup.get(card_id)
+            card_name = card_data.name if card_data else "Unknown Card"
+            
+            # Get price development data
+            price_data = get_card_price_development_data(
+                card_id=card_id,
+                days=days,
+                include_alt_art=include_alt_art
+            )
+            
+            # Check if we have any price data
+            if not price_data.get('eur') and not price_data.get('usd'):
+                return ft.Div(
+                    ft.P(f"No price history available for {card_name} in the last {days} days.", 
+                         cls="text-gray-400 text-center py-8"),
+                    cls="bg-gray-800/30 rounded-lg p-4"
+                )
+            
+            # Create the price development chart with unique container ID
+            return create_price_development_chart(
+                container_id=f"price-development-chart-{card_id}-{days}",
+                price_data=price_data,
+                card_name=card_name
+            )
+            
+        except Exception as e:
+            return ft.Div(f"Error loading price chart: {str(e)}", cls="text-red-400")
+
+
+

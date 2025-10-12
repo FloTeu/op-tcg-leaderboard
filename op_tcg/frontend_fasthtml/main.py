@@ -60,6 +60,8 @@ app, rt = fast_app(
     pico=False,
     lifespan=lifespan,  # Add lifespan manager here
     hdrs=[
+        # Favicon
+        ft.Link(rel="icon", type="image/png", href="/public/favicon32x23.png"),
         # Impact site verification
         ft.Meta(name="impact-site-verification", content="42884b40-0e25-4302-9ead-e1bd322b1ed8"),
         # Basic SEO defaults (can be overridden per-route)
@@ -91,11 +93,16 @@ app, rt = fast_app(
             href="/public/css/tooltip.css",
             rel="stylesheet"
         ),
+        ft.Link(
+            href="/public/css/decklist.css",
+            rel="stylesheet"
+        ),
         # GoatCounter script
         ft.Script(data_goatcounter="https://op-leaderboard.goatcounter.com/count", src="//gc.zgo.at/count.js"),
         ft.Script(src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"),
         # Core utilities and libraries
         ft.Script(src="/public/js/utils.js"),  # Global utilities
+        ft.Script(src="/public/js/charts.js"),  # Chart management library
         ft.Script(src="/public/js/multiselect.js"),  # Base select functionality
         ft.Script(src="/public/js/double_range_slider.js"),  # Range slider functionality
         # Page utilities

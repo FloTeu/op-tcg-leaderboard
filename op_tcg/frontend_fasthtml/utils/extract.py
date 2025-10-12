@@ -288,3 +288,69 @@ def get_top_current_prices(
     OFFSET {offset}
     """
     return run_bq_query(query, ttl_hours=24.0)
+
+
+def get_card_price_development_data(card_id: str, days: int = 90, include_alt_art: bool = False) -> dict[str, list[dict]]:
+    """
+    Get historical price development data for a specific card in both EUR and USD.
+    
+    Args:
+        card_id: The card ID to get price history for
+        days: Number of days to look back (default: 90)
+        include_alt_art: Whether to include alt art versions
+        
+    Returns:
+        Dictionary with 'eur' and 'usd' keys containing lists of price data points
+    """
+    history_tbl = get_bq_table_id(CardPrice).replace(":", ".")
+    aa_filter = "" if include_alt_art else "AND aa_version = 0"
+    
+    query = f"""
+    WITH price_history AS (
+      SELECT 
+        card_id,
+        language,
+        aa_version,
+        price,
+        currency,
+        create_timestamp,
+        DATE(create_timestamp) as price_date
+      FROM `{history_tbl}`
+      WHERE card_id = '{card_id}'
+        AND create_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)
+        AND language = 'en'
+        {aa_filter}
+        AND currency IN ('eur', 'usd')
+    ),
+    daily_prices AS (
+      SELECT 
+        card_id,
+        currency,
+        price_date,
+        AVG(price) as avg_price
+      FROM price_history
+      GROUP BY card_id, currency, price_date
+    )
+    SELECT 
+      currency,
+      price_date,
+      avg_price as price
+    FROM daily_prices
+    ORDER BY currency, price_date ASC
+    """
+    
+    rows = run_bq_query(query, ttl_hours=1.0)  # Cache for 1 hour since price data changes frequently
+    
+    # Organize data by currency
+    result = {'eur': [], 'usd': []}
+    
+    for row in rows:
+        currency = row['currency']
+        price_date = row['price_date'].isoformat() if hasattr(row['price_date'], 'isoformat') else str(row['price_date'])
+        
+        result[currency].append({
+            'date': price_date,
+            'price': float(row['price']) if row['price'] is not None else None
+        })
+    
+    return result

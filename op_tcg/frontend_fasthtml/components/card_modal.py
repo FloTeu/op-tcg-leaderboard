@@ -139,7 +139,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     ft.Span("×", cls="text-lg"),
                     type="button",
                     cls="absolute top-4 right-4 inline-flex items-center justify-center w-9 h-9 rounded-full bg-gray-700/60 hover:bg-gray-700 text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 transition z-30",
-                    onclick="event.stopPropagation(); document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove())"
+                    onclick="event.stopPropagation(); closeCardModal();"
                 ),
                 
                 # Card navigation areas (full height on left and right sides)
@@ -150,7 +150,8 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     hx_swap="beforeend",
                     hx_include=HX_INCLUDE,
                     title="Previous Card",
-                    style="display: none" if not prev_card_id else None
+                    style="display: none" if not prev_card_id else None,
+                    **{"hx-on::before-request": "document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove());"}
                 ) if prev_card_id else None,
                 
                 ft.Div(
@@ -160,7 +161,8 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     hx_swap="beforeend",
                     hx_include=HX_INCLUDE,
                     title="Next Card",
-                    style="display: none" if not next_card_id else None
+                    style="display: none" if not next_card_id else None,
+                    **{"hx-on::before-request": "document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove());"}
                 ) if next_card_id else None,
                 
                 # Main card content section
@@ -279,16 +281,113 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                         size="w-8 h-8",
                         container_classes="min-h-[300px]"
                     ),
+                    cls="w-full mb-6"
+                ),
+                
+                # Price development chart section
+                ft.Div(
+                    ft.Div(
+                        ft.H3("Price Development", cls="text-lg font-semibold text-white mb-4"),
+                        # Time period selector
+                        ft.Div(
+                            ft.Select(
+                                ft.Option("30 days", value="30"),
+                                ft.Option("60 days", value="60"),
+                                ft.Option("90 days", value="90", selected=True),
+                                ft.Option("180 days", value="180"),
+                                ft.Option("365 days", value="365"),
+                                id=f"price-period-selector-{card.id}",
+                                cls="bg-gray-700 text-white border border-gray-600 rounded px-3 py-1 text-sm",
+                                hx_get=f"/api/card-price-development-chart",
+                                hx_target=f"#price-chart-container-{card.id}",
+                                hx_indicator=f"#price-chart-loading-{card.id}",
+                                hx_vals=f'js:{{"card_id": "{card.id}", "days": document.getElementById("price-period-selector-{card.id}").value, "include_alt_art": "false"}}',
+                                **{"hx-on::before-request": f"document.getElementById('price-chart-container-{card.id}').innerHTML = ''; document.getElementById('price-chart-loading-{card.id}').style.display = 'flex';"}
+                            ),
+                            cls="flex justify-end mb-4"
+                        ),
+                        cls="flex justify-between items-start mb-4"
+                    ),
+                    ft.Div(
+                        id=f"price-chart-container-{card.id}",
+                        hx_get=f"/api/card-price-development-chart?card_id={card.id}&days=90",
+                        hx_trigger="load",
+                        hx_indicator=f"#price-chart-loading-{card.id}",
+                        cls="min-h-[300px]"
+                    ),
+                    create_loading_spinner(
+                        id=f"price-chart-loading-{card.id}",
+                        size="w-8 h-8",
+                        container_classes="min-h-[300px]"
+                    ),
                     cls="w-full"
                 ),
                 
                 cls="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 relative"
             ),
             cls="modal-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 overflow-y-auto py-4",
-            onclick="if (event.target === this) document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove())"
+            onclick="if (event.target === this) closeCardModal();",
+            data_card_id=card.id
         ),
-        # Carousel JavaScript
+        # Carousel and URL management JavaScript
         ft.Script("""
+            // URL management for card modal sharing
+            // Store the original URL before modal opens (global variable)
+            window.originalUrlBeforeModal = window.originalUrlBeforeModal || null;
+            
+            function updateURLWithCardId(cardId) {
+                // Store the original URL if not already stored
+                if (!window.originalUrlBeforeModal) {
+                    window.originalUrlBeforeModal = window.location.href;
+                }
+                
+                const url = new URL(window.location);
+                // Only change pathname if not already on card-popularity page
+                if (!url.pathname.includes('card-popularity')) {
+                    url.pathname = '/card-popularity';
+                }
+                url.searchParams.set('card_id', cardId);
+                window.history.pushState({cardId: cardId}, '', url);
+            }
+            
+            function closeCardModal() {
+                document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove());
+                
+                // Restore the original URL before modal was opened
+                if (window.originalUrlBeforeModal) {
+                    window.history.pushState({}, '', window.originalUrlBeforeModal);
+                    window.originalUrlBeforeModal = null;
+                } else {
+                    // Fallback: just remove card_id parameter if no original URL stored
+                    const url = new URL(window.location);
+                    url.searchParams.delete('card_id');
+                    window.history.replaceState({}, '', url);
+                }
+            }
+            
+            // Update URL when modal is opened via HTMX
+            document.addEventListener('htmx:afterSettle', function(evt) {
+                // Check if a modal backdrop was added to the body
+                const modalBackdrop = document.querySelector('.modal-backdrop[data-card-id]');
+                if (modalBackdrop && evt.detail.target === document.body) {
+                    const cardId = modalBackdrop.getAttribute('data-card-id');
+                    if (cardId) {
+                        updateURLWithCardId(cardId);
+                    }
+                }
+            });
+            
+            // Handle browser back/forward buttons
+            window.addEventListener('popstate', function(event) {
+                const url = new URL(window.location);
+                const cardId = url.searchParams.get('card_id');
+                
+                if (!cardId) {
+                    // Close modal if card_id is removed from URL
+                    document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove());
+                }
+            });
+            
             function getCarouselContainer(element) {
                 return element.closest('.modal-backdrop').querySelector('.carousel-item').parentElement;
             }
@@ -615,4 +714,4 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 height: auto !important;
             }
         """)
-    ) 
+    )

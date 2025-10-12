@@ -360,8 +360,8 @@ def create_card_movement_content(leader_id: str, current_meta: MetaFormat):
             cls="text-center py-8"
         )
     
-    # Get leader data from extended data
-    leaders = get_leader_extended()
+    # Get leader data from extended data - filter by current meta format to get correct ELO and D-Score
+    leaders = get_leader_extended(meta_formats=[current_meta])
     leader = next((l for l in leaders if l.id == leader_id), None)
     
     if not leader:

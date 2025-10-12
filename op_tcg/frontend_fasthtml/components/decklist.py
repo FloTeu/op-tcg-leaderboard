@@ -205,7 +205,7 @@ def create_decklist_section(leader_id: str, tournament_decklists, card_id2card_d
     fictive_decklist = decklist_data_to_fictive_decklist(decklist_data, leader_id)
 
     return ft.Div(
-        ft.Link(rel="stylesheet", href="/public/css/decklist.css", id="decklist-css"),
+        #ft.Link(rel="stylesheet", href="/public/css/decklist.css", id="decklist-css"),
         ft.Script(src="/public/js/decklist-modal.js", id="decklist-modal-js"),
         ft.P(f"Based on {decklist_data.num_decklists} decklists", cls="text-gray-400 mb-6"),
         display_card_list(decklist_data, common_card_ids),
