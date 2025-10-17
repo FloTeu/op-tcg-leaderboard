@@ -19,6 +19,28 @@
   left: 0;
 }
 
+/* Add visual hint for clickable areas */
+.decklist-modal::after {
+  content: '← Prev | Click center for details | Next →';
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  white-space: nowrap;
+}
+
+.decklist-modal:hover::after {
+  opacity: 1;
+}
+
 .decklist-modal-close {
   color: #f1f1f1;
   position: absolute;
@@ -46,6 +68,11 @@
   position: relative;
   z-index: 1001;
   margin: 0; /* Reset margin to ensure proper positioning */
+  transition: transform 0.2s ease;
+}
+
+.decklist-modal-image:hover {
+  transform: scale(1.02);
 }
 
 /* List view styles */

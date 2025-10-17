@@ -7,6 +7,10 @@ if (typeof window.decklistImages === 'undefined') {
     window.decklistImages = [];
 }
 
+if (typeof window.decklistCardIds === 'undefined') {
+    window.decklistCardIds = [];
+}
+
 // Flag to prevent rapid swiping
 if (typeof window.isSwiping === 'undefined') {
     window.isSwiping = false;
@@ -32,11 +36,14 @@ function openDecklistModal(imgElement) {
         modal.style.display = "block";
         modalImg.src = imgElement.querySelector('img').src;
         
-        // Store current image index and all image sources
-        window.decklistImages = [
-            ...document.querySelectorAll('.decklist-image img'),
-            ...document.querySelectorAll('.cursor-pointer img')
-        ].map(img => img.src);
+        // Store current image index, all image sources, and card IDs
+        const imageElements = [
+            ...document.querySelectorAll('.decklist-image'),
+            ...document.querySelectorAll('.cursor-pointer[data-card-id]')
+        ];
+        
+        window.decklistImages = imageElements.map(el => el.querySelector('img').src);
+        window.decklistCardIds = imageElements.map(el => el.dataset.cardId || '');
         
         window.decklistCurrentIndex = parseInt(imgElement.dataset.index);
         
@@ -48,18 +55,21 @@ function openDecklistModal(imgElement) {
             }
         };
         
-        // Add click event listener for image navigation
+        // Add click event listener for image navigation and card modal
         modalImg.onclick = function(event) {
             event.stopPropagation(); // Prevent modal close when clicking image
             const imgWidth = this.getBoundingClientRect().width;
             const clickX = event.clientX - this.getBoundingClientRect().left;
             
             if (clickX < imgWidth / 4) {
-                // Clicked on the left quarter
+                // Clicked on the left quarter - show previous image
                 showPreviousImage();
             } else if (clickX > (imgWidth * 3) / 4) {
-                // Clicked on the right quarter
+                // Clicked on the right quarter - show next image
                 showNextImage();
+            } else {
+                // Clicked on the center area - open card modal
+                openCardModalFromDecklist();
             }
         };
         
@@ -126,6 +136,52 @@ function showNextImage() {
     setTimeout(() => {
         window.isSwiping = false;
     }, 300);
+}
+
+// Open card modal with detailed card information
+function openCardModalFromDecklist() {
+    // Get the current card ID
+    if (!window.decklistCardIds || window.decklistCurrentIndex >= window.decklistCardIds.length) {
+        console.warn('Card ID not available for current image');
+        return;
+    }
+    
+    const cardId = window.decklistCardIds[window.decklistCurrentIndex];
+    if (!cardId) {
+        console.warn('No card ID found for index:', window.decklistCurrentIndex);
+        return;
+    }
+    
+    // Close the decklist modal first to prevent overlapping
+    closeDecklistModal();
+    
+    // Get meta format from URL or use 'latest' as default
+    const urlParams = new URLSearchParams(window.location.search);
+    const metaFormat = urlParams.get('meta_format') || 'latest';
+    const currency = urlParams.get('currency') || 'EUR';
+    
+    // Use HTMX to trigger the card modal
+    const url = `/api/card-modal?card_id=${encodeURIComponent(cardId)}&meta_format=${encodeURIComponent(metaFormat)}&currency=${encodeURIComponent(currency)}`;
+    
+    // Create a temporary element to trigger HTMX
+    const tempElement = document.createElement('div');
+    tempElement.setAttribute('hx-get', url);
+    tempElement.setAttribute('hx-target', 'body');
+    tempElement.setAttribute('hx-swap', 'beforeend');
+    document.body.appendChild(tempElement);
+    
+    // Initialize HTMX on the element and trigger the request
+    if (typeof htmx !== 'undefined') {
+        htmx.process(tempElement);
+        htmx.trigger(tempElement, 'click');
+    }
+    
+    // Clean up after a short delay
+    setTimeout(() => {
+        if (tempElement.parentNode) {
+            tempElement.parentNode.removeChild(tempElement);
+        }
+    }, 100);
 }
 
 // Set up event listeners
