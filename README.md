@@ -3,8 +3,7 @@ Unofficial one piece tcg leaderboard with extended analytic features.
 
 ## Application
 The app is currently deployed in the community cloud of streamlit.
-PROD: https://optcg-leaderboard.streamlit.app/
-DEV: https://optcg-leaderboard-dev.streamlit.app/
+PROD: https://op-leaderboard.com
 
 ## Local Setup
 
@@ -28,12 +27,7 @@ poetry shell
 
 ## Local development
 For local development it's recommended to set the `DEBUG` value in the environment file to true. 
-If `DEBUG` is true you also need to start the frontend code via localhost at port 3002.
-```
-cd components/nivo_charts/nivo_charts/frontend
-npm install    # Install npm dependencies
-npm run start  # Start the Webpack dev server
-```
+
 
 ## Crawling
 Get tournament data from limitless
@@ -70,12 +64,19 @@ If not already done, update package version
 ```shell
 poetry version patch/minor/major/prepatch/preminor/premajor/prerelease
 ```
-Ensure the frontend components are up-to-date
-```shell
-cd components/nivo_charts/nivo_charts/frontend
-sh build.sh
-```
+
 ```shell
 cd terraform
 sh terraform_apply.sh
 ```
+
+## Container Build 
+To build the container locally, run the following command in the root directory:
+```shell
+docker build -t op-tcg-leaderboard:latest .
+```
+To run the container locally, use the following command:
+```shell
+docker run -p 8080:8080 op-tcg-leaderboard:latest
+```
+
