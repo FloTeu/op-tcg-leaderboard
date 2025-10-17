@@ -381,11 +381,14 @@ def create_decklist_modal(
         # Include required CSS and JS
         ft.Script(src="/public/js/decklist-modal.js", id="decklist-modal-js-modal"),
         
-        # Enhanced modal styles with proper z-index management
+        # Enhanced modal styles with proper z-index management and mobile overflow prevention
         ft.Style("""
             .decklist-modal-backdrop {
                 z-index: 9999 !important;
                 backdrop-filter: blur(4px);
+                overflow-x: hidden !important;
+                overflow-y: auto !important;
+                max-width: 100vw !important;
             }
             .carousel-item {
                 display: none;
@@ -406,6 +409,19 @@ def create_decklist_modal(
             /* Override any sidebar z-index */
             .decklist-modal-backdrop {
                 z-index: 9999 !important;
+            }
+            /* Prevent horizontal overflow on mobile when modal is open */
+            body:has(.decklist-modal-backdrop) {
+                overflow-x: hidden !important;
+                max-width: 100vw !important;
+            }
+            /* Ensure modal content stays within viewport on mobile */
+            @media (max-width: 640px) {
+                .decklist-modal-backdrop > div {
+                    max-width: 100vw !important;
+                    margin: 0 !important;
+                    box-sizing: border-box !important;
+                }
             }
         """),
         

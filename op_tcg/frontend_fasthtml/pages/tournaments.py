@@ -50,6 +50,26 @@ def create_filter_components(selected_meta_formats=None, selected_region: MetaFo
 
 def create_tournament_content():
     return ft.Div(
+        # Add style to prevent horizontal overflow on mobile
+        ft.Style("""
+            /* Prevent horizontal overflow on mobile */
+            html, body {
+                overflow-x: hidden !important;
+                max-width: 100vw !important;
+            }
+            
+            /* Ensure all chart containers stay within bounds */
+            .bg-gray-800\\/30, .bg-gray-900\\/50 {
+                max-width: 100%;
+                overflow-x: hidden;
+            }
+            
+            /* Ensure tooltips don't cause overflow */
+            #chartjs-tooltip {
+                max-width: 90vw !important;
+                box-sizing: border-box !important;
+            }
+        """),
         # Header and Filters Section
         ft.Div(
             ft.H1("Tournaments", cls="text-3xl font-bold text-white"),

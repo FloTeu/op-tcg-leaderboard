@@ -564,13 +564,15 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                                 ? leaderColors.map(color => `<span style="display: inline-block; width: 12px; height: 12px; background-color: ${{color}}; margin-right: 4px; border-radius: 2px;"></span>`).join('')
                                 : '';
 
-                            // Create tooltip content with flex layout
+                            // Create tooltip content with flex layout - responsive for mobile
+                            const isMobile = window.innerWidth <= 640;
                             const tooltipContent = `
                                 <div style="
                                     display: flex;
-                                    gap: 16px;
-                                    min-width: 300px;
-                                    height: 120px;
+                                    gap: ${{isMobile ? '8px' : '16px'}};
+                                    min-width: ${{isMobile ? '240px' : '300px'}};
+                                    max-width: ${{isMobile ? '90vw' : '400px'}};
+                                    height: ${{isMobile ? '100px' : '120px'}};
                                     padding: 0;
                                 ">
                                     <div style="
@@ -587,15 +589,15 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                                     </div>
                                     <div style="
                                         flex: 0 0 70%;
-                                        padding: 12px 16px 12px 0;
+                                        padding: ${{isMobile ? '8px 12px 8px 0' : '12px 16px 12px 0'}};
                                         display: flex;
                                         flex-direction: column;
                                         justify-content: center;
                                     ">
-                                        <div style="font-weight: bold; margin-bottom: 12px; font-size: 1.2em; white-space: normal;">${{label}}</div>
-                                        <div style="margin: 4px 0;">Count: ${{value}}</div>
-                                        <div style="margin: 4px 0;">Percentage: ${{pct}}%</div>
-                                        ${{colorIndicators ? `<div style="margin: 8px 0 4px 0;"><strong>Colors:</strong></div><div style="margin: 4px 0;">${{colorIndicators}}</div>` : ''}}
+                                        <div style="font-weight: bold; margin-bottom: ${{isMobile ? '8px' : '12px'}}; font-size: ${{isMobile ? '1em' : '1.2em'}}; white-space: normal;">${{label}}</div>
+                                        <div style="margin: ${{isMobile ? '2px 0' : '4px 0'}}; font-size: ${{isMobile ? '0.9em' : '1em'}};">Count: ${{value}}</div>
+                                        <div style="margin: ${{isMobile ? '2px 0' : '4px 0'}}; font-size: ${{isMobile ? '0.9em' : '1em'}};">Percentage: ${{pct}}%</div>
+                                        ${{colorIndicators ? `<div style="margin: ${{isMobile ? '4px 0 2px 0' : '8px 0 4px 0'}}; font-size: ${{isMobile ? '0.85em' : '0.9em'}};"><strong>Colors:</strong></div><div style="margin: ${{isMobile ? '2px 0' : '4px 0'}};">${{colorIndicators}}</div>` : ''}}
                                     </div>
                                 </div>
                             `;
@@ -610,16 +612,31 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
                             tooltipEl.style.transform = 'translate(-50%, -100%)';
                             tooltipEl.style.padding = '0';
                             tooltipEl.style.overflow = 'hidden';
+                            tooltipEl.style.boxSizing = 'border-box';
 
-                            // Position the tooltip
+                            // Position the tooltip with bounds checking for mobile
                             try {{
                                 const canvasPosition = canvas.getBoundingClientRect();
                                 const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
                                 const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                                const viewportWidth = window.innerWidth;
 
                                 if (canvasPosition && tooltipEl) {{
-                                    tooltipEl.style.left = (canvasPosition.left + scrollLeft + event.x) + 'px';
-                                    tooltipEl.style.top = (canvasPosition.top + scrollTop + event.y - 10) + 'px';
+                                    let tooltipLeft = canvasPosition.left + scrollLeft + event.x;
+                                    const tooltipTop = canvasPosition.top + scrollTop + event.y - 10;
+                                    
+                                    // Get tooltip width after setting content
+                                    const tooltipWidth = tooltipEl.offsetWidth || (isMobile ? 240 : 300);
+                                    
+                                    // Ensure tooltip stays within viewport horizontally
+                                    const minLeft = scrollLeft + 10; // 10px margin from left edge
+                                    const maxLeft = scrollLeft + viewportWidth - tooltipWidth - 10; // 10px margin from right edge
+                                    
+                                    // Clamp tooltip position to stay within viewport
+                                    tooltipLeft = Math.max(minLeft, Math.min(maxLeft, tooltipLeft));
+                                    
+                                    tooltipEl.style.left = tooltipLeft + 'px';
+                                    tooltipEl.style.top = tooltipTop + 'px';
                                 }}
                             }} catch (error) {{
                                 console.warn('Error positioning donut tooltip:', error);
