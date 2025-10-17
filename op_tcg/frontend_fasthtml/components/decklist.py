@@ -70,6 +70,7 @@ def display_card_list(decklist_data: DecklistData, card_ids: list[str]):
                     ft.Img(src=img_src, alt=f"Card {card_id}"),
                     cls="decklist-image",
                     data_index=str(i),
+                    data_card_id=card_id,
                     onclick="openDecklistModal(this)"
                 ),
                 ft.Div(
@@ -149,6 +150,7 @@ def display_decklist(decklist: dict[str, int], card_id2card_data: dict[str, Exte
                     ft.Img(src=img_url, cls="w-full rounded-lg"),
                     cls="cursor-pointer",
                     data_index=str(starting_index + i),
+                    data_card_id=card_id,
                     onclick="openDecklistModal(this)"
                 ),
                 ft.Div(

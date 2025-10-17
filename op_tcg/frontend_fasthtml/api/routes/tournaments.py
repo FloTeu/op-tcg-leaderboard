@@ -609,7 +609,7 @@ def setup_api_routes(rt):
         tournament_decklists = [td for td in tournament_decklists if td.tournament_id == tournament_id]
         
         # Get winner decklist for fallback
-        winner_decklist = next((td for td in tournament_decklists if td.placing == 1), None)
+        winner_decklist = next((td for td in tournament_decklists if td.placing == 1 and td.leader_id == params_dict.get("lid", td.leader_id)), None)
         
         # Calculate leader participation stats
         leader_stats = {}

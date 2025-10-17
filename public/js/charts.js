@@ -1153,7 +1153,7 @@ class ChartManager {
                                     if (isNormalized) {
                                         return (value * 100).toFixed(1) + '%';
                                     } else {
-                                        return value + (value === 1 ? ' occurrence' : ' occurrences');
+                                        return value;
                                     }
                                 }
                             },
@@ -1573,7 +1573,6 @@ document.addEventListener('htmx:beforeSwap', function(event) {
     
     // Only destroy charts that will actually be affected by the swap
     if (chartsToDestroy.length > 0) {
-        console.log('HTMX swap will affect charts:', chartsToDestroy, 'in target:', swapTarget.id || swapTarget.className, 'swap style:', swapStyle);
         chartsToDestroy.forEach(containerId => {
             window.chartManager.destroyChart(containerId);
         });

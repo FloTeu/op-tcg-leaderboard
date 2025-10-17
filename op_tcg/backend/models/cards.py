@@ -74,6 +74,7 @@ class OPTcgAbility(EnumBase, StrEnum):
     BLOCKER = "Blocker"
     BANISH = "Banish"
     TRIGGER = "Trigger"
+    DOUBLE_ATTACK = "Double Attack"
 
 
 class OPTcgCardSetType(EnumBase, StrEnum):
