@@ -1573,7 +1573,6 @@ document.addEventListener('htmx:beforeSwap', function(event) {
     
     // Only destroy charts that will actually be affected by the swap
     if (chartsToDestroy.length > 0) {
-        console.log('HTMX swap will affect charts:', chartsToDestroy, 'in target:', swapTarget.id || swapTarget.className, 'swap style:', swapStyle);
         chartsToDestroy.forEach(containerId => {
             window.chartManager.destroyChart(containerId);
         });
