@@ -3,6 +3,7 @@ from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 from op_tcg.frontend_fasthtml.components.filters import create_leader_select_component
+from op_tcg.frontend_fasthtml.components.effect_text import render_effect_text
 
 # Common HTMX attributes for filter components
 HX_INCLUDE = "[name='meta_format'],[name='lid'],[name='region']"
@@ -396,7 +397,7 @@ def create_tab_view(has_match_data: bool = True):
         cls="w-full"
     )
 
-def create_leader_content(leader_id: str, leader_name: str, aa_image_url: str, total_matches: int | None = None):
+def create_leader_content(leader_id: str, leader_name: str, aa_image_url: str, total_matches: int | None = None, ability: str | None = None, attributes: list[str] | None = None):
     """
     Create the content for a leader page.
     
@@ -471,6 +472,24 @@ def create_leader_content(leader_id: str, leader_name: str, aa_image_url: str, t
                 ft.Div(
                     ft.Img(src=aa_image_url, cls="w-full rounded-lg shadow-lg"),
                     cls="mb-4"
+                ),
+                # Compact card info (attributes + effect)
+                ft.Div(
+                    # Attributes as small pills
+                    ft.Div(
+                        *([ft.Span(str(attr), cls="text-xs bg-gray-600 text-white px-2 py-1 rounded-full mr-1 mb-1") for attr in (attributes or [])] or []),
+                        cls="mb-2 flex flex-wrap"
+                    ),
+                    # Ability / Effect text
+                    ft.Div(
+                        ft.Span("Effect", cls="text-gray-400 text-xs uppercase tracking-wide"),
+                        ft.Div(
+                            render_effect_text(ability or "", subject_name=leader_name),
+                            cls="mt-1",
+                            style="max-height: 96px; overflow-y: auto;"
+                        ),
+                    ),
+                    cls="bg-gray-700 rounded-lg p-4 mb-4"
                 ),
                 
                 # Stats section with HTMX
@@ -568,7 +587,9 @@ def leader_page(leader_id: str | None = None, filtered_leader_data: LeaderExtend
         leader_id=leader_data.id,
         leader_name=leader_data.name,
         aa_image_url=leader_data.aa_image_url,
-        total_matches=leader_data.total_matches
+        total_matches=leader_data.total_matches,
+        ability=leader_data.ability if hasattr(leader_data, "ability") else None,
+        attributes=[str(a) for a in getattr(leader_data, "attributes", [])] if hasattr(leader_data, "attributes") else None
     )
     
     # Return the complete leader page

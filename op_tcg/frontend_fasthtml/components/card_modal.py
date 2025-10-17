@@ -2,6 +2,7 @@ from fasthtml import ft
 from op_tcg.backend.models.cards import CardCurrency, ExtendedCardData
 from op_tcg.frontend_fasthtml.pages.card_popularity import HX_INCLUDE
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
+from op_tcg.frontend_fasthtml.components.effect_text import render_effect_text
 
 def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardData], popularity: float, currency: CardCurrency, prev_card_id: str = None, next_card_id: str = None, card_elements: list[str] = None) -> ft.Div:
     """Create a modal dialog for displaying card details.
@@ -211,8 +212,19 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                                 ),
                                 cls="flex justify-between items-center py-2 border-b border-gray-700"
                             ),
-                            # Ability
-                            create_key_fact("Ability", card.ability, "✨"),
+                            # Ability rendered with styled brackets
+                            ft.Div(
+                                ft.Div(
+                                    ft.I("✨", cls="text-gray-400"),
+                                    ft.Span("Ability", cls="text-gray-400 ml-2 mr-2"),
+                                    cls="flex items-center"
+                                ),
+                                ft.Div(
+                                    render_effect_text(card.ability, subject_name=card.name),
+                                    cls="text-white font-medium"
+                                ),
+                                cls="flex justify-between items-start py-2 border-b border-gray-700"
+                            ),
                             # Popularity
                             ft.Div(
                                 ft.Div(
