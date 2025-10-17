@@ -139,7 +139,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 ft.Button(
                     ft.Span("×", cls="text-lg"),
                     type="button",
-                    cls="absolute top-4 right-4 inline-flex items-center justify-center w-9 h-9 rounded-full bg-gray-700/60 hover:bg-gray-700 text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 transition z-30",
+                    cls="card-modal-close-btn absolute top-4 right-4 inline-flex items-center justify-center w-9 h-9 rounded-full bg-gray-700/60 hover:bg-gray-700 text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 transition z-30",
                     onclick="event.stopPropagation(); closeCardModal();"
                 ),
                 
@@ -701,29 +701,25 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     content: '▶';
                     font-size: 2rem; /* Larger for mobile */
                 }
+                
+                /* Mobile improvements for close button visibility */
+                .card-modal-close-btn {
+                    position: fixed !important; /* Anchor to viewport to avoid overlap with tall images */
+                    top: 8px !important;
+                    right: 8px !important;
+                    background: rgba(31,41,55,0.85) !important; /* Ensure contrast over card art */
+                    backdrop-filter: blur(2px);
+                    z-index: 1100 !important; /* Above any image overlays */
+                }
+                @supports (top: env(safe-area-inset-top)) {
+                    .card-modal-close-btn { top: calc(env(safe-area-inset-top) + 8px) !important; }
+                }
             }
             
-            /* Desktop-specific styles */
             @media (min-width: 769px) {
-                .modal-backdrop {
-                    align-items: center;
-                    justify-content: center;
-                }
-                .modal-backdrop > div {
-                    max-height: 90vh;
-                    overflow-y: auto;
-                }
+                /* Desktop keeps existing absolute placement inside padded modal */
+                .card-modal-close-btn { position: absolute; }
             }
-            
-            /* Chart container overflow prevention */
-            .bg-gray-800\\/30 {
-                overflow: hidden;
-            }
-            
-            /* Ensure chart legend stays within bounds */
-            canvas {
-                max-width: 100% !important;
-                height: auto !important;
-            }
+            # ...existing code...
         """)
     )

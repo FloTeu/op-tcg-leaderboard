@@ -1153,7 +1153,7 @@ class ChartManager {
                                     if (isNormalized) {
                                         return (value * 100).toFixed(1) + '%';
                                     } else {
-                                        return value + (value === 1 ? ' occurrence' : ' occurrences');
+                                        return value;
                                     }
                                 }
                             },
