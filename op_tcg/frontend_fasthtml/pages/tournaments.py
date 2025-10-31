@@ -28,7 +28,7 @@ def create_filter_components(selected_meta_formats=None, selected_region: MetaFo
         multiple=True,
         size=1,
         cls=SELECT_CLS + " multiselect",
-        *[ft.Option(mf, value=mf, selected=(mf in selected_meta_formats)) for mf in reversed(MetaFormat.to_list(region=selected_region))],
+        *[ft.Option(mf, value=mf, selected=(mf in selected_meta_formats)) for mf in reversed(MetaFormat.to_list(region=MetaFormatRegion.ALL))],
         **FILTER_HX_ATTRS
     )
 
