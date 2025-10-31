@@ -162,7 +162,7 @@ def detect_no_match_data(leaders: List[LeaderExtended]) -> bool:
     ]
     
     # If more than 80% of leaders have no match data, consider it as "no match data available"
-    return len(leaders_without_matches) / len(leaders) > 0.8
+    return len(leaders_without_matches) / len(leaders) > 0.85
 
 
 def get_query_params_as_dict(request: Request) -> Dict[str, Any]:

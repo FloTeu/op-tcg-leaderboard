@@ -1,6 +1,9 @@
 from fasthtml import ft
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
+from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
+from op_tcg.frontend_fasthtml.utils.api import detect_no_match_data
+from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended
 
 # Common HTMX attributes for filter components
 HX_INCLUDE = "[name='meta_format'],[name='leader_ids']"
@@ -23,8 +26,13 @@ def create_filter_components(selected_meta_formats=None, selected_leader_ids=Non
         selected_leader_ids: Optional list of leader IDs to pre-select
         only_official: Whether to filter for official matches only
     """
-    latest_meta = MetaFormat.latest_meta_format(region=MetaFormatRegion.WEST)
-    available_meta_formats = MetaFormat.to_list(region=MetaFormatRegion.WEST)
+    leader_extended_data: list[LeaderExtended] = get_leader_extended(
+        meta_formats=[MetaFormat.latest_meta_format()])
+    contains_no_match_data = detect_no_match_data(leader_extended_data)
+    latest_with_match_data = MetaFormatRegion.WEST if contains_no_match_data else MetaFormatRegion.ALL
+
+    latest_meta = MetaFormat.latest_meta_format(region=latest_with_match_data)
+    available_meta_formats = MetaFormat.to_list(region=latest_with_match_data)
     
     # If no selected formats provided, default to latest
     if not selected_meta_formats or all(selected_meta_format not in available_meta_formats for selected_meta_format in selected_meta_formats):
