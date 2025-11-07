@@ -101,37 +101,36 @@ app, rt = fast_app(
         ft.Script(data_goatcounter="https://op-leaderboard.goatcounter.com/count", src="//gc.zgo.at/count.js"),
         ft.Script(src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"),
         # Core utilities and libraries
-        ft.Script(src="/public/js/utils.js"),  # Global utilities
-        ft.Script(src="/public/js/charts.js"),  # Chart management library
-        ft.Script(src="/public/js/multiselect.js"),  # Base select functionality
-        ft.Script(src="/public/js/double_range_slider.js"),  # Range slider functionality
-        # Page utilities
+        ft.Script(src="/public/js/utils.js"),
+        ft.Script(src="/public/js/charts.js"),
+        ft.Script(src="/public/js/multiselect.js"),
+        ft.Script(src="/public/js/double_range_slider.js"),
         ft.Script(src="/public/js/sidebar.js"),
-        # HTMX core (ensure available before any inline scripts referencing htmx)
-        ft.Script(src="https://unpkg.com/htmx.org@1.9.12"),
+        # Dynamic multi-source HTMX loader (energy-aware: stops after first success)
         ft.Script("""
-            (function(){
-              function loadFallback(){
-                if (document.getElementById('htmx-fallback')) return;
-                var s=document.createElement('script');
-                s.id='htmx-fallback';
-                s.src='https://cdn.jsdelivr.net/npm/htmx.org@1.9.12';
-                s.async=false; // ensure execution order
-                document.head.appendChild(s);
-                console.warn('[htmx] attempting fallback CDN load');
-              }
-              // If primary didn't define proper htmx (no version or no process), create stub & try fallback
-              if (!window.htmx || !window.htmx.process || !window.htmx.version){
-                window.htmx = window.htmx || {};
-                if (!window.htmx.process) window.htmx.process = function(){};
-                if (!window.htmx.trigger) window.htmx.trigger = function(){};
-                if (!window.htmx.onLoad) window.htmx.onLoad = function(){};
-                if (!window.htmx.logger) window.htmx.logger = function(){};
-                window.htmx.config = window.htmx.config || {};
-                console.warn('[htmx] real library missing – installed temporary stub; dynamic requests may be inactive until fallback succeeds');
-                loadFallback();
-              }
-            })();
+          (function(){
+            var tried=[];
+            var sources=[
+              'https://cdn.jsdelivr.net/npm/htmx.org@1.9.12',
+              'https://unpkg.com/htmx.org@1.9.12',
+              'https://cdnjs.cloudflare.com/ajax/libs/htmx/1.9.12/htmx.min.js'
+            ];
+            function load(i){
+              if(window.htmx && window.htmx.process){return;}
+              if(i>=sources.length){console.error('[htmx] all CDN sources failed; dynamic content disabled');return;}
+              var src=sources[i];
+              var s=document.createElement('script');
+              s.src=src; s.async=false; s.onload=function(){
+                console.log('[htmx] loaded', src);
+                // Optional: set logger for diagnostics
+                if(window.htmx){ window.htmx.logger = function(n,e){ if(n==='beforeRequest'||n==='afterOnLoad') console.debug('[htmx]', n, e && e.detail && e.detail.request && e.detail.request.path); }; }
+              }; s.onerror=function(){ console.warn('[htmx] failed', src); load(i+1); };
+              document.head.appendChild(s);
+              console.log('[htmx] attempting', src);
+            }
+            // If htmx already present (provided by framework), skip; else start chain
+            if(!(window.htmx && window.htmx.process)){ load(0); }
+          })();
         """),
     ],
     #static_path='public'
