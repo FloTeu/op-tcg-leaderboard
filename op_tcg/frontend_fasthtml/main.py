@@ -102,48 +102,11 @@ app, rt = fast_app(
         ft.Script(src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"),
         # Core utilities and libraries
         ft.Script(src="/public/js/htmx.min.js"),  # Self-hosted htmx to avoid CDN failures
-        ft.Script("""
-          if (window.htmx && window.htmx.version) {
-            window.htmx.logger = function(name, evt){
-              if (name === 'beforeRequest' || name === 'afterOnLoad') {
-                const path = evt && evt.detail && evt.detail.request && evt.detail.request.path;
-                console.debug('[htmx]', name, path || '');
-              }
-            };
-          } else {
-            console.error('[htmx] failed to initialize; dynamic requests disabled');
-          }
-        """),
         ft.Script(src="/public/js/utils.js"),
         ft.Script(src="/public/js/charts.js"),
         ft.Script(src="/public/js/multiselect.js"),
         ft.Script(src="/public/js/double_range_slider.js"),
         ft.Script(src="/public/js/sidebar.js"),
-        # Dynamic multi-source HTMX loader (energy-aware: stops after first success)
-        ft.Script("""
-            (function(){
-              function loadFallback(){
-                if (document.getElementById('htmx-fallback')) return;
-                var s=document.createElement('script');
-                s.id='htmx-fallback';
-                s.src='https://cdn.jsdelivr.net/npm/htmx.org@1.9.12';
-                s.async=false; // ensure execution order
-                document.head.appendChild(s);
-                console.warn('[htmx] attempting fallback CDN load');
-              }
-              // If primary didn't define proper htmx (no version or no process), create stub & try fallback
-              if (!window.htmx || !window.htmx.process || !window.htmx.version){
-                window.htmx = window.htmx || {};
-                if (!window.htmx.process) window.htmx.process = function(){};
-                if (!window.htmx.trigger) window.htmx.trigger = function(){};
-                if (!window.htmx.onLoad) window.htmx.onLoad = function(){};
-                if (!window.htmx.logger) window.htmx.logger = function(){};
-                window.htmx.config = window.htmx.config || {};
-                console.warn('[htmx] real library missing – installed temporary stub; dynamic requests may be inactive until fallback succeeds');
-                loadFallback();
-              }
-            })();
-        """),
     ],
     #static_path='public'
 )
