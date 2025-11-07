@@ -1,0 +1,1 @@
+ curl -L https://unpkg.com/htmx.org@next/dist/htmx.min.js -o public/js/htmx.min.js && head -n 5 public/js/htmx.min.js
