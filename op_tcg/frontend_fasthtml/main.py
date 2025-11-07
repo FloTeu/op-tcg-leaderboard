@@ -107,6 +107,15 @@ app, rt = fast_app(
         ft.Script(src="/public/js/double_range_slider.js"),  # Range slider functionality
         # Page utilities
         ft.Script(src="/public/js/sidebar.js"),
+        # HTMX core (ensure available before any inline scripts referencing htmx)
+        ft.Script(src="https://unpkg.com/htmx.org@1.9.12"),
+        # Lightweight guard: if htmx fails to load, create a stub to avoid JS exceptions so rest of UI works.
+        ft.Script("""
+            if (!window.htmx) {
+              window.htmx = { trigger: function(){}, onLoad: function(){}, config: {}, logger: function(){}, process: function(){} };
+              console.warn('[htmx] library failed to load – using no-op stub; dynamic content disabled until reload.');
+            }
+        """),
     ],
     #static_path='public'
 )
