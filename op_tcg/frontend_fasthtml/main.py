@@ -109,12 +109,29 @@ app, rt = fast_app(
         ft.Script(src="/public/js/sidebar.js"),
         # HTMX core (ensure available before any inline scripts referencing htmx)
         ft.Script(src="https://unpkg.com/htmx.org@1.9.12"),
-        # Lightweight guard: if htmx fails to load, create a stub to avoid JS exceptions so rest of UI works.
         ft.Script("""
-            if (!window.htmx) {
-              window.htmx = { trigger: function(){}, onLoad: function(){}, config: {}, logger: function(){}, process: function(){} };
-              console.warn('[htmx] library failed to load – using no-op stub; dynamic content disabled until reload.');
-            }
+            (function(){
+              function loadFallback(){
+                if (document.getElementById('htmx-fallback')) return;
+                var s=document.createElement('script');
+                s.id='htmx-fallback';
+                s.src='https://cdn.jsdelivr.net/npm/htmx.org@1.9.12';
+                s.async=false; // ensure execution order
+                document.head.appendChild(s);
+                console.warn('[htmx] attempting fallback CDN load');
+              }
+              // If primary didn't define proper htmx (no version or no process), create stub & try fallback
+              if (!window.htmx || !window.htmx.process || !window.htmx.version){
+                window.htmx = window.htmx || {};
+                if (!window.htmx.process) window.htmx.process = function(){};
+                if (!window.htmx.trigger) window.htmx.trigger = function(){};
+                if (!window.htmx.onLoad) window.htmx.onLoad = function(){};
+                if (!window.htmx.logger) window.htmx.logger = function(){};
+                window.htmx.config = window.htmx.config || {};
+                console.warn('[htmx] real library missing – installed temporary stub; dynamic requests may be inactive until fallback succeeds');
+                loadFallback();
+              }
+            })();
         """),
     ],
     #static_path='public'
