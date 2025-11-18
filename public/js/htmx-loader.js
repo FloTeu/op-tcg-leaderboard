@@ -27,7 +27,7 @@
             console.error('[htmx-loader] Failed to load self-hosted htmx.js');
         };
         script.onload = function() {
-            console.log('[htmx-loader] Self-hosted htmx.js loaded successfully (version: ' + (window.htmx ? window.htmx.version : 'unknown') + ')');
+            console.log('[htmx-loader] Self-hosted htmx.js loaded successfully (version: ' + (window.htmx ? window.htmx.version || window.htmx.config.version : 'unknown') + ')');
             if (isRealHtmxLoaded()) {
                 // Process any pending htmx elements
                 try {
@@ -49,12 +49,13 @@
 
     // Check immediately if htmx is already properly loaded
     if (isRealHtmxLoaded()) {
-        console.log('[htmx-loader] htmx already loaded (version: ' + window.htmx.version + '), skipping self-hosted load');
+        var version = window.htmx.version || window.htmx.config.version || 'unknown';
+        console.log('[htmx-loader] htmx already loaded (version: ' + version + '), skipping self-hosted load');
         return;
     }
 
     // Check if only a stub exists (FastHTML's fallback stub)
-    var hasStub = typeof window.htmx !== 'undefined' && !window.htmx.version;
+    var hasStub = typeof window.htmx !== 'undefined' && !(window.htmx.version || window.htmx.config.version);
     if (hasStub) {
         console.warn('[htmx-loader] htmx stub detected, waiting 1 second for CDN load before using self-hosted');
     } else {
@@ -64,7 +65,8 @@
     // Wait 1 second for FastHTML's CDN htmx to load (sometimes loads on second try)
     setTimeout(function() {
         if (isRealHtmxLoaded()) {
-            console.log('[htmx-loader] htmx loaded from CDN (version: ' + window.htmx.version + ')');
+            var version = window.htmx.version || window.htmx.config.version || 'unknown';
+            console.log('[htmx-loader] htmx loaded from CDN (version: ' + version + ')');
         } else {
             console.log('[htmx-loader] htmx still not available after 1 second, loading self-hosted version');
             loadSelfHostedHtmx();

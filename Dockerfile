@@ -11,18 +11,25 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Set the working directory in the container
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies including curl for Poetry installation
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the requirements file first to leverage Docker cache
-COPY requirements.txt .
+# Install Poetry
+RUN curl -sSL https://install.python-poetry.org | python3 - && \
+    ln -s /root/.local/bin/poetry /usr/local/bin/poetry
 
-# Install Python dependencies
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+# Copy pyproject.toml and poetry.lock first to leverage Docker cache
+COPY pyproject.toml poetry.lock ./
+
+# Configure Poetry to not create virtual environments (we're already in a container)
+# Install only main dependencies (not dev/crawler groups)
+# Use --no-root to skip installing the project itself (only install dependencies)
+RUN poetry config virtualenvs.create false && \
+    poetry install --only main,frontend --no-root --no-interaction --no-ansi
 
 # Copy .env file if it exists (for local development)
 COPY .env* ./
