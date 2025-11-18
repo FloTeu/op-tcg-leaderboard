@@ -101,7 +101,7 @@ app, rt = fast_app(
         ft.Script(data_goatcounter="https://op-leaderboard.goatcounter.com/count", src="//gc.zgo.at/count.js"),
         ft.Script(src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"),
         # Core utilities and libraries
-        ft.Script(src="/public/js/htmx.js"),  # Self-hosted htmx to avoid CDN failures
+        ft.Script(src="/public/js/htmx-loader.js"),  # Conditionally load htmx if not already present
         ft.Script(src="/public/js/utils.js"),
         ft.Script(src="/public/js/charts.js"),
         ft.Script(src="/public/js/multiselect.js"),
