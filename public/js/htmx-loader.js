@@ -56,13 +56,19 @@
     // Check if only a stub exists (FastHTML's fallback stub)
     var hasStub = typeof window.htmx !== 'undefined' && !window.htmx.version;
     if (hasStub) {
-        console.warn('[htmx-loader] htmx stub detected, loading self-hosted version immediately');
-        loadSelfHostedHtmx();
-        return;
+        console.warn('[htmx-loader] htmx stub detected, waiting 1 second for CDN load before using self-hosted');
+    } else {
+        console.log('[htmx-loader] htmx not detected, waiting 1 second for CDN load before using self-hosted');
     }
 
-    // If htmx is not loaded at all, load immediately (don't wait)
-    console.log('[htmx-loader] htmx not detected, loading self-hosted version');
-    loadSelfHostedHtmx();
+    // Wait 1 second for FastHTML's CDN htmx to load (sometimes loads on second try)
+    setTimeout(function() {
+        if (isRealHtmxLoaded()) {
+            console.log('[htmx-loader] htmx loaded from CDN (version: ' + window.htmx.version + ')');
+        } else {
+            console.log('[htmx-loader] htmx still not available after 1 second, loading self-hosted version');
+            loadSelfHostedHtmx();
+        }
+    }, 1000);
 })();
 
