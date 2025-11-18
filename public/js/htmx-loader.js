@@ -13,7 +13,7 @@
         // Real htmx should have the ajax method and actual functionality
         return typeof window.htmx.ajax === 'function' &&
                typeof window.htmx.process === 'function' &&
-               window.htmx.version;
+               (window.htmx.version || window.htmx.config.version);
     }
 
     // Function to load self-hosted htmx
