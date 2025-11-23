@@ -49,16 +49,32 @@ window.closeCardModal = function() {
 window.getAllLoadedCardIds = function() {
     const cardElements = [];
 
-    // Look for card images with hx-get attributes that contain card-modal
-    document.querySelectorAll('img[hx-get*="card-modal"]').forEach(img => {
-        const hxGet = img.getAttribute('hx-get');
-        if (hxGet) {
-            const match = hxGet.match(/card_id=([^&]+)/);
-            if (match && match[1]) {
-                cardElements.push(match[1]);
+    // First, check if we're in a decklist modal context
+    const decklistModal = document.querySelector('.decklist-modal-backdrop, [id^="decklist-modal"]');
+
+    if (decklistModal) {
+        // If in decklist modal, only get cards from within that modal
+        decklistModal.querySelectorAll('img[hx-get*="card-modal"]').forEach(img => {
+            const hxGet = img.getAttribute('hx-get');
+            if (hxGet) {
+                const match = hxGet.match(/card_id=([^&]+)/);
+                if (match && match[1]) {
+                    cardElements.push(match[1]);
+                }
             }
-        }
-    });
+        });
+    } else {
+        // Otherwise, look for card images globally with hx-get attributes that contain card-modal
+        document.querySelectorAll('img[hx-get*="card-modal"]').forEach(img => {
+            const hxGet = img.getAttribute('hx-get');
+            if (hxGet) {
+                const match = hxGet.match(/card_id=([^&]+)/);
+                if (match && match[1]) {
+                    cardElements.push(match[1]);
+                }
+            }
+        });
+    }
 
     return cardElements;
 }
@@ -103,7 +119,7 @@ function prefetchAdjacentModals(currentCardId) {
     if (currentIndex < 0) return;
 
     const metaFormat = document.querySelector('[name="meta_format"]')?.value || 'latest';
-    const currency = document.querySelector('[name="currency"]')?.value || 'EUR';
+    const currency = document.querySelector('[name="currency"]')?.value || 'eur';
     const cardElementsParam = allCardIds.map(id => `card_elements=${id}`).join('&');
 
     // Prefetch previous card
@@ -166,17 +182,29 @@ function removeTransitionOverlay() {
 
 // Navigate to previous card
 window.navigateToPreviousCard = function(currentCardId, event) {
-    // Prevent rapid consecutive navigations
-    if (isNavigating) return;
-
-    // Stop event propagation to prevent modal close
+    // Stop event propagation to prevent modal close - do this FIRST
     if (event) {
         event.stopPropagation();
         event.preventDefault();
     }
 
+    // Prevent rapid consecutive navigations
+    if (isNavigating) return;
+
     const allCardIds = window.getAllLoadedCardIds();
+
+    // If no cards found or current card not in list, do nothing (but don't let click bubble)
+    if (allCardIds.length === 0) {
+        console.warn('No card IDs found in DOM');
+        return;
+    }
+
     const currentIndex = allCardIds.indexOf(currentCardId);
+
+    if (currentIndex < 0) {
+        console.warn('Current card not found in loaded cards:', currentCardId);
+        return;
+    }
 
     if (currentIndex > 0) {
         isNavigating = true;
@@ -189,7 +217,7 @@ window.navigateToPreviousCard = function(currentCardId, event) {
 
         // Get current filter values
         const metaFormat = document.querySelector('[name="meta_format"]')?.value || 'latest';
-        const currency = document.querySelector('[name="currency"]')?.value || 'EUR';
+        const currency = document.querySelector('[name="currency"]')?.value || 'eur';
 
         const cacheKey = `${prevCardId}-${metaFormat}-${currency}`;
 
@@ -229,17 +257,29 @@ window.navigateToPreviousCard = function(currentCardId, event) {
 
 // Navigate to next card
 window.navigateToNextCard = function(currentCardId, event) {
-    // Prevent rapid consecutive navigations
-    if (isNavigating) return;
-
-    // Stop event propagation to prevent modal close
+    // Stop event propagation to prevent modal close - do this FIRST
     if (event) {
         event.stopPropagation();
         event.preventDefault();
     }
 
+    // Prevent rapid consecutive navigations
+    if (isNavigating) return;
+
     const allCardIds = window.getAllLoadedCardIds();
+
+    // If no cards found or current card not in list, do nothing (but don't let click bubble)
+    if (allCardIds.length === 0) {
+        console.warn('No card IDs found in DOM');
+        return;
+    }
+
     const currentIndex = allCardIds.indexOf(currentCardId);
+
+    if (currentIndex < 0) {
+        console.warn('Current card not found in loaded cards:', currentCardId);
+        return;
+    }
 
     if (currentIndex >= 0 && currentIndex < allCardIds.length - 1) {
         isNavigating = true;
@@ -252,7 +292,7 @@ window.navigateToNextCard = function(currentCardId, event) {
 
         // Get current filter values
         const metaFormat = document.querySelector('[name="meta_format"]')?.value || 'latest';
-        const currency = document.querySelector('[name="currency"]')?.value || 'EUR';
+        const currency = document.querySelector('[name="currency"]')?.value || 'eur';
 
         const cacheKey = `${nextCardId}-${metaFormat}-${currency}`;
 
