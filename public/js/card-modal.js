@@ -321,10 +321,13 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Touch support for mobile card navigation
-// Track touch gestures properly to avoid buggy behavior
+// Track touch gestures properly to avoid buggy behavior while allowing scroll
 let touchStartTarget = null;
 let touchStartTime = 0;
-const TOUCH_MOVE_THRESHOLD = 10; // pixels
+let touchStartY = 0;
+let touchStartX = 0;
+let hasScrolled = false;
+const SCROLL_THRESHOLD = 10; // pixels - if moved more than this, consider it a scroll
 
 document.addEventListener('DOMContentLoaded', function() {
     // Track where touch started
@@ -333,20 +336,54 @@ document.addEventListener('DOMContentLoaded', function() {
         if (navElement) {
             touchStartTarget = navElement;
             touchStartTime = Date.now();
-            e.preventDefault(); // Prevent default touch behavior
-            e.stopPropagation(); // Prevent propagation to backdrop
+            touchStartY = e.touches[0].clientY;
+            touchStartX = e.touches[0].clientX;
+            hasScrolled = false;
+            // Don't prevent default here - allow scrolling to work
         }
-    }, { passive: false });
+    }, { passive: true });
 
-    // Only trigger navigation if touch ends on the same element
+    // Detect if user is scrolling
+    document.body.addEventListener('touchmove', function(e) {
+        if (touchStartTarget) {
+            const currentY = e.touches[0].clientY;
+            const currentX = e.touches[0].clientX;
+            const deltaY = Math.abs(currentY - touchStartY);
+            const deltaX = Math.abs(currentX - touchStartX);
+
+            // If moved vertically more than threshold, it's a scroll
+            if (deltaY > SCROLL_THRESHOLD) {
+                hasScrolled = true;
+                touchStartTarget = null; // Cancel navigation
+            }
+            // If moved horizontally to different element, cancel
+            else if (deltaX > SCROLL_THRESHOLD) {
+                const navElement = e.target.closest('.card-nav-left, .card-nav-right');
+                if (!navElement || navElement !== touchStartTarget) {
+                    touchStartTarget = null;
+                }
+            }
+        }
+    }, { passive: true });
+
+    // Only trigger navigation if touch ends on the same element and user didn't scroll
     document.body.addEventListener('touchend', function(e) {
-        if (!touchStartTarget) return;
+        if (!touchStartTarget || hasScrolled) {
+            // Reset and don't navigate
+            touchStartTarget = null;
+            hasScrolled = false;
+            touchStartTime = 0;
+            return;
+        }
 
         const touchDuration = Date.now() - touchStartTime;
         const navElement = e.target.closest('.card-nav-left, .card-nav-right');
 
-        // Only proceed if touch ended on same navigation element and was quick enough (< 500ms)
-        if (navElement && navElement === touchStartTarget && touchDuration < 500) {
+        // Only proceed if:
+        // 1. Touch ended on same navigation element
+        // 2. Was quick enough (< 500ms)
+        // 3. User didn't scroll
+        if (navElement && navElement === touchStartTarget && touchDuration < 500 && !hasScrolled) {
             e.preventDefault();
             e.stopPropagation();
 
@@ -363,24 +400,14 @@ document.addEventListener('DOMContentLoaded', function() {
         // Reset touch tracking
         touchStartTarget = null;
         touchStartTime = 0;
+        hasScrolled = false;
     }, { passive: false });
-
-    // Cancel touch if user moves finger away
-    document.body.addEventListener('touchmove', function(e) {
-        if (touchStartTarget) {
-            const navElement = e.target.closest('.card-nav-left, .card-nav-right');
-            // If moved to different element, cancel the touch
-            if (!navElement || navElement !== touchStartTarget) {
-                touchStartTarget = null;
-                touchStartTime = 0;
-            }
-        }
-    }, { passive: true });
 
     // Cancel touch if interrupted
     document.body.addEventListener('touchcancel', function(e) {
         touchStartTarget = null;
         touchStartTime = 0;
+        hasScrolled = false;
     }, { passive: true });
 });
 
