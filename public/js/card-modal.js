@@ -45,6 +45,103 @@ window.closeCardModal = function() {
     }
 }
 
+// Get all loaded card IDs from the DOM (for infinite scroll pages)
+window.getAllLoadedCardIds = function() {
+    const cardElements = [];
+
+    // Look for card images with hx-get attributes that contain card-modal
+    document.querySelectorAll('img[hx-get*="card-modal"]').forEach(img => {
+        const hxGet = img.getAttribute('hx-get');
+        if (hxGet) {
+            const match = hxGet.match(/card_id=([^&]+)/);
+            if (match && match[1]) {
+                cardElements.push(match[1]);
+            }
+        }
+    });
+
+    return cardElements;
+}
+
+// Update card navigation visibility based on position
+window.updateCardNavigationVisibility = function() {
+    const activeModal = document.querySelector('.modal-backdrop');
+    if (!activeModal) return;
+
+    const currentCardId = activeModal.getAttribute('data-card-id');
+    if (!currentCardId) return;
+
+    const allCardIds = window.getAllLoadedCardIds();
+    const currentIndex = allCardIds.indexOf(currentCardId);
+
+    const navLeft = activeModal.querySelector('.card-nav-left');
+    const navRight = activeModal.querySelector('.card-nav-right');
+
+    if (navLeft) {
+        navLeft.style.opacity = currentIndex > 0 ? '1' : '0.3';
+        navLeft.style.cursor = currentIndex > 0 ? 'pointer' : 'not-allowed';
+    }
+
+    if (navRight) {
+        navRight.style.opacity = currentIndex < allCardIds.length - 1 ? '1' : '0.3';
+        navRight.style.cursor = currentIndex < allCardIds.length - 1 ? 'pointer' : 'not-allowed';
+    }
+}
+
+// Navigate to previous card
+window.navigateToPreviousCard = function(currentCardId) {
+    const allCardIds = window.getAllLoadedCardIds();
+    const currentIndex = allCardIds.indexOf(currentCardId);
+
+    if (currentIndex > 0) {
+        const prevCardId = allCardIds[currentIndex - 1];
+        const cardElementsParam = allCardIds.map(id => `card_elements=${id}`).join('&');
+
+        // Get current filter values
+        const metaFormat = document.querySelector('[name="meta_format"]')?.value || 'latest';
+        const currency = document.querySelector('[name="currency"]')?.value || 'EUR';
+
+        // Close current modal and load new one
+        document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove());
+
+        // Load new modal
+        fetch(`/api/card-modal?card_id=${prevCardId}&${cardElementsParam}&meta_format=${metaFormat}&currency=${currency}`)
+            .then(response => response.text())
+            .then(html => {
+                document.body.insertAdjacentHTML('beforeend', html);
+                htmx.process(document.body);
+            })
+            .catch(error => console.error('Error loading card modal:', error));
+    }
+}
+
+// Navigate to next card
+window.navigateToNextCard = function(currentCardId) {
+    const allCardIds = window.getAllLoadedCardIds();
+    const currentIndex = allCardIds.indexOf(currentCardId);
+
+    if (currentIndex >= 0 && currentIndex < allCardIds.length - 1) {
+        const nextCardId = allCardIds[currentIndex + 1];
+        const cardElementsParam = allCardIds.map(id => `card_elements=${id}`).join('&');
+
+        // Get current filter values
+        const metaFormat = document.querySelector('[name="meta_format"]')?.value || 'latest';
+        const currency = document.querySelector('[name="currency"]')?.value || 'EUR';
+
+        // Close current modal and load new one
+        document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove());
+
+        // Load new modal
+        fetch(`/api/card-modal?card_id=${nextCardId}&${cardElementsParam}&meta_format=${metaFormat}&currency=${currency}`)
+            .then(response => response.text())
+            .then(html => {
+                document.body.insertAdjacentHTML('beforeend', html);
+                htmx.process(document.body);
+            })
+            .catch(error => console.error('Error loading card modal:', error));
+    }
+}
+
 // Set navigation height to match top card section
 window.setNavigationHeight = function() {
     const cardContentSection = document.querySelector('.flex.flex-col.md\\:flex-row.gap-6.mb-6');
@@ -137,6 +234,9 @@ document.addEventListener('htmx:afterSettle', function(evt) {
 
         // Set the height of navigation areas to match the top card section
         window.setNavigationHeight();
+
+        // Update navigation visibility based on card position
+        window.updateCardNavigationVisibility();
     }
 });
 
@@ -163,9 +263,25 @@ document.addEventListener('keydown', (e) => {
         e.preventDefault();
         window.closeCardModal();
     } else if (e.key === 'ArrowLeft') {
+        // Arrow left: previous carousel item (card version)
         window.previousCarouselItem(activeModal);
     } else if (e.key === 'ArrowRight') {
+        // Arrow right: next carousel item (card version)
         window.nextCarouselItem(activeModal);
+    } else if (e.key === ',' || e.key === '<') {
+        // Comma/< : previous card in grid
+        e.preventDefault();
+        const currentCardId = activeModal.getAttribute('data-card-id');
+        if (currentCardId) {
+            window.navigateToPreviousCard(currentCardId);
+        }
+    } else if (e.key === '.' || e.key === '>') {
+        // Period/> : next card in grid
+        e.preventDefault();
+        const currentCardId = activeModal.getAttribute('data-card-id');
+        if (currentCardId) {
+            window.navigateToNextCard(currentCardId);
+        }
     }
 });
 

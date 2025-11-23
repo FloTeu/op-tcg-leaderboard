@@ -1,6 +1,5 @@
 from fasthtml import ft
 from op_tcg.backend.models.cards import CardCurrency, ExtendedCardData
-from op_tcg.frontend_fasthtml.pages.card_popularity import HX_INCLUDE
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 from op_tcg.frontend_fasthtml.components.effect_text import render_effect_text
 
@@ -148,29 +147,28 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 ),
 
                 # Card navigation areas (only for top section, not charts) - positioned at modal edges
+                # Navigation is handled via JavaScript that dynamically collects all loaded cards
                 ft.Div(
-                    cls="absolute left-0 top-0 w-16 cursor-pointer z-10 card-nav-left card-nav-top-section",
-                    hx_get=f"/api/card-modal?card_id={prev_card_id}&card_elements={'&card_elements='.join([c for c in card_elements])}&meta_format=latest" if prev_card_id and card_elements else None,
-                    hx_target="body",
-                    hx_swap="beforeend",
-                    hx_include=HX_INCLUDE,
-                    title="Previous Card",
-                    style="display: none" if not prev_card_id else None,
-                    **{
-                        "hx-on::before-request": "document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove());"}
-                ) if prev_card_id else None,
+                    ft.Div(
+                        "‹",
+                        cls="text-white text-4xl font-bold opacity-0 group-hover:opacity-100 transition-opacity"
+                    ),
+                    cls="absolute left-0 top-0 w-16 h-full cursor-pointer z-10 card-nav-left card-nav-top-section flex items-center justify-center hover:bg-black/30 transition-colors group",
+                    onclick=f"navigateToPreviousCard('{card.id}')",
+                    title="Previous Card (or press < key)",
+                    data_current_card_id=card.id
+                ),
 
                 ft.Div(
-                    cls="absolute right-0 top-0 w-16 cursor-pointer z-10 card-nav-right card-nav-top-section",
-                    hx_get=f"/api/card-modal?card_id={next_card_id}&card_elements={'&card_elements='.join([c for c in card_elements])}&meta_format=latest" if next_card_id and card_elements else None,
-                    hx_target="body",
-                    hx_swap="beforeend",
-                    hx_include=HX_INCLUDE,
-                    title="Next Card",
-                    style="display: none" if not next_card_id else None,
-                    **{
-                        "hx-on::before-request": "document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove());"}
-                ) if next_card_id else None,
+                    ft.Div(
+                        "›",
+                        cls="text-white text-4xl font-bold opacity-0 group-hover:opacity-100 transition-opacity"
+                    ),
+                    cls="absolute right-0 top-0 w-16 h-full cursor-pointer z-10 card-nav-right card-nav-top-section flex items-center justify-center hover:bg-black/30 transition-colors group",
+                    onclick=f"navigateToNextCard('{card.id}')",
+                    title="Next Card (or press > key)",
+                    data_current_card_id=card.id
+                ),
 
                 # Main card content section
                 ft.Div(
