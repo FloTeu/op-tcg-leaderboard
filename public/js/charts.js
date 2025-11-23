@@ -1148,12 +1148,14 @@ class ChartManager {
                                     size: 11
                                 },
                                 padding: 8,
-                                stepSize: isNormalized ? 0.1 : 1,
+                                // Only set stepSize for normalized mode to avoid excessive tick generation
+                                ...(isNormalized && { stepSize: 0.1 }),
                                 callback: function(value) {
                                     if (isNormalized) {
                                         return (value * 100).toFixed(1) + '%';
                                     } else {
-                                        return value;
+                                        // For absolute values, show whole numbers
+                                        return Math.round(value);
                                     }
                                 }
                             },
