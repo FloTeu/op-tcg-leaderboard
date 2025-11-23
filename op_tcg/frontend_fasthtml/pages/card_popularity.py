@@ -518,7 +518,7 @@ def card_popularity_page():
                             clearInterval(checkContentLoaded);
                             // Trigger the card modal
                             const metaFormat = document.querySelector('[name="meta_format"]')?.value || 'latest';
-                            const currency = document.querySelector('[name="currency"]')?.value || 'EUR';
+                            const currency = document.querySelector('[name="currency"]')?.value || 'eur';
                             
                             fetch(`/api/card-modal?card_id=${cardId}&meta_format=${metaFormat}&currency=${currency}`)
                                 .then(response => response.text())

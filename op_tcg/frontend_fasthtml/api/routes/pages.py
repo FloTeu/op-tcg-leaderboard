@@ -275,6 +275,7 @@ def setup_api_routes(rt):
         card_id = request.query_params.get("card_id")
         meta_format = request.query_params.get("meta_format")
         currency = request.query_params.get("currency")
+        currency = CardCurrency(currency) if currency is not None else CardCurrency.EURO
         
         if not card_id:
             return ft.Div("No card ID provided", cls="text-red-400")

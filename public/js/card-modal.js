@@ -99,7 +99,7 @@ window.navigateToPreviousCard = function(currentCardId) {
 
         // Get current filter values
         const metaFormat = document.querySelector('[name="meta_format"]')?.value || 'latest';
-        const currency = document.querySelector('[name="currency"]')?.value || 'EUR';
+        const currency = document.querySelector('[name="currency"]')?.value || 'eur';
 
         // Close current modal and load new one
         document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove());
@@ -126,7 +126,7 @@ window.navigateToNextCard = function(currentCardId) {
 
         // Get current filter values
         const metaFormat = document.querySelector('[name="meta_format"]')?.value || 'latest';
-        const currency = document.querySelector('[name="currency"]')?.value || 'EUR';
+        const currency = document.querySelector('[name="currency"]')?.value || 'eur';
 
         // Close current modal and load new one
         document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove());
@@ -175,7 +175,7 @@ window.updatePrice = function(activeItem) {
         } else if (price === 'N/A') {
             priceElement.textContent = 'N/A';
         } else {
-            priceElement.textContent = currency === 'EUR' ?
+            priceElement.textContent = currency === 'eur' ?
                 `€${price}` :
                 `$${price}`;
         }
