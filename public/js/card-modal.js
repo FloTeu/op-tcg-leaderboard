@@ -88,12 +88,26 @@ window.updateCardNavigationVisibility = function() {
     }
 }
 
+// Flag to prevent rapid navigation
+let isNavigating = false;
+
 // Navigate to previous card
-window.navigateToPreviousCard = function(currentCardId) {
+window.navigateToPreviousCard = function(currentCardId, event) {
+    // Prevent rapid consecutive navigations
+    if (isNavigating) return;
+
+    // Stop event propagation to prevent modal close
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+
     const allCardIds = window.getAllLoadedCardIds();
     const currentIndex = allCardIds.indexOf(currentCardId);
 
     if (currentIndex > 0) {
+        isNavigating = true;
+
         const prevCardId = allCardIds[currentIndex - 1];
         const cardElementsParam = allCardIds.map(id => `card_elements=${id}`).join('&');
 
@@ -110,17 +124,33 @@ window.navigateToPreviousCard = function(currentCardId) {
             .then(html => {
                 document.body.insertAdjacentHTML('beforeend', html);
                 htmx.process(document.body);
+                // Reset navigation flag after modal is loaded
+                setTimeout(() => { isNavigating = false; }, 300);
             })
-            .catch(error => console.error('Error loading card modal:', error));
+            .catch(error => {
+                console.error('Error loading card modal:', error);
+                isNavigating = false;
+            });
     }
 }
 
 // Navigate to next card
-window.navigateToNextCard = function(currentCardId) {
+window.navigateToNextCard = function(currentCardId, event) {
+    // Prevent rapid consecutive navigations
+    if (isNavigating) return;
+
+    // Stop event propagation to prevent modal close
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+
     const allCardIds = window.getAllLoadedCardIds();
     const currentIndex = allCardIds.indexOf(currentCardId);
 
     if (currentIndex >= 0 && currentIndex < allCardIds.length - 1) {
+        isNavigating = true;
+
         const nextCardId = allCardIds[currentIndex + 1];
         const cardElementsParam = allCardIds.map(id => `card_elements=${id}`).join('&');
 
@@ -137,8 +167,13 @@ window.navigateToNextCard = function(currentCardId) {
             .then(html => {
                 document.body.insertAdjacentHTML('beforeend', html);
                 htmx.process(document.body);
+                // Reset navigation flag after modal is loaded
+                setTimeout(() => { isNavigating = false; }, 300);
             })
-            .catch(error => console.error('Error loading card modal:', error));
+            .catch(error => {
+                console.error('Error loading card modal:', error);
+                isNavigating = false;
+            });
     }
 }
 
@@ -273,31 +308,79 @@ document.addEventListener('keydown', (e) => {
         e.preventDefault();
         const currentCardId = activeModal.getAttribute('data-card-id');
         if (currentCardId) {
-            window.navigateToPreviousCard(currentCardId);
+            window.navigateToPreviousCard(currentCardId, e);
         }
     } else if (e.key === '.' || e.key === '>') {
         // Period/> : next card in grid
         e.preventDefault();
         const currentCardId = activeModal.getAttribute('data-card-id');
         if (currentCardId) {
-            window.navigateToNextCard(currentCardId);
+            window.navigateToNextCard(currentCardId, e);
         }
     }
 });
 
 // Touch support for mobile card navigation
+// Track touch gestures properly to avoid buggy behavior
+let touchStartTarget = null;
+let touchStartTime = 0;
+const TOUCH_MOVE_THRESHOLD = 10; // pixels
+
 document.addEventListener('DOMContentLoaded', function() {
-    // Use event delegation since modal might not exist yet
+    // Track where touch started
     document.body.addEventListener('touchstart', function(e) {
-        if (e.target.classList.contains('card-nav-left') || e.target.closest('.card-nav-left')) {
-            e.preventDefault();
-            const target = e.target.classList.contains('card-nav-left') ? e.target : e.target.closest('.card-nav-left');
-            target.click();
-        } else if (e.target.classList.contains('card-nav-right') || e.target.closest('.card-nav-right')) {
-            e.preventDefault();
-            const target = e.target.classList.contains('card-nav-right') ? e.target : e.target.closest('.card-nav-right');
-            target.click();
+        const navElement = e.target.closest('.card-nav-left, .card-nav-right');
+        if (navElement) {
+            touchStartTarget = navElement;
+            touchStartTime = Date.now();
+            e.preventDefault(); // Prevent default touch behavior
+            e.stopPropagation(); // Prevent propagation to backdrop
         }
-    });
+    }, { passive: false });
+
+    // Only trigger navigation if touch ends on the same element
+    document.body.addEventListener('touchend', function(e) {
+        if (!touchStartTarget) return;
+
+        const touchDuration = Date.now() - touchStartTime;
+        const navElement = e.target.closest('.card-nav-left, .card-nav-right');
+
+        // Only proceed if touch ended on same navigation element and was quick enough (< 500ms)
+        if (navElement && navElement === touchStartTarget && touchDuration < 500) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const currentCardId = navElement.getAttribute('data-current-card-id');
+            if (currentCardId) {
+                if (navElement.classList.contains('card-nav-left')) {
+                    window.navigateToPreviousCard(currentCardId, e);
+                } else if (navElement.classList.contains('card-nav-right')) {
+                    window.navigateToNextCard(currentCardId, e);
+                }
+            }
+        }
+
+        // Reset touch tracking
+        touchStartTarget = null;
+        touchStartTime = 0;
+    }, { passive: false });
+
+    // Cancel touch if user moves finger away
+    document.body.addEventListener('touchmove', function(e) {
+        if (touchStartTarget) {
+            const navElement = e.target.closest('.card-nav-left, .card-nav-right');
+            // If moved to different element, cancel the touch
+            if (!navElement || navElement !== touchStartTarget) {
+                touchStartTarget = null;
+                touchStartTime = 0;
+            }
+        }
+    }, { passive: true });
+
+    // Cancel touch if interrupted
+    document.body.addEventListener('touchcancel', function(e) {
+        touchStartTarget = null;
+        touchStartTime = 0;
+    }, { passive: true });
 });
 

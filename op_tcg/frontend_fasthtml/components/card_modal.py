@@ -155,7 +155,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                         cls="text-white text-4xl font-bold opacity-0 group-hover:opacity-100 transition-opacity"
                     ),
                     cls="absolute left-0 top-0 w-16 h-full cursor-pointer z-10 card-nav-left card-nav-top-section flex items-center justify-center hover:bg-black/30 transition-colors group",
-                    onclick=f"navigateToPreviousCard('{card.id}')",
+                    onclick=f"event.stopPropagation(); window.navigateToPreviousCard('{card.id}', event);",
                     title="Previous Card (or press < key)",
                     data_current_card_id=card.id
                 ),
@@ -166,7 +166,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                         cls="text-white text-4xl font-bold opacity-0 group-hover:opacity-100 transition-opacity"
                     ),
                     cls="absolute right-0 top-0 w-16 h-full cursor-pointer z-10 card-nav-right card-nav-top-section flex items-center justify-center hover:bg-black/30 transition-colors group",
-                    onclick=f"navigateToNextCard('{card.id}')",
+                    onclick=f"event.stopPropagation(); window.navigateToNextCard('{card.id}', event);",
                     title="Next Card (or press > key)",
                     data_current_card_id=card.id
                 ),
