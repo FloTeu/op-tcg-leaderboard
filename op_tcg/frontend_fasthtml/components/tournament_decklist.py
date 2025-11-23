@@ -45,10 +45,6 @@ def create_decklist_view(decklist: Dict[str, int], cid2card_data: Dict[str, Card
     for type_cards in card_types.values():
         type_cards.sort(key=lambda x: (x[0].colors, x[0].cost))
     
-    # Get all card IDs for the modal navigation
-    all_card_ids = [card_id for card_id in decklist.keys() if card_id in cid2card_data]
-    card_elements_param = '&card_elements='.join(all_card_ids)
-    
     # Use latest meta format if none provided
     if meta_format is None:
         meta_format = MetaFormat.latest_meta_format()
@@ -65,7 +61,7 @@ def create_decklist_view(decklist: Dict[str, int], cid2card_data: Dict[str, Card
                             ft.Img(
                                 src=card.image_url,
                                 cls="w-full h-auto rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-200 cursor-pointer hover:opacity-90 transition-opacity",
-                                hx_get=f"/api/card-modal?card_id={card.id}&card_elements={card_elements_param}&meta_format={meta_format}&currency={currency}",
+                                hx_get=f"/api/card-modal?card_id={card.id}&meta_format={meta_format}&currency={currency}",
                                 hx_target="body",
                                 hx_swap="beforeend"
                             ),

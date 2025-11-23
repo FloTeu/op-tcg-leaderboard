@@ -1,12 +1,12 @@
 from fasthtml import ft
 from op_tcg.backend.etl.extract import get_card_image_url
-from op_tcg.backend.models.cards import ExtendedCardData, OPTcgLanguage
+from op_tcg.backend.models.cards import ExtendedCardData, OPTcgLanguage, CardCurrency
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 from op_tcg.frontend_fasthtml.components.decklist_export import create_decklist_export_component
 
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
-def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str, ExtendedCardData], leader_id: str = None, currency: str = "EUR"):
+def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str, ExtendedCardData], leader_id: str = None, currency: str = CardCurrency.EURO):
     """
     Display a visual representation of a decklist for the modal (without header).
     
@@ -14,7 +14,7 @@ def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str
         decklist: Dictionary mapping card IDs to counts
         card_id2card_data: Mapping of card IDs to card data
         leader_id: Leader card ID to exclude from the display
-        currency: Currency to display prices in ("EUR" or "USD")
+        currency: Currency to display prices in ("eur" or "usd")
     
     Returns:
         A Div containing the decklist cards without header
@@ -36,10 +36,10 @@ def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str
         price_info = ""
         price_value = 0
         if card_data and hasattr(card_data, 'latest_eur_price') and hasattr(card_data, 'latest_usd_price'):
-            if currency == "EUR" and card_data.latest_eur_price:
+            if currency == CardCurrency.EURO and card_data.latest_eur_price:
                 price_value = card_data.latest_eur_price
                 price_info = f"€{card_data.latest_eur_price:.2f}"
-            elif currency == "USD" and card_data.latest_usd_price:
+            elif currency == CardCurrency.US_DOLLAR and card_data.latest_usd_price:
                 price_value = card_data.latest_usd_price
                 price_info = f"${card_data.latest_usd_price:.2f}"
         
@@ -57,7 +57,7 @@ def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str
                     ft.Img(
                         src=img_url, 
                         cls="w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity",
-                        hx_get=f"/api/card-modal?card_id={card_id}&card_elements={'&card_elements='.join(all_card_ids)}&meta_format=latest",
+                        hx_get=f"/api/card-modal?card_id={card_id}&meta_format=latest",
                         hx_target="body",
                         hx_swap="beforeend"
                     ),
@@ -93,7 +93,7 @@ def create_decklist_modal(
     card_id2card_data: dict[str, ExtendedCardData],
     selected_tournament_id: str | None = None,
     selected_player_id: str | None = None,
-    selected_currency: str = "EUR",
+    selected_currency: str = CardCurrency.EURO,
     days: str | None = None,
     placing: str | None = None
 ) -> ft.Div:
@@ -189,8 +189,8 @@ def create_decklist_modal(
                 ft.Div(
                     ft.Label("Currency:", cls="text-white font-medium block mb-3"),
                     ft.Select(
-                        ft.Option("EUR (€)", value="EUR", selected=(selected_currency == "EUR")),
-                        ft.Option("USD ($)", value="USD", selected=(selected_currency == "USD")),
+                        ft.Option("EUR (€)", value=CardCurrency.EURO, selected=(selected_currency == CardCurrency.EURO)),
+                        ft.Option("USD ($)", value=CardCurrency.US_DOLLAR, selected=(selected_currency == CardCurrency.US_DOLLAR)),
                         id="currency-select-modal",
                         name="currency",
                         cls=SELECT_CLS + " styled-select mb-4",
@@ -260,7 +260,7 @@ def create_decklist_modal(
     
     if selected_td and selected_td.decklist:
         initial_decklist_content = ft.Div(
-            display_decklist_modal(selected_td.decklist, card_id2card_data, leader_id, selected_currency or "EUR"),
+            display_decklist_modal(selected_td.decklist, card_id2card_data, leader_id, selected_currency or CardCurrency.EURO),
             create_decklist_export_component(selected_td.decklist, leader_id, "initial")
         )
     else:

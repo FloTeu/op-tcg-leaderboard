@@ -1,6 +1,8 @@
 from datetime import datetime, timezone, timedelta
 from fasthtml import ft
 from starlette.requests import Request
+
+from op_tcg.backend.models.cards import CardCurrency
 from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict
 from op_tcg.frontend_fasthtml.utils.extract import (
     get_tournament_decklist_data,
@@ -101,7 +103,7 @@ def setup_api_routes(rt):
         # Optional deep-link selection
         selected_tournament_id = params_dict.get("tournament_id")
         selected_player_id = params_dict.get("player_id")
-        selected_currency = params_dict.get("currency", "EUR")
+        selected_currency = params_dict.get("currency", CardCurrency.EURO)
 
         # Create and return the modal - it will handle showing the best ranked decklist by default
         return create_decklist_modal(
@@ -125,7 +127,7 @@ def setup_api_routes(rt):
         # Get tournament and player IDs
         tournament_id = params_dict.get("tournament_id")
         player_id = params_dict.get("player_id")
-        currency = params_dict.get("currency", "EUR")  # Default to EUR
+        currency = params_dict.get("currency", CardCurrency.EURO)  # Default to EUR
         
         if not tournament_id or not player_id:
             return ft.P("Invalid tournament or player ID", cls="text-red-400")

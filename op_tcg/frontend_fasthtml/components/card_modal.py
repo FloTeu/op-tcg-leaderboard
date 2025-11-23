@@ -1,13 +1,11 @@
 from fasthtml import ft
 from op_tcg.backend.models.cards import CardCurrency, ExtendedCardData
-from op_tcg.frontend_fasthtml.pages.card_popularity import HX_INCLUDE
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 from op_tcg.frontend_fasthtml.components.effect_text import render_effect_text
 
 
 def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardData], popularity: float,
-                      currency: CardCurrency, prev_card_id: str = None, next_card_id: str = None,
-                      card_elements: list[str] = None) -> ft.Div:
+                      currency: CardCurrency) -> ft.Div:
     """Create a modal dialog for displaying card details.
 
     Args:
@@ -15,11 +13,13 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
         card_versions: List of all versions of the card (including alt arts)
         popularity: The card's popularity (0-1)
         currency: The selected currency for price display
-        prev_card_id: ID of the previous card in the grid
-        next_card_id: ID of the next card in the grid
 
     Returns:
         A FastHTML Div containing the modal dialog
+
+    Note:
+        Card navigation (prev/next) is handled dynamically via JavaScript,
+        which scans the DOM for all loaded cards at navigation time.
     """
 
     # Helper function to create a key fact row
@@ -47,20 +47,20 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
             # Left click area for card version navigation (invisible overlay)
             ft.Div(
                 cls="absolute left-0 top-0 w-1/3 h-full cursor-pointer z-20 card-version-nav",
-                onclick="previousCarouselItem(this)",
+                onclick="window.previousCarouselItem(this)",
                 title="Previous version"
             ) if len(card_versions) > 0 else None,
             # Right click area for card version navigation (invisible overlay)
             ft.Div(
                 cls="absolute right-0 top-0 w-1/3 h-full cursor-pointer z-20 card-version-nav",
-                onclick="nextCarouselItem(this)",
+                onclick="window.nextCarouselItem(this)",
                 title="Next version"
             ) if len(card_versions) > 0 else None,
             cls="carousel-item active relative",
             id="carousel-item-base",
             data_price=f"{card.latest_eur_price:.2f}" if currency == CardCurrency.EURO and card.latest_eur_price else
             f"{card.latest_usd_price:.2f}" if currency == CardCurrency.US_DOLLAR and card.latest_usd_price else "N/A",
-            data_currency="EUR" if currency == CardCurrency.EURO else "USD",
+            data_currency=CardCurrency.EURO if currency == CardCurrency.EURO else CardCurrency.US_DOLLAR,
             data_eur_price=f"{card.latest_eur_price:.2f}" if card.latest_eur_price else "N/A",
             data_usd_price=f"{card.latest_usd_price:.2f}" if card.latest_usd_price else "N/A"
         )
@@ -78,20 +78,20 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 # Left click area for card version navigation (invisible overlay)
                 ft.Div(
                     cls="absolute left-0 top-0 w-1/3 h-full cursor-pointer z-20 card-version-nav",
-                    onclick="previousCarouselItem(this)",
+                    onclick="window.previousCarouselItem(this)",
                     title="Previous version"
                 ),
                 # Right click area for card version navigation (invisible overlay)
                 ft.Div(
                     cls="absolute right-0 top-0 w-1/3 h-full cursor-pointer z-20 card-version-nav",
-                    onclick="nextCarouselItem(this)",
+                    onclick="window.nextCarouselItem(this)",
                     title="Next version"
                 ),
                 cls="carousel-item relative",
                 id=f"carousel-item-{i}",
                 data_price=f"{version.latest_eur_price:.2f}" if currency == CardCurrency.EURO and version.latest_eur_price else
                 f"{version.latest_usd_price:.2f}" if currency == CardCurrency.US_DOLLAR and version.latest_usd_price else "N/A",
-                data_currency="EUR" if currency == CardCurrency.EURO else "USD",
+                data_currency=CardCurrency.EURO if currency == CardCurrency.EURO else CardCurrency.US_DOLLAR,
                 data_eur_price=f"{version.latest_eur_price:.2f}" if version.latest_eur_price else "N/A",
                 data_usd_price=f"{version.latest_usd_price:.2f}" if version.latest_usd_price else "N/A"
             )
@@ -107,7 +107,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     ft.Button(
                         "",
                         cls=f"w-2 h-2 rounded-full {'bg-white' if i == 0 else 'bg-white/50'} hover:bg-white/75 transition-colors",
-                        onclick=f"showCarouselItem(this, {i})"
+                        onclick=f"window.showCarouselItem(this, {i})"
                     )
                     for i in range(len(carousel_items))
                 ],
@@ -144,33 +144,32 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     ft.Span("×", cls="text-lg"),
                     type="button",
                     cls="absolute top-4 right-4 md:top-4 md:right-4 inline-flex items-center justify-center w-9 h-9 rounded-full bg-gray-700/60 hover:bg-gray-700 text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 transition z-30 mobile-close-btn",
-                    onclick="event.stopPropagation(); closeCardModal();"
+                    onclick="event.stopPropagation(); window.closeCardModal();"
                 ),
 
                 # Card navigation areas (only for top section, not charts) - positioned at modal edges
+                # Navigation is handled via JavaScript that dynamically collects all loaded cards
                 ft.Div(
-                    cls="absolute left-0 top-0 w-16 cursor-pointer z-10 card-nav-left card-nav-top-section",
-                    hx_get=f"/api/card-modal?card_id={prev_card_id}&card_elements={'&card_elements='.join([c for c in card_elements])}&meta_format=latest" if prev_card_id and card_elements else None,
-                    hx_target="body",
-                    hx_swap="beforeend",
-                    hx_include=HX_INCLUDE,
-                    title="Previous Card",
-                    style="display: none" if not prev_card_id else None,
-                    **{
-                        "hx-on::before-request": "document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove());"}
-                ) if prev_card_id else None,
+                    ft.Div(
+                        "‹",
+                        cls="text-white text-4xl font-bold opacity-0 group-hover:opacity-100 transition-opacity"
+                    ),
+                    cls="absolute left-0 top-0 w-16 h-full cursor-pointer z-10 card-nav-left card-nav-top-section flex items-center justify-center hover:bg-black/30 transition-colors group",
+                    onclick=f"event.stopPropagation(); window.navigateToPreviousCard('{card.id}', event);",
+                    title="Previous card",
+                    data_current_card_id=card.id
+                ),
 
                 ft.Div(
-                    cls="absolute right-0 top-0 w-16 cursor-pointer z-10 card-nav-right card-nav-top-section",
-                    hx_get=f"/api/card-modal?card_id={next_card_id}&card_elements={'&card_elements='.join([c for c in card_elements])}&meta_format=latest" if next_card_id and card_elements else None,
-                    hx_target="body",
-                    hx_swap="beforeend",
-                    hx_include=HX_INCLUDE,
-                    title="Next Card",
-                    style="display: none" if not next_card_id else None,
-                    **{
-                        "hx-on::before-request": "document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove());"}
-                ) if next_card_id else None,
+                    ft.Div(
+                        "›",
+                        cls="text-white text-4xl font-bold opacity-0 group-hover:opacity-100 transition-opacity"
+                    ),
+                    cls="absolute right-0 top-0 w-16 h-full cursor-pointer z-10 card-nav-right card-nav-top-section flex items-center justify-center hover:bg-black/30 transition-colors group",
+                    onclick=f"event.stopPropagation(); window.navigateToNextCard('{card.id}', event);",
+                    title="Next card",
+                    data_current_card_id=card.id
+                ),
 
                 # Main card content section
                 ft.Div(
@@ -342,182 +341,13 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     cls="w-full"
                 ),
 
-                cls="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 relative"
+                cls="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 relative",
+                onclick="event.stopPropagation();"
             ),
             cls="modal-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 overflow-y-auto py-4",
-            onclick="if (event.target === this) closeCardModal();",
+            onclick="window.closeCardModal();",
             data_card_id=card.id
         ),
-        # Carousel and URL management JavaScript
-        ft.Script("""
-            // URL management for card modal sharing
-            // Store the original URL before modal opens (global variable)
-            window.originalUrlBeforeModal = window.originalUrlBeforeModal || null;
-
-            function updateURLWithCardId(cardId) {
-                // Store the original URL if not already stored
-                if (!window.originalUrlBeforeModal) {
-                    window.originalUrlBeforeModal = window.location.href;
-                }
-
-                const url = new URL(window.location);
-                // Only change pathname if not already on card-popularity page
-                if (!url.pathname.includes('card-popularity')) {
-                    url.pathname = '/card-popularity';
-                }
-                url.searchParams.set('card_id', cardId);
-                window.history.pushState({cardId: cardId}, '', url);
-            }
-
-            function closeCardModal() {
-                document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove());
-
-                // Restore the original URL before modal was opened
-                if (window.originalUrlBeforeModal) {
-                    window.history.pushState({}, '', window.originalUrlBeforeModal);
-                    window.originalUrlBeforeModal = null;
-                } else {
-                    // Fallback: just remove card_id parameter if no original URL stored
-                    const url = new URL(window.location);
-                    url.searchParams.delete('card_id');
-                    window.history.replaceState({}, '', url);
-                }
-            }
-
-            // Update URL when modal is opened via HTMX
-            document.addEventListener('htmx:afterSettle', function(evt) {
-                // Check if a modal backdrop was added to the body
-                const modalBackdrop = document.querySelector('.modal-backdrop[data-card-id]');
-                if (modalBackdrop && evt.detail.target === document.body) {
-                    const cardId = modalBackdrop.getAttribute('data-card-id');
-                    if (cardId) {
-                        updateURLWithCardId(cardId);
-                    }
-                    
-                    // Set the height of navigation areas to match the top card section
-                    setNavigationHeight();
-                }
-            });
-            
-            // Function to set navigation height to match top card section
-            function setNavigationHeight() {
-                const cardContentSection = document.querySelector('.flex.flex-col.md\\\\:flex-row.gap-6.mb-6');
-                const navLeft = document.querySelector('.card-nav-top-section.card-nav-left');
-                const navRight = document.querySelector('.card-nav-top-section.card-nav-right');
-                
-                if (cardContentSection && navLeft && navRight) {
-                    const height = cardContentSection.offsetHeight;
-                    navLeft.style.height = height + 'px';
-                    navRight.style.height = height + 'px';
-                }
-            }
-            
-            // Also set on window resize
-            window.addEventListener('resize', setNavigationHeight);
-
-            // Handle browser back/forward buttons
-            window.addEventListener('popstate', function(event) {
-                const url = new URL(window.location);
-                const cardId = url.searchParams.get('card_id');
-
-                if (!cardId) {
-                    // Close modal if card_id is removed from URL
-                    document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove());
-                }
-            });
-
-            function getCarouselContainer(element) {
-                return element.closest('.modal-backdrop').querySelector('.carousel-item').parentElement;
-            }
-
-            function updatePrice(activeItem) {
-                const priceElement = document.getElementById('card-price');
-                if (priceElement) {
-                    const price = activeItem.getAttribute('data-price');
-                    const currency = activeItem.getAttribute('data-currency');
-                    const eurPrice = activeItem.getAttribute('data-eur-price');
-                    const usdPrice = activeItem.getAttribute('data-usd-price');
-
-                    if (eurPrice && usdPrice && eurPrice !== 'N/A' && usdPrice !== 'N/A') {
-                        // Show both currencies when available
-                        priceElement.textContent = `€${eurPrice} | $${usdPrice}`;
-                    } else if (price === 'N/A') {
-                        priceElement.textContent = 'N/A';
-                    } else {
-                        priceElement.textContent = currency === 'EUR' ? 
-                            `€${price}` : 
-                            `$${price}`;
-                    }
-                }
-            }
-
-            function showCarouselItem(element, index) {
-                const container = getCarouselContainer(element);
-                const items = container.querySelectorAll('.carousel-item');
-                const dots = container.querySelectorAll('.carousel-dot');
-
-                items.forEach(item => item.classList.remove('active'));
-                items[index].classList.add('active');
-
-                // Update price for the active item
-                updatePrice(items[index]);
-
-                if (dots.length > 0) {
-                    dots.forEach((dot, i) => {
-                        dot.classList.toggle('bg-white', i === index);
-                        dot.classList.toggle('bg-white/50', i !== index);
-                    });
-                }
-            }
-
-            function nextCarouselItem(element) {
-                const container = getCarouselContainer(element);
-                const items = container.querySelectorAll('.carousel-item');
-                const currentIndex = Array.from(items).findIndex(item => item.classList.contains('active'));
-                const nextIndex = (currentIndex + 1) % items.length;
-                showCarouselItem(element, nextIndex);
-            }
-
-            function previousCarouselItem(element) {
-                const container = getCarouselContainer(element);
-                const items = container.querySelectorAll('.carousel-item');
-                const currentIndex = Array.from(items).findIndex(item => item.classList.contains('active'));
-                const prevIndex = (currentIndex - 1 + items.length) % items.length;
-                showCarouselItem(element, prevIndex);
-            }
-
-            // Add keyboard navigation
-            document.addEventListener('keydown', (e) => {
-                const activeModal = document.querySelector('.modal-backdrop');
-                if (!activeModal) return;
-
-                if (e.key === 'ArrowLeft') {
-                    previousCarouselItem(activeModal);
-                } else if (e.key === 'ArrowRight') {
-                    nextCarouselItem(activeModal);
-                }
-            });
-
-            // Add touch support for mobile card navigation
-            document.addEventListener('DOMContentLoaded', function() {
-                const cardNavLeft = document.querySelector('.card-nav-left');
-                const cardNavRight = document.querySelector('.card-nav-right');
-
-                if (cardNavLeft) {
-                    cardNavLeft.addEventListener('touchstart', function(e) {
-                        e.preventDefault();
-                        this.click();
-                    });
-                }
-
-                if (cardNavRight) {
-                    cardNavRight.addEventListener('touchstart', function(e) {
-                        e.preventDefault();
-                        this.click();
-                    });
-                }
-            });
-        """),
         # Carousel CSS
         ft.Style("""
             .carousel-item {
@@ -575,34 +405,8 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 transition: background 0.2s ease;
             }
 
-            /* Card navigation arrows on hover - only show outside image area */
-            .card-nav-left:hover::after {
-                content: '◀ Previous';
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                color: white;
-                font-size: 1.2rem;
-                font-weight: bold;
-                text-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
-                pointer-events: none;
-                white-space: nowrap;
-            }
-
-            .card-nav-right:hover::after {
-                content: 'Next ▶';
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                color: white;
-                font-size: 1.2rem;
-                font-weight: bold;
-                text-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
-                pointer-events: none;
-                white-space: nowrap;
-            }
+            /* Card navigation arrows are now handled via HTML elements with group-hover */
+            /* No need for ::after pseudo-elements */
 
             /* Ensure card navigation doesn't interfere with image area on desktop */
             @media (min-width: 769px) {

@@ -212,7 +212,7 @@ def get_price_change_data(days: int, currency: CardCurrency, min_latest_price: f
     latest_tbl = get_bq_table_id(LatestCardPrice).replace(":", ".")
     history_tbl = get_bq_table_id(CardPrice).replace(":", ".")
     currency_col = 'latest_eur_price' if currency == CardCurrency.EURO else 'latest_usd_price'
-    price_currency = 'eur' if currency == CardCurrency.EURO else 'usd'
+    price_currency = CardCurrency.EURO if currency == CardCurrency.EURO else CardCurrency.US_DOLLAR
     aa_filter = "" if include_alt_art else "AND aa_version = 0"
     # max_latest_price is already normalized by pydantic: None means unbounded
     upper_bound = f"AND {currency_col} <= {max_latest_price}" if max_latest_price is not None else ""

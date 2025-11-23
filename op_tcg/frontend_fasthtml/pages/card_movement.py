@@ -1,4 +1,6 @@
 from fasthtml import ft
+
+from op_tcg.backend.models.cards import CardCurrency
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 from op_tcg.frontend_fasthtml.components.filters import create_leader_select_component
@@ -169,7 +171,7 @@ def create_card_frequency_section(cards: List[CardFrequencyChange], title: str, 
                         src=card.card_image_url,
                         alt=card.card_name,
                         cls="w-full h-auto rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer hover:scale-105",
-                        hx_get=f"/api/card-modal?card_id={card.card_id}&meta_format={current_meta}&currency=EUR",
+                        hx_get=f"/api/card-modal?card_id={card.card_id}&meta_format={current_meta}&currency={CardCurrency.EURO}",
                         hx_target="body",
                         hx_swap="beforeend"
                     ),

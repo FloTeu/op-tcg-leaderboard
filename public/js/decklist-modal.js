@@ -158,7 +158,7 @@ function openCardModalFromDecklist() {
     // Get meta format from URL or use 'latest' as default
     const urlParams = new URLSearchParams(window.location.search);
     const metaFormat = urlParams.get('meta_format') || 'latest';
-    const currency = urlParams.get('currency') || 'EUR';
+    const currency = urlParams.get('currency') || 'eur';
     
     // Use HTMX to trigger the card modal
     const url = `/api/card-modal?card_id=${encodeURIComponent(cardId)}&meta_format=${encodeURIComponent(metaFormat)}&currency=${encodeURIComponent(currency)}`;

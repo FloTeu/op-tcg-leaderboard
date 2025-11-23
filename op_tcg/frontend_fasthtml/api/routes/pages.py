@@ -275,6 +275,7 @@ def setup_api_routes(rt):
         card_id = request.query_params.get("card_id")
         meta_format = request.query_params.get("meta_format")
         currency = request.query_params.get("currency")
+        currency = CardCurrency(currency) if currency is not None else CardCurrency.EURO
         
         if not card_id:
             return ft.Div("No card ID provided", cls="text-red-400")
@@ -306,21 +307,9 @@ def setup_api_routes(rt):
             if cp.card_id == card_id and cp.meta_format == meta_format:
                 popularity = max(popularity, cp.popularity)
 
-        # Find adjacent cards in the grid
-        card_elements = request.query_params.getlist("card_elements")
-        current_index = -1
-        prev_card_id = None
-        next_card_id = None
+        # Note: Navigation between cards is now handled by JavaScript dynamically
+        # The card_elements query parameter is still accepted for backward compatibility
+        # but is no longer used for prev/next navigation
 
-        if card_elements:
-            try:
-                current_index = card_elements.index(card_id)
-                if current_index > 0:
-                    prev_card_id = card_elements[current_index - 1]
-                if current_index < len(card_elements) - 1:
-                    next_card_id = card_elements[current_index + 1]
-            except ValueError:
-                pass
-        
         # Create and return modal using the component
-        return create_card_modal(base_card, card_versions, popularity, currency, prev_card_id, next_card_id, card_elements) 
+        return create_card_modal(base_card, card_versions, popularity, currency)
