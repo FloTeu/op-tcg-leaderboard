@@ -107,6 +107,7 @@ app, rt = fast_app(
         ft.Script(src="/public/js/multiselect.js"),
         ft.Script(src="/public/js/double_range_slider.js"),
         ft.Script(src="/public/js/sidebar.js"),
+        ft.Script(src="/public/js/card-modal.js"),
     ],
     #static_path='public'
 )

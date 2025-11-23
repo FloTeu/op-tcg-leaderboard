@@ -47,13 +47,13 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
             # Left click area for card version navigation (invisible overlay)
             ft.Div(
                 cls="absolute left-0 top-0 w-1/3 h-full cursor-pointer z-20 card-version-nav",
-                onclick="previousCarouselItem(this)",
+                onclick="window.previousCarouselItem(this)",
                 title="Previous version"
             ) if len(card_versions) > 0 else None,
             # Right click area for card version navigation (invisible overlay)
             ft.Div(
                 cls="absolute right-0 top-0 w-1/3 h-full cursor-pointer z-20 card-version-nav",
-                onclick="nextCarouselItem(this)",
+                onclick="window.nextCarouselItem(this)",
                 title="Next version"
             ) if len(card_versions) > 0 else None,
             cls="carousel-item active relative",
@@ -78,13 +78,13 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 # Left click area for card version navigation (invisible overlay)
                 ft.Div(
                     cls="absolute left-0 top-0 w-1/3 h-full cursor-pointer z-20 card-version-nav",
-                    onclick="previousCarouselItem(this)",
+                    onclick="window.previousCarouselItem(this)",
                     title="Previous version"
                 ),
                 # Right click area for card version navigation (invisible overlay)
                 ft.Div(
                     cls="absolute right-0 top-0 w-1/3 h-full cursor-pointer z-20 card-version-nav",
-                    onclick="nextCarouselItem(this)",
+                    onclick="window.nextCarouselItem(this)",
                     title="Next version"
                 ),
                 cls="carousel-item relative",
@@ -107,7 +107,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     ft.Button(
                         "",
                         cls=f"w-2 h-2 rounded-full {'bg-white' if i == 0 else 'bg-white/50'} hover:bg-white/75 transition-colors",
-                        onclick=f"showCarouselItem(this, {i})"
+                        onclick=f"window.showCarouselItem(this, {i})"
                     )
                     for i in range(len(carousel_items))
                 ],
@@ -144,7 +144,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     ft.Span("×", cls="text-lg"),
                     type="button",
                     cls="absolute top-4 right-4 md:top-4 md:right-4 inline-flex items-center justify-center w-9 h-9 rounded-full bg-gray-700/60 hover:bg-gray-700 text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 transition z-30 mobile-close-btn",
-                    onclick="event.stopPropagation(); closeCardModal();"
+                    onclick="event.stopPropagation(); window.closeCardModal();"
                 ),
 
                 # Card navigation areas (only for top section, not charts) - positioned at modal edges
@@ -342,182 +342,13 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     cls="w-full"
                 ),
 
-                cls="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 relative"
+                cls="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 relative",
+                onclick="event.stopPropagation();"
             ),
             cls="modal-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 overflow-y-auto py-4",
-            onclick="if (event.target === this) closeCardModal();",
+            onclick="window.closeCardModal();",
             data_card_id=card.id
         ),
-        # Carousel and URL management JavaScript
-        ft.Script("""
-            // URL management for card modal sharing
-            // Store the original URL before modal opens (global variable)
-            window.originalUrlBeforeModal = window.originalUrlBeforeModal || null;
-
-            function updateURLWithCardId(cardId) {
-                // Store the original URL if not already stored
-                if (!window.originalUrlBeforeModal) {
-                    window.originalUrlBeforeModal = window.location.href;
-                }
-
-                const url = new URL(window.location);
-                // Only change pathname if not already on card-popularity page
-                if (!url.pathname.includes('card-popularity')) {
-                    url.pathname = '/card-popularity';
-                }
-                url.searchParams.set('card_id', cardId);
-                window.history.pushState({cardId: cardId}, '', url);
-            }
-
-            function closeCardModal() {
-                document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove());
-
-                // Restore the original URL before modal was opened
-                if (window.originalUrlBeforeModal) {
-                    window.history.pushState({}, '', window.originalUrlBeforeModal);
-                    window.originalUrlBeforeModal = null;
-                } else {
-                    // Fallback: just remove card_id parameter if no original URL stored
-                    const url = new URL(window.location);
-                    url.searchParams.delete('card_id');
-                    window.history.replaceState({}, '', url);
-                }
-            }
-
-            // Update URL when modal is opened via HTMX
-            document.addEventListener('htmx:afterSettle', function(evt) {
-                // Check if a modal backdrop was added to the body
-                const modalBackdrop = document.querySelector('.modal-backdrop[data-card-id]');
-                if (modalBackdrop && evt.detail.target === document.body) {
-                    const cardId = modalBackdrop.getAttribute('data-card-id');
-                    if (cardId) {
-                        updateURLWithCardId(cardId);
-                    }
-                    
-                    // Set the height of navigation areas to match the top card section
-                    setNavigationHeight();
-                }
-            });
-            
-            // Function to set navigation height to match top card section
-            function setNavigationHeight() {
-                const cardContentSection = document.querySelector('.flex.flex-col.md\\\\:flex-row.gap-6.mb-6');
-                const navLeft = document.querySelector('.card-nav-top-section.card-nav-left');
-                const navRight = document.querySelector('.card-nav-top-section.card-nav-right');
-                
-                if (cardContentSection && navLeft && navRight) {
-                    const height = cardContentSection.offsetHeight;
-                    navLeft.style.height = height + 'px';
-                    navRight.style.height = height + 'px';
-                }
-            }
-            
-            // Also set on window resize
-            window.addEventListener('resize', setNavigationHeight);
-
-            // Handle browser back/forward buttons
-            window.addEventListener('popstate', function(event) {
-                const url = new URL(window.location);
-                const cardId = url.searchParams.get('card_id');
-
-                if (!cardId) {
-                    // Close modal if card_id is removed from URL
-                    document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove());
-                }
-            });
-
-            function getCarouselContainer(element) {
-                return element.closest('.modal-backdrop').querySelector('.carousel-item').parentElement;
-            }
-
-            function updatePrice(activeItem) {
-                const priceElement = document.getElementById('card-price');
-                if (priceElement) {
-                    const price = activeItem.getAttribute('data-price');
-                    const currency = activeItem.getAttribute('data-currency');
-                    const eurPrice = activeItem.getAttribute('data-eur-price');
-                    const usdPrice = activeItem.getAttribute('data-usd-price');
-
-                    if (eurPrice && usdPrice && eurPrice !== 'N/A' && usdPrice !== 'N/A') {
-                        // Show both currencies when available
-                        priceElement.textContent = `€${eurPrice} | $${usdPrice}`;
-                    } else if (price === 'N/A') {
-                        priceElement.textContent = 'N/A';
-                    } else {
-                        priceElement.textContent = currency === 'EUR' ? 
-                            `€${price}` : 
-                            `$${price}`;
-                    }
-                }
-            }
-
-            function showCarouselItem(element, index) {
-                const container = getCarouselContainer(element);
-                const items = container.querySelectorAll('.carousel-item');
-                const dots = container.querySelectorAll('.carousel-dot');
-
-                items.forEach(item => item.classList.remove('active'));
-                items[index].classList.add('active');
-
-                // Update price for the active item
-                updatePrice(items[index]);
-
-                if (dots.length > 0) {
-                    dots.forEach((dot, i) => {
-                        dot.classList.toggle('bg-white', i === index);
-                        dot.classList.toggle('bg-white/50', i !== index);
-                    });
-                }
-            }
-
-            function nextCarouselItem(element) {
-                const container = getCarouselContainer(element);
-                const items = container.querySelectorAll('.carousel-item');
-                const currentIndex = Array.from(items).findIndex(item => item.classList.contains('active'));
-                const nextIndex = (currentIndex + 1) % items.length;
-                showCarouselItem(element, nextIndex);
-            }
-
-            function previousCarouselItem(element) {
-                const container = getCarouselContainer(element);
-                const items = container.querySelectorAll('.carousel-item');
-                const currentIndex = Array.from(items).findIndex(item => item.classList.contains('active'));
-                const prevIndex = (currentIndex - 1 + items.length) % items.length;
-                showCarouselItem(element, prevIndex);
-            }
-
-            // Add keyboard navigation
-            document.addEventListener('keydown', (e) => {
-                const activeModal = document.querySelector('.modal-backdrop');
-                if (!activeModal) return;
-
-                if (e.key === 'ArrowLeft') {
-                    previousCarouselItem(activeModal);
-                } else if (e.key === 'ArrowRight') {
-                    nextCarouselItem(activeModal);
-                }
-            });
-
-            // Add touch support for mobile card navigation
-            document.addEventListener('DOMContentLoaded', function() {
-                const cardNavLeft = document.querySelector('.card-nav-left');
-                const cardNavRight = document.querySelector('.card-nav-right');
-
-                if (cardNavLeft) {
-                    cardNavLeft.addEventListener('touchstart', function(e) {
-                        e.preventDefault();
-                        this.click();
-                    });
-                }
-
-                if (cardNavRight) {
-                    cardNavRight.addEventListener('touchstart', function(e) {
-                        e.preventDefault();
-                        this.click();
-                    });
-                }
-            });
-        """),
         # Carousel CSS
         ft.Style("""
             .carousel-item {
