@@ -5,8 +5,7 @@ from op_tcg.frontend_fasthtml.components.effect_text import render_effect_text
 
 
 def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardData], popularity: float,
-                      currency: CardCurrency, prev_card_id: str = None, next_card_id: str = None,
-                      card_elements: list[str] = None) -> ft.Div:
+                      currency: CardCurrency) -> ft.Div:
     """Create a modal dialog for displaying card details.
 
     Args:
@@ -14,11 +13,13 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
         card_versions: List of all versions of the card (including alt arts)
         popularity: The card's popularity (0-1)
         currency: The selected currency for price display
-        prev_card_id: ID of the previous card in the grid
-        next_card_id: ID of the next card in the grid
 
     Returns:
         A FastHTML Div containing the modal dialog
+
+    Note:
+        Card navigation (prev/next) is handled dynamically via JavaScript,
+        which scans the DOM for all loaded cards at navigation time.
     """
 
     # Helper function to create a key fact row

@@ -330,7 +330,7 @@ def create_card_popularity_content(cards_data: list[ExtendedCardData], card_popu
                         src=card.image_url,
                         alt=card.name,
                         cls="w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity",
-                        hx_get=f"/api/card-modal?card_id={card.id}&card_elements={'&card_elements='.join([c.id for c in current_page_cards])}",
+                        hx_get=f"/api/card-modal?card_id={card.id}",
                         hx_include=HX_INCLUDE,
                         hx_target="body",
                         hx_swap="beforeend"

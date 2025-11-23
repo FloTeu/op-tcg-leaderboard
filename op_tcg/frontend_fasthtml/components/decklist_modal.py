@@ -57,7 +57,7 @@ def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str
                     ft.Img(
                         src=img_url, 
                         cls="w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity",
-                        hx_get=f"/api/card-modal?card_id={card_id}&card_elements={'&card_elements='.join(all_card_ids)}&meta_format=latest",
+                        hx_get=f"/api/card-modal?card_id={card_id}&meta_format=latest",
                         hx_target="body",
                         hx_swap="beforeend"
                     ),

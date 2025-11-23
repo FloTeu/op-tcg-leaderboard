@@ -5,7 +5,7 @@ from op_tcg.backend.models.input import MetaFormat
 from urllib.parse import quote_plus
 
 
-def price_tile(item: dict, currency: CardCurrency, card_elements: list[str], card_id2card_data: Dict[str, ExtendedCardData] | None = None) -> ft.Div:
+def price_tile(item: dict, currency: CardCurrency, card_id2card_data: Dict[str, ExtendedCardData] | None = None) -> ft.Div:
     symbol = "€" if currency == CardCurrency.EURO else "$"
     name = item.get('name') or item.get('card_id')
     latest = item.get('latest_price') or 0
@@ -25,7 +25,7 @@ def price_tile(item: dict, currency: CardCurrency, card_elements: list[str], car
     image = ft.Img(
         src=item.get('image_url'), alt=name,
         cls="w-full h-auto rounded-t-lg cursor-pointer hover:opacity-90 transition-opacity",
-        hx_get=f"/api/card-modal?card_id={card_id}&meta_format={latest_meta}&card_elements={'&card_elements='.join(card_elements)}",
+        hx_get=f"/api/card-modal?card_id={card_id}&meta_format={latest_meta}",
         hx_include="[name='currency']",
         hx_target="body", hx_swap="beforeend",
         hx_indicator=f"#{local_indicator_id}"
@@ -69,10 +69,9 @@ def price_tile(item: dict, currency: CardCurrency, card_elements: list[str], car
 
 
 def price_tiles(items: List[dict], currency: CardCurrency, card_id2card_data: Dict[str, ExtendedCardData] | None = None) -> ft.Div:
-    card_elements = [it.get('card_id') for it in items if it.get('card_id')]
     tile_grid_cls = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4"
     return ft.Div(
-        ft.Div(*[price_tile(it, currency, card_elements, card_id2card_data) for it in items], cls=tile_grid_cls)
+        ft.Div(*[price_tile(it, currency, card_id2card_data) for it in items], cls=tile_grid_cls)
     )
 
 

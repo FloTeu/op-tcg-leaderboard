@@ -12,26 +12,31 @@
 
 # Fast HTML Project Rules
 
-## 1. Do use htmx behaivor
+## 1. Do use htmx behavior
 
 - **Rule:** If data intensive views are created, try to implement them via htmx behaivor. The api can be found in
   `api/`.
 
-## 2. Testing behaivor
+## 2. Testing behavior
 
-- **Rule:** If you want to test your code with a test server, please run it ith port 5003
+- **Rule:** Do not test frontend code by starting a local server. Use unit tests instead. You can find existing tests in
+  `tests/`.
 
-## 3. JavaScript behaivor
+## 3. JavaScript behavior
 
 - **Rule:** HTMX includes javascript already. If possible, try to use the htmx features, before including custom
   javascript code.
 
-## 3. Styling behaivor
+## 3. Styling behavior
 
 - **Rule:** Use existing styled filter components. You can find the styling options in `/public/css`. Styled select
   components, need a `id` for the javascript code to work correctly.
 
-## 3. UI/UX behaivor
+## 3. UI/UX behavior
 
 - **Rule:** If you design new frontend components, try to make them visually appealing. Think from the perspective of an
-  UI/UX senior specialist. Ensure mobile friendliness and think mobile first. 
+  UI/UX senior specialist. Ensure mobile friendliness and think mobile first.
+
+# General Project Rules
+- **Rule**: Always follow best practices for code quality, readability, and maintainability.
+- **Rule**:  If you add new code, check if  existing code might need to be refactored to improve overall quality and maintainability.
