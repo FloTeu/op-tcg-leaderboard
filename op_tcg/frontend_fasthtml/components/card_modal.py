@@ -156,7 +156,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     ),
                     cls="absolute left-0 top-0 w-16 h-full cursor-pointer z-10 card-nav-left card-nav-top-section flex items-center justify-center hover:bg-black/30 transition-colors group",
                     onclick=f"event.stopPropagation(); window.navigateToPreviousCard('{card.id}', event);",
-                    title="Previous Card (or press < key)",
+                    title="Previous card",
                     data_current_card_id=card.id
                 ),
 
@@ -167,7 +167,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     ),
                     cls="absolute right-0 top-0 w-16 h-full cursor-pointer z-10 card-nav-right card-nav-top-section flex items-center justify-center hover:bg-black/30 transition-colors group",
                     onclick=f"event.stopPropagation(); window.navigateToNextCard('{card.id}', event);",
-                    title="Next Card (or press > key)",
+                    title="Next card",
                     data_current_card_id=card.id
                 ),
 
@@ -405,34 +405,8 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 transition: background 0.2s ease;
             }
 
-            /* Card navigation arrows on hover - only show outside image area */
-            .card-nav-left:hover::after {
-                content: '◀ Previous';
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                color: white;
-                font-size: 1.2rem;
-                font-weight: bold;
-                text-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
-                pointer-events: none;
-                white-space: nowrap;
-            }
-
-            .card-nav-right:hover::after {
-                content: 'Next ▶';
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                color: white;
-                font-size: 1.2rem;
-                font-weight: bold;
-                text-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
-                pointer-events: none;
-                white-space: nowrap;
-            }
+            /* Card navigation arrows are now handled via HTML elements with group-hover */
+            /* No need for ::after pseudo-elements */
 
             /* Ensure card navigation doesn't interfere with image area on desktop */
             @media (min-width: 769px) {
