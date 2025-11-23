@@ -91,6 +91,79 @@ window.updateCardNavigationVisibility = function() {
 // Flag to prevent rapid navigation
 let isNavigating = false;
 
+// Cache for prefetched modals
+const modalCache = new Map();
+const MAX_CACHE_SIZE = 3;
+
+// Prefetch adjacent card modals for faster navigation
+function prefetchAdjacentModals(currentCardId) {
+    const allCardIds = window.getAllLoadedCardIds();
+    const currentIndex = allCardIds.indexOf(currentCardId);
+
+    if (currentIndex < 0) return;
+
+    const metaFormat = document.querySelector('[name="meta_format"]')?.value || 'latest';
+    const currency = document.querySelector('[name="currency"]')?.value || 'EUR';
+    const cardElementsParam = allCardIds.map(id => `card_elements=${id}`).join('&');
+
+    // Prefetch previous card
+    if (currentIndex > 0) {
+        const prevCardId = allCardIds[currentIndex - 1];
+        const cacheKey = `${prevCardId}-${metaFormat}-${currency}`;
+
+        if (!modalCache.has(cacheKey)) {
+            fetch(`/api/card-modal?card_id=${prevCardId}&${cardElementsParam}&meta_format=${metaFormat}&currency=${currency}`)
+                .then(response => response.text())
+                .then(html => {
+                    // Limit cache size
+                    if (modalCache.size >= MAX_CACHE_SIZE) {
+                        const firstKey = modalCache.keys().next().value;
+                        modalCache.delete(firstKey);
+                    }
+                    modalCache.set(cacheKey, html);
+                })
+                .catch(error => console.error('Prefetch error:', error));
+        }
+    }
+
+    // Prefetch next card
+    if (currentIndex < allCardIds.length - 1) {
+        const nextCardId = allCardIds[currentIndex + 1];
+        const cacheKey = `${nextCardId}-${metaFormat}-${currency}`;
+
+        if (!modalCache.has(cacheKey)) {
+            fetch(`/api/card-modal?card_id=${nextCardId}&${cardElementsParam}&meta_format=${metaFormat}&currency=${currency}`)
+                .then(response => response.text())
+                .then(html => {
+                    // Limit cache size
+                    if (modalCache.size >= MAX_CACHE_SIZE) {
+                        const firstKey = modalCache.keys().next().value;
+                        modalCache.delete(firstKey);
+                    }
+                    modalCache.set(cacheKey, html);
+                })
+                .catch(error => console.error('Prefetch error:', error));
+        }
+    }
+}
+
+// Create a transparent overlay to block interactions during modal transition
+function createTransitionOverlay() {
+    const overlay = document.createElement('div');
+    overlay.id = 'modal-transition-overlay';
+    overlay.style.cssText = 'position: fixed; inset: 0; z-index: 9999; background: transparent; cursor: wait;';
+    document.body.appendChild(overlay);
+    return overlay;
+}
+
+// Remove transition overlay
+function removeTransitionOverlay() {
+    const overlay = document.getElementById('modal-transition-overlay');
+    if (overlay) {
+        overlay.remove();
+    }
+}
+
 // Navigate to previous card
 window.navigateToPreviousCard = function(currentCardId, event) {
     // Prevent rapid consecutive navigations
@@ -108,27 +181,47 @@ window.navigateToPreviousCard = function(currentCardId, event) {
     if (currentIndex > 0) {
         isNavigating = true;
 
+        // Immediately create overlay to block interactions
+        const transitionOverlay = createTransitionOverlay();
+
         const prevCardId = allCardIds[currentIndex - 1];
         const cardElementsParam = allCardIds.map(id => `card_elements=${id}`).join('&');
 
         // Get current filter values
         const metaFormat = document.querySelector('[name="meta_format"]')?.value || 'latest';
-        const currency = document.querySelector('[name="currency"]')?.value || 'eur';
+        const currency = document.querySelector('[name="currency"]')?.value || 'EUR';
 
-        // Close current modal and load new one
+        const cacheKey = `${prevCardId}-${metaFormat}-${currency}`;
+
+        // Check if we have cached version
+        let fetchPromise;
+        if (modalCache.has(cacheKey)) {
+            // Use cached version for instant load
+            fetchPromise = Promise.resolve(modalCache.get(cacheKey));
+            modalCache.delete(cacheKey); // Remove from cache after use
+        } else {
+            // Fetch from server
+            fetchPromise = fetch(`/api/card-modal?card_id=${prevCardId}&${cardElementsParam}&meta_format=${metaFormat}&currency=${currency}`)
+                .then(response => response.text());
+        }
+
+        // Close current modal while fetching
         document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove());
 
-        // Load new modal
-        fetch(`/api/card-modal?card_id=${prevCardId}&${cardElementsParam}&meta_format=${metaFormat}&currency=${currency}`)
-            .then(response => response.text())
+        // Wait for fetch to complete, then insert
+        fetchPromise
             .then(html => {
                 document.body.insertAdjacentHTML('beforeend', html);
                 htmx.process(document.body);
-                // Reset navigation flag after modal is loaded
-                setTimeout(() => { isNavigating = false; }, 300);
+                // Remove overlay and reset flag immediately after insertion
+                removeTransitionOverlay();
+                isNavigating = false;
+                // Prefetch adjacent modals for next navigation
+                setTimeout(() => prefetchAdjacentModals(prevCardId), 100);
             })
             .catch(error => {
                 console.error('Error loading card modal:', error);
+                removeTransitionOverlay();
                 isNavigating = false;
             });
     }
@@ -151,27 +244,47 @@ window.navigateToNextCard = function(currentCardId, event) {
     if (currentIndex >= 0 && currentIndex < allCardIds.length - 1) {
         isNavigating = true;
 
+        // Immediately create overlay to block interactions
+        const transitionOverlay = createTransitionOverlay();
+
         const nextCardId = allCardIds[currentIndex + 1];
         const cardElementsParam = allCardIds.map(id => `card_elements=${id}`).join('&');
 
         // Get current filter values
         const metaFormat = document.querySelector('[name="meta_format"]')?.value || 'latest';
-        const currency = document.querySelector('[name="currency"]')?.value || 'eur';
+        const currency = document.querySelector('[name="currency"]')?.value || 'EUR';
 
-        // Close current modal and load new one
+        const cacheKey = `${nextCardId}-${metaFormat}-${currency}`;
+
+        // Check if we have cached version
+        let fetchPromise;
+        if (modalCache.has(cacheKey)) {
+            // Use cached version for instant load
+            fetchPromise = Promise.resolve(modalCache.get(cacheKey));
+            modalCache.delete(cacheKey); // Remove from cache after use
+        } else {
+            // Fetch from server
+            fetchPromise = fetch(`/api/card-modal?card_id=${nextCardId}&${cardElementsParam}&meta_format=${metaFormat}&currency=${currency}`)
+                .then(response => response.text());
+        }
+
+        // Close current modal while fetching
         document.querySelectorAll('.modal-backdrop').forEach(modal => modal.remove());
 
-        // Load new modal
-        fetch(`/api/card-modal?card_id=${nextCardId}&${cardElementsParam}&meta_format=${metaFormat}&currency=${currency}`)
-            .then(response => response.text())
+        // Wait for fetch to complete, then insert
+        fetchPromise
             .then(html => {
                 document.body.insertAdjacentHTML('beforeend', html);
                 htmx.process(document.body);
-                // Reset navigation flag after modal is loaded
-                setTimeout(() => { isNavigating = false; }, 300);
+                // Remove overlay and reset flag immediately after insertion
+                removeTransitionOverlay();
+                isNavigating = false;
+                // Prefetch adjacent modals for next navigation
+                setTimeout(() => prefetchAdjacentModals(nextCardId), 100);
             })
             .catch(error => {
                 console.error('Error loading card modal:', error);
+                removeTransitionOverlay();
                 isNavigating = false;
             });
     }
@@ -272,6 +385,11 @@ document.addEventListener('htmx:afterSettle', function(evt) {
 
         // Update navigation visibility based on card position
         window.updateCardNavigationVisibility();
+
+        // Prefetch adjacent modals for instant navigation
+        if (cardId) {
+            setTimeout(() => prefetchAdjacentModals(cardId), 100);
+        }
     }
 });
 
