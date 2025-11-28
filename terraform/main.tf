@@ -255,7 +255,7 @@ resource "google_cloudfunctions2_function" "crawl-tournaments" {
 
   service_config {
     max_instance_count    = 10
-    available_memory      = "512M"
+    available_memory      = "768M"
     timeout_seconds       = 540
     service_account_email = google_service_account.cloud_function_sa.email
     environment_variables = {
