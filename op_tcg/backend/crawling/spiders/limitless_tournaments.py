@@ -117,28 +117,39 @@ class LimitlessTournamentSpider(scrapy.Spider):
         tournament_standings: list[TournamentStanding] = []
         bq_decklists: list[Decklist] = []
         for standing in json_res:
-            decklist = standing["decklist"]
+            decklist_id = None
+            decklist = None
             leader_id = None
-            if decklist:
-                leader_id = f'{decklist["leader"]["set"]}-{decklist["leader"]["number"]}'
-                # leader + deck
-                decklist = {leader_id: 1, **{f'{card["set"]}-{card["number"]}': card["count"] for card in
-                                             decklist["character"] + decklist["event"] + decklist["stage"]}}
-                assert sum(decklist.values()) == 51, "Sum of card in deck should be 51"
-                all_decklists.append(decklist)
-                decklist_id = create_decklist_id(decklist)
-                bq_decklists.append(Decklist(
-                    id=decklist_id,
-                    leader_id=leader_id,
-                    decklist=decklist
-                ))
+            if "decklist"  in standing:
+                decklist = standing["decklist"]
+                if decklist:
+                    leader_id = f'{decklist["leader"]["set"]}-{decklist["leader"]["number"]}'
+                    # leader + deck
+                    decklist = {leader_id: 1, **{f'{card["set"]}-{card["number"]}': card["count"] for card in
+                                                 decklist["character"] + decklist["event"] + decklist["stage"]}}
+                    assert sum(decklist.values()) == 51, "Sum of card in deck should be 51"
+                    all_decklists.append(decklist)
+                    decklist_id = create_decklist_id(decklist)
+                    bq_decklists.append(Decklist(
+                        id=decklist_id,
+                        leader_id=leader_id,
+                        decklist=decklist
+                    ))
+            elif "deck" in standing:
+                # deck only contains leader information
+                leader_id = standing["deck"]["id"]
+            else:
+                logging.warning("No decklist or deck information found in standing")
+                continue
             try:
                 tournament_standings.append(TournamentStanding(tournament_id=response.meta["id"], leader_id=leader_id,
                                                                decklist=decklist, decklist_id=decklist_id,
                                                                **{k: v for k, v in standing.items() if
                                                                   k not in ["decklist"]}))
             except ValidationError as e:
-                print(e)
+                logging.warning(e)
+            except UnboundLocalError as e:
+                logging.warning(e)
             player_id2leader_id[standing["player"]] = leader_id
 
         meta_format: MetaFormat | str = self.get_meta_format(all_decklists,
