@@ -52,6 +52,7 @@ def create_fallback_notification(
 
 def create_no_match_data_notification(
     current_meta_format: MetaFormat,
+    leader_data_available: bool = True,
     dropdown_id: str = "meta-format-select"
 ):
     """
@@ -70,7 +71,10 @@ def create_no_match_data_notification(
     all_meta_formats = MetaFormat.to_list(region=MetaFormatRegion.ASIA)
     current_index = all_meta_formats.index(current_meta_format)
     previous_meta = all_meta_formats[current_index - 1] if current_index > 0 else None
-    
+    if leader_data_available:
+        warning_msg = f"Leaders are available for {current_meta_format}, but detailed match data is not yet available."
+    else:
+        warning_msg = f"No leaders with match data are available for {current_meta_format} yet."
     if previous_meta:
         return ft.Div(
             ft.Div(
@@ -78,7 +82,7 @@ def create_no_match_data_notification(
                     ft.I(cls="fas fa-chart-line mr-3 text-orange-400"),
                     ft.Div(
                         ft.Div(
-                            f"Leaders are available for {current_meta_format}, but detailed match data is not yet available.",
+                            warning_msg,
                             cls="text-white font-medium mb-2"
                         ),
                         ft.Div(
@@ -145,6 +149,7 @@ def create_proxy_data_notification():
 def detect_no_match_data(leaders: List[LeaderExtended]) -> bool:
     """
     Detect if leaders exist but have no meaningful match data.
+    If no leaders exist, no match data is available as well.
     
     Args:
         leaders: List of leader data
@@ -153,7 +158,7 @@ def detect_no_match_data(leaders: List[LeaderExtended]) -> bool:
         True if leaders exist but have no match data, False otherwise
     """
     if not leaders:
-        return False
+        return True
     
     # Check if most leaders have no match data (total_matches is None or 0)
     leaders_without_matches = [

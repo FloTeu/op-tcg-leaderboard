@@ -378,9 +378,6 @@ def create_decklist_modal(
             id="decklist-modal-backdrop"  # Add ID for specific targeting
         ),
         
-        # Include required CSS and JS
-        ft.Script(src="/public/js/decklist-modal.js", id="decklist-modal-js-modal"),
-        
         # Enhanced modal styles with proper z-index management and mobile overflow prevention
         ft.Style("""
             .decklist-modal-backdrop {
