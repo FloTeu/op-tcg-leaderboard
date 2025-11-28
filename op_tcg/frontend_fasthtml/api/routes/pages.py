@@ -149,7 +149,8 @@ def setup_api_routes(rt):
         if detect_no_match_data(filtered_leaders):
             # Special notification for when leaders exist but have no match data
             notification = create_no_match_data_notification(
-                sort_params.meta_format
+                sort_params.meta_format,
+                leader_data_available=bool(filtered_leaders)
             )
             return ft.Div(notification, table_content)
         
