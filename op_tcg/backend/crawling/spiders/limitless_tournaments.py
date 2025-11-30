@@ -135,7 +135,7 @@ class LimitlessTournamentSpider(scrapy.Spider):
                         leader_id=leader_id,
                         decklist=decklist
                     ))
-            elif "deck" in standing:
+            elif "deck" in standing and standing["deck"]:
                 # deck only contains leader information
                 leader_id = standing["deck"]["id"]
             else:
