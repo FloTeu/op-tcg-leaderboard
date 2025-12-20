@@ -993,7 +993,7 @@ class ChartManager {
                                     if (value === null || value === undefined) {
                                         return context.dataset.label + ': No data';
                                     }
-                                    const currency = context.dataset.label.includes('eur') ? '€' : '$';
+                                    const currency = context.dataset.label.toLowerCase().includes('eur') ? '€' : '$';
                                     return context.dataset.label + ': ' + currency + value.toFixed(2);
                                 }
                             }
