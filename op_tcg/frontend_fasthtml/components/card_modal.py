@@ -58,6 +58,8 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
             ) if len(card_versions) > 0 else None,
             cls="carousel-item active relative",
             id="carousel-item-base",
+            data_card_id=card.id,
+            data_aa_version=card.aa_version,
             data_price=f"{card.latest_eur_price:.2f}" if currency == CardCurrency.EURO and card.latest_eur_price else
             f"{card.latest_usd_price:.2f}" if currency == CardCurrency.US_DOLLAR and card.latest_usd_price else "N/A",
             data_currency=CardCurrency.EURO if currency == CardCurrency.EURO else CardCurrency.US_DOLLAR,
@@ -89,6 +91,8 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 ),
                 cls="carousel-item relative",
                 id=f"carousel-item-{i}",
+                data_card_id=version.id,
+                data_aa_version=version.aa_version,
                 data_price=f"{version.latest_eur_price:.2f}" if currency == CardCurrency.EURO and version.latest_eur_price else
                 f"{version.latest_usd_price:.2f}" if currency == CardCurrency.US_DOLLAR and version.latest_usd_price else "N/A",
                 data_currency=CardCurrency.EURO if currency == CardCurrency.EURO else CardCurrency.US_DOLLAR,
