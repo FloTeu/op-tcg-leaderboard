@@ -137,6 +137,9 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
     price_symbol = "€" if currency == CardCurrency.EURO else "$"
     price_label = "Price (EUR)" if currency == CardCurrency.EURO else "Price (USD)"
 
+    # Determine button color based on marketplace
+    button_color_cls = "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
+
     # Build external marketplace link
     marketplace_url, marketplace_text = get_marketplace_link(
         card.id, card.name, card.release_set_name, currency
@@ -252,7 +255,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                                     href=marketplace_url,
                                     target="_blank",
                                     rel="noopener",
-                                    cls="text-blue-400 hover:text-blue-300 hover:underline font-medium",
+                                    cls=f"inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded shadow-sm text-white {button_color_cls} focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors",
                                     id="marketplace-link"
                                 ),
                                 cls="flex justify-between items-center py-2 border-b border-gray-700"
