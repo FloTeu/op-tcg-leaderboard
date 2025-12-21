@@ -2,7 +2,7 @@ from fasthtml import ft
 from op_tcg.backend.models.cards import CardCurrency, ExtendedCardData
 from typing import List, Dict, Any
 from op_tcg.backend.models.input import MetaFormat
-from urllib.parse import quote_plus
+from op_tcg.frontend_fasthtml.utils.card_price import get_marketplace_link
 
 
 def price_tile(item: dict, currency: CardCurrency, card_id2card_data: Dict[str, ExtendedCardData] | None = None) -> ft.Div:
@@ -41,17 +41,17 @@ def price_tile(item: dict, currency: CardCurrency, card_id2card_data: Dict[str, 
 
     # External marketplace link based on currency and card id/name
     # Build vendor-specific query. For Cardmarket use card_id; for TCGplayer use name + set code/name when available
-    if currency == CardCurrency.EURO:
-        query = quote_plus(card_id or name)
-    else:
-        q_str = f"{name} "
-        if card_id2card_data and card_id in card_id2card_data:
-            q_str = f"{name} {card_id2card_data[card_id].release_set_name}".strip()
-        query = quote_plus(q_str)
+    release_set_name = None
+    if card_id2card_data and card_id in card_id2card_data:
+        release_set_name = card_id2card_data[card_id].release_set_name
+
+    marketplace_url, marketplace_text = get_marketplace_link(
+        card_id or name, name, release_set_name, currency
+    )
+
     external_link = ft.A(
-        "View on Cardmarket" if currency == CardCurrency.EURO else "View on TCGplayer",
-        href=(f"https://www.cardmarket.com/en/OnePiece/Products/Search?searchString={query}&category=-1&mode=gallery" if currency == CardCurrency.EURO
-              else f"https://www.tcgplayer.com/search/one-piece-card-game/product?q={query}&productLineName=one-piece-card-game"),
+        marketplace_text,
+        href=marketplace_url,
         target="_blank",
         rel="noopener",
         cls="text-blue-300 text-xs hover:underline"
@@ -73,5 +73,3 @@ def price_tiles(items: List[dict], currency: CardCurrency, card_id2card_data: Di
     return ft.Div(
         ft.Div(*[price_tile(it, currency, card_id2card_data) for it in items], cls=tile_grid_cls)
     )
-
-

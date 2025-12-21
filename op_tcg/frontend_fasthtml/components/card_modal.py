@@ -2,6 +2,7 @@ from fasthtml import ft
 from op_tcg.backend.models.cards import CardCurrency, ExtendedCardData
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 from op_tcg.frontend_fasthtml.components.effect_text import render_effect_text
+from op_tcg.frontend_fasthtml.utils.card_price import get_marketplace_link
 
 
 def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardData], popularity: float,
@@ -37,6 +38,10 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
         )
 
     # Create carousel items starting with the base card
+    base_marketplace_url, base_marketplace_text = get_marketplace_link(
+        card.id, card.name, card.release_set_name, currency
+    )
+
     carousel_items = [
         ft.Div(
             ft.Img(
@@ -64,12 +69,19 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
             f"{card.latest_usd_price:.2f}" if currency == CardCurrency.US_DOLLAR and card.latest_usd_price else "N/A",
             data_currency=CardCurrency.EURO if currency == CardCurrency.EURO else CardCurrency.US_DOLLAR,
             data_eur_price=f"{card.latest_eur_price:.2f}" if card.latest_eur_price else "N/A",
-            data_usd_price=f"{card.latest_usd_price:.2f}" if card.latest_usd_price else "N/A"
+            data_usd_price=f"{card.latest_usd_price:.2f}" if card.latest_usd_price else "N/A",
+            data_marketplace_url=base_marketplace_url,
+            data_marketplace_text=base_marketplace_text
         )
     ]
 
     # Add alternate art versions
     for i, version in enumerate(card_versions):
+        # Build external marketplace link for version
+        v_marketplace_url, v_marketplace_text = get_marketplace_link(
+            version.id, version.name, version.release_set_name, currency
+        )
+
         carousel_items.append(
             ft.Div(
                 ft.Img(
@@ -97,7 +109,9 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 f"{version.latest_usd_price:.2f}" if currency == CardCurrency.US_DOLLAR and version.latest_usd_price else "N/A",
                 data_currency=CardCurrency.EURO if currency == CardCurrency.EURO else CardCurrency.US_DOLLAR,
                 data_eur_price=f"{version.latest_eur_price:.2f}" if version.latest_eur_price else "N/A",
-                data_usd_price=f"{version.latest_usd_price:.2f}" if version.latest_usd_price else "N/A"
+                data_usd_price=f"{version.latest_usd_price:.2f}" if version.latest_usd_price else "N/A",
+                data_marketplace_url=v_marketplace_url,
+                data_marketplace_text=v_marketplace_text
             )
         )
 
@@ -122,6 +136,11 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
     # Get the price symbol based on currency
     price_symbol = "€" if currency == CardCurrency.EURO else "$"
     price_label = "Price (EUR)" if currency == CardCurrency.EURO else "Price (USD)"
+
+    # Build external marketplace link
+    marketplace_url, marketplace_text = get_marketplace_link(
+        card.id, card.name, card.release_set_name, currency
+    )
 
     # Format the initial price display - show both currencies when available
     initial_price = "N/A"
@@ -218,6 +237,23 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                                     initial_price,
                                     cls="text-white font-medium",
                                     id="card-price"
+                                ),
+                                cls="flex justify-between items-center py-2 border-b border-gray-700"
+                            ),
+                            # Marketplace Link
+                            ft.Div(
+                                ft.Div(
+                                    ft.I("🛒", cls="text-gray-400"),
+                                    ft.Span("Marketplace", cls="text-gray-400 ml-2 mr-2"),
+                                    cls="flex items-center"
+                                ),
+                                ft.A(
+                                    marketplace_text,
+                                    href=marketplace_url,
+                                    target="_blank",
+                                    rel="noopener",
+                                    cls="text-blue-400 hover:text-blue-300 hover:underline font-medium",
+                                    id="marketplace-link"
                                 ),
                                 cls="flex justify-between items-center py-2 border-b border-gray-700"
                             ),

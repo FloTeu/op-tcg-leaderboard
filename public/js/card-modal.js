@@ -368,6 +368,19 @@ window.updatePrice = function(activeItem) {
                 `$${price}`;
         }
     }
+
+    // Update marketplace link
+    const marketplaceLink = document.getElementById('marketplace-link');
+    if (marketplaceLink) {
+        const marketplaceUrl = activeItem.getAttribute('data-marketplace-url');
+        const marketplaceText = activeItem.getAttribute('data-marketplace-text');
+        if (marketplaceUrl) {
+            marketplaceLink.href = marketplaceUrl;
+        }
+        if (marketplaceText) {
+            marketplaceLink.textContent = marketplaceText;
+        }
+    }
 }
 
 // Show specific carousel item
