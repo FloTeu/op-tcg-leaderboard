@@ -36,6 +36,10 @@ def filter_cards(cards_data: list, params: CardPopularityParams) -> list:
         if card.meta_format and MetaFormat.to_list(only_after_release=False).index(card.meta_format) > MetaFormat.to_list(only_after_release=False).index(params.meta_format):
             continue
             
+        # Filter by release meta format
+        if params.release_meta_format and card.meta_format != params.release_meta_format:
+            continue
+
         # Filter by search term
         if params.search_term:
             search_terms = [term.strip().lower() for term in params.search_term.split(";")]

@@ -39,5 +39,6 @@
 
 # General Project Rules
 - **Rule**: Always follow best practices for code quality, readability, and maintainability.
+- **Rule**: Do not read files multiple time if you have already read it.
 - **Rule**:  If you add new code, check if  existing code might need to be refactored to improve overall quality and maintainability.
 - **Rule**:  Do not write a final markdown report at the end of a task.

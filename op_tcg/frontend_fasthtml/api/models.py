@@ -221,6 +221,7 @@ class CardPopularityParams(BaseModel):
     filter_operator: str = "OR"
     page: int = 1
     search_term: Optional[str] = None
+    release_meta_format: Optional[MetaFormat] = None
 
     @field_validator('search_term', mode='before')
     def validate_search_term(cls, value):
@@ -253,7 +254,7 @@ class CardPopularityParams(BaseModel):
         return [OPTcgAttribute(value) if isinstance(value, str) else value]
 
     @field_validator('card_counter', mode='before')
-    def validate_card_counter(cls, value):
+    def validate_optional_int_lists(cls, value):
         if value is None or value == "" or value == "Any":
             return None
         if isinstance(value, list) and value:
@@ -272,6 +273,12 @@ class CardPopularityParams(BaseModel):
         if isinstance(value, list):
             return [OPTcgCardCatagory(item) if isinstance(item, str) else item for item in value]
         return [OPTcgCardCatagory(value) if isinstance(value, str) else value]
+
+    @field_validator('release_meta_format', mode='before')
+    def validate_release_meta_format(cls, value):
+        if value is None or value == "" or value == "Any":
+            return None
+        return value
 
     @field_validator('currency', mode='before')
     def validate_currency(cls, value):

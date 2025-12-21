@@ -6,7 +6,7 @@ from op_tcg.frontend_fasthtml.utils.extract import get_card_popularity_data, get
 from op_tcg.backend.models.cards import ExtendedCardData
 
 # Common HTMX attributes for filter components
-HX_INCLUDE = "[name='meta_format'],[name='card_colors'],[name='card_attributes'],[name='card_counter'],[name='card_category'],[name='card_types'],[name='currency'],[name='min_price'],[name='max_price'],[name='min_cost'],[name='max_cost'],[name='min_power'],[name='max_power'],[name='card_abilities'],[name='ability_text'],[name='filter_operator'],[name='search_term']"
+HX_INCLUDE = "[name='meta_format'],[name='card_colors'],[name='card_attributes'],[name='card_counter'],[name='card_category'],[name='card_types'],[name='currency'],[name='min_price'],[name='max_price'],[name='min_cost'],[name='max_cost'],[name='min_power'],[name='max_power'],[name='card_abilities'],[name='ability_text'],[name='filter_operator'],[name='search_term'],[name='release_meta_format']"
 FILTER_HX_ATTRS = {
     "hx_get": "/api/card-popularity",
     "hx_trigger": "change",
@@ -28,6 +28,19 @@ def create_filter_components(selected_meta_format: MetaFormat | None = None, cur
         name="meta_format",
         cls=SELECT_CLS + " styled-select",
         *[ft.Option(mf, value=mf, selected=mf == selected_meta_format) for mf in reversed(MetaFormat.to_list())],
+        **FILTER_HX_ATTRS
+    )
+
+    # Release meta format select
+    release_meta_format_select = ft.Select(
+        label="Release Meta Format",
+        id="release-meta-format-select",
+        name="release_meta_format",
+        cls=SELECT_CLS + " styled-select",
+        *[
+            ft.Option("Any", value="", selected=True),
+            *[ft.Option(mf, value=mf) for mf in reversed(MetaFormat.to_list())]
+        ],
         **FILTER_HX_ATTRS
     )
 
@@ -266,6 +279,7 @@ def create_filter_components(selected_meta_format: MetaFormat | None = None, cur
 
     return ft.Div(
         meta_format_select,
+        release_meta_format_select,
         card_colors_select,
         card_attributes_select,
         card_counter_select,
@@ -566,4 +580,4 @@ def card_popularity_page():
                 }, 2000);
             });
         """)
-    ) 
+    )
