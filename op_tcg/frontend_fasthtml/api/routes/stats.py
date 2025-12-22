@@ -1,7 +1,7 @@
 from fasthtml import ft
 from starlette.requests import Request
 from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict
-from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended
+from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended, get_tournament_decklist_data
 from op_tcg.frontend_fasthtml.api.models import LeaderDataParams
 
 def setup_api_routes(rt):
@@ -46,6 +46,19 @@ def setup_api_routes(rt):
         if leaders_with_elo:
             total_elo = int(sum(ld.elo for ld in leaders_with_elo) / len(leaders_with_elo))
 
+        # Calculate mean deck price
+        decklists = get_tournament_decklist_data(
+            meta_formats=params.meta_format,
+            leader_ids=[params.lid],
+            meta_format_region=params.region
+        )
+
+        mean_price_eur = None
+        if decklists:
+            prices_eur = [d.price_eur for d in decklists if hasattr(d, 'price_eur') and d.price_eur > 0]
+            if prices_eur:
+                mean_price_eur = sum(prices_eur) / len(prices_eur)
+
         return ft.Div(
             ft.P(f"Win Rate: {total_win_rate * 100:.1f}%" if total_win_rate is not None else "Win Rate: N/A", 
                  cls="text-green-400"),
@@ -54,5 +67,7 @@ def setup_api_routes(rt):
             ft.P(f"Tournament Wins: {total_tournament_wins}", cls="text-purple-400"),
             ft.P(f"ELO Rating: {total_elo}" if total_elo is not None else "ELO Rating: N/A", 
                  cls="text-yellow-400"),
+            ft.P(f"Avg Deck Price: €{mean_price_eur:.2f}" if mean_price_eur is not None else "Avg Deck Price: N/A",
+                 cls="text-red-400"),
             cls="space-y-2"
-        ) 
+        )
