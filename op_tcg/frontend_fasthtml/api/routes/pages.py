@@ -8,7 +8,8 @@ from op_tcg.frontend_fasthtml.utils.extract import (
     get_card_data, 
     get_leader_extended, 
     get_card_popularity_data, 
-    get_card_id_card_data_lookup
+    get_card_id_card_data_lookup,
+    get_leader_average_deck_prices
 )
 from op_tcg.frontend_fasthtml.pages.home import create_leaderboard_table
 from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended, get_leaders_with_decklist_data
@@ -118,6 +119,19 @@ def setup_api_routes(rt):
         leader_extended_data: list[LeaderExtended] = get_leader_extended(meta_format_region=get_query_params_as_dict(request).get("region"))
         filtered_leaders = get_filtered_leaders(request, leader_extended_data=leader_extended_data)
         
+        # Get leader prices
+        leader_prices = get_leader_average_deck_prices(
+            meta_format=sort_params.meta_format,
+            region=filter_params.region
+        )
+
+        # Filter by price
+        if filter_params.max_price < 300 or filter_params.min_price > 0:
+             filtered_leaders = [
+                l for l in filtered_leaders
+                if filter_params.min_price <= leader_prices.get(l.id, 0) <= (filter_params.max_price if filter_params.max_price < 300 else float('inf'))
+            ]
+
         display_name2df_col_name = {
             "Name": "name",
             "Set": "id",
@@ -131,6 +145,8 @@ def setup_api_routes(rt):
         # Sort leaders by the specified sort criteria
         if sort_params.sort_by == LeaderboardSortBy.TOURNAMENT_WINS:
             filtered_leaders.sort(key=lambda x: (x.tournament_wins > 0, x.tournament_wins, x.elo or 0), reverse=True)
+        elif sort_params.sort_by == LeaderboardSortBy.PRICE:
+            filtered_leaders.sort(key=lambda x: leader_prices.get(x.id, 0), reverse=True)
         else:
             # Handle None values in sorting by providing default values
             def get_sort_key(leader):
@@ -140,13 +156,14 @@ def setup_api_routes(rt):
                 return value if value is not None else 0
             
             filtered_leaders.sort(key=get_sort_key, reverse=True)
-        
+
         # Create the leaderboard table
         table_content = create_leaderboard_table(
             filtered_leaders,
             leader_extended_data,
             sort_params.meta_format,
-            region=filter_params.region
+            region=filter_params.region,
+            leader_prices=leader_prices
         )
         
         # Check if leaders exist but have no match data

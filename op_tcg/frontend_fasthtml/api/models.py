@@ -34,7 +34,9 @@ class LeaderboardFilter(BaseModel):
     only_official: bool = True
     min_matches: int = 0
     max_matches: int = 10000
-    
+    min_price: float = 0.0
+    max_price: float = 300.0
+
     @field_validator('meta_format', mode='before')
     def validate_meta_format(cls, value):
         if isinstance(value, list) and value:

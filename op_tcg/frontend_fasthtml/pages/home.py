@@ -8,7 +8,7 @@ from op_tcg.frontend_fasthtml.components.loading import create_loading_overlay, 
 
 
 # Common HTMX attributes for filter components
-HX_INCLUDE = "[name='meta_format'],[name='region'],[name='sort_by'],[name='release_meta_formats'],[name='min_matches'],[name='max_matches']"
+HX_INCLUDE = "[name='meta_format'],[name='region'],[name='sort_by'],[name='release_meta_formats'],[name='min_matches'],[name='max_matches'],[name='min_price'],[name='max_price']"
 FILTER_HX_ATTRS = {
     "hx_get": "/api/leaderboard",
     "hx_trigger": "change", 
@@ -106,13 +106,53 @@ def create_filter_components(max_match_count: int = 10000, selected_meta_format:
         ),
         cls="mb-6"
     )
-    
+
+    # Price range slider
+    price_slider = ft.Div(
+        ft.Label("Avg Deck Price (€)", cls="text-white font-medium block mb-2"),
+        ft.Div(
+            ft.Div(
+                ft.Div(cls="slider-track"),
+                ft.Input(
+                    type="range",
+                    min="0",
+                    max="300",
+                    value="0",
+                    name="min_price",
+                    cls="slider-range min-range",
+                    **FILTER_HX_ATTRS
+                ),
+                ft.Input(
+                    type="range",
+                    min="0",
+                    max="300",
+                    value="300",
+                    name="max_price",
+                    cls="slider-range max-range",
+                    **FILTER_HX_ATTRS
+                ),
+                ft.Div(
+                    ft.Span("0", cls="min-value text-white"),
+                    ft.Span(" - ", cls="text-white mx-2"),
+                    ft.Span("300", cls="max-value text-white"),
+                    cls="slider-values"
+                ),
+                cls="double-range-slider",
+                id="price-slider",
+                data_double_range_slider="true"
+            ),
+            cls="relative w-full"
+        ),
+        cls="mb-6"
+    )
+
     return ft.Div(
         meta_format_select,
         region_select,
         release_meta_formats_select,
         sort_by_select,
         match_count_slider,
+        price_slider,
         cls="space-y-4"
     )
 
@@ -162,7 +202,7 @@ def create_chart_data_for_leader(leader: LeaderExtended, all_leaders: list[Leade
     
     return chart_data
 
-def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders: list[LeaderExtended], meta_format: MetaFormat, region: MetaFormatRegion | None = None):
+def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders: list[LeaderExtended], meta_format: MetaFormat, region: MetaFormatRegion | None = None, leader_prices: dict[str, float] | None = None):
     # Filter leaders for the selected meta format
     relevant_meta_formats = MetaFormat.to_list()[:MetaFormat.to_list().index(meta_format) + 1]
     
@@ -198,6 +238,7 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
                 ),
                 cls="px-4 py-2 bg-gray-800 text-white font-semibold"
             ),
+            ft.Th("Avg Price", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
             ft.Th("Elo", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
             ft.Th("Performance", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
             cls=""
@@ -224,6 +265,10 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
         # Escape the JSON for safe HTML attribute usage
         chart_data_escaped = html.escape(chart_data_json)
         
+        # Get price
+        price = leader_prices.get(leader.id) if leader_prices else None
+        price_text = f"€{price:.2f}" if price is not None else "N/A"
+
         cells = [
             ft.Td(
                 ft.Div(
@@ -250,6 +295,7 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
             ft.Td(str(leader.total_matches) if leader.total_matches is not None else "N/A", cls="px-4 py-2 text-gray-200"),
             ft.Td(f"{leader.win_rate * 100:.2f}%" if leader.win_rate is not None else "N/A", cls="px-4 py-2 text-gray-200"),
             ft.Td(f"{int(leader.d_score * 100)}%" if leader.d_score is not None else "N/A", cls="px-4 py-2 text-gray-200"),
+            ft.Td(price_text, cls="px-4 py-2 text-gray-200"),
             ft.Td(str(leader.elo) if leader.elo is not None else "N/A", cls=f"px-4 py-2 {elo_color_class}"),
             ft.Td(
                 ft.Div(
@@ -375,4 +421,4 @@ def home_page():
         ),
         persist_script,
         cls="relative"  # Changed from min-h-screen to relative to work with layout
-    ) 
+    )
