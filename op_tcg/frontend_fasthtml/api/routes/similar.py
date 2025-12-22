@@ -101,7 +101,7 @@ def setup_api_routes(rt):
                             src=lid2data_dict[selected_most_similar_lid].aa_image_url,
                             cls="w-full rounded-lg shadow-lg"
                         ),
-                        href=f"/leader?lid={selected_most_similar_lid}",
+                        href=f"/leader?lid={selected_most_similar_lid}{''.join([f'&meta_format={mf}' for mf in params.meta_format])}{f'&region={params.region}' if params.region else ''}",
                         cls="block"
                     ),
                     cls="w-full md:w-1/2"

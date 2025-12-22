@@ -86,7 +86,7 @@ def setup_api_routes(rt):
                     src=leader_data.aa_image_url,
                     cls="w-full rounded-lg shadow-lg mb-2"
                 ),
-                href=f"/leader?lid={leader_id}",
+                href=f"/leader?lid={leader_id}{''.join([f'&meta_format={mf}' for mf in params.meta_format])}{f'&region={params.region}' if params.region else ''}",
                 hx_include=params.hx_include if hasattr(params, 'hx_include') else None,
             ),
             # Win rate chart
