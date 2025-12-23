@@ -56,3 +56,4 @@ class LeaderboardSortBy(EnumBase, StrEnum):
     WIN_RATE = "Win Rate"
     MATCH_COUNT = "Match Count"
     ELO = "Elo"
+    PRICE = "Price"

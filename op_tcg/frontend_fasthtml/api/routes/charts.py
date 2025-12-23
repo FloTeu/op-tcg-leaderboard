@@ -352,7 +352,8 @@ def setup_api_routes(rt):
         card_id = request.query_params.get("card_id")
         days = request.query_params.get("days", "90")
         include_alt_art = request.query_params.get("include_alt_art", "false").lower() == "true"
-        
+        aa_version_param = request.query_params.get("aa_version")
+
         if not card_id:
             return ft.Div("No card ID provided", cls="text-red-400")
             
@@ -362,8 +363,18 @@ def setup_api_routes(rt):
         except (ValueError, TypeError):
             days = 90
             
+        aa_version = None
+        if aa_version_param is not None:
+            try:
+                aa_version = int(aa_version_param)
+            except (ValueError, TypeError):
+                pass
+
         try:
             # Get card data for name
+            # If aa_version is provided, we should try to get the specific version's data
+            # But get_card_id_card_data_lookup defaults to aa_version=0
+            # For name lookup, the base card is usually sufficient
             card_data_lookup = get_card_id_card_data_lookup()
             card_data = card_data_lookup.get(card_id)
             card_name = card_data.name if card_data else "Unknown Card"
@@ -372,7 +383,8 @@ def setup_api_routes(rt):
             price_data = get_card_price_development_data(
                 card_id=card_id,
                 days=days,
-                include_alt_art=include_alt_art
+                include_alt_art=include_alt_art,
+                aa_version=aa_version
             )
             
             # Check if we have any price data

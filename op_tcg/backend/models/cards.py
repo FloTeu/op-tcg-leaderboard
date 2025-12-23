@@ -59,7 +59,7 @@ class OPTcgCardCatagory(EnumBase, StrEnum):
     EVENT="Event"
     STAGE="Stage"
 
-class OPTcgCardRarity(StrEnum):
+class OPTcgCardRarity(EnumBase, StrEnum):
     COMMON="Common"
     UNCOMMON="Uncommon"
     RARE="Rare"

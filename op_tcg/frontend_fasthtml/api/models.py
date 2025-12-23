@@ -2,7 +2,7 @@ from pydantic import BaseModel, field_validator
 from typing import List, Optional, Any
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderboardSortBy
-from op_tcg.backend.models.cards import OPTcgColor, OPTcgCardCatagory, OPTcgAbility, CardCurrency, OPTcgAttribute
+from op_tcg.backend.models.cards import OPTcgColor, OPTcgCardCatagory, OPTcgAbility, CardCurrency, OPTcgAttribute, OPTcgCardRarity
 
 
 class MetaFormatParams(BaseModel):
@@ -34,7 +34,9 @@ class LeaderboardFilter(BaseModel):
     only_official: bool = True
     min_matches: int = 0
     max_matches: int = 10000
-    
+    min_price: float = 0.0
+    max_price: float = 300.0
+
     @field_validator('meta_format', mode='before')
     def validate_meta_format(cls, value):
         if isinstance(value, list) and value:
@@ -217,10 +219,12 @@ class CardPopularityParams(BaseModel):
     min_power: int = 0
     max_power: int = 15
     card_abilities: Optional[List[OPTcgAbility]] = None
+    card_rarity: Optional[List[OPTcgCardRarity]] = None
     ability_text: Optional[str] = None
     filter_operator: str = "OR"
     page: int = 1
     search_term: Optional[str] = None
+    release_meta_format: Optional[MetaFormat] = None
 
     @field_validator('search_term', mode='before')
     def validate_search_term(cls, value):
@@ -253,7 +257,7 @@ class CardPopularityParams(BaseModel):
         return [OPTcgAttribute(value) if isinstance(value, str) else value]
 
     @field_validator('card_counter', mode='before')
-    def validate_card_counter(cls, value):
+    def validate_optional_int_lists(cls, value):
         if value is None or value == "" or value == "Any":
             return None
         if isinstance(value, list) and value:
@@ -272,6 +276,12 @@ class CardPopularityParams(BaseModel):
         if isinstance(value, list):
             return [OPTcgCardCatagory(item) if isinstance(item, str) else item for item in value]
         return [OPTcgCardCatagory(value) if isinstance(value, str) else value]
+
+    @field_validator('release_meta_format', mode='before')
+    def validate_release_meta_format(cls, value):
+        if value is None or value == "" or value == "Any":
+            return None
+        return value
 
     @field_validator('currency', mode='before')
     def validate_currency(cls, value):
@@ -310,6 +320,14 @@ class CardPopularityParams(BaseModel):
         if isinstance(value, list):
             return [OPTcgAbility(item) if isinstance(item, str) else item for item in value]
         return [OPTcgAbility(value) if isinstance(value, str) else value]
+
+    @field_validator('card_rarity', mode='before')
+    def validate_card_rarity(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, list):
+            return [OPTcgCardRarity(item) if isinstance(item, str) else item for item in value]
+        return [OPTcgCardRarity(value) if isinstance(value, str) else value]
 
     @field_validator('ability_text', mode='before')
     def validate_ability_text(cls, value):

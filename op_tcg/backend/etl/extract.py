@@ -69,7 +69,7 @@ def limitless_soup2base_card(card_id: str, language: OPTcgLanguage, soup: Beauti
     tournament_status = OPTcgTournamentStatus(
         soup.find("div", {'class': 'card-legality-badge'}).findAll("div")[1].text.strip())
     release_set_details = soup.find("div", {'class': 'card-prints-current'})
-    if card_id[0] == "P":
+    if card_id.startswith("P-") :
         rarity = OPTcgCardRarity.PROMO
     else:
         rarity = OPTcgCardRarity(release_set_details.findAll("span")[1].text.strip())

@@ -1,9 +1,11 @@
 from datetime import date, datetime
 from collections import Counter
+from enum import StrEnum
 from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
+from op_tcg.backend.models.base import EnumBase
 from op_tcg.backend.models.cards import LatestCardPrice, ExtendedCardData, CardCurrency
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.tournaments import TournamentDecklist
@@ -207,4 +209,9 @@ def decklist_data_to_fictive_decklist(decklist_data: DecklistData, leader_id: st
             decklist[card_id] = count_to_add
             total_cards += count_to_add
     
-    return decklist 
+    return decklist
+
+
+class DecklistViewMode(EnumBase, StrEnum):
+    GRID = "grid"
+    LIST = "list"

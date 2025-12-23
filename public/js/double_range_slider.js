@@ -32,10 +32,6 @@ class DoubleRangeSlider {
         // Update track position using CSS variables
         this.sliderTrack.style.setProperty('--left-percent', `${percentage(min)}%`);
         this.sliderTrack.style.setProperty('--right-percent', `${100 - percentage(max)}%`);
-
-        // Trigger a change event for HTMX
-        this.minRange.dispatchEvent(new Event('change', { bubbles: true }));
-        this.maxRange.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
     init() {

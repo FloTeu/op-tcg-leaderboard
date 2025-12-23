@@ -368,6 +368,19 @@ window.updatePrice = function(activeItem) {
                 `$${price}`;
         }
     }
+
+    // Update marketplace link
+    const marketplaceLink = document.getElementById('marketplace-link');
+    if (marketplaceLink) {
+        const marketplaceUrl = activeItem.getAttribute('data-marketplace-url');
+        const marketplaceText = activeItem.getAttribute('data-marketplace-text');
+        if (marketplaceUrl) {
+            marketplaceLink.href = marketplaceUrl;
+        }
+        if (marketplaceText) {
+            marketplaceLink.textContent = marketplaceText;
+        }
+    }
 }
 
 // Show specific carousel item
@@ -381,6 +394,45 @@ window.showCarouselItem = function(element, index) {
 
     // Update price for the active item
     window.updatePrice(items[index]);
+
+    // Update price chart for the active item
+    const cardId = items[index].getAttribute('data-card-id');
+    const aaVersion = items[index].getAttribute('data-aa-version');
+
+    if (cardId) {
+        const modalBackdrop = container.closest('.modal-backdrop');
+        if (modalBackdrop) {
+            const priceChartContainer = modalBackdrop.querySelector('[id^="price-chart-container-"]');
+            const priceChartLoading = modalBackdrop.querySelector('[id^="price-chart-loading-"]');
+            const pricePeriodSelector = modalBackdrop.querySelector('[id^="price-period-selector-"]');
+
+            if (priceChartContainer && priceChartLoading && pricePeriodSelector) {
+                // Update IDs to match new card ID
+                priceChartContainer.id = `price-chart-container-${cardId}`;
+                priceChartLoading.id = `price-chart-loading-${cardId}`;
+                pricePeriodSelector.id = `price-period-selector-${cardId}`;
+
+                // Update hx-vals in selector
+                const days = pricePeriodSelector.value;
+                const aaVersionParam = aaVersion !== null ? `, "aa_version": "${aaVersion}"` : '';
+                pricePeriodSelector.setAttribute('hx-vals', `js:{"card_id": "${cardId}", "days": document.getElementById("price-period-selector-${cardId}").value, "include_alt_art": "false"${aaVersionParam}}`);
+                pricePeriodSelector.setAttribute('hx-target', `#price-chart-container-${cardId}`);
+                pricePeriodSelector.setAttribute('hx-indicator', `#price-chart-loading-${cardId}`);
+                pricePeriodSelector.setAttribute('hx-on::before-request', `document.getElementById('price-chart-container-${cardId}').innerHTML = ''; document.getElementById('price-chart-loading-${cardId}').style.display = 'flex';`);
+
+                // Trigger HTMX request to update chart
+                let url = `/api/card-price-development-chart?card_id=${cardId}&days=${days}`;
+                if (aaVersion !== null) {
+                    url += `&aa_version=${aaVersion}`;
+                }
+
+                htmx.ajax('GET', url, {
+                    target: `#price-chart-container-${cardId}`,
+                    indicator: `#price-chart-loading-${cardId}`
+                });
+            }
+        }
+    }
 
     if (dots.length > 0) {
         dots.forEach((dot, i) => {

@@ -1,6 +1,6 @@
 import logging
 import os
-from collections import Counter
+from collections import Counter, defaultdict
 
 from cachetools import TTLCache, cached
 
@@ -290,7 +290,7 @@ def get_top_current_prices(
     return run_bq_query(query, ttl_hours=24.0)
 
 
-def get_card_price_development_data(card_id: str, days: int = 90, include_alt_art: bool = False) -> dict[str, list[dict]]:
+def get_card_price_development_data(card_id: str, days: int = 90, include_alt_art: bool = False, aa_version: int | None = None) -> dict[str, list[dict]]:
     """
     Get historical price development data for a specific card in both EUR and USD.
     
@@ -298,13 +298,18 @@ def get_card_price_development_data(card_id: str, days: int = 90, include_alt_ar
         card_id: The card ID to get price history for
         days: Number of days to look back (default: 90)
         include_alt_art: Whether to include alt art versions
-        
+        aa_version: Specific alt art version to filter by (optional)
+
     Returns:
         Dictionary with 'eur' and 'usd' keys containing lists of price data points
     """
     history_tbl = get_bq_table_id(CardPrice).replace(":", ".")
-    aa_filter = "" if include_alt_art else "AND aa_version = 0"
-    
+
+    if aa_version is not None:
+        aa_filter = f"AND aa_version = {aa_version}"
+    else:
+        aa_filter = "" if include_alt_art else "AND aa_version = 0"
+
     query = f"""
     WITH price_history AS (
       SELECT 
@@ -354,3 +359,13 @@ def get_card_price_development_data(card_id: str, days: int = 90, include_alt_ar
         })
     
     return result
+
+def get_leader_average_deck_prices(meta_format: MetaFormat, region: MetaFormatRegion) -> dict[str, float]:
+    """Calculate average deck price in EUR for each leader in the given meta format and region."""
+    decklists = get_tournament_decklist_data(meta_formats=[meta_format], meta_format_region=region)
+    leader_prices = defaultdict(list)
+    for d in decklists:
+        if hasattr(d, 'price_eur') and d.price_eur and d.price_eur > 0:
+            leader_prices[d.leader_id].append(d.price_eur)
+
+    return {lid: sum(prices)/len(prices) for lid, prices in leader_prices.items()}
