@@ -59,6 +59,10 @@ def filter_cards(cards_data: list, params: CardPopularityParams) -> list:
         if params.card_category and card.card_category not in params.card_category:
             continue
             
+        # Filter by card rarity
+        if params.card_rarity and card.rarity not in params.card_rarity:
+            continue
+
         # Filter by counter
         if params.card_counter == 0 and card.counter not in [None, 0]:
             continue
