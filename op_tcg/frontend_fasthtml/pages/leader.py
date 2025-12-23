@@ -11,8 +11,7 @@ FILTER_HX_ATTRS = {
     "hx_get": "/api/leader-data",
     "hx_trigger": "change", 
     "hx_target": "#leader-content",
-    "hx_include": HX_INCLUDE,
-    "hx_indicator": "#loading-indicator"
+    "hx_include": HX_INCLUDE
     # Note: URL updates are handled by JavaScript to maintain /leader path
 }
 
@@ -125,6 +124,7 @@ def create_filter_components(selected_meta_formats=None, selected_leader_id=None
                 // Small delay to ensure the select element is fully ready
                 setTimeout(function() {
                     const leaderSelect = document.querySelector('[name="lid"]');
+                    
                     if (leaderSelect && leaderSelect.value) {
                         updateLeaderURL();
                         htmx.trigger('#content-trigger', 'change');
@@ -153,10 +153,6 @@ def create_filter_components(selected_meta_formats=None, selected_leader_id=None
         document.addEventListener('DOMContentLoaded', function() {
             // Small delay to ensure all elements are ready
             setTimeout(function() {
-                const leaderSelect = document.querySelector('[name="lid"]');
-                if (leaderSelect && leaderSelect.value) {
-                    htmx.trigger('#content-trigger', 'change');
-                }
                 // Update URL on initial load
                 updateLeaderURL();
             }, 100);
@@ -524,7 +520,8 @@ def create_leader_content(leader_id: str, leader_name: str, aa_image_url: str, t
             create_tab_view(has_match_data),
             cls="px-4 md:px-0 mt-4"
         ),
-        id="leader-content-inner"
+        id="leader-content-inner",
+        data_leader_id=leader_id
     )
 
 def leader_page(leader_id: str | None = None, filtered_leader_data: LeaderExtended | None = None, selected_meta_format: list | None = None):
@@ -536,7 +533,7 @@ def leader_page(leader_id: str | None = None, filtered_leader_data: LeaderExtend
         filtered_leader_data: Optional pre-filtered leader data
         selected_meta_format: Optional list of meta formats to select
     """
-    
+
     # If we already have leader data, use it
     if filtered_leader_data:
         leader_data = filtered_leader_data
@@ -544,10 +541,9 @@ def leader_page(leader_id: str | None = None, filtered_leader_data: LeaderExtend
         # Set up attributes for HTMX request
         htmx_attrs = {
             "hx_get": "/api/leader-data",
-            "hx_trigger": "load",
             "hx_include": HX_INCLUDE,
             "hx_target": "#leader-content-inner",
-            "hx_swap": "innerHTML"
+            "hx_swap": "outerHTML"
             # Note: URL updates are handled by JavaScript to maintain /leader path
         }
         
@@ -558,12 +554,6 @@ def leader_page(leader_id: str | None = None, filtered_leader_data: LeaderExtend
         
         # Otherwise, create a container that will be populated via HTMX
         return ft.Div(
-            # Loading indicator
-            create_loading_spinner(
-                id="loading-indicator",
-                size="w-8 h-8",
-                container_classes="min-h-[100px]"
-            ),
             # Empty container for leader content that will be loaded via HTMX
             ft.Div(
                 **htmx_attrs,
@@ -594,14 +584,8 @@ def leader_page(leader_id: str | None = None, filtered_leader_data: LeaderExtend
     
     # Return the complete leader page
     return ft.Div(
-        # Loading indicator
-        create_loading_spinner(
-            id="loading-indicator",
-            size="w-8 h-8",
-            container_classes="min-h-[100px]"
-        ),
         # Leader content
         leader_content,
         cls="min-h-screen p-8",
         id="leader-content"
-    ) 
+    )
