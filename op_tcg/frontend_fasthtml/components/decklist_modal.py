@@ -1,12 +1,132 @@
 from fasthtml import ft
 from op_tcg.backend.etl.extract import get_card_image_url
-from op_tcg.backend.models.cards import ExtendedCardData, OPTcgLanguage, CardCurrency
+from op_tcg.backend.models.cards import ExtendedCardData, OPTcgLanguage, CardCurrency, OPTcgCardCatagory
+from op_tcg.frontend_fasthtml.utils.decklist import DecklistViewMode
 from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
 from op_tcg.frontend_fasthtml.components.decklist_export import create_decklist_export_component
 
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
-def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str, ExtendedCardData], leader_id: str = None, currency: str = CardCurrency.EURO):
+def display_decklist_list_view(decklist: dict[str, int], card_id2card_data: dict[str, ExtendedCardData], leader_id: str = None, currency: str = CardCurrency.EURO, unique_id: str = "default"):
+    """Display a list view of the decklist with categories and preview image."""
+    # Group cards
+    categories = {
+        OPTcgCardCatagory.LEADER: [],
+        OPTcgCardCatagory.CHARACTER: [],
+        OPTcgCardCatagory.EVENT: [],
+        OPTcgCardCatagory.STAGE: []
+    }
+
+    # Helper to get card data safely
+    def get_card_info(card_id):
+        if card_id in card_id2card_data:
+            return card_id2card_data[card_id]
+        return None
+
+    # Sort cards into categories
+    for card_id, count in decklist.items():
+        card_data = get_card_info(card_id)
+        category = card_data.card_category if card_data else OPTcgCardCatagory.CHARACTER
+        # Fallback if category is not in our keys
+        if category not in categories:
+            category = OPTcgCardCatagory.CHARACTER
+        categories[category].append((card_id, count, card_data))
+
+    # Sort cards within categories (by cost, then name)
+    for cat in categories:
+        categories[cat].sort(key=lambda x: (x[2].cost if x[2] and x[2].cost is not None else 99, x[0]))
+
+    def create_category_section(cat):
+        cards = categories[cat]
+        if not cards:
+            return None
+
+        card_rows = []
+        total_count = sum(c[1] for c in cards)
+
+        for card_id, count, card_data in cards:
+            img_url = card_data.image_url if card_data else get_card_image_url(card_id, OPTcgLanguage.JP)
+            name = card_data.name if card_data else card_id
+
+            # Price
+            price_info = ""
+            price_value = 0
+            if card_data:
+                if currency == CardCurrency.EURO and card_data.latest_eur_price:
+                    price_value = card_data.latest_eur_price
+                    price_info = f"{card_data.latest_eur_price:.2f}€"
+                elif currency == CardCurrency.US_DOLLAR and card_data.latest_usd_price:
+                    price_value = card_data.latest_usd_price
+                    price_info = f"${card_data.latest_usd_price:.2f}"
+
+            is_expensive = price_value > 5.0
+            price_classes = "text-gray-400 text-xs ml-auto"
+            if is_expensive:
+                price_classes = "text-red-300 text-xs font-bold ml-auto"
+
+            card_rows.append(
+                ft.Div(
+                    ft.Div(
+                        ft.Span(str(count), cls="w-6 text-center font-bold text-gray-300 flex-shrink-0"),
+                        ft.Span(f"{name} ({card_id})", cls="ml-2 text-blue-400 hover:text-blue-300 truncate"),
+                        cls="flex items-center flex-1 cursor-pointer min-w-0",
+                        hx_get=f"/api/card-modal?card_id={card_id}&meta_format=latest",
+                        hx_target="body",
+                        hx_swap="beforeend"
+                    ),
+                    ft.A(
+                        price_info,
+                        href="#",
+                        cls=price_classes + " flex-shrink-0 ml-2"
+                    ) if price_info else "",
+                    cls="flex items-center p-1 hover:bg-gray-700 rounded transition-colors group",
+                    onmouseenter=f"document.getElementById('decklist-preview-image').src='{img_url}'"
+                )
+            )
+
+        return ft.Div(
+            ft.H4(f"{cat.value} ({total_count})", cls="text-gray-400 font-bold border-b border-gray-600 mb-2 pb-1"),
+            ft.Div(*card_rows, cls="space-y-1"),
+            cls="mb-4 break-inside-avoid"
+        )
+
+    # Create columns content
+    left_cats = [OPTcgCardCatagory.LEADER, OPTcgCardCatagory.EVENT, OPTcgCardCatagory.STAGE]
+    right_cats = [OPTcgCardCatagory.CHARACTER]
+
+    left_column_content = [c for c in [create_category_section(cat) for cat in left_cats] if c]
+    right_column_content = [c for c in [create_category_section(cat) for cat in right_cats] if c]
+
+    # Default preview image
+    preview_img_url = ""
+    if leader_id:
+        preview_img_url = card_id2card_data[leader_id].image_url if leader_id in card_id2card_data else get_card_image_url(leader_id, OPTcgLanguage.EN)
+    else:
+        first_card = list(decklist.keys())[0]
+        preview_img_url = card_id2card_data[first_card].image_url if first_card in card_id2card_data else get_card_image_url(first_card, OPTcgLanguage.JP)
+
+    return ft.Div(
+        ft.Div(
+            ft.Div(*left_column_content, cls="flex flex-col min-w-0"),
+            ft.Div(*right_column_content, cls="flex flex-col min-w-0"),
+            cls="flex-1 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 items-start"
+        ),
+        ft.Div(
+            ft.Img(
+                src=preview_img_url,
+                id="decklist-preview-image",
+                cls="w-full rounded-lg shadow-lg transition-all duration-300"
+            ),
+            ft.Div(
+                create_decklist_export_component(decklist, leader_id, unique_id),
+                cls="mt-6"
+            ),
+            cls="hidden lg:block w-64 flex-shrink-0 ml-4 sticky top-4 h-fit"
+        ),
+        cls="flex flex-col lg:flex-row"
+    )
+
+def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str, ExtendedCardData], leader_id: str = None, currency: str = CardCurrency.EURO, view_mode: str = DecklistViewMode.GRID, unique_id: str = "default"):
     """
     Display a visual representation of a decklist for the modal (without header).
     
@@ -15,10 +135,15 @@ def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str
         card_id2card_data: Mapping of card IDs to card data
         leader_id: Leader card ID to exclude from the display
         currency: Currency to display prices in ("eur" or "usd")
-    
+        view_mode: "grid" or "list"
+        unique_id: Unique identifier for the component elements
+
     Returns:
         A Div containing the decklist cards without header
     """
+    if view_mode == DecklistViewMode.LIST:
+        return display_decklist_list_view(decklist, card_id2card_data, leader_id, currency, unique_id)
+
     # Filter out leader card if specified
     filtered_decklist = {k: v for k, v in decklist.items() if k != leader_id} if leader_id else decklist
     
@@ -95,7 +220,8 @@ def create_decklist_modal(
     selected_player_id: str | None = None,
     selected_currency: str = CardCurrency.EURO,
     days: str | None = None,
-    placing: str | None = None
+    placing: str | None = None,
+    view_mode: str = DecklistViewMode.LIST
 ) -> ft.Div:
     """Create a modal dialog for displaying tournament decklists.
     
@@ -157,6 +283,25 @@ def create_decklist_modal(
         if placing is not None:
             hidden_inputs.append(ft.Input(type="hidden", name="placing", value=placing))
         
+        # Add hidden input for view_mode with HTMX trigger
+        hidden_inputs.append(
+            ft.Input(
+                type="hidden",
+                name="view_mode",
+                id="view-mode-input",
+                value=view_mode,
+                hx_get="/api/decklist/tournament-decklist-modal",
+                hx_target="#selected-tournament-decklist-content-modal",
+                hx_include="#tournament-decklist-select-modal, #currency-select-modal, [name='lid'], [name='meta_format'], [name='days'], [name='placing']",
+                hx_trigger="change",
+                hx_vals='''js:{
+                    "tournament_id": document.getElementById("tournament-decklist-select-modal").value.split(":")[0],
+                    "player_id": document.getElementById("tournament-decklist-select-modal").value.split(":")[1]
+                }''',
+                hx_indicator="#tournament-decklist-loading"
+            )
+        )
+
         tournament_decklist_select_component = ft.Div(
             *hidden_inputs,
             ft.Div(
@@ -174,7 +319,7 @@ def create_decklist_modal(
                         cls=SELECT_CLS + " styled-select mb-4",
                         hx_get="/api/decklist/tournament-decklist-modal",
                         hx_target="#selected-tournament-decklist-content-modal",
-                        hx_include="[name='lid'], [name='meta_format'], [name='days'], [name='placing'], #currency-select-modal",
+                        hx_include="[name='lid'], [name='meta_format'], [name='days'], [name='placing'], #currency-select-modal, #view-mode-input",
                         hx_trigger="change",
                         hx_swap="innerHTML",
                         hx_vals='''js:{
@@ -196,7 +341,7 @@ def create_decklist_modal(
                         cls=SELECT_CLS + " styled-select mb-4",
                         hx_get="/api/decklist/tournament-decklist-modal",
                         hx_target="#selected-tournament-decklist-content-modal",
-                        hx_include="#tournament-decklist-select-modal, [name='lid'], [name='meta_format'], [name='days'], [name='placing']",
+                        hx_include="#tournament-decklist-select-modal, [name='lid'], [name='meta_format'], [name='days'], [name='placing'], #view-mode-input",
                         hx_trigger="change",
                         hx_swap="innerHTML",
                         hx_vals='''js:{
@@ -207,6 +352,23 @@ def create_decklist_modal(
                         onchange='(function(){try{const p=new URLSearchParams(window.location.search);const v=document.getElementById("tournament-decklist-select-modal").value.split(":");p.set("tournament_id",v[0]);p.set("player_id",v[1]);const c=document.getElementById("currency-select-modal");if(c&&c.value){p.set("currency",c.value)}p.set("modal","decklist");const u=window.location.pathname+"?"+p.toString();window.history.replaceState({},"",u);}catch(e){}})()'
                     ),
                     cls="flex-none w-full sm:w-40 sm:ml-4 mt-0"
+                ),
+                ft.Div(
+                    ft.Label("View:", cls="text-white font-medium block mb-3"),
+                    ft.Div(
+                        ft.Button(
+                            "Grid",
+                            cls=f"px-3 py-2 rounded-l-lg border border-gray-600 {'bg-blue-600 text-white' if view_mode == DecklistViewMode.GRID else 'bg-gray-800 text-gray-400 hover:bg-gray-700'}",
+                            onclick=f"document.getElementById('view-mode-input').value='{DecklistViewMode.GRID}'; htmx.trigger('#view-mode-input', 'change'); this.className='px-3 py-2 rounded-l-lg border border-gray-600 bg-blue-600 text-white'; this.nextElementSibling.className='px-3 py-2 rounded-r-lg border border-gray-600 border-l-0 bg-gray-800 text-gray-400 hover:bg-gray-700';",
+                        ),
+                        ft.Button(
+                            "List",
+                            cls=f"px-3 py-2 rounded-r-lg border border-gray-600 border-l-0 {'bg-blue-600 text-white' if view_mode == DecklistViewMode.LIST else 'bg-gray-800 text-gray-400 hover:bg-gray-700'}",
+                            onclick=f"document.getElementById('view-mode-input').value='{DecklistViewMode.LIST}'; htmx.trigger('#view-mode-input', 'change'); this.className='px-3 py-2 rounded-r-lg border border-gray-600 border-l-0 bg-blue-600 text-white'; this.previousElementSibling.className='px-3 py-2 rounded-l-lg border border-gray-600 bg-gray-800 text-gray-400 hover:bg-gray-700';",
+                        ),
+                        cls="flex mb-4"
+                    ),
+                    cls="flex-none ml-4"
                 ),
                 cls="flex flex-col sm:flex-row sm:items-end gap-4"
             ),
@@ -259,10 +421,15 @@ def create_decklist_modal(
     initial_decklist_content = ft.Div()
     
     if selected_td and selected_td.decklist:
-        initial_decklist_content = ft.Div(
-            display_decklist_modal(selected_td.decklist, card_id2card_data, leader_id, selected_currency or CardCurrency.EURO),
-            create_decklist_export_component(selected_td.decklist, leader_id, "initial")
-        )
+        decklist_display = display_decklist_modal(selected_td.decklist, card_id2card_data, leader_id, selected_currency or CardCurrency.EURO, view_mode=view_mode, unique_id="initial")
+
+        if view_mode == DecklistViewMode.LIST:
+            initial_decklist_content = decklist_display
+        else:
+            initial_decklist_content = ft.Div(
+                decklist_display,
+                create_decklist_export_component(selected_td.decklist, leader_id, "initial")
+            )
     else:
         initial_decklist_content = ft.Div(
             ft.P("Select a tournament decklist from the dropdown above to view details.", cls="text-gray-400 text-center p-8"),

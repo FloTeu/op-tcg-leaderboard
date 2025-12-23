@@ -11,6 +11,7 @@ from op_tcg.frontend_fasthtml.utils.extract import (
 from op_tcg.frontend_fasthtml.components.decklist import create_decklist_section
 from op_tcg.frontend_fasthtml.api.models import LeaderDataParams
 from op_tcg.backend.models.input import MetaFormatRegion
+from op_tcg.frontend_fasthtml.utils.decklist import DecklistViewMode
 from op_tcg.frontend_fasthtml.components.decklist_modal import create_decklist_modal, display_decklist_modal
 from op_tcg.frontend_fasthtml.components.decklist_export import create_decklist_export_component
 
@@ -128,7 +129,8 @@ def setup_api_routes(rt):
         tournament_id = params_dict.get("tournament_id")
         player_id = params_dict.get("player_id")
         currency = params_dict.get("currency", CardCurrency.EURO)  # Default to EUR
-        
+        view_mode = params_dict.get("view_mode", DecklistViewMode.GRID)
+
         if not tournament_id or not player_id:
             return ft.P("Invalid tournament or player ID", cls="text-red-400")
         
@@ -156,7 +158,12 @@ def setup_api_routes(rt):
         unique_id = f"{tournament_id}-{player_id}".replace(":", "-").replace("/", "-")[:20]
         
         # Return the decklist display with export functionality
-        return ft.Div(
-            display_decklist_modal(selected_decklist, card_id2card_data, params.lid, currency),
-            create_decklist_export_component(selected_decklist, params.lid, unique_id),
-        ) 
+        decklist_display = display_decklist_modal(selected_decklist, card_id2card_data, params.lid, currency, view_mode=view_mode, unique_id=unique_id)
+
+        if view_mode == DecklistViewMode.LIST:
+            return decklist_display
+        else:
+            return ft.Div(
+                decklist_display,
+                create_decklist_export_component(selected_decklist, params.lid, unique_id),
+            )
