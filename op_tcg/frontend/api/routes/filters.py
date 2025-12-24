@@ -2,10 +2,10 @@ from fasthtml import ft
 from starlette.requests import Request
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import LeaderExtended
-from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict
-from op_tcg.frontend_fasthtml.components.filters import create_leader_select_component, create_leader_multiselect_component, create_card_subtype_select_component
-from op_tcg.frontend_fasthtml.api.models import LeaderDataParams, MatchupParams
-from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended
+from op_tcg.frontend.utils.api import get_query_params_as_dict
+from op_tcg.frontend.components.filters import create_leader_select_component, create_leader_multiselect_component, create_card_subtype_select_component
+from op_tcg.frontend.api.models import LeaderDataParams, MatchupParams
+from op_tcg.frontend.utils.extract import get_leader_extended
 
 
 def setup_api_routes(rt):

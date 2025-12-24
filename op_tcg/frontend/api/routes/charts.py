@@ -4,16 +4,16 @@ from fasthtml import ft
 from starlette.requests import Request
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.cards import OPTcgCardCatagory
-from op_tcg.frontend_fasthtml.utils.colors import ChartColors
-from op_tcg.frontend_fasthtml.utils.extract import (
+from op_tcg.frontend.utils.colors import ChartColors
+from op_tcg.frontend.utils.extract import (
     get_leader_extended, 
     get_card_id_card_data_lookup,
     get_tournament_decklist_data,
     get_card_price_development_data
 )
-from op_tcg.frontend_fasthtml.utils.charts import create_line_chart, create_leader_win_rate_radar_chart, create_card_occurrence_streaming_chart, create_price_development_chart
-from op_tcg.frontend_fasthtml.utils.win_rate import get_radar_chart_data
-from op_tcg.frontend_fasthtml.utils.leader_data import lid_to_name_and_lid
+from op_tcg.frontend.utils.charts import create_line_chart, create_leader_win_rate_radar_chart, create_card_occurrence_streaming_chart, create_price_development_chart
+from op_tcg.frontend.utils.win_rate import get_radar_chart_data
+from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid
 
 
 

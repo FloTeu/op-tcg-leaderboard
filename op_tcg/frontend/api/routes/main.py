@@ -1,5 +1,5 @@
 # Import route setups from other modules
-from op_tcg.frontend_fasthtml.api.routes import (
+from op_tcg.frontend.api.routes import (
     tournaments,
     decklists,
     filters,

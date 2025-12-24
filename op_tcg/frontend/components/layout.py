@@ -1,5 +1,5 @@
 from fasthtml import ft
-from op_tcg.frontend_fasthtml.components.sidebar import sidebar
+from op_tcg.frontend.components.sidebar import sidebar
 
 def layout(content, filter_component=None, current_path="/", persist_query=None):
     """

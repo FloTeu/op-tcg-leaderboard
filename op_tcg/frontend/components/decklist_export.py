@@ -1,5 +1,5 @@
 from fasthtml import ft
-from op_tcg.frontend_fasthtml.utils.decklist import decklist_to_export_str, ensure_leader_id
+from op_tcg.frontend.utils.decklist import decklist_to_export_str, ensure_leader_id
 
 def create_decklist_export_component(decklist: dict[str, int], leader_id: str, unique_id: str = "default"):
     """

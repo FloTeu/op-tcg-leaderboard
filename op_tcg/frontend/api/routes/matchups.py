@@ -1,17 +1,17 @@
 from fasthtml import ft
 from starlette.requests import Request
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict
-from op_tcg.frontend_fasthtml.utils.leader_matchups import get_best_worst_matchups, get_opponent_win_rate_chart
-from op_tcg.frontend_fasthtml.components.matchup import create_matchup_analysis
-from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended, get_leader_win_rate
-from op_tcg.frontend_fasthtml.utils.charts import create_line_chart, create_bar_chart, create_leader_win_rate_radar_chart
-from op_tcg.frontend_fasthtml.utils.colors import ChartColors
-from op_tcg.frontend_fasthtml.pages.leader import HX_INCLUDE
-from op_tcg.frontend_fasthtml.pages.matchups import create_filter_components, create_matchup_content
-from op_tcg.frontend_fasthtml.api.models import LeaderDataParams, MatchupParams
-from op_tcg.frontend_fasthtml.utils.win_rate import get_radar_chart_data
-from op_tcg.frontend_fasthtml.utils.table import create_leader_image_cell, create_win_rate_cell
+from op_tcg.frontend.utils.api import get_query_params_as_dict
+from op_tcg.frontend.utils.leader_matchups import get_best_worst_matchups, get_opponent_win_rate_chart
+from op_tcg.frontend.components.matchup import create_matchup_analysis
+from op_tcg.frontend.utils.extract import get_leader_extended, get_leader_win_rate
+from op_tcg.frontend.utils.charts import create_line_chart, create_bar_chart, create_leader_win_rate_radar_chart
+from op_tcg.frontend.utils.colors import ChartColors
+from op_tcg.frontend.pages.leader import HX_INCLUDE
+from op_tcg.frontend.pages.matchups import create_filter_components, create_matchup_content
+from op_tcg.frontend.api.models import LeaderDataParams, MatchupParams
+from op_tcg.frontend.utils.win_rate import get_radar_chart_data
+from op_tcg.frontend.utils.table import create_leader_image_cell, create_win_rate_cell
 from typing import Dict, List, Tuple, Set
 
 def setup_api_routes(rt):

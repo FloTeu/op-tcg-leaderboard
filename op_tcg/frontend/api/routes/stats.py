@@ -1,8 +1,8 @@
 from fasthtml import ft
 from starlette.requests import Request
-from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict
-from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended, get_tournament_decklist_data
-from op_tcg.frontend_fasthtml.api.models import LeaderDataParams
+from op_tcg.frontend.utils.api import get_query_params_as_dict
+from op_tcg.frontend.utils.extract import get_leader_extended, get_tournament_decklist_data
+from op_tcg.frontend.api.models import LeaderDataParams
 
 def setup_api_routes(rt):
     @rt("/api/leader-stats")

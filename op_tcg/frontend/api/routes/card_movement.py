@@ -2,13 +2,13 @@ from fasthtml import ft
 from starlette.requests import Request
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.cards import CardCurrency, OPTcgLanguage
-from op_tcg.frontend_fasthtml.utils.extract import get_leader_data, get_tournament_decklist_data, get_card_id_card_data_lookup, get_leader_extended
-from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict
-from op_tcg.frontend_fasthtml.utils.card_price import get_decklist_price
-from op_tcg.frontend_fasthtml.utils.decklist import tournament_standings2decklist_data
-from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended
-from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
-from op_tcg.frontend_fasthtml.pages.card_movement import (
+from op_tcg.frontend.utils.extract import get_leader_data, get_tournament_decklist_data, get_card_id_card_data_lookup, get_leader_extended
+from op_tcg.frontend.utils.api import get_query_params_as_dict
+from op_tcg.frontend.utils.card_price import get_decklist_price
+from op_tcg.frontend.utils.decklist import tournament_standings2decklist_data
+from op_tcg.frontend.utils.filter import filter_leader_extended
+from op_tcg.frontend.components.loading import create_loading_spinner
+from op_tcg.frontend.pages.card_movement import (
     CardFrequencyChange,
     create_card_movement_content,
     create_summary_content,

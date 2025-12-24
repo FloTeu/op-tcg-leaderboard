@@ -2,9 +2,9 @@ from fasthtml import ft
 
 from op_tcg.backend.models.cards import CardCurrency
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
-from op_tcg.frontend_fasthtml.components.filters import create_leader_select_component
-from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended
+from op_tcg.frontend.components.loading import create_loading_spinner
+from op_tcg.frontend.components.filters import create_leader_select_component
+from op_tcg.frontend.utils.extract import get_leader_extended
 from typing import List, Dict
 from pydantic import BaseModel
 

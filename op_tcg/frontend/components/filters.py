@@ -2,8 +2,8 @@ from fasthtml import ft
 from typing import List, Optional, Dict, Any
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import LeaderExtended
-from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended, get_leader_win_rate, get_card_id_card_data_lookup
-from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended, get_leaders_with_decklist_data
+from op_tcg.frontend.utils.extract import get_leader_extended, get_leader_win_rate, get_card_id_card_data_lookup
+from op_tcg.frontend.utils.filter import filter_leader_extended, get_leaders_with_decklist_data
 
 # Common CSS classes for select components
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"

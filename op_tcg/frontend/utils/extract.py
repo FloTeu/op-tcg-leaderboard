@@ -14,8 +14,8 @@ from op_tcg.backend.models.matches import Match, LeaderWinRate
 from op_tcg.backend.models.tournaments import TournamentStanding, Tournament, TournamentStandingExtended, \
     TournamentDecklist, TournamentExtended
 from op_tcg.backend.utils.utils import timeit
-from op_tcg.frontend_fasthtml.utils.card_price import get_decklist_price
-from op_tcg.frontend_fasthtml.utils.utils import run_bq_query
+from op_tcg.frontend.utils.card_price import get_decklist_price
+from op_tcg.frontend.utils.utils import run_bq_query
 
 
 

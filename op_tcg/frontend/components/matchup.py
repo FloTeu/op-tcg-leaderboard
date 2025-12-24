@@ -1,9 +1,9 @@
 from fasthtml import ft
 from enum import StrEnum    
 from op_tcg.backend.models.leader import LeaderExtended
-from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
-from op_tcg.frontend_fasthtml.api.models import Matchup, OpponentMatchups
-from op_tcg.frontend_fasthtml.utils.leader_data import lid_to_name_and_lid
+from op_tcg.frontend.components.loading import create_loading_spinner
+from op_tcg.frontend.api.models import Matchup, OpponentMatchups
+from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid
 
 class MatchupType(StrEnum):
     BEST = "best"

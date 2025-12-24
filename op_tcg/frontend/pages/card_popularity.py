@@ -1,8 +1,8 @@
 from fasthtml import ft
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.cards import OPTcgColor, OPTcgCardCatagory, OPTcgAbility, CardCurrency, OPTcgAttribute, OPTcgCardRarity
-from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner, create_skeleton_cards_indicator
-from op_tcg.frontend_fasthtml.utils.extract import get_card_popularity_data, get_card_id_card_data_lookup
+from op_tcg.frontend.components.loading import create_loading_spinner, create_skeleton_cards_indicator
+from op_tcg.frontend.utils.extract import get_card_popularity_data, get_card_id_card_data_lookup
 from op_tcg.backend.models.cards import ExtendedCardData
 
 # Common HTMX attributes for filter components

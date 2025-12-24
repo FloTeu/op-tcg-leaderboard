@@ -4,7 +4,7 @@ import time
 from typing import Any
 from google.oauth2 import service_account
 from google.cloud import bigquery, storage, firestore
-from op_tcg.frontend_fasthtml.utils.cache import _CACHE_1D, _CACHE_6H, _CACHE_1H, _CACHE_30M
+from op_tcg.frontend.utils.cache import _CACHE_1D, _CACHE_6H, _CACHE_1H, _CACHE_30M
 
 
 # Create API client using credentials

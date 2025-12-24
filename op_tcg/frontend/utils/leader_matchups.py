@@ -1,7 +1,7 @@
-from op_tcg.frontend_fasthtml.utils.extract import get_leader_win_rate
+from op_tcg.frontend.utils.extract import get_leader_win_rate
 from op_tcg.backend.models.matches import LeaderWinRate
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.frontend_fasthtml.api.models import Matchup, OpponentMatchups
+from op_tcg.frontend.api.models import Matchup, OpponentMatchups
 from typing import Dict, List, Set
 
 def get_opponent_win_rate_chart(leader_id: str, opponent_id: str, meta_formats: list[MetaFormat], only_official: bool = True) -> tuple[dict[str, float], dict[str, int]]:

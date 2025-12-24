@@ -1,7 +1,7 @@
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 from op_tcg.backend.utils.environment import is_debug
-from op_tcg.frontend_fasthtml.utils.seo import CANONICAL_HOST
+from op_tcg.frontend.utils.seo import CANONICAL_HOST
 
 
 async def canonical_redirect_middleware(request: Request, call_next):

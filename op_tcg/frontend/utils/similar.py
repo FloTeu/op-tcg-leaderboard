@@ -1,9 +1,9 @@
 from typing import Dict
 from pydantic import BaseModel
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.frontend_fasthtml.utils.extract import get_tournament_decklist_data
-from op_tcg.frontend_fasthtml.utils.decklist import decklist_data_to_card_ids, tournament_standings2decklist_data
-from op_tcg.frontend_fasthtml.utils.extract import get_card_id_card_data_lookup
+from op_tcg.frontend.utils.extract import get_tournament_decklist_data
+from op_tcg.frontend.utils.decklist import decklist_data_to_card_ids, tournament_standings2decklist_data
+from op_tcg.frontend.utils.extract import get_card_id_card_data_lookup
 
 class SimilarLeaderData(BaseModel):
     """Data class for storing similar leader information"""

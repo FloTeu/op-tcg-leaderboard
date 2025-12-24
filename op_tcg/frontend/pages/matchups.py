@@ -1,9 +1,9 @@
 from fasthtml import ft
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended
-from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
-from op_tcg.frontend_fasthtml.utils.api import detect_no_match_data
-from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended
+from op_tcg.frontend.components.loading import create_loading_spinner
+from op_tcg.frontend.utils.api import detect_no_match_data
+from op_tcg.frontend.utils.extract import get_leader_extended
 
 # Common HTMX attributes for filter components
 HX_INCLUDE = "[name='meta_format'],[name='leader_ids']"

@@ -1,7 +1,7 @@
 import time
 from dataclasses import dataclass, field
 from typing import Dict, Any
-from op_tcg.frontend_fasthtml.utils.cache import get_cache_stats, get_total_cache_items, get_total_cache_capacity
+from op_tcg.frontend.utils.cache import get_cache_stats, get_total_cache_items, get_total_cache_capacity
 
 @dataclass
 class CacheStats:

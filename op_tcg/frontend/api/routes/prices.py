@@ -1,15 +1,15 @@
 from fasthtml import ft
 from starlette.requests import Request
 
-from op_tcg.frontend_fasthtml.api.models import PriceOverviewParams
-from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict
-from op_tcg.frontend_fasthtml.utils.extract import (
+from op_tcg.frontend.api.models import PriceOverviewParams
+from op_tcg.frontend.utils.api import get_query_params_as_dict
+from op_tcg.frontend.utils.extract import (
     get_price_change_data,
     get_top_current_prices,
 )
 from op_tcg.backend.models.cards import CardCurrency
-from op_tcg.frontend_fasthtml.components.prices import price_tiles
-from op_tcg.frontend_fasthtml.utils.extract import get_card_id_card_data_lookup
+from op_tcg.frontend.components.prices import price_tiles
+from op_tcg.frontend.utils.extract import get_card_id_card_data_lookup
 
 
 def _header(currency: CardCurrency, days: int) -> ft.Div:

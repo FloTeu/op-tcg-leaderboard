@@ -6,22 +6,22 @@ from fasthtml.common import fast_app, serve
 from starlette.responses import FileResponse
 from contextlib import asynccontextmanager
 from op_tcg.backend.utils.environment import is_debug
-from op_tcg.frontend_fasthtml.utils.scripts import create_decklist_deep_link_script
-from op_tcg.frontend_fasthtml.components.layout import layout
-from op_tcg.frontend_fasthtml.pages.home import home_page, create_filter_components as home_filters
-from op_tcg.frontend_fasthtml.pages.leader import leader_page, create_filter_components as leader_filters
-from op_tcg.frontend_fasthtml.pages.tournaments import tournaments_page, create_filter_components as tournament_filters
-from op_tcg.frontend_fasthtml.pages.card_movement import card_movement_page, create_filter_components as card_movement_filters
-from op_tcg.frontend_fasthtml.pages.matchups import matchups_page, create_filter_components as matchups_filters
-from op_tcg.frontend_fasthtml.pages.card_popularity import card_popularity_page, create_filter_components as card_popularity_filters
-from op_tcg.frontend_fasthtml.pages.prices import prices_page, create_filter_components as prices_filters
-from op_tcg.frontend_fasthtml.pages.bug_report import bug_report_page
-from op_tcg.frontend_fasthtml.api.routes.main import setup_api_routes
+from op_tcg.frontend.utils.scripts import create_decklist_deep_link_script
+from op_tcg.frontend.components.layout import layout
+from op_tcg.frontend.pages.home import home_page, create_filter_components as home_filters
+from op_tcg.frontend.pages.leader import leader_page, create_filter_components as leader_filters
+from op_tcg.frontend.pages.tournaments import tournaments_page, create_filter_components as tournament_filters
+from op_tcg.frontend.pages.card_movement import card_movement_page, create_filter_components as card_movement_filters
+from op_tcg.frontend.pages.matchups import matchups_page, create_filter_components as matchups_filters
+from op_tcg.frontend.pages.card_popularity import card_popularity_page, create_filter_components as card_popularity_filters
+from op_tcg.frontend.pages.prices import prices_page, create_filter_components as prices_filters
+from op_tcg.frontend.pages.bug_report import bug_report_page
+from op_tcg.frontend.api.routes.main import setup_api_routes
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from starlette.requests import Request
-from op_tcg.frontend_fasthtml.utils.cache_warmer import start_cache_warming, stop_cache_warming, warm_cache_now
-from op_tcg.frontend_fasthtml.utils.seo import canonical_base, write_static_sitemap
-from op_tcg.frontend_fasthtml.utils.middleware import canonical_redirect_middleware
+from op_tcg.frontend.utils.cache_warmer import start_cache_warming, stop_cache_warming, warm_cache_now
+from op_tcg.frontend.utils.seo import canonical_base, write_static_sitemap
+from op_tcg.frontend.utils.middleware import canonical_redirect_middleware
 import logging
 
 # Configure logging
@@ -128,7 +128,7 @@ setup_api_routes(rt)
 @rt("/api/cache/status")
 def cache_status():
     """Get cache warmer status"""
-    from op_tcg.frontend_fasthtml.utils.cache_warmer import get_cache_warmer
+    from op_tcg.frontend.utils.cache_warmer import get_cache_warmer
     warmer = get_cache_warmer()
     return {
         "is_running": warmer.is_running,
@@ -138,7 +138,7 @@ def cache_status():
 @rt("/api/cache/stats")
 def cache_stats():
     """Get cache performance statistics"""
-    from op_tcg.frontend_fasthtml.utils.cache_monitor import get_cache_summary
+    from op_tcg.frontend.utils.cache_monitor import get_cache_summary
     return get_cache_summary()
 
 
@@ -155,7 +155,7 @@ def warm_cache_manual():
 def clear_cache():
     """Clear all caches"""
     try:
-        from op_tcg.frontend_fasthtml.utils.cache import clear_all_caches
+        from op_tcg.frontend.utils.cache import clear_all_caches
         clear_all_caches()
         return {"status": "success", "message": "All caches cleared"}
     except Exception as e:

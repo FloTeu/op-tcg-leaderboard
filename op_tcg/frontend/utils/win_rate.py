@@ -1,7 +1,7 @@
 from op_tcg.backend.models.cards import ExtendedCardData, OPTcgColor
 from op_tcg.backend.models.matches import LeaderWinRate
 from op_tcg.backend.models.leader import LeaderExtended
-from op_tcg.frontend_fasthtml.utils.extract import get_leader_win_rate, get_card_id_card_data_lookup
+from op_tcg.frontend.utils.extract import get_leader_win_rate, get_card_id_card_data_lookup
 from typing import List, Dict, Any
 
 def get_win_rate_data_by_leader(leader_id: str, meta_formats, only_official: bool = True) -> list[LeaderWinRate]:

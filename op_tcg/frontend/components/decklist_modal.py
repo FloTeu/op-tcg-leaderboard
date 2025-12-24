@@ -1,9 +1,9 @@
 from fasthtml import ft
 from op_tcg.backend.etl.extract import get_card_image_url
 from op_tcg.backend.models.cards import ExtendedCardData, OPTcgLanguage, CardCurrency, OPTcgCardCatagory
-from op_tcg.frontend_fasthtml.utils.decklist import DecklistViewMode
-from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
-from op_tcg.frontend_fasthtml.components.decklist_export import create_decklist_export_component
+from op_tcg.frontend.utils.decklist import DecklistViewMode
+from op_tcg.frontend.components.loading import create_loading_spinner
+from op_tcg.frontend.components.decklist_export import create_decklist_export_component
 
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 

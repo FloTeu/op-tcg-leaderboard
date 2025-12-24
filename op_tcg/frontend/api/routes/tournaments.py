@@ -4,24 +4,24 @@ from starlette.requests import Request
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.cards import CardCurrency
-from op_tcg.frontend_fasthtml.utils.extract import get_tournament_decklist_data, get_all_tournament_extened_data, get_tournament_match_data
-from op_tcg.frontend_fasthtml.utils.api import get_query_params_as_dict, create_proxy_data_notification
-from op_tcg.frontend_fasthtml.utils.extract import (
+from op_tcg.frontend.utils.extract import get_tournament_decklist_data, get_all_tournament_extened_data, get_tournament_match_data
+from op_tcg.frontend.utils.api import get_query_params_as_dict, create_proxy_data_notification
+from op_tcg.frontend.utils.extract import (
     get_leader_extended,
     get_card_id_card_data_lookup
 )
-from op_tcg.frontend_fasthtml.components.tournament import (
+from op_tcg.frontend.components.tournament import (
     create_tournament_section,
     create_tournament_keyfacts,
     create_leader_grid,
     create_match_progression,
     create_decklist_selector
 )
-from op_tcg.frontend_fasthtml.components.tournament_decklist import create_decklist_view
-from op_tcg.frontend_fasthtml.api.models import LeaderDataParams, TournamentPageParams
-from op_tcg.frontend_fasthtml.pages.leader import HX_INCLUDE
-from op_tcg.frontend_fasthtml.utils.charts import create_bubble_chart, create_donut_chart
-from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
+from op_tcg.frontend.components.tournament_decklist import create_decklist_view
+from op_tcg.frontend.api.models import LeaderDataParams, TournamentPageParams
+from op_tcg.frontend.pages.leader import HX_INCLUDE
+from op_tcg.frontend.utils.charts import create_bubble_chart, create_donut_chart
+from op_tcg.frontend.components.loading import create_loading_spinner
 import json
 from datetime import datetime, timedelta, timezone
 

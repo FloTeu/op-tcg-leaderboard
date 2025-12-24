@@ -1,6 +1,6 @@
 from fasthtml import ft
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
-from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner, create_loading_overlay
+from op_tcg.frontend.components.loading import create_loading_spinner, create_loading_overlay
 
 SELECT_CLS = "bg-gray-700 text-white p-2 rounded"
 FILTER_HX_ATTRS = {

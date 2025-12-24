@@ -1,7 +1,7 @@
 from typing import List, Optional
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.frontend_fasthtml.utils.extract import get_tournament_decklist_data
+from op_tcg.frontend.utils.extract import get_tournament_decklist_data
 
 def filter_leader_extended(
     leaders: List[LeaderExtended],

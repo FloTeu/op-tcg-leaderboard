@@ -1,6 +1,6 @@
 from fasthtml import ft
 from typing import Any, List, Dict
-from op_tcg.frontend_fasthtml.utils.colors import ChartColors
+from op_tcg.frontend.utils.colors import ChartColors
 import json
 import time
 

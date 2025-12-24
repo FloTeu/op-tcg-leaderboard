@@ -2,7 +2,7 @@ from fasthtml import ft
 from op_tcg.backend.models.cards import CardCurrency, ExtendedCardData
 from typing import List, Dict, Any
 from op_tcg.backend.models.input import MetaFormat
-from op_tcg.frontend_fasthtml.utils.card_price import get_marketplace_link
+from op_tcg.frontend.utils.card_price import get_marketplace_link
 
 
 def price_tile(item: dict, currency: CardCurrency, card_id2card_data: Dict[str, ExtendedCardData] | None = None) -> ft.Div:

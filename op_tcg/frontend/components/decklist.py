@@ -1,7 +1,7 @@
 from fasthtml import ft
 from op_tcg.backend.etl.extract import get_card_image_url
 from op_tcg.backend.models.cards import ExtendedCardData, OPTcgLanguage, LatestCardPrice
-from op_tcg.frontend_fasthtml.utils.decklist import DecklistData, decklist_to_export_str, ensure_leader_id
+from op_tcg.frontend.utils.decklist import DecklistData, decklist_to_export_str, ensure_leader_id
 
 # Added for styling the select component, consider moving to a common utils/constants
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -187,13 +187,13 @@ def create_decklist_section(leader_id: str, tournament_decklists, card_id2card_d
     Returns:
         A Div containing the complete decklist section
     """
-    from op_tcg.frontend_fasthtml.utils.decklist import (
+    from op_tcg.frontend.utils.decklist import (
         tournament_standings2decklist_data, 
         decklist_data_to_card_ids,
         decklist_data_to_fictive_decklist,
         get_best_matching_decklist
     )
-    from op_tcg.frontend_fasthtml.components.decklist_export import create_decklist_export_component
+    from op_tcg.frontend.components.decklist_export import create_decklist_export_component
     
     if not tournament_decklists:
         return ft.P("No decklist data available for this leader.", cls="text-red-400")

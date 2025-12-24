@@ -3,7 +3,7 @@ from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.leader import Leader
 from op_tcg.backend.models.cards import OPTcgColor, OPTcgAttribute, OPTcgLanguage, OPTcgTournamentStatus, \
     OPTcgCardRarity, OPTcgCardCatagory
-from op_tcg.frontend_fasthtml.utils.extract import get_leader_data
+from op_tcg.frontend.utils.extract import get_leader_data
 
 
 def get_template_leader() -> Leader:

@@ -9,7 +9,7 @@ from op_tcg.backend.models.base import EnumBase
 from op_tcg.backend.models.cards import LatestCardPrice, ExtendedCardData, CardCurrency
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.tournaments import TournamentDecklist
-from op_tcg.frontend_fasthtml.utils.extract import get_tournament_decklist_data
+from op_tcg.frontend.utils.extract import get_tournament_decklist_data
 
 class DecklistData(BaseModel):
     num_decklists: int

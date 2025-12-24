@@ -4,7 +4,7 @@ from fasthtml import ft
 
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended, LeaderboardSortBy
-from op_tcg.frontend_fasthtml.components.loading import create_loading_overlay, create_loading_spinner
+from op_tcg.frontend.components.loading import create_loading_overlay, create_loading_spinner
 
 
 # Common HTMX attributes for filter components

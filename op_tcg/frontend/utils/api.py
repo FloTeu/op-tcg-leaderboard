@@ -1,9 +1,9 @@
 from starlette.requests import Request
 from typing import Dict, Any, List
 
-from op_tcg.frontend_fasthtml.api.models import LeaderboardFilter
-from op_tcg.frontend_fasthtml.utils.extract import get_leader_extended
-from op_tcg.frontend_fasthtml.utils.filter import filter_leader_extended, get_leaders_with_decklist_data
+from op_tcg.frontend.api.models import LeaderboardFilter
+from op_tcg.frontend.utils.extract import get_leader_extended
+from op_tcg.frontend.utils.filter import filter_leader_extended, get_leaders_with_decklist_data
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 

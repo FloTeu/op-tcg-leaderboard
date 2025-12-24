@@ -1,8 +1,8 @@
 from fasthtml import ft
 from op_tcg.backend.models.cards import CardCurrency, ExtendedCardData
-from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
-from op_tcg.frontend_fasthtml.components.effect_text import render_effect_text
-from op_tcg.frontend_fasthtml.utils.card_price import get_marketplace_link
+from op_tcg.frontend.components.loading import create_loading_spinner
+from op_tcg.frontend.components.effect_text import render_effect_text
+from op_tcg.frontend.utils.card_price import get_marketplace_link
 
 
 def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardData], popularity: float,

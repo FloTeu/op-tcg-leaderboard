@@ -1,6 +1,6 @@
 from fasthtml import ft
 from op_tcg.backend.models.cards import CardCurrency
-from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner, create_skeleton_cards_indicator
+from op_tcg.frontend.components.loading import create_loading_spinner, create_skeleton_cards_indicator
 
 HX_INCLUDE = "[name='currency'],[name='days'],[name='min_latest_price'],[name='max_latest_price'],[name='order_by'],[name='include_alt_art'],[name='change_metric']"
 

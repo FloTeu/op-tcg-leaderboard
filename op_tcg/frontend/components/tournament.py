@@ -5,9 +5,9 @@ from op_tcg.backend.models.tournaments import TournamentExtended, TournamentDeck
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.matches import Match, MatchResult
 from op_tcg.backend.models.input import MetaFormatRegion
-from op_tcg.frontend_fasthtml.utils.charts import create_stream_chart
-from op_tcg.frontend_fasthtml.utils.colors import ChartColors
-from op_tcg.frontend_fasthtml.components.loading import create_loading_spinner
+from op_tcg.frontend.utils.charts import create_stream_chart
+from op_tcg.frontend.utils.colors import ChartColors
+from op_tcg.frontend.components.loading import create_loading_spinner
 from op_tcg.backend.models.cards import Card
 
 def create_leader_grid(leader_stats: Dict[str, float], leader_extended_dict: Dict[str, LeaderExtended], 
