@@ -4,6 +4,7 @@ from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.frontend.components.loading import create_loading_spinner
 from op_tcg.frontend.api.models import Matchup, OpponentMatchups
 from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 
 class MatchupType(StrEnum):
     BEST = "best"
@@ -29,7 +30,48 @@ def create_leader_select_box(leader_ids: list[str], default_id: str | None = Non
         ) for name, lid in zip(leader_names, leader_ids)]
     )
 
-def create_matchup_analysis(leader_data: LeaderExtended, matchups: OpponentMatchups | None = None, hx_include: str | None = None):
+def create_matchup_card(opponent: LeaderExtended, matchup: Matchup, meta_formats: list[MetaFormat], region: MetaFormatRegion | None = None) -> ft.A:
+    """Create a matchup card component."""
+    # Determine color for win rate
+    wr_color = "text-green-400" if matchup.win_rate >= 0.5 else "text-red-400"
+
+    # Construct URL for leader page
+    meta_format_params = "".join([f"&meta_format={mf}" for mf in meta_formats])
+    region_param = f"&region={region}" if region else ""
+    leader_url = f"/leader?lid={opponent.id}{meta_format_params}{region_param}"
+
+    return ft.A(
+        ft.Div(
+            # Image Area with zoomed background
+            ft.Div(
+                style=f"""
+                    background-image: linear-gradient(to top, {opponent.to_hex_color()}, transparent), url('{opponent.aa_image_url}');
+                    background-size: cover, 125%;
+                    background-position: center 20%;
+                    height: 140px;
+                    width: 100%;
+                """,
+                cls="rounded-t-lg w-full"
+            ),
+            # Content Area
+            ft.Div(
+                # Name
+                ft.P(opponent.name, cls="text-xs text-white truncate w-full text-center font-bold mb-1"),
+                # Stats
+                ft.Div(
+                    ft.Span(f"{matchup.win_rate * 100:.1f}%", cls=f"text-sm font-bold {wr_color}"),
+                    ft.Span(f" ({matchup.total_matches})", cls="text-xs text-gray-400 ml-1"),
+                    cls="flex items-center justify-center"
+                ),
+                cls="p-2 bg-gray-800 rounded-b-lg w-full"
+            ),
+            cls="flex flex-col items-center w-full h-full rounded-lg border border-gray-700 hover:border-gray-500 transition-colors duration-200 shadow-lg"
+        ),
+        href=leader_url,
+        cls="block flex-shrink-0 w-[120px]"
+    )
+
+def create_matchup_analysis(leader_data: LeaderExtended, matchups: OpponentMatchups | None = None, hx_include: str | None = None, min_matches: int = 4, matchup_cards: list[ft.A] | None = None):
     """Create the matchup analysis view with best and worst matchups."""
     
     if not matchups:
@@ -43,9 +85,65 @@ def create_matchup_analysis(leader_data: LeaderExtended, matchups: OpponentMatch
     default_best = best_matchup_ids[0] if best_matchup_ids else None
     default_worst = worst_matchup_ids[0] if worst_matchup_ids else None
     
+    # Create list container content
+    if matchup_cards:
+        list_content = ft.Div(
+            *matchup_cards,
+            cls="flex flex-row gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800"
+        )
+    else:
+        list_content = ft.Div(
+            create_loading_spinner(
+                id="matchup-list-loading",
+                size="w-8 h-8",
+                container_classes="min-h-[100px]"
+            ),
+            id="matchup-list-container",
+            hx_get="/api/leader-matchups-list",
+            hx_trigger="load",
+            hx_include=f"{hx_include},[name='min_matches']",
+            hx_vals=f'{{"lid": "{leader_data.id}"}}',
+            hx_indicator="#matchup-list-loading",
+            cls="w-full min-h-[150px]"
+        )
+
     return ft.Div(
         ft.H2("Matchup Analysis", cls="text-2xl font-bold text-white mb-4"),
         
+        # Horizontal Matchup List Section
+        ft.Div(
+            ft.Div(
+                ft.H3("All Matchups", cls="text-xl font-bold text-white"),
+                # Slider
+                ft.Div(
+                    ft.Label("Min Matches: ", cls="text-gray-300 mr-2"),
+                    ft.Span(str(min_matches), id="min-matches-display", cls="text-white font-bold mr-4"),
+                    ft.Input(
+                        type="range",
+                        min="1",
+                        max="50",
+                        value=str(min_matches),
+                        name="min_matches",
+                        id="min-matches-slider",
+                        cls="w-48 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500",
+                        oninput="document.getElementById('min-matches-display').innerText = this.value",
+                        hx_get="/api/leader-matchups",
+                        hx_target="#matchup-analysis-container",
+                        hx_swap="outerHTML",
+                        hx_trigger="change",
+                        hx_include=hx_include,
+                        hx_vals=f'{{"lid": "{leader_data.id}"}}'
+                    ),
+                    cls="flex items-center"
+                ),
+                cls="flex justify-between items-center mb-4"
+            ),
+
+            # Container for the list
+            list_content,
+            cls="w-full mb-8"
+        ),
+
         # Matchup grid
         ft.Div(
             # Best Matchup
@@ -106,5 +204,5 @@ def create_matchup_analysis(leader_data: LeaderExtended, matchups: OpponentMatch
             ),
             cls="grid grid-cols-1 md:grid-cols-3 gap-6"
         ),
-        cls="w-full"
-    ) 
+        id="matchup-analysis-container"
+    )

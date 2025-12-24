@@ -113,7 +113,8 @@ class LeaderDataParams(BaseModel):
     meta_format: list[MetaFormat]
     only_official: bool = True
     region: Optional[MetaFormatRegion] = MetaFormatRegion.ALL
-    
+    min_matches: int = 4
+
     @field_validator('meta_format', mode='before')
     def validate_meta_formats(cls, value):
         if value is None or (isinstance(value, list) and len(value) == 0):
@@ -143,6 +144,17 @@ class LeaderDataParams(BaseModel):
         if isinstance(value, str):
             return MetaFormatRegion(value)
         return value or MetaFormatRegion.ALL
+
+    @field_validator('min_matches', mode='before')
+    def validate_min_matches(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if isinstance(value, str):
+            try:
+                return int(value)
+            except ValueError:
+                return 4
+        return value if value is not None else 4
 
 
 class Matchup(BaseModel):

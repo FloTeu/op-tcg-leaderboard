@@ -2,8 +2,8 @@ from fasthtml import ft
 from starlette.requests import Request
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.frontend.utils.api import get_query_params_as_dict
-from op_tcg.frontend.utils.leader_matchups import get_best_worst_matchups, get_opponent_win_rate_chart
-from op_tcg.frontend.components.matchup import create_matchup_analysis
+from op_tcg.frontend.utils.leader_matchups import get_best_worst_matchups, get_opponent_win_rate_chart, get_all_leader_matchups
+from op_tcg.frontend.components.matchup import create_matchup_analysis, create_matchup_card
 from op_tcg.frontend.utils.extract import get_leader_extended, get_leader_win_rate
 from op_tcg.frontend.utils.charts import create_line_chart, create_bar_chart, create_leader_win_rate_radar_chart
 from op_tcg.frontend.utils.colors import ChartColors
@@ -20,20 +20,83 @@ def setup_api_routes(rt):
         # Parse params using Pydantic model
         params = LeaderDataParams(**get_query_params_as_dict(request))
         
-        # Get best and worst matchups
-        matchups = get_best_worst_matchups(params.lid, params.meta_format)
-        
+        # Get all matchups
+        all_matchups = get_all_leader_matchups(params.lid, params.meta_format, min_matches=params.min_matches, only_official=params.only_official)
+
         # Get leader data
         leader_data = next(iter(get_leader_extended(leader_ids=[params.lid])), None)
         
         if not leader_data:
             return ft.P("No data available for this leader.", cls="text-red-400")
-            
+
+        # Create OpponentMatchups object
+        from op_tcg.frontend.api.models import OpponentMatchups
+        matchups = None
+        matchup_cards = None
+
+        if all_matchups:
+            matchups = OpponentMatchups(
+                easiest_matchups=all_matchups[:10],
+                hardest_matchups=sorted(all_matchups, key=lambda x: x.win_rate)[:10]
+            )
+
+            # Get opponent data for cards
+            opponent_ids = [m.leader_id for m in all_matchups]
+            opponent_data = get_leader_extended(leader_ids=opponent_ids)
+            opponent_dict = {l.id: l for l in opponent_data}
+
+            # Create cards
+            matchup_cards = []
+            for m in all_matchups:
+                opponent = opponent_dict.get(m.leader_id)
+                if not opponent:
+                    continue
+                matchup_cards.append(create_matchup_card(opponent, m, params.meta_format, params.region))
+
         # Create and return the matchup analysis component
         return create_matchup_analysis(
             leader_data=leader_data,
             matchups=matchups,
-            hx_include=HX_INCLUDE
+            hx_include=HX_INCLUDE,
+            min_matches=params.min_matches,
+            matchup_cards=matchup_cards
+        )
+
+    @rt("/api/leader-matchups-list")
+    async def get_leader_matchups_list(request: Request):
+        """Get all matchups for a leader in a horizontal list format."""
+        # Parse params using Pydantic model
+        params_dict = get_query_params_as_dict(request)
+        params = LeaderDataParams(**params_dict)
+
+        # Get min_matches from params, default to 4
+        try:
+            min_matches = int(params_dict.get('min_matches', 4))
+        except ValueError:
+            min_matches = 4
+
+        # Get all matchups
+        matchups = get_all_leader_matchups(params.lid, params.meta_format, min_matches=min_matches, only_official=params.only_official)
+
+        if not matchups:
+            return ft.P("No matchup data available for this criteria.", cls="text-gray-400 p-4")
+
+        # Get leader data for opponents to display images/names
+        opponent_ids = [m.leader_id for m in matchups]
+        opponent_data = get_leader_extended(leader_ids=opponent_ids)
+        opponent_dict = {l.id: l for l in opponent_data}
+
+        # Create cards
+        cards = []
+        for m in matchups:
+            opponent = opponent_dict.get(m.leader_id)
+            if not opponent:
+                continue
+            cards.append(create_matchup_card(opponent, m, params.meta_format, params.region))
+
+        return ft.Div(
+            *cards,
+            cls="flex flex-row gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800"
         )
 
     @rt("/api/leader-matchup-details")

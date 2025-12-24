@@ -24,33 +24,45 @@ def calculate_average_win_rate(data: List[LeaderWinRate], opponent_id: str) -> f
         return 0.0
     return sum(wr.win_rate for wr in opponent_matches) / len(opponent_matches)
 
-def get_best_worst_matchups(leader_id: str, meta_formats: list[MetaFormat]) -> OpponentMatchups | None:
+def get_best_worst_matchups(leader_id: str, meta_formats: list[MetaFormat], min_matches: int = 4, only_official: bool = True) -> OpponentMatchups | None:
     """Get the best and worst matchups for a leader."""
-    # Get win rate data
-    win_rate_data: list[LeaderWinRate] = get_leader_win_rate(meta_formats=meta_formats)
-    
-    # Filter for the specific leader and meta formats
-    filtered_data = [
-        wr for wr in win_rate_data 
-        if wr.leader_id == leader_id and wr.meta_format in meta_formats
-    ]
-    
-    if not filtered_data:
+    # Use get_all_leader_matchups to get filtered data
+    all_matchups = get_all_leader_matchups(leader_id, meta_formats, min_matches, only_official)
+
+    if not all_matchups:
         return None
 
-    # Calculate max total matches and threshold
-    max_total_matches = max((wr.total_matches for wr in filtered_data), default=0)
-    threshold = min(int(max_total_matches / 10), 10)
-    
-    # Filter by threshold
-    filtered_data = [wr for wr in filtered_data if wr.total_matches > threshold]
-    
+    # Sort matchups by win rate
+    # all_matchups is already sorted by win rate descending in get_all_leader_matchups
+
+    return OpponentMatchups(
+        easiest_matchups=all_matchups[:10],
+        hardest_matchups=sorted(all_matchups, key=lambda x: x.win_rate)[:10] # Sort ascending for hardest (lowest win rate)
+    )
+
+def get_all_leader_matchups(leader_id: str, meta_formats: list[MetaFormat], min_matches: int = 4, only_official: bool = True) -> List[Matchup]:
+    """Get all matchups for a leader with at least min_matches."""
+    # Get win rate data
+    win_rate_data: list[LeaderWinRate] = get_leader_win_rate(meta_formats=meta_formats)
+
+    # Filter for the specific leader and meta formats
+    filtered_data = [
+        wr for wr in win_rate_data
+        if wr.leader_id == leader_id and wr.meta_format in meta_formats and wr.only_official == only_official
+    ]
+
     if not filtered_data:
-        return None
+        return []
+
+    # Filter by min_matches
+    filtered_data = [wr for wr in filtered_data if wr.total_matches >= min_matches]
+
+    if not filtered_data:
+        return []
 
     # Get unique opponent IDs
     opponent_ids = {wr.opponent_id for wr in filtered_data}
-    
+
     # Calculate win rate chart data for each opponent
     opponent_chart_data: Dict[str, Dict[MetaFormat, float]] = {}
     for opponent_id in opponent_ids:
@@ -74,11 +86,8 @@ def get_best_worst_matchups(leader_id: str, meta_formats: list[MetaFormat]) -> O
 
     # Create all matchups
     all_matchups = [create_matchup(opponent_id) for opponent_id in opponent_ids]
-    
-    # Sort matchups by win rate
-    all_matchups.sort(key=lambda x: x.win_rate)
-    
-    return OpponentMatchups(
-        easiest_matchups=sorted(all_matchups, key=lambda x: x.win_rate, reverse=True)[:10],
-        hardest_matchups=all_matchups[:10]
-    ) 
+
+    # Sort matchups by win rate descending
+    all_matchups.sort(key=lambda x: x.win_rate, reverse=True)
+
+    return all_matchups
