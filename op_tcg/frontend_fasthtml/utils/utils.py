@@ -81,8 +81,9 @@ def run_bq_query(query: str, ttl_hours: float | None = None, location: str = "eu
     logging.info(f"Running bq query (TTL: {ttl_hours}h): {query}")
     query_job = bq_client.query(query, location=location)
     query_line = query.replace("\n", " ")
-    logging.info(f"Finished bq query '{query_line[:50]}...{query_line[-50:]}' in {time.time() - t_start:.2f}s")
     rows_raw = query_job.result()
+    logging.info(f"Finished bq query '{query_line[:50]}...{query_line[-50:]}' in {time.time() - t_start:.2f}s")
+
     
     # Convert to list of dicts. Required for caching to hash the return value.
     rows = [dict(row) for row in rows_raw]
