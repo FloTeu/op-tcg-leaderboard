@@ -1,30 +1,33 @@
 import os
-import json
-import base64
 import logging
+import time
 from typing import Any
 from google.oauth2 import service_account
 from google.cloud import bigquery, storage, firestore
 from op_tcg.frontend_fasthtml.utils.cache import _CACHE_1D, _CACHE_6H, _CACHE_1H, _CACHE_30M
 
 
-# Create API client using base64 encoded service account key
+# Create API client using credentials
 def get_credentials():
-    """Get Google Cloud credentials from base64 encoded service account key"""
-    service_key_b64 = os.environ.get("GOOGLE_SERVICE_KEY")
-    if not service_key_b64:
-        raise ValueError("GOOGLE_SERVICE_KEY environment variable is not set")
-    
-    try:
-        # Decode base64 string to get JSON
-        service_key_json = base64.b64decode(service_key_b64).decode('utf-8')
-        service_account_info = json.loads(service_key_json)
-        
-        # Create credentials from service account info
-        credentials = service_account.Credentials.from_service_account_info(service_account_info)
-        return credentials
-    except Exception as e:
-        raise ValueError(f"Failed to decode GOOGLE_SERVICE_KEY: {e}")
+    """Get Google Cloud credentials.
+
+    Prioritizes local file via GCP_CREDENTIALS env var.
+    Falls back to Application Default Credentials (ADC) if not set,
+    which works automatically on Cloud Run.
+    """
+    # 1. Try local file (for development)
+    service_key_path = os.environ.get("GCP_CREDENTIALS")
+    if service_key_path:
+        if os.path.exists(service_key_path):
+            try:
+                return service_account.Credentials.from_service_account_file(service_key_path)
+            except Exception as e:
+                logging.warning(f"Failed to load credentials from {service_key_path}: {e}")
+        else:
+            logging.warning(f"GCP_CREDENTIALS set to {service_key_path} but file does not exist")
+
+    # 2. Fallback to ADC (for Cloud Run / Production)
+    return None
 
 credentials = get_credentials()
 bq_client = bigquery.Client(credentials=credentials)
@@ -74,8 +77,11 @@ def run_bq_query(query: str, ttl_hours: float | None = None, location: str = "eu
             return cache[cache_key]
     
     # Execute query
+    t_start = time.time()
     logging.info(f"Running bq query (TTL: {ttl_hours}h): {query}")
     query_job = bq_client.query(query, location=location)
+    query_line = query.replace("\n", " ")
+    logging.info(f"Finished bq query '{query_line[:50]}...{query_line[-50:]}' in {time.time() - t_start:.2f}s")
     rows_raw = query_job.result()
     
     # Convert to list of dicts. Required for caching to hash the return value.

@@ -240,7 +240,7 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
             ),
             ft.Th("Avg Price", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
             ft.Th("Elo", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
-            ft.Th("Performance", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
+            ft.Th("Win Rate History", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
             cls=""
         )
     )
