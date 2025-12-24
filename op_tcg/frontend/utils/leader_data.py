@@ -40,9 +40,6 @@ def get_lid2ldata_dict_cached() -> dict[str, Leader]:
 def lid2ldata_fn(lid, leader_id2leader_data: dict[str, Leader] | None = None) -> Leader:
     """Return the leader data to a specific leader id.
     If no leader data is available, the template leader is used
-
-    Caution:    As this function calls a cache function, it might break js react rendering,
-                if the function is executed inside of a streamlit-elements statement. (see #24)
     """
     if leader_id2leader_data is None:
         leader_id2leader_data = get_lid2ldata_dict_cached()
