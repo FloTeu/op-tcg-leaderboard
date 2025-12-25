@@ -48,7 +48,7 @@ def create_matchup_card(opponent: LeaderExtended, matchup: Matchup, meta_formats
                     background-image: linear-gradient(to top, {opponent.to_hex_color()}, transparent), url('{opponent.aa_image_url}');
                     background-size: cover, 125%;
                     background-position: center 20%;
-                    height: 140px;
+                    height: 100px;
                     width: 100%;
                 """,
                 cls="rounded-t-lg w-full"
@@ -68,7 +68,8 @@ def create_matchup_card(opponent: LeaderExtended, matchup: Matchup, meta_formats
             cls="flex flex-col items-center w-full h-full rounded-lg border border-gray-700 hover:border-gray-500 transition-colors duration-200 shadow-lg"
         ),
         href=leader_url,
-        cls="block flex-shrink-0 w-[120px]"
+        cls="block flex-shrink-0",
+        style="width: 120px; min-width: 120px;"
     )
 
 def create_matchup_analysis(leader_data: LeaderExtended, matchups: OpponentMatchups | None = None, hx_include: str | None = None, min_matches: int = 4, matchup_cards: list[ft.A] | None = None):
