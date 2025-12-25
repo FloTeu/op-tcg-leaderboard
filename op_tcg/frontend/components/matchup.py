@@ -75,9 +75,46 @@ def create_matchup_card(opponent: LeaderExtended, matchup: Matchup, meta_formats
 def create_matchup_analysis(leader_data: LeaderExtended, matchups: OpponentMatchups | None = None, hx_include: str | None = None, min_matches: int = 4, matchup_cards: list[ft.A] | None = None):
     """Create the matchup analysis view with best and worst matchups."""
     
+    # Slider Component
+    slider_component = ft.Div(
+        ft.H3("All Matchups", cls="text-xl font-bold text-white mb-2 md:mb-0"),
+        # Slider
+        ft.Div(
+            ft.Label("Min Matches: ", cls="text-gray-300 mr-2"),
+            ft.Span(str(min_matches), id="min-matches-display", cls="text-white font-bold mr-4"),
+            ft.Input(
+                type="range",
+                min="1",
+                max="50",
+                value=str(min_matches),
+                name="min_matches",
+                id="min-matches-slider",
+                cls="w-38 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500",
+                oninput="document.getElementById('min-matches-display').innerText = this.value",
+                hx_get="/api/leader-matchups",
+                hx_target="#matchup-analysis-container",
+                hx_swap="outerHTML",
+                hx_trigger="change",
+                hx_include=hx_include,
+                hx_vals=f'{{"lid": "{leader_data.id}"}}'
+            ),
+            cls="flex items-center"
+        ),
+        cls="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-2 md:gap-0"
+    )
+
     if not matchups:
-        return ft.P("No matchup data available for this leader.", cls="text-gray-400")
-    
+        return ft.Div(
+            ft.H2("Matchup Analysis", cls="text-2xl font-bold text-white mb-4"),
+            ft.Div(
+                slider_component,
+                ft.P("No matchup data available for this leader with current filters.", cls="text-gray-400"),
+                cls="w-full mb-8"
+            ),
+            id="matchup-analysis-container",
+            cls="w-full"
+        )
+
     # Get leader IDs for best and worst matchups
     best_matchup_ids = [m.leader_id for m in matchups.easiest_matchups]
     worst_matchup_ids = [m.leader_id for m in matchups.hardest_matchups]
@@ -113,32 +150,7 @@ def create_matchup_analysis(leader_data: LeaderExtended, matchups: OpponentMatch
         
         # Horizontal Matchup List Section
         ft.Div(
-            ft.Div(
-                ft.H3("All Matchups", cls="text-xl font-bold text-white"),
-                # Slider
-                ft.Div(
-                    ft.Label("Min Matches: ", cls="text-gray-300 mr-2"),
-                    ft.Span(str(min_matches), id="min-matches-display", cls="text-white font-bold mr-4"),
-                    ft.Input(
-                        type="range",
-                        min="1",
-                        max="50",
-                        value=str(min_matches),
-                        name="min_matches",
-                        id="min-matches-slider",
-                        cls="w-48 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500",
-                        oninput="document.getElementById('min-matches-display').innerText = this.value",
-                        hx_get="/api/leader-matchups",
-                        hx_target="#matchup-analysis-container",
-                        hx_swap="outerHTML",
-                        hx_trigger="change",
-                        hx_include=hx_include,
-                        hx_vals=f'{{"lid": "{leader_data.id}"}}'
-                    ),
-                    cls="flex items-center"
-                ),
-                cls="flex justify-between items-center mb-4"
-            ),
+            slider_component,
 
             # Container for the list
             list_content,

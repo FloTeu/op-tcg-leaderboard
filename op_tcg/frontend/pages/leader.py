@@ -10,8 +10,10 @@ HX_INCLUDE = "[name='meta_format'],[name='lid'],[name='region']"
 FILTER_HX_ATTRS = {
     "hx_get": "/api/leader-data",
     "hx_trigger": "change", 
-    "hx_target": "#leader-content",
-    "hx_include": HX_INCLUDE
+    "hx_target": "#leader-content-inner",
+    "hx_swap": "outerHTML",
+    "hx_include": HX_INCLUDE,
+    "hx_indicator": "#leader-page-loading"
     # Note: URL updates are handled by JavaScript to maintain /leader path
 }
 
@@ -554,13 +556,19 @@ def leader_page(leader_id: str | None = None, filtered_leader_data: LeaderExtend
         
         # Otherwise, create a container that will be populated via HTMX
         return ft.Div(
+            # Loading spinner
+            create_loading_spinner(
+                id="leader-page-loading",
+                size="w-8 h-8",
+                container_classes="absolute inset-0 bg-gray-900/50 z-50 backdrop-blur-sm"
+            ),
             # Empty container for leader content that will be loaded via HTMX
             ft.Div(
                 **htmx_attrs,
                 id="leader-content-inner",
                 cls="mt-8"
             ),
-            cls="min-h-screen p-0 lg:p-8",  # Removed padding for mobile view only
+            cls="min-h-screen p-0 lg:p-8 relative",  # Removed padding for mobile view only
             id="leader-content"
         )
     
@@ -584,8 +592,14 @@ def leader_page(leader_id: str | None = None, filtered_leader_data: LeaderExtend
     
     # Return the complete leader page
     return ft.Div(
+        # Loading spinner
+        create_loading_spinner(
+            id="leader-page-loading",
+            size="w-8 h-8",
+            container_classes="absolute inset-0 bg-gray-900/50 z-50 backdrop-blur-sm"
+        ),
         # Leader content
         leader_content,
-        cls="min-h-screen p-8",
+        cls="min-h-screen p-8 relative",
         id="leader-content"
     )
