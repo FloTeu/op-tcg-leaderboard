@@ -1,8 +1,6 @@
 import click
 from op_tcg.cli.crawling import crawling_group
 from op_tcg.cli.etl import etl_group
-# streamlit currently only works with streamlit run ... (and other clis break due to frontend code)
-#from op_tcg.frontend.cli import frontend_group
 from dotenv import load_dotenv
 
 load_dotenv()

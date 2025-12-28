@@ -2,6 +2,7 @@ import json
 import os
 import re
 from pathlib import Path
+from urllib.parse import urlparse, parse_qs
 
 import requests
 from bs4 import BeautifulSoup
@@ -10,7 +11,8 @@ from bs4.element import Tag
 from op_tcg.backend.models.input import AllLeaderMetaDocs, LimitlessLeaderMetaDoc, MetaFormat
 from op_tcg.backend.models.leader import Leader
 from op_tcg.backend.models.cards import OPTcgColor, OPTcgAttribute, OPTcgLanguage, OPTcgTournamentStatus, \
-    OPTcgCardCatagory, BaseCard, Card, OPTcgCardRarity, LimitlessCardData, CardPrice, CardCurrency
+    OPTcgCardCatagory, BaseCard, Card, OPTcgCardRarity, LimitlessCardData, CardPrice, CardCurrency, CardMarketplaceUrl, \
+    OPTcgMarketplace
 
 def replace_linebreak_whitespace(text: str) -> str:
     """
@@ -136,6 +138,54 @@ def extract_card_prices(card_id: str, language: OPTcgLanguage, soup: BeautifulSo
                     )
                 )
     return card_prices
+
+
+def extract_marketplace_urls(soup: BeautifulSoup, card_id: str, language: OPTcgLanguage, aa_versions: list[int]) -> list[CardMarketplaceUrl]:
+    marketplace_urls: list[CardMarketplaceUrl] = []
+    prints_table = soup.find('table', class_='card-prints-versions')
+    if prints_table:
+        # Iterate through rows, skipping the header
+        for row in prints_table.find_all('tr')[1:]:
+            try:
+                # Determine aa_version
+                aa_version = 0
+                link = row.find('td').find('a')
+                if link and link.get('href'):
+                    href = link.get('href')
+                    v_list = parse_qs(urlparse(href).query).get('v')
+                    if v_list:
+                        aa_version = int(v_list[0])
+
+                # Only process if this aa_version is in the list of versions we are crawling
+                if aa_version in aa_versions:
+                    # Extract URLs
+                    # USD -> TCGPlayer
+                    usd_cell = row.find_all('td')[1]
+                    usd_link = usd_cell.find('a', class_='card-price usd')
+                    if usd_link and usd_link.get('href'):
+                        marketplace_urls.append(CardMarketplaceUrl(
+                            card_id=card_id,
+                            language=language,
+                            aa_version=aa_version,
+                            marketplace=OPTcgMarketplace.TCGPLAYER,
+                            url=usd_link.get('href')
+                        ))
+
+                    # EUR -> Cardmarket
+                    eur_cell = row.find_all('td')[2]
+                    eur_link = eur_cell.find('a', class_='card-price eur')
+                    if eur_link and eur_link.get('href'):
+                        marketplace_urls.append(CardMarketplaceUrl(
+                            card_id=card_id,
+                            language=language,
+                            aa_version=aa_version,
+                            marketplace=OPTcgMarketplace.CARDMARKET,
+                            url=eur_link.get('href')
+                        ))
+            except Exception as e:
+                # Log warning or handle exception as needed, but since we don't have logger here, we might just skip
+                pass
+    return marketplace_urls
 
 
 def base_card2bq_card(base_card: BaseCard, soup: BeautifulSoup) -> Card:

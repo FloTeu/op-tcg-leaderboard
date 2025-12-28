@@ -11,9 +11,10 @@ from scrapy.http import Response
 
 from op_tcg.backend.crawling.items import LimitlessPriceRow, ReleaseSetItem, CardsItem
 from op_tcg.backend.etl.extract import extract_card_prices, limitless_soup2base_cards, limitless_soup2base_card, \
-    base_card2bq_card
+    base_card2bq_card, extract_marketplace_urls
 from op_tcg.backend.etl.load import get_or_create_table
-from op_tcg.backend.models.cards import CardPrice, Card, OPTcgLanguage, CardReleaseSet, OPTcgCardSetType, BaseCard
+from op_tcg.backend.models.cards import CardPrice, Card, OPTcgLanguage, CardReleaseSet, OPTcgCardSetType, BaseCard, \
+    CardMarketplaceUrl, OPTcgMarketplace
 from google.cloud import bigquery
 
 from op_tcg.backend.models.common import DataSource
@@ -24,6 +25,7 @@ from op_tcg.backend.models.input import get_meta_format_by_datetime, MetaFormat,
 class ReleaseSetCardsInfo(BaseModel):
     total_cards_to_crawl: int | None = Field(description="Expected number of cards which should be crawled at the end")
     cards: list[Card]
+    marketplace_urls: list[CardMarketplaceUrl] = []
 
     def is_ready_for_bq_load(self):
         if self.total_cards_to_crawl is None:
@@ -65,15 +67,35 @@ class LimitlessPricesSpider(scrapy.Spider):
                 card_ids_to_aa_version[id_language].append(aa_version)
         return card_ids_to_aa_version
 
+    def get_marketplace_urls(self) -> dict[str, list[int]]:
+        """Returns dict of card ids + language and aa versions stored in bq for marketplace urls"""
+        card_ids_to_aa_version: dict[str, list[int]] = {}
+        try:
+            for row in self.bq_client.query(
+                    f"SELECT card_id, language, aa_version FROM `{self.marketplace_url_table.full_table_id.replace(':', '.')}`").result():
+                id = dict(row).get("card_id")
+                language = dict(row).get("language")
+                id_language = self.get_id_language(id, language)
+                aa_version = dict(row).get("aa_version")
+                if id_language not in card_ids_to_aa_version:
+                    card_ids_to_aa_version[id_language] = [aa_version]
+                else:
+                    card_ids_to_aa_version[id_language].append(aa_version)
+        except Exception as e:
+            logging.warning(f"Could not fetch marketplace urls: {e}")
+        return card_ids_to_aa_version
+
     def start_requests(self):
         self.bq_client = bigquery.Client(location="europe-west3")
         self.card_table = get_or_create_table(Card, client=self.bq_client)
         self.price_table = get_or_create_table(CardPrice, client=self.bq_client)
         self.release_set_table = get_or_create_table(CardReleaseSet, client=self.bq_client)
+        self.marketplace_url_table = get_or_create_table(CardMarketplaceUrl, client=self.bq_client)
         self.price_count: dict[str, dict[int, int]] = {}  # dict[card id, dict[aa_version, count]]
         self.card_count: dict[str, dict[int, int]] = {}  # dict[card id, dict[aa_version, count]]
 
         self.bq_card_ids = self.get_card_ids()
+        self.bq_marketplace_urls = self.get_marketplace_urls()
         self.release_set_it_to_cards_info: dict[str, ReleaseSetCardsInfo] = {}
 
         start_urls = ["https://onepiece.limitlesstcg.com/cards/promos", "https://onepiece.limitlesstcg.com/cards"]
@@ -290,7 +312,17 @@ class LimitlessPricesSpider(scrapy.Spider):
                 card_id = row_data["Card"]
                 card_id_language = self.get_id_language(card_id, release_set_language)
                 # (not in bq yet) or (card_id in bq but not aa version)
-                if (card_id_language not in self.bq_card_ids) or (aa_version not in self.bq_card_ids[card_id_language]):
+                card_missing = (card_id_language not in self.bq_card_ids) or (aa_version not in self.bq_card_ids[card_id_language])
+
+                marketplace_missing = True
+                # ignore marketplace for jp cards as they are not listed on target page
+                if card_id_language.endswith(f"_{OPTcgLanguage.JP}"):
+                    marketplace_missing = False
+                if card_id_language in self.bq_marketplace_urls:
+                     if aa_version in self.bq_marketplace_urls[card_id_language]:
+                         marketplace_missing = False
+
+                if card_missing or marketplace_missing:
                     add_card_id_aa_version(card_id_language, aa_version)
 
                 rows.append(LimitlessPriceRow(
@@ -339,6 +371,11 @@ class LimitlessPricesSpider(scrapy.Spider):
         # Parse the HTML content
         soup = BeautifulSoup(response.text, 'html.parser')
 
+        # Extract marketplace URLs
+        marketplace_urls: list[CardMarketplaceUrl] = extract_marketplace_urls(soup, card_id, release_set_language, aa_versions)
+
+        self.release_set_it_to_cards_info[release_set.id].marketplace_urls.extend(marketplace_urls)
+
         # extract text data
         cards: list[Card] = []
         for aa_version in aa_versions:
@@ -354,6 +391,7 @@ class LimitlessPricesSpider(scrapy.Spider):
         if self.release_set_it_to_cards_info[release_set.id].is_ready_for_bq_load():
             yield CardsItem(
                 cards=self.release_set_it_to_cards_info[release_set.id].cards,
+                marketplace_urls=self.release_set_it_to_cards_info[release_set.id].marketplace_urls,
             )
 
     def errback_httpbin(self, failure):

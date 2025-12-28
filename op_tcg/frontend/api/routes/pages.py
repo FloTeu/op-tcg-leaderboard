@@ -1,0 +1,341 @@
+from collections import defaultdict
+from fasthtml import ft
+from starlette.requests import Request
+from op_tcg.backend.models.leader import LeaderExtended, LeaderboardSortBy
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
+from op_tcg.backend.models.cards import CardCurrency
+from op_tcg.frontend.utils.extract import (
+    get_card_data, 
+    get_leader_extended, 
+    get_card_popularity_data, 
+    get_card_id_card_data_lookup,
+    get_leader_average_deck_prices
+)
+from op_tcg.frontend.pages.home import create_leaderboard_table
+from op_tcg.frontend.utils.filter import filter_leader_extended, get_leaders_with_decklist_data
+from op_tcg.frontend.utils.api import get_query_params_as_dict, get_filtered_leaders, create_no_match_data_notification, detect_no_match_data
+from op_tcg.frontend.pages.leader import create_leader_content, HX_INCLUDE
+from op_tcg.frontend.pages.tournaments import create_tournament_content
+from op_tcg.frontend.pages.card_popularity import create_card_popularity_content
+from op_tcg.frontend.api.models import LeaderboardFilter, LeaderboardSort, LeaderDataParams, TournamentPageParams, CardPopularityParams
+from op_tcg.frontend.components.card_modal import create_card_modal
+
+def filter_cards(cards_data: list, params: CardPopularityParams) -> list:
+    """Filter cards based on the provided parameters.
+    
+    Args:
+        cards_data: List of card data objects
+        params: CardPopularityParams object containing filter criteria
+        
+    Returns:
+        Filtered list of cards
+    """
+    filtered_cards = []
+    
+    for card in cards_data:
+        # Skip if card is from a newer meta format
+        if card.meta_format and MetaFormat.to_list(only_after_release=False).index(card.meta_format) > MetaFormat.to_list(only_after_release=False).index(params.meta_format):
+            continue
+            
+        # Filter by release meta format
+        if params.release_meta_format and card.meta_format != params.release_meta_format:
+            continue
+
+        # Filter by search term
+        if params.search_term:
+            search_terms = [term.strip().lower() for term in params.search_term.split(";")]
+            if not all(term in card.get_searchable_string().lower() for term in search_terms):
+                continue
+            
+        # Filter by colors
+        if not any(color in params.card_colors for color in card.colors):
+            continue
+            
+        # Filter by attributes
+        if params.card_attributes and not any(attr in params.card_attributes for attr in card.attributes):
+            continue
+            
+        # Filter by card category
+        if params.card_category and card.card_category not in params.card_category:
+            continue
+            
+        # Filter by card rarity
+        if params.card_rarity and card.rarity not in params.card_rarity:
+            continue
+
+        # Filter by counter
+        if params.card_counter == 0 and card.counter not in [None, 0]:
+            continue
+
+        elif params.card_counter not in [0, None] and card.counter != params.card_counter:
+            continue
+
+        # Filter by card types
+        if params.card_types and not any(t in params.card_types for t in card.types):
+            continue
+            
+        # Filter by cost range
+        if card.cost is not None and not (params.min_cost <= card.cost <= params.max_cost):
+            continue
+            
+        # Filter by power range
+        if card.power is not None and not (params.min_power * 1000 <= card.power <= params.max_power * 1000):
+            continue
+            
+        # Filter by price range
+        if params.currency == CardCurrency.EURO and card.latest_eur_price:
+            if not (params.min_price <= card.latest_eur_price <= params.max_price):
+                continue
+        elif params.currency == CardCurrency.US_DOLLAR and card.latest_usd_price:
+            if not (params.min_price <= card.latest_usd_price <= params.max_price):
+                continue
+                
+        # Filter by abilities
+        if params.card_abilities or params.ability_text:
+            if params.filter_operator == "OR":
+                if not (any(ability in card.ability for ability in (params.card_abilities or [])) or 
+                       (params.ability_text and params.ability_text.lower() in card.ability.lower())):
+                    continue
+            else:  # AND
+                if not (all(ability in card.ability for ability in (params.card_abilities or [])) and 
+                       (not params.ability_text or params.ability_text.lower() in card.ability.lower())):
+                    continue
+        
+        filtered_cards.append(card)
+    
+    return filtered_cards
+
+def setup_api_routes(rt):
+    @rt("/api/tournament-content")
+    def get_tournament_content(request: Request):
+        """Return the tournament page content."""
+        # Parse params using Pydantic model
+        params = TournamentPageParams(**get_query_params_as_dict(request))
+        return create_tournament_content()
+
+    @rt("/api/leaderboard")
+    def api_leaderboard(request: Request):
+        # Parse the sort and meta format parameters
+        sort_params = LeaderboardSort(**get_query_params_as_dict(request))
+        filter_params = LeaderboardFilter(**get_query_params_as_dict(request))
+        
+        # Get filtered leaders
+        leader_extended_data: list[LeaderExtended] = get_leader_extended(meta_format_region=get_query_params_as_dict(request).get("region"))
+        filtered_leaders = get_filtered_leaders(request, leader_extended_data=leader_extended_data)
+        
+        # Get leader prices
+        leader_prices = get_leader_average_deck_prices(
+            meta_format=sort_params.meta_format,
+            region=filter_params.region
+        )
+
+        # Filter by price
+        if filter_params.max_price < 300 or filter_params.min_price > 0:
+             filtered_leaders = [
+                l for l in filtered_leaders
+                if filter_params.min_price <= leader_prices.get(l.id, 0) <= (filter_params.max_price if filter_params.max_price < 300 else float('inf'))
+            ]
+
+        display_name2df_col_name = {
+            "Name": "name",
+            "Set": "id",
+            LeaderboardSortBy.TOURNAMENT_WINS: "tournament_wins",
+            LeaderboardSortBy.MATCH_COUNT: "total_matches",
+            LeaderboardSortBy.WIN_RATE: "win_rate",
+            LeaderboardSortBy.DOMINANCE_SCORE: "d_score",
+            LeaderboardSortBy.ELO: "elo"
+        }
+
+        # Sort leaders by the specified sort criteria
+        if sort_params.sort_by == LeaderboardSortBy.TOURNAMENT_WINS:
+            filtered_leaders.sort(key=lambda x: (x.tournament_wins > 0, x.tournament_wins, x.elo or 0), reverse=True)
+        elif sort_params.sort_by == LeaderboardSortBy.PRICE:
+            filtered_leaders.sort(key=lambda x: leader_prices.get(x.id, 0), reverse=True)
+        else:
+            # Handle None values in sorting by providing default values
+            def get_sort_key(leader):
+                attr_name = display_name2df_col_name.get(sort_params.sort_by)
+                value = getattr(leader, attr_name)
+                # Return 0 for None values to sort them to the end
+                return value if value is not None else 0
+            
+            filtered_leaders.sort(key=get_sort_key, reverse=True)
+
+        # Create the leaderboard table
+        table_content = create_leaderboard_table(
+            filtered_leaders,
+            leader_extended_data,
+            sort_params.meta_format,
+            region=filter_params.region,
+            leader_prices=leader_prices
+        )
+        
+        # Check if leaders exist but have no match data
+        if detect_no_match_data(filtered_leaders):
+            # Special notification for when leaders exist but have no match data
+            notification = create_no_match_data_notification(
+                sort_params.meta_format,
+                leader_data_available=bool(filtered_leaders)
+            )
+            return ft.Div(notification, table_content)
+        
+        return table_content
+
+    @rt("/api/leader-data")
+    async def get_leader_data(request: Request):
+        # Parse params using Pydantic model
+        params = LeaderDataParams(**get_query_params_as_dict(request))
+        match_data_exists = True
+
+        # Get leader data with meta format region filtering
+        if params.lid:
+            # If a leader ID is provided, get data for that specific leader
+            leader_data = get_leader_extended(
+                leader_ids=[params.lid],
+                meta_format_region=params.region
+            )
+        else:
+            # Otherwise, get all leaders and find the one with highest d_score
+            leader_data = get_leader_extended(meta_format_region=params.region)
+            
+        # Filter by meta format and apply additional filters
+        filtered_by_meta = [l for l in leader_data if l.meta_format in params.meta_format]
+        
+        # Get leaders that have decklist data in these meta formats
+        leaders_with_decklists = get_leaders_with_decklist_data(params.meta_format)
+        
+        # Apply standard filtering
+        filtered_data = filter_leader_extended(
+            leaders=filtered_by_meta,
+            only_official=params.only_official
+        )
+        
+        # Create a set of leader IDs that are already included in filtered_data
+        already_included_ids = {fl.id for fl in filtered_data}
+        
+        # Add leaders that have decklist data but might not have match data
+        # Only include if they are not already in the filtered_data set
+        additional_leaders_with_decklist = [
+            l for l in filtered_by_meta 
+            if l.id in leaders_with_decklists and l.id not in already_included_ids
+        ]
+        
+        # Combine both sets of leaders
+        all_filtered_data = filtered_data + additional_leaders_with_decklist
+        
+        # If no match data exists, but the leader has decklist data, use the latest leader data
+        if not all_filtered_data and params.lid in leaders_with_decklists:
+            all_filtered_data = filter_leader_extended(
+                leaders=[l for l in leader_data if l.id == params.lid],
+                only_official=params.only_official
+            )
+            match_data_exists = False
+
+        
+        # Data found for requested meta formats - no fallback needed
+        if params.lid:
+            # Find the specific leader
+            leader_data_result = next((l for l in all_filtered_data if l.id == params.lid), None)
+            if not leader_data_result:
+                return ft.P("No data available for this leader in the selected meta format.", cls="text-red-400")
+        else:
+            # Get the top leader
+            all_filtered_data.sort(key=lambda x: (x.d_score or 0, x.elo or 0), reverse=True)
+            leader_data_result = all_filtered_data[0]
+        
+        return create_leader_content(
+            leader_id=leader_data_result.id,
+            leader_name=leader_data_result.name,
+            aa_image_url=leader_data_result.aa_image_url,
+            total_matches=leader_data_result.total_matches if match_data_exists else None,
+            ability=getattr(leader_data_result, "ability", None),
+            attributes=[str(a) for a in getattr(leader_data_result, "attributes", [])]
+        )
+
+    @rt("/api/card-popularity")
+    def get_card_popularity(request: Request):
+        """Return the card popularity content with filtered cards."""
+        # Parse params using Pydantic model
+        params = CardPopularityParams(**get_query_params_as_dict(request))
+        
+        # Get card data and popularity data
+        card_data_lookup = get_card_id_card_data_lookup()
+        card_popularity_list = get_card_popularity_data()
+        
+        # Filter card popularity data by requested meta format
+        card_popularity_dict = {}
+        for cp in card_popularity_list:
+            if cp.meta_format == params.meta_format:
+                if cp.card_id not in card_popularity_dict:
+                    card_popularity_dict[cp.card_id] = []
+                card_popularity_dict[cp.card_id].append(cp.popularity)
+        card_popularity_dict = {
+            cid: max(popularity_list) 
+            for cid, popularity_list in card_popularity_dict.items() 
+        }
+        
+        # Get all cards and apply filters
+        cards_data = list(card_data_lookup.values())
+        filtered_cards = filter_cards(cards_data, params)
+        
+        # Sort cards by popularity
+        filtered_cards.sort(
+            key=lambda x: card_popularity_dict.get(x.id, 0),
+            reverse=True
+        )
+        
+        # Create the card popularity content
+        content = create_card_popularity_content(
+            filtered_cards, 
+            card_popularity_dict, 
+            params.page, 
+            search_term=params.search_term, 
+            currency=params.currency
+        )
+        
+        return content
+
+    @rt("/api/card-modal")
+    def get_card_modal(request: Request):
+        """Return the card modal content."""
+        card_id = request.query_params.get("card_id")
+        meta_format = request.query_params.get("meta_format")
+        currency = request.query_params.get("currency")
+        currency = CardCurrency(currency) if currency is not None else CardCurrency.EURO
+        
+        if not card_id:
+            return ft.Div("No card ID provided", cls="text-red-400")
+            
+        if not meta_format:
+            return ft.Div("No meta format provided", cls="text-red-400")
+            
+        # Get all versions of the card
+        card_data = get_card_data()
+        base_card = None
+        card_versions = []
+        for card in card_data:
+            if card.id == card_id:
+                if card.aa_version == 0:
+                    base_card = card
+                    continue
+                card_versions.append(card)
+
+        if not base_card:
+            return ft.Div("Card not found", cls="text-red-400")
+        
+        # Sort versions by ID to ensure consistent order
+        card_versions.sort(key=lambda x: x.aa_version)
+            
+        # Get card popularity for the specific meta format
+        card_popularity_list = get_card_popularity_data()
+        popularity = 0
+        for cp in card_popularity_list:
+            if cp.card_id == card_id and cp.meta_format == meta_format:
+                popularity = max(popularity, cp.popularity)
+
+        # Note: Navigation between cards is now handled by JavaScript dynamically
+        # The card_elements query parameter is still accepted for backward compatibility
+        # but is no longer used for prev/next navigation
+
+        # Create and return modal using the component
+        return create_card_modal(base_card, card_versions, popularity, currency)

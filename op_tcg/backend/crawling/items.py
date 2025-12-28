@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from op_tcg.backend.models.cards import OPTcgLanguage, CardReleaseSet, Card
+from op_tcg.backend.models.cards import OPTcgLanguage, CardReleaseSet, Card, CardMarketplaceUrl
 from op_tcg.backend.models.decklists import Decklist, OpTopDeckDecklist
 from op_tcg.backend.models.tournaments import Tournament, TournamentStanding
 from op_tcg.backend.models.matches import Match
@@ -21,6 +21,7 @@ class ReleaseSetItem:
 @dataclass
 class CardsItem:
     cards: list[Card]
+    marketplace_urls: list[CardMarketplaceUrl]
 
 
 @dataclass

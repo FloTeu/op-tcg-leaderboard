@@ -55,7 +55,7 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
 
 # Run the application with proper configuration for Cloud Run
 # Use exec form to ensure proper signal handling for graceful shutdown
-CMD ["python", "-m", "uvicorn", "op_tcg.frontend_fasthtml.main:app", \
+CMD ["python", "-m", "uvicorn", "op_tcg.frontend.main:app", \
      "--host", "0.0.0.0", \
      "--port", "8080", \
      "--workers", "1", \
