@@ -18,14 +18,15 @@ def price_tile(item: dict, currency: CardCurrency, card_id2card_data: Dict[str, 
     pct_str = f"{pct_change*100:.1f}%" if pct_change is not None else "—"
     abs_str = f"{symbol}{abs_change:.2f}" if abs_change is not None else "—"
     card_id = item.get('card_id')
+    aa_version = item.get('aa_version', 0)
 
     latest_meta = MetaFormat.latest_meta_format()
 
-    local_indicator_id = f"price-modal-indicator-{card_id}"
+    local_indicator_id = f"price-modal-indicator-{card_id}-{aa_version}"
     image = ft.Img(
         src=item.get('image_url'), alt=name,
         cls="w-full h-auto rounded-t-lg cursor-pointer hover:opacity-90 transition-opacity",
-        hx_get=f"/api/card-modal?card_id={card_id}&meta_format={latest_meta}",
+        hx_get=f"/api/card-modal?card_id={card_id}&meta_format={latest_meta}&aa_version={aa_version}",
         hx_include="[name='currency']",
         hx_target="body", hx_swap="beforeend",
         hx_indicator=f"#{local_indicator_id}"

@@ -22,8 +22,8 @@ def get_marketplace_link(card: ExtendedCardData, currency: CardCurrency) -> tupl
             match = pattern.search(url)
             if match:
                 url_version = int(match.group(1))
-                expected_version = card.aa_version + 1
-                if url_version != expected_version:
+                if url_version == card.aa_version: # cardmarket uses 1-based versioning, but we 0-based
+                    expected_version = card.aa_version + 1
                     url = pattern.sub(lambda m: f"{m.group(0)[:m.group(0).rfind(m.group(1))]}{expected_version}", url)
         else:
             query = quote_plus(card.id)

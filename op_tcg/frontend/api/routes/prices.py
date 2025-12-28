@@ -10,6 +10,7 @@ from op_tcg.frontend.utils.extract import (
 from op_tcg.backend.models.cards import CardCurrency
 from op_tcg.frontend.components.prices import price_tiles
 from op_tcg.frontend.utils.extract import get_card_id_card_data_lookup
+from op_tcg.frontend.components.loading import create_loading_spinner, create_skeleton_cards_indicator
 
 
 def _header(currency: CardCurrency, days: int) -> ft.Div:
@@ -58,6 +59,15 @@ def setup_api_routes(rt):
         card_lookup = get_card_id_card_data_lookup()
         content = price_tiles(page_items, params.currency, card_lookup)
 
+        # Create loading spinner and skeleton for new batches
+        loading_spinner = create_loading_spinner(
+            id="price-batch-loading",
+            size="w-6 h-6",
+            container_classes="min-h-[50px]"
+        )
+        # Skeleton only for newly loaded batches
+        skeleton = create_skeleton_cards_indicator(id="price-batch-skeleton", count=15)
+
         if params.page == 1:
             # First page returns header + container with infinite scroll trigger
             return ft.Div(
@@ -71,8 +81,11 @@ def setup_api_routes(rt):
                         hx_target="#prices-grid-container",
                         hx_swap="beforeend",
                         hx_include="[name='currency'],[name='days'],[name='min_latest_price'],[name='max_latest_price'],[name='max_results'],[name='order_by'],[name='change_metric'],[name='include_alt_art']",
+                        hx_indicator="#price-batch-loading, #price-batch-skeleton",
                         cls="h-10"
                     ) if has_more else None,
+                    skeleton,
+                    loading_spinner,
                     id="prices-grid-container",
                     cls="p-4"
                 )
@@ -88,8 +101,9 @@ def setup_api_routes(rt):
                 hx_target="#prices-grid-container",
                 hx_swap="beforeend",
                 hx_include="[name='currency'],[name='days'],[name='min_latest_price'],[name='max_latest_price'],[name='max_results'],[name='order_by'],[name='change_metric'],[name='include_alt_art']",
+                hx_indicator="#price-batch-loading, #price-batch-skeleton",
                 cls="h-10"
             ) if has_more else None,
+            skeleton,
+            loading_spinner
         )
-
-

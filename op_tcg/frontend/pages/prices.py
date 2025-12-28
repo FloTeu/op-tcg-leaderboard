@@ -22,7 +22,7 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
                 hx_trigger="change",
                 hx_target="#price-overview",
                 hx_include=HX_INCLUDE,
-                hx_indicator="#price-loading-indicator, #price-skeleton, #price-loading-wrapper"
+                hx_indicator="#price-loading-indicator"
             ),
             cls="mb-4"
         ),
@@ -36,7 +36,7 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
                 name="order_by",
                 cls=SELECT_CLS + " styled-select",
                 hx_get="/api/price-overview", hx_trigger="change", hx_target="#price-overview",
-                hx_include=HX_INCLUDE, hx_indicator="#price-loading-indicator, #price-skeleton, #price-loading-wrapper"
+                hx_include=HX_INCLUDE, hx_indicator="#price-loading-indicator"
             ),
             cls="mb-2"
         ),
@@ -49,7 +49,7 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
                 name="change_metric",
                 cls=SELECT_CLS + " styled-select",
                 hx_get="/api/price-overview", hx_trigger="change", hx_target="#price-overview",
-                hx_include=HX_INCLUDE+",[name='change_metric']", hx_indicator="#price-loading-indicator, #price-skeleton, #price-loading-wrapper"
+                hx_include=HX_INCLUDE+",[name='change_metric']", hx_indicator="#price-loading-indicator"
             ),
             cls="mb-2"
         ),
@@ -58,7 +58,7 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
             ft.Input(type="number", min="1", max="365", value=str(days), name="days",
                      cls=SELECT_CLS,
                      hx_get="/api/price-overview", hx_trigger="change", hx_target="#price-overview",
-                     hx_include=HX_INCLUDE, hx_indicator="#price-loading-indicator, #price-skeleton, #price-loading-wrapper"),
+                     hx_include=HX_INCLUDE, hx_indicator="#price-loading-indicator"),
             cls="mb-4"
         ),
         ft.Div(
@@ -77,7 +77,7 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
                         hx_trigger="change",
                         hx_target="#price-overview",
                         hx_include=HX_INCLUDE,
-                        hx_indicator="#price-loading-indicator, #price-skeleton, #price-loading-wrapper"
+                        hx_indicator="#price-loading-indicator"
                     ),
                     ft.Input(
                         type="range",
@@ -90,7 +90,7 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
                         hx_trigger="change",
                         hx_target="#price-overview",
                         hx_include=HX_INCLUDE,
-                        hx_indicator="#price-loading-indicator, #price-skeleton, #price-loading-wrapper"
+                        hx_indicator="#price-loading-indicator"
                     ),
                     ft.Div(
                         ft.Span("0", cls="min-value text-white"),
@@ -110,7 +110,7 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
             ft.Label("Include Alt Art", cls="block text-sm text-gray-300 mb-1"),
             ft.Input(type="checkbox", name="include_alt_art", checked=False,
                      hx_get="/api/price-overview", hx_trigger="change", hx_target="#price-overview",
-                     hx_include=HX_INCLUDE+",[name='include_alt_art']", hx_indicator="#price-loading-indicator, #price-skeleton, #price-loading-wrapper"),
+                     hx_include=HX_INCLUDE+",[name='include_alt_art']", hx_indicator="#price-loading-indicator"),
             cls="mb-2"
         ),
         cls="space-y-4"
@@ -119,23 +119,21 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
 
 def prices_page():
     return ft.Div(
-        # Wrapper that receives htmx-request during requests so we can hide content reliably
+        create_loading_spinner(
+            id="price-loading-indicator",
+            size="w-8 h-8",
+            container_classes="min-h-[100px]"
+        ),
         ft.Div(
-            # Skeleton grid shown while HTMX requests are pending
-            create_skeleton_cards_indicator(id="price-skeleton", count=15),
-            ft.Div(
-                hx_get="/api/price-overview",
-                hx_trigger="load",
-                hx_target="#price-overview",
-                hx_swap="innerHTML",
-                hx_include=HX_INCLUDE,
-                hx_indicator="#price-loading-indicator, #price-skeleton, #price-loading-wrapper",
-                id="price-overview",
-                cls="min-h-screen htmx-hide-during-request"
-            ),
-            id="price-loading-wrapper"
+            hx_get="/api/price-overview",
+            hx_trigger="load",
+            hx_target="#price-overview",
+            hx_swap="innerHTML",
+            hx_include=HX_INCLUDE,
+            hx_indicator="#price-loading-indicator",
+            id="price-overview",
+            cls="min-h-screen"
         ),
         cls="p-0 lg:p-4"
     )
-
 
