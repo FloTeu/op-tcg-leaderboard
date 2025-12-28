@@ -47,7 +47,8 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 break
 
     # Create carousel items starting with the base card
-    base_marketplace_url, base_marketplace_text = get_marketplace_link(card, currency)
+    cm_url, _ = get_marketplace_link(card, CardCurrency.EURO)
+    tcg_url, _ = get_marketplace_link(card, CardCurrency.US_DOLLAR)
 
     is_base_active = (card.aa_version == selected_aa_version)
     base_cls = "carousel-item active relative" if is_base_active else "carousel-item relative"
@@ -80,15 +81,16 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
             data_currency=CardCurrency.EURO if currency == CardCurrency.EURO else CardCurrency.US_DOLLAR,
             data_eur_price=f"{card.latest_eur_price:.2f}" if card.latest_eur_price else "N/A",
             data_usd_price=f"{card.latest_usd_price:.2f}" if card.latest_usd_price else "N/A",
-            data_marketplace_url=base_marketplace_url,
-            data_marketplace_text=base_marketplace_text
+            data_cm_url=cm_url,
+            data_tcg_url=tcg_url
         )
     ]
 
     # Add alternate art versions
     for i, version in enumerate(card_versions):
         # Build external marketplace link for version
-        v_marketplace_url, v_marketplace_text = get_marketplace_link(version, currency)
+        v_cm_url, _ = get_marketplace_link(version, CardCurrency.EURO)
+        v_tcg_url, _ = get_marketplace_link(version, CardCurrency.US_DOLLAR)
 
         is_active = (version.aa_version == selected_aa_version)
         item_cls = "carousel-item active relative" if is_active else "carousel-item relative"
@@ -121,8 +123,8 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 data_currency=CardCurrency.EURO if currency == CardCurrency.EURO else CardCurrency.US_DOLLAR,
                 data_eur_price=f"{version.latest_eur_price:.2f}" if version.latest_eur_price else "N/A",
                 data_usd_price=f"{version.latest_usd_price:.2f}" if version.latest_usd_price else "N/A",
-                data_marketplace_url=v_marketplace_url,
-                data_marketplace_text=v_marketplace_text
+                data_cm_url=v_cm_url,
+                data_tcg_url=v_tcg_url
             )
         )
 
@@ -152,7 +154,8 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
     button_color_cls = "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
 
     # Build external marketplace link using selected card
-    marketplace_url, marketplace_text = get_marketplace_link(selected_card, currency)
+    cm_url, _ = get_marketplace_link(selected_card, CardCurrency.EURO)
+    tcg_url, _ = get_marketplace_link(selected_card, CardCurrency.US_DOLLAR)
 
     # Format the initial price display - show both currencies when available
     initial_price = "N/A"
@@ -256,16 +259,27 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                             ft.Div(
                                 ft.Div(
                                     ft.I("🛒", cls="text-gray-400"),
-                                    ft.Span("Marketplace", cls="text-gray-400 ml-2 mr-2"),
+                                    ft.Span("Buy on", cls="text-gray-400 ml-2 mr-2"),
                                     cls="flex items-center"
                                 ),
-                                ft.A(
-                                    marketplace_text,
-                                    href=marketplace_url,
-                                    target="_blank",
-                                    rel="noopener",
-                                    cls=f"inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded shadow-sm text-white {button_color_cls} focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors",
-                                    id="marketplace-link"
+                                ft.Div(
+                                    ft.A(
+                                        "Cardmarket",
+                                        href=cm_url,
+                                        target="_blank",
+                                        rel="noopener",
+                                        cls=f"inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded shadow-sm text-white {button_color_cls} focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors mr-2",
+                                        id="marketplace-link-cm"
+                                    ),
+                                    ft.A(
+                                        "TCGPlayer",
+                                        href=tcg_url,
+                                        target="_blank",
+                                        rel="noopener",
+                                        cls=f"inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded shadow-sm text-white {button_color_cls} focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors",
+                                        id="marketplace-link-tcg"
+                                    ),
+                                    cls="flex"
                                 ),
                                 cls="flex justify-between items-center py-2 border-b border-gray-700"
                             ),
