@@ -9,7 +9,7 @@ from op_tcg.frontend.utils.extract import (
 )
 from op_tcg.backend.models.cards import CardCurrency
 from op_tcg.frontend.components.prices import price_tiles
-from op_tcg.frontend.utils.extract import get_card_id_card_data_lookup
+from op_tcg.frontend.utils.extract import get_card_id_card_data_lookup, get_card_lookup_by_id_and_aa
 from op_tcg.frontend.components.loading import create_loading_spinner, create_skeleton_cards_indicator
 
 
@@ -56,7 +56,7 @@ def setup_api_routes(rt):
         page_items = items[:params.max_results]
 
         # Provide card metadata for building marketplace URLs (set info)
-        card_lookup = get_card_id_card_data_lookup()
+        card_lookup = get_card_lookup_by_id_and_aa()
         content = price_tiles(page_items, params.currency, card_lookup)
 
         # Create loading spinner and skeleton for new batches

@@ -188,6 +188,13 @@ def get_card_id_card_data_lookup(aa_version: int = 0, ensure_latest_price_not_nu
             cdata.ensure_latest_price_not_none()    
     return {card.id: card for card in card_data}
 
+def get_card_lookup_by_id_and_aa() -> dict[str, dict[int, ExtendedCardData]]:
+    card_data = get_card_data()
+    lookup = defaultdict(dict)
+    for card in card_data:
+        lookup[card.id][card.aa_version] = card
+    return lookup
+
 def get_tournament_match_data(tournament_id: str, leader_id: str | None = None) -> list[Match]:
     """Get all matches for a specific tournament, optionally filtered by leader_id
     
