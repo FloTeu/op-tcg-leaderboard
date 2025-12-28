@@ -4,9 +4,10 @@ from collections import Counter, defaultdict
 
 from cachetools import TTLCache, cached
 
+from op_tcg.backend.etl.load import get_or_create_table, table_exists
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
 from op_tcg.backend.models.cards import LatestCardPrice, CardPopularity, Card, CardReleaseSet, ExtendedCardData, \
-    CardCurrency, CardPrice, OPTcgLanguage
+    CardCurrency, CardPrice, OPTcgLanguage, CardMarketplaceUrl
 from op_tcg.backend.models.decklists import Decklist
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import Leader, TournamentWinner, LeaderElo, LeaderExtended
@@ -126,8 +127,24 @@ def get_card_data(default_language: OPTcgLanguage = OPTcgLanguage.EN) -> list[La
                            CASE WHEN t0.language = '{default_language}' THEN 1 ELSE 2 END) as rn
                 FROM `{get_bq_table_id(LatestCardPrice)}` t0
                 LEFT JOIN `{get_bq_table_id(CardReleaseSet)}` t1 on t0.release_set_id = t1.id and t0.language = t1.language
+            ),
+            marketplace_urls AS (
+              SELECT 
+                card_id, 
+                language, 
+                aa_version,
+                MAX(CASE WHEN marketplace = 'cardmarket' THEN url END) as marketplace_url_cardmarket,
+                MAX(CASE WHEN marketplace = 'tcgplayer' THEN url END) as marketplace_url_tcg_player
+              FROM `{get_bq_table_id(CardMarketplaceUrl)}`
+              GROUP BY card_id, language, aa_version
             )
-            SELECT * except(rn) FROM ranked_cards WHERE rn = 1
+            SELECT rc.* except(rn), mu.marketplace_url_cardmarket, mu.marketplace_url_tcg_player 
+            FROM ranked_cards rc
+            LEFT JOIN marketplace_urls mu
+                ON rc.id = mu.card_id 
+                AND rc.language = mu.language 
+                AND rc.aa_version = mu.aa_version
+            WHERE rc.rn = 1
     """, ttl_hours=24.0)
     return [ExtendedCardData(**d) for d in latest_card_rows]
 

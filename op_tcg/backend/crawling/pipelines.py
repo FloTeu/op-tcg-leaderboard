@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 
 from op_tcg.backend.etl.extract import crawl_limitless_card
-from op_tcg.backend.etl.load import bq_insert_rows
+from op_tcg.backend.etl.load import bq_insert_rows, bq_upsert_rows
 from op_tcg.backend.models.cards import LimitlessCardData, CardPrice, CardCurrency, CardReleaseSet
 from op_tcg.backend.models.decklists import Decklist
 from op_tcg.backend.models.input import LimitlessLeaderMetaDoc
@@ -100,9 +100,7 @@ class CardPipeline:
             spider.already_crawled_card_ids.append(card_id)
 
     def process_cards_item(self, item: CardsItem, spider):
-        rows_to_insert: list[dict[str, Any]] = []
         for card in item.cards:
-            rows_to_insert.append(json.loads(card.model_dump_json()))
             if card.id not in spider.card_count:
                 spider.card_count[card.id] = {}
             if card.aa_version not in spider.card_count[card.id]:
@@ -110,8 +108,10 @@ class CardPipeline:
             else:
                 spider.card_count[card.id][card.aa_version] += 1
 
-        bq_insert_rows(rows_to_insert,
+        bq_upsert_rows(item.cards,
                        table=spider.card_table, client=spider.bq_client)
+        bq_upsert_rows(item.marketplace_urls,
+                       table=spider.marketplace_url_table, client=spider.bq_client)
 
 
     def process_item(self, item: TournamentItem | CardsItem, spider):

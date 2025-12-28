@@ -2,7 +2,8 @@ import json
 import os
 import logging
 import sys
-from datetime import datetime, date
+import uuid
+from datetime import datetime, date, timedelta
 from typing import Any
 
 from google.cloud import bigquery
@@ -45,6 +46,26 @@ def get_or_create_bq_dataset(dataset_id, client: bigquery.Client | None = None, 
     return dataset
 
 
+def table_exists(bq_table_model: Any, client: bigquery.Client | None = None) -> bool:
+    """
+    Check if a BigQuery table exists.
+
+    :param bq_table_model: BQTableBaseModel - The BQ table model instance or class.
+    :param client: bigquery.Client - The BigQuery client.
+    :return: bool - True if the table exists, False otherwise.
+    """
+    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
+    client = client if client else bigquery.Client(project=project_id)
+
+    dataset_id = bq_table_model.get_dataset_id()
+    table_name = bq_table_model.__tablename__
+    table_id = f"{client.project}.{dataset_id}.{table_name}"
+
+    try:
+        client.get_table(table_id)
+        return True
+    except NotFound:
+        return False
 
 
 # Function to get or create a BigQuery table
@@ -175,3 +196,95 @@ def upload2gcp_storage(path_to_file: str, blob_name: str, bucket: str = StorageB
     bucket = client.get_bucket(bucket)
     blob = bucket.blob(blob_name)
     blob.upload_from_filename(path_to_file, content_type=content_type)
+
+def bq_upsert_rows(rows: list[SQLTableBaseModel], client: bigquery.Client | None = None, table: bigquery.Table | None = None):
+    """
+    Upserts multiple rows into BigQuery using a temporary table and MERGE statement.
+    """
+    if not rows:
+        return
+
+    client = client or bigquery.Client()
+    model_class = type(rows[0])
+
+    # Get target table
+    if table:
+        target_table = table
+    else:
+        target_table = get_or_create_table(model_class, client=client)
+
+    target_table_id = f"{target_table.project}.{target_table.dataset_id}.{target_table.table_id}"
+
+    # Create temp table
+    dataset_ref = bigquery.DatasetReference(target_table.project, target_table.dataset_id)
+    temp_table_ref = dataset_ref.table(f"{target_table.table_id}_temp_{uuid.uuid4().hex}")
+
+    schema = pydantic_model_to_bq_schema(model_class)
+    temp_table = bigquery.Table(temp_table_ref, schema=schema)
+    temp_table.expires = datetime.now() + timedelta(hours=1)
+
+    try:
+        temp_table = client.create_table(temp_table)
+    except Exception as e:
+        _logger.error(f"Failed to create temp table {temp_table_ref}: {e}")
+        return
+
+    try:
+        # Insert rows into temp table
+        rows_dicts = [json.loads(row.model_dump_json()) for row in rows]
+        for row in rows_dicts:
+            ensure_json_serializability(row)
+
+        errors = client.insert_rows_json(temp_table, rows_dicts)
+        if errors:
+             raise ValueError(f"Encountered errors while inserting rows into temp table: {errors}")
+
+        # Generate MERGE statement
+        primary_keys = [field for field, value in model_class.model_fields.items() if
+                        value.json_schema_extra and value.json_schema_extra.get('primary_key', False)]
+
+        if not primary_keys:
+             _logger.warning(f"No primary keys found for {model_class.__name__}, falling back to append-only insert.")
+             # Fallback to insert?
+             return
+
+        # Columns to update (all except PKs)
+        all_columns = list(rows_dicts[0].keys())
+        update_columns = [col for col in all_columns if col not in primary_keys]
+
+        on_clause = ' AND '.join(f"target.`{pk}` = source.`{pk}`" for pk in primary_keys)
+
+        if update_columns:
+            update_expressions = []
+            for col in update_columns:
+                # Special handling for image_url column to avoid overwriting updated URLs
+                if col == 'image_url':
+                    update_expressions.append(f"target.`{col}` = IF(STARTS_WITH(target.`{col}`, 'https://storage.googleapis.com'), target.`{col}`, source.`{col}`)")
+                else:
+                    update_expressions.append(f"target.`{col}` = source.`{col}`")
+            update_clause = ', '.join(update_expressions)
+            when_matched = f"WHEN MATCHED THEN UPDATE SET {update_clause}"
+        else:
+            when_matched = ""
+
+        insert_columns = ', '.join(f"`{col}`" for col in all_columns)
+        insert_values = ', '.join(f"source.`{col}`" for col in all_columns)
+
+        merge_sql = f"""
+        MERGE `{target_table_id}` target
+        USING `{temp_table.project}.{temp_table.dataset_id}.{temp_table.table_id}` source
+        ON {on_clause}
+        {when_matched}
+        WHEN NOT MATCHED THEN
+            INSERT ({insert_columns}) VALUES ({insert_values})
+        """
+
+        query_job = client.query(merge_sql)
+        query_job.result()
+        _logger.info(f"Upserted {len(rows)} rows into {target_table_id}")
+
+    except Exception as e:
+        _logger.exception(f"An error occurred during upsert: {e}")
+    finally:
+        # Delete temp table
+        client.delete_table(temp_table, not_found_ok=True)

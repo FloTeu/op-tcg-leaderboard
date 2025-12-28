@@ -38,9 +38,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
         )
 
     # Create carousel items starting with the base card
-    base_marketplace_url, base_marketplace_text = get_marketplace_link(
-        card.id, card.name, card.release_set_name, currency
-    )
+    base_marketplace_url, base_marketplace_text = get_marketplace_link(card, currency)
 
     carousel_items = [
         ft.Div(
@@ -78,9 +76,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
     # Add alternate art versions
     for i, version in enumerate(card_versions):
         # Build external marketplace link for version
-        v_marketplace_url, v_marketplace_text = get_marketplace_link(
-            version.id, version.name, version.release_set_name, currency
-        )
+        v_marketplace_url, v_marketplace_text = get_marketplace_link(version, currency)
 
         carousel_items.append(
             ft.Div(
@@ -141,9 +137,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
     button_color_cls = "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
 
     # Build external marketplace link
-    marketplace_url, marketplace_text = get_marketplace_link(
-        card.id, card.name, card.release_set_name, currency
-    )
+    marketplace_url, marketplace_text = get_marketplace_link(card, currency)
 
     # Format the initial price display - show both currencies when available
     initial_price = "N/A"

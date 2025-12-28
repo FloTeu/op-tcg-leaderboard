@@ -41,21 +41,16 @@ def price_tile(item: dict, currency: CardCurrency, card_id2card_data: Dict[str, 
 
     # External marketplace link based on currency and card id/name
     # Build vendor-specific query. For Cardmarket use card_id; for TCGplayer use name + set code/name when available
-    release_set_name = None
+    external_link = ft.A()
     if card_id2card_data and card_id in card_id2card_data:
-        release_set_name = card_id2card_data[card_id].release_set_name
-
-    marketplace_url, marketplace_text = get_marketplace_link(
-        card_id or name, name, release_set_name, currency
-    )
-
-    external_link = ft.A(
-        marketplace_text,
-        href=marketplace_url,
-        target="_blank",
-        rel="noopener",
-        cls="text-blue-300 text-xs hover:underline"
-    )
+        marketplace_url, marketplace_text = get_marketplace_link(card_id2card_data[card_id], currency)
+        external_link = ft.A(
+            marketplace_text,
+            href=marketplace_url,
+            target="_blank",
+            rel="noopener",
+            cls="text-blue-300 text-xs hover:underline"
+        )
 
     return ft.Div(
         ft.Div(
