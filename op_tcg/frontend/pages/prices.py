@@ -6,6 +6,7 @@ HX_INCLUDE = "[name='currency'],[name='weeks'],[name='min_latest_price'],[name='
 
 # Common CSS classes for select components (aligned with card popularity page)
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+CHECKBOX_CLS = "w-5 h-5 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500 focus:ring-2 focus:ring-offset-gray-800"
 
 
 def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO, weeks: int = 4):
@@ -14,7 +15,8 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
             ft.Label("Include Alt Art", cls="block text-sm text-gray-300 mb-1"),
             ft.Input(type="checkbox", name="include_alt_art", checked=False,
                      hx_get="/api/price-overview", hx_trigger="change", hx_target="#price-overview",
-                     hx_include=HX_INCLUDE+",[name='include_alt_art']", hx_indicator="#price-loading-indicator"),
+                     hx_include=HX_INCLUDE+",[name='include_alt_art']", hx_indicator="#price-loading-indicator",
+                     cls=CHECKBOX_CLS),
             cls="mb-2"
         ),
         ft.Div(
@@ -141,4 +143,3 @@ def prices_page():
         ),
         cls="p-0 lg:p-4"
     )
-

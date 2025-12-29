@@ -268,7 +268,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                                         href=cm_url,
                                         target="_blank",
                                         rel="noopener",
-                                        cls=f"inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded shadow-sm text-white {button_color_cls} focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors mr-2",
+                                        cls="flex-1 text-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-l-lg transition-colors border-r border-blue-800",
                                         id="marketplace-link-cm"
                                     ),
                                     ft.A(
@@ -276,10 +276,10 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                                         href=tcg_url,
                                         target="_blank",
                                         rel="noopener",
-                                        cls=f"inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded shadow-sm text-white {button_color_cls} focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors",
+                                        cls="flex-1 text-center px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-r-lg transition-colors",
                                         id="marketplace-link-tcg"
                                     ),
-                                    cls="flex"
+                                    cls="flex w-full max-w-xs"
                                 ),
                                 cls="flex justify-between items-center py-2 border-b border-gray-700"
                             ),

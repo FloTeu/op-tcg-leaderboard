@@ -79,8 +79,8 @@ def setup_api_routes(rt):
                         id="prices-infinite-scroll-trigger",
                         hx_get=f"/api/price-overview?page={params.page + 1}",
                         hx_trigger="revealed",
-                        hx_target="#prices-grid-container",
-                        hx_swap="beforeend",
+                        hx_target="this",
+                        hx_swap="outerHTML",
                         hx_include="[name='currency'],[name='weeks'],[name='min_latest_price'],[name='max_latest_price'],[name='max_results'],[name='order_by'],[name='change_metric'],[name='include_alt_art']",
                         hx_indicator="#price-batch-loading, #price-batch-skeleton",
                         cls="h-10"
@@ -99,12 +99,10 @@ def setup_api_routes(rt):
                 id="prices-infinite-scroll-trigger",
                 hx_get=f"/api/price-overview?page={params.page + 1}",
                 hx_trigger="revealed",
-                hx_target="#prices-grid-container",
-                hx_swap="beforeend",
-                hx_include="[name='currency'],[name='days'],[name='min_latest_price'],[name='max_latest_price'],[name='max_results'],[name='order_by'],[name='change_metric'],[name='include_alt_art']",
+                hx_target="this",
+                hx_swap="outerHTML",
+                hx_include="[name='currency'],[name='weeks'],[name='min_latest_price'],[name='max_latest_price'],[name='max_results'],[name='order_by'],[name='change_metric'],[name='include_alt_art']",
                 hx_indicator="#price-batch-loading, #price-batch-skeleton",
                 cls="h-10"
-            ) if has_more else None,
-            skeleton,
-            loading_spinner
+            ) if has_more else None
         )
