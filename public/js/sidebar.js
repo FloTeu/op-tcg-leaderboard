@@ -171,6 +171,11 @@ document.addEventListener('DOMContentLoaded', function() {
             // Close sidebar immediately on mobile
             setSidebarState(false);
         }
+
+        // Handle mobile filter button click
+        if (event.target.closest('.mobile-filter-btn')) {
+            toggleSidebar();
+        }
     });
 });
 
