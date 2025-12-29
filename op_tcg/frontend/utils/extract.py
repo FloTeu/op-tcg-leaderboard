@@ -221,12 +221,13 @@ def get_tournament_match_data(tournament_id: str, leader_id: str | None = None) 
 
 
 # --------------- Price overview extraction helpers ---------------
-def get_price_change_data(days: int, currency: CardCurrency, min_latest_price: float, max_latest_price: float,
+def get_price_change_data(start_date: int, end_date: int, currency: CardCurrency, min_latest_price: float, max_latest_price: float,
                           page: int, page_size: int, order_dir: str = "DESC", include_alt_art: bool = False, change_metric: str = "absolute") -> list[dict]:
     """Return price changes over a window for cards, ordered by percentage change.
 
     Args:
-        days: Lookback window in days
+        start_date: Start timestamp
+        end_date: End timestamp
         currency: EUR or USD
         min_latest_price: minimum latest price filter
         max_latest_price: maximum latest price filter
@@ -247,18 +248,19 @@ def get_price_change_data(days: int, currency: CardCurrency, min_latest_price: f
     fetch_count = page_size + 1  # fetch one extra to detect has_more
     query = f"""
     WITH history_window AS (
-      SELECT card_id, language, aa_version, price, create_timestamp,
-             ROW_NUMBER() OVER (PARTITION BY card_id, language, aa_version ORDER BY create_timestamp ASC) AS rn
+      SELECT card_id, language, aa_version, price, create_timestamp
       FROM `{history_tbl}`
-      WHERE create_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)
+      WHERE create_timestamp BETWEEN TIMESTAMP_SECONDS({start_date}) AND TIMESTAMP_SECONDS({end_date})
         AND currency = '{price_currency}'
         AND language = 'en'
         {aa_filter}
     ),
-    base_price AS (
-      SELECT card_id, language, aa_version, price AS window_price
+    window_prices AS (
+      SELECT card_id, language, aa_version,
+             ARRAY_AGG(price ORDER BY create_timestamp ASC LIMIT 1)[OFFSET(0)] as start_price,
+             ARRAY_AGG(price ORDER BY create_timestamp DESC LIMIT 1)[OFFSET(0)] as end_price
       FROM history_window
-      WHERE rn = 1
+      GROUP BY card_id, language, aa_version
     ),
     latest AS (
       SELECT id AS card_id, language, aa_version, name, image_url, {currency_col} AS latest_price
@@ -268,13 +270,14 @@ def get_price_change_data(days: int, currency: CardCurrency, min_latest_price: f
         {upper_bound}
         {aa_filter}
     )
-    SELECT l.card_id, l.language, l.aa_version, l.name, l.image_url, l.latest_price,
-           b.window_price,
-           SAFE_DIVIDE(l.latest_price - b.window_price, NULLIF(b.window_price, 0)) AS pct_change,
-           (l.latest_price - b.window_price) AS abs_change
+    SELECT l.card_id, l.language, l.aa_version, l.name, l.image_url, 
+           w.end_price as latest_price,
+           w.start_price as window_price,
+           SAFE_DIVIDE(w.end_price - w.start_price, NULLIF(w.start_price, 0)) AS pct_change,
+           (w.end_price - w.start_price) AS abs_change
     FROM latest l
-    LEFT JOIN base_price b
-      ON l.card_id = b.card_id AND l.language = b.language AND l.aa_version = b.aa_version
+    JOIN window_prices w
+      ON l.card_id = w.card_id AND l.language = w.language AND l.aa_version = w.aa_version
     ORDER BY {order_expr} {order_dir}
     LIMIT {fetch_count}
     OFFSET {offset}

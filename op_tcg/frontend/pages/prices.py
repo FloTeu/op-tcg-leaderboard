@@ -1,15 +1,25 @@
 from fasthtml import ft
 from op_tcg.backend.models.cards import CardCurrency
 from op_tcg.frontend.components.loading import create_loading_spinner, create_skeleton_cards_indicator
+import time
+from datetime import datetime, timedelta
 
-HX_INCLUDE = "[name='currency'],[name='weeks'],[name='min_latest_price'],[name='max_latest_price'],[name='order_by'],[name='include_alt_art'],[name='change_metric']"
+HX_INCLUDE = "[name='currency'],[name='start_date'],[name='end_date'],[name='min_latest_price'],[name='max_latest_price'],[name='order_by'],[name='include_alt_art'],[name='change_metric']"
 
 # Common CSS classes for select components (aligned with card popularity page)
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 CHECKBOX_CLS = "w-5 h-5 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500 focus:ring-2 focus:ring-offset-gray-800"
 
 
-def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO, weeks: int = 4):
+def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO, start_date: int = None, end_date: int = None):
+    now = int(time.time())
+    one_year_ago = int((datetime.now() - timedelta(days=365)).timestamp())
+
+    if start_date is None:
+        start_date = int((datetime.now() - timedelta(weeks=4)).timestamp())
+    if end_date is None:
+        end_date = now
+
     return ft.Div(
         ft.Div(
             ft.Label("Include Alt Art", cls="block text-sm text-gray-300 mb-1"),
@@ -47,16 +57,49 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
             cls="mb-2"
         ),
         ft.Div(
+            ft.Label("Date Range", cls="block text-sm text-gray-300 mb-2"),
             ft.Div(
-                ft.Label("Weeks", cls="text-sm text-gray-300 mb-1 inline-block"),
-                ft.Span(f"{weeks} weeks", id="weeks-value", cls="text-sm text-gray-400 float-right inline-block"),
-                cls="w-full"
+                ft.Div(
+                    ft.Div(cls="slider-track"),
+                    ft.Input(
+                        type="range",
+                        min=str(one_year_ago),
+                        max=str(now),
+                        value=str(start_date),
+                        name="start_date",
+                        cls="slider-range min-range",
+                        hx_get="/api/price-overview",
+                        hx_trigger="change",
+                        hx_target="#price-overview",
+                        hx_include=HX_INCLUDE,
+                        hx_indicator="#price-loading-indicator"
+                    ),
+                    ft.Input(
+                        type="range",
+                        min=str(one_year_ago),
+                        max=str(now),
+                        value=str(end_date),
+                        name="end_date",
+                        cls="slider-range max-range",
+                        hx_get="/api/price-overview",
+                        hx_trigger="change",
+                        hx_target="#price-overview",
+                        hx_include=HX_INCLUDE,
+                        hx_indicator="#price-loading-indicator"
+                    ),
+                    ft.Div(
+                        ft.Span(cls="min-value text-white"),
+                        ft.Span(" - ", cls="text-white mx-2"),
+                        ft.Span(cls="max-value text-white"),
+                        cls="slider-values"
+                    ),
+                    cls="double-range-slider",
+                    id="date-range-slider",
+                    data_double_range_slider="true",
+                    data_type="date"
+                ),
+                cls="relative w-full"
             ),
-            ft.Input(type="range", min="1", max="52", value=str(weeks), name="weeks",
-                     cls="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer",
-                     hx_get="/api/price-overview", hx_trigger="change", hx_target="#price-overview",
-                     hx_include=HX_INCLUDE, hx_indicator="#price-loading-indicator",
-                     oninput="document.getElementById('weeks-value').innerText = this.value + ' weeks'"),
             cls="mb-4"
         ),
         ft.Div(
