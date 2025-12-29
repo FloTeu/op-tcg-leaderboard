@@ -283,8 +283,22 @@ def setup_api_routes(rt):
 
         # Create header cells
         header_cells = [
-            ft.Th("Leader", cls="text-left py-2 px-4 w-[200px]"),
-            ft.Th("Win Rate", cls="text-left py-2 px-4 w-[120px]")
+            ft.Th(
+                ft.Div(
+                    ft.Span("Opponent →", cls="block text-left"),
+                    ft.Span("Leader ↓", cls="block text-left"),
+                    cls="flex flex-col w-full"
+                ),
+                cls="text-left py-2 px-4 w-[200px]"
+            ),
+            ft.Th(
+                ft.Div(
+                    ft.Span("Overall"),
+                    ft.Br(),
+                    ft.Span("Win Rate")
+                ),
+                cls="text-left py-2 px-4 w-[120px]"
+            )
         ]
         
         # Add leader columns to header
