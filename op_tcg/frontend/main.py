@@ -16,6 +16,7 @@ from op_tcg.frontend.pages.matchups import matchups_page, create_filter_componen
 from op_tcg.frontend.pages.card_popularity import card_popularity_page, create_filter_components as card_popularity_filters
 from op_tcg.frontend.pages.prices import prices_page, create_filter_components as prices_filters
 from op_tcg.frontend.pages.bug_report import bug_report_page
+from op_tcg.frontend.pages.about import about_page
 from op_tcg.frontend.api.routes.main import setup_api_routes
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from starlette.requests import Request
@@ -400,6 +401,27 @@ def bug_report(request: Request):
         ft.Meta(property="og:url", content=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
         layout(bug_report_page(), filter_component=None, current_path="/bug-report", persist_query=persist_query)
+    )
+
+@rt("/about")
+def about(request: Request):
+    # Add canonical link to head based on incoming host
+    canonical_url = f"{canonical_base(request)}/about"
+    title = "About – OP TCG Leaderboard"
+    description = "About the OP TCG Leaderboard project."
+
+    persist_query = {
+        "meta_format": request.query_params.get("meta_format"),
+        "region": request.query_params.get("region")
+    }
+    return (
+        ft.Title(title),
+        ft.Meta(name="description", content=description),
+        ft.Meta(property="og:title", content=title),
+        ft.Meta(property="og:description", content=description),
+        ft.Meta(property="og:url", content=canonical_url),
+        ft.Link(rel="canonical", href=canonical_url),
+        layout(about_page(), filter_component=None, current_path="/about", persist_query=persist_query)
     )
 
 if __name__ == "__main__":

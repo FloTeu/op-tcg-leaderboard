@@ -53,6 +53,7 @@ def sidebar_content(filter_component=None, current_path="/", persist_query: dict
     ]
     
     support_links = [
+        (build_href("/about"), "About", "ℹ️", current_path == "/about"),
         (build_href("/bug-report"), "Bug Report", "👾", current_path == "/bug-report"),
     ]
 
