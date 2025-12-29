@@ -50,6 +50,16 @@ function setSidebarState(isOpen) {
     sidebarState.isOpen = isOpen;
     sidebarState.isMobile = isMobileDevice();
     
+    // Handle elements that should be hidden when sidebar is open (mobile only)
+    const hideOnOpenElements = document.querySelectorAll('.hide-on-sidebar-open');
+    hideOnOpenElements.forEach(el => {
+        if (isOpen && sidebarState.isMobile) {
+             el.style.display = 'none';
+        } else {
+             el.style.display = '';
+        }
+    });
+
     if (sidebarState.isMobile) {
         // Mobile behavior
         if (isOpen) {

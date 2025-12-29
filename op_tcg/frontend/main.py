@@ -365,7 +365,7 @@ def card_popularity(request: Request):
     )
 
 # Prices page
-@rt("/prices")
+@rt("/card-prices")
 def prices(request: Request):
     canonical_url = f"{canonical_base(request)}/prices"
     title = "Card Prices – Market Trends – OP TCG Leaderboard"

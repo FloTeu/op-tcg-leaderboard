@@ -1,6 +1,7 @@
 from fasthtml import ft
 from op_tcg.backend.models.cards import CardCurrency
 from op_tcg.frontend.components.loading import create_loading_spinner, create_skeleton_cards_indicator
+from op_tcg.frontend.components.layout import create_mobile_filter_button
 import time
 from datetime import datetime, timedelta
 
@@ -169,6 +170,7 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
 
 def prices_page():
     return ft.Div(
+        create_mobile_filter_button(),
         create_loading_spinner(
             id="price-loading-indicator",
             size="w-8 h-8",

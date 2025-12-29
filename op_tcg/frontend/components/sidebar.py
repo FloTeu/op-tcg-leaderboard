@@ -49,7 +49,7 @@ def sidebar_content(filter_component=None, current_path="/", persist_query: dict
     
     card_links = [
         (build_href("/card-popularity"), "Card Popularity", "💃", current_path == "/card-popularity"),
-        #(build_href("/prices"), "Card Prices", "💰", current_path == "/prices"),
+        #(build_href("/card-prices"), "Card Prices", "💰", current_path == "/card-prices"),
     ]
     
     support_links = [

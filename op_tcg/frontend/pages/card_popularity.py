@@ -485,10 +485,13 @@ def create_card_popularity_content(cards_data: list[ExtendedCardData], card_popu
         loading_spinner
     )
 
+from op_tcg.frontend.components.layout import create_mobile_filter_button
+
 def card_popularity_page():
     return ft.Div(
         ft.H1("Card Popularity", cls="text-3xl font-bold text-white mb-6"),
-        ft.P("A list of cards ordered by popularity. A popularity of 100% stands for 100% occurrence in tournament decks of the same card color.", cls="text-gray-300 mb-8"),
+        ft.P("A list of cards ordered by popularity. A popularity of 100% stands for 100% occurrence in tournament decks of the same card color.", cls="text-gray-300 mb-4"),
+        create_mobile_filter_button(),
         # Loading spinner
         create_loading_spinner(
             id="card-popularity-loading-indicator",

@@ -5,6 +5,7 @@ from fasthtml import ft
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended, LeaderboardSortBy
 from op_tcg.frontend.components.loading import create_loading_overlay, create_loading_spinner
+from op_tcg.frontend.components.layout import create_mobile_filter_button
 
 
 # Common HTMX attributes for filter components
@@ -399,6 +400,7 @@ def home_page():
         ft.H1("Leaderboard", cls="text-3xl font-bold text-white mb-6"),
         ft.Div(
             ft.Div(
+                create_mobile_filter_button(),
                 # Loading indicator
                 create_loading_spinner(
                     id="loading-indicator",
