@@ -2,29 +2,20 @@ from fasthtml import ft
 from op_tcg.backend.models.cards import CardCurrency
 from op_tcg.frontend.components.loading import create_loading_spinner, create_skeleton_cards_indicator
 
-HX_INCLUDE = "[name='currency'],[name='days'],[name='min_latest_price'],[name='max_latest_price'],[name='order_by'],[name='include_alt_art'],[name='change_metric']"
+HX_INCLUDE = "[name='currency'],[name='weeks'],[name='min_latest_price'],[name='max_latest_price'],[name='order_by'],[name='include_alt_art'],[name='change_metric']"
 
 # Common CSS classes for select components (aligned with card popularity page)
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
 
-def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO, days: int = 30):
+def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO, weeks: int = 4):
     return ft.Div(
         ft.Div(
-            ft.Select(
-                ft.Option("EUR", value=CardCurrency.EURO, selected=(selected_currency == CardCurrency.EURO)),
-                ft.Option("USD", value=CardCurrency.US_DOLLAR, selected=(selected_currency == CardCurrency.US_DOLLAR)),
-                label="Currency",
-                id="price-currency-select",
-                name="currency",
-                cls=SELECT_CLS + " styled-select",
-                hx_get="/api/price-overview",
-                hx_trigger="change",
-                hx_target="#price-overview",
-                hx_include=HX_INCLUDE,
-                hx_indicator="#price-loading-indicator"
-            ),
-            cls="mb-4"
+            ft.Label("Include Alt Art", cls="block text-sm text-gray-300 mb-1"),
+            ft.Input(type="checkbox", name="include_alt_art", checked=False,
+                     hx_get="/api/price-overview", hx_trigger="change", hx_target="#price-overview",
+                     hx_include=HX_INCLUDE+",[name='include_alt_art']", hx_indicator="#price-loading-indicator"),
+            cls="mb-2"
         ),
         ft.Div(
             ft.Label("Order By", cls="block text-sm text-gray-300 mb-1"),
@@ -54,11 +45,16 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
             cls="mb-2"
         ),
         ft.Div(
-            ft.Label("Days", cls="block text-sm text-gray-300 mb-1"),
-            ft.Input(type="number", min="1", max="365", value=str(days), name="days",
-                     cls=SELECT_CLS,
+            ft.Div(
+                ft.Label("Weeks", cls="text-sm text-gray-300 mb-1 inline-block"),
+                ft.Span(f"{weeks} weeks", id="weeks-value", cls="text-sm text-gray-400 float-right inline-block"),
+                cls="w-full"
+            ),
+            ft.Input(type="range", min="1", max="52", value=str(weeks), name="weeks",
+                     cls="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer",
                      hx_get="/api/price-overview", hx_trigger="change", hx_target="#price-overview",
-                     hx_include=HX_INCLUDE, hx_indicator="#price-loading-indicator"),
+                     hx_include=HX_INCLUDE, hx_indicator="#price-loading-indicator",
+                     oninput="document.getElementById('weeks-value').innerText = this.value + ' weeks'"),
             cls="mb-4"
         ),
         ft.Div(
@@ -107,11 +103,20 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
             cls="mb-4"
         ),
         ft.Div(
-            ft.Label("Include Alt Art", cls="block text-sm text-gray-300 mb-1"),
-            ft.Input(type="checkbox", name="include_alt_art", checked=False,
-                     hx_get="/api/price-overview", hx_trigger="change", hx_target="#price-overview",
-                     hx_include=HX_INCLUDE+",[name='include_alt_art']", hx_indicator="#price-loading-indicator"),
-            cls="mb-2"
+            ft.Select(
+                ft.Option("EUR", value=CardCurrency.EURO, selected=(selected_currency == CardCurrency.EURO)),
+                ft.Option("USD", value=CardCurrency.US_DOLLAR, selected=(selected_currency == CardCurrency.US_DOLLAR)),
+                label="Currency",
+                id="price-currency-select",
+                name="currency",
+                cls=SELECT_CLS + " styled-select",
+                hx_get="/api/price-overview",
+                hx_trigger="change",
+                hx_target="#price-overview",
+                hx_include=HX_INCLUDE,
+                hx_indicator="#price-loading-indicator"
+            ),
+            cls="mb-4"
         ),
         cls="space-y-4"
     )

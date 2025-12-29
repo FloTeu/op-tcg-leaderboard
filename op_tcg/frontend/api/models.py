@@ -378,7 +378,7 @@ class CardPopularityParams(BaseModel):
 class PriceOverviewParams(BaseModel):
     """Parameters for card price overview requests"""
     currency: CardCurrency = CardCurrency.EURO
-    days: int = 30
+    weeks: int = 4
     min_latest_price: float = 0.0
     max_latest_price: Optional[float] = None
     max_results: int = 20
@@ -395,7 +395,7 @@ class PriceOverviewParams(BaseModel):
             return CardCurrency(value)
         return value
 
-    @field_validator('days', 'max_results', mode='before')
+    @field_validator('weeks', 'max_results', mode='before')
     def validate_ints(cls, value):
         if isinstance(value, list) and value:
             value = value[0]
