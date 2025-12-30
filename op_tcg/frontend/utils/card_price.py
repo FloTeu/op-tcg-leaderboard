@@ -1,5 +1,5 @@
 import re
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlparse, parse_qs
 from op_tcg.backend.models.cards import LatestCardPrice, CardCurrency, ExtendedCardData
 
 
@@ -30,13 +30,21 @@ def get_marketplace_link(card: ExtendedCardData, currency: CardCurrency) -> tupl
             url = f"https://www.cardmarket.com/en/OnePiece/Products/Search?searchString={query}&category=-1&mode=gallery"
         text = "View on Cardmarket"
     else:
+        affiliate_link = "https://partner.tcgplayer.com/6yRDbV"
         if card.marketplace_url_tcg_player:
             url = card.marketplace_url_tcg_player
+            # If the URL is a partner link, replace it with our affiliate link
+            if "partner.tcgplayer.com" in url:
+                parsed = urlparse(url)
+                qs = parse_qs(parsed.query)
+                if 'u' in qs:
+                    target_url = qs['u'][0]
+                    url = f"{affiliate_link}?u={quote_plus(target_url)}"
         else:
             # For TCGplayer use name + set name if available
             q_str = f"{card.name} {card.release_set_name}".strip() if card.release_set_name else card.name
             query = quote_plus(q_str)
-            url = f"https://www.tcgplayer.com/search/one-piece-card-game/product?q={query}&productLineName=one-piece-card-game"
+            url = f"{affiliate_link}?u=https://www.tcgplayer.com/search/one-piece-card-game/product?q={query}&productLineName=one-piece-card-game"
         text = "View on TCGplayer"
 
     return url, text
