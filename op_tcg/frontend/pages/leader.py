@@ -454,14 +454,14 @@ def create_leader_content(leader_id: str, leader_name: str, aa_image_url: str, t
             ),
             cls="bg-gray-800 rounded-lg p-6 shadow-xl"
         ),
-        cls="w-full md:w-3/4 md:pl-6 flex-grow px-4 md:px-0"
+        cls="w-full md:w-3/4 md:pl-6 flex-grow"
     )
     
     return ft.Div(
         # Page title
         ft.H1(f"Leader: {leader_name} ({leader_id})", 
-              cls="text-3xl font-bold text-white mb-6 px-4 md:px-0"),
-        
+              cls="text-3xl font-bold text-white mb-6"),
+
         # Main content: single column for mobile, two-column layout for desktop
         ft.Div(
             # First section - Leader image and stats (full width on mobile)
@@ -469,7 +469,7 @@ def create_leader_content(leader_id: str, leader_name: str, aa_image_url: str, t
                 # Leader image
                 ft.Div(
                     ft.Img(src=aa_image_url, cls="w-full rounded-lg shadow-lg"),
-                    cls="mb-4"
+                    cls="mb-4 px-4"
                 ),
                 # Compact card info (attributes + effect)
                 ft.Div(
@@ -508,7 +508,7 @@ def create_leader_content(leader_id: str, leader_name: str, aa_image_url: str, t
                     ),
                     cls="bg-gray-700 rounded-lg p-4"
                 ),
-                cls="w-full md:w-1/4 flex-shrink-0 mb-6 px-4 md:px-0"
+                cls="w-full md:w-1/4 flex-shrink-0 mb-6"
             ),
             
             # Second section - Charts or message (full width on mobile)
@@ -520,7 +520,7 @@ def create_leader_content(leader_id: str, leader_name: str, aa_image_url: str, t
         # TabView section
         ft.Div(
             create_tab_view(has_match_data),
-            cls="px-4 md:px-0 mt-4"
+            cls="mt-4"
         ),
         id="leader-content-inner",
         data_leader_id=leader_id
@@ -600,6 +600,6 @@ def leader_page(leader_id: str | None = None, filtered_leader_data: LeaderExtend
         ),
         # Leader content
         leader_content,
-        cls="min-h-screen p-8 relative",
+        cls="min-h-screen p-0 lg:p-8 relative",
         id="leader-content"
     )

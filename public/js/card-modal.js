@@ -369,16 +369,20 @@ window.updatePrice = function(activeItem) {
         }
     }
 
-    // Update marketplace link
-    const marketplaceLink = document.getElementById('marketplace-link');
-    if (marketplaceLink) {
-        const marketplaceUrl = activeItem.getAttribute('data-marketplace-url');
-        const marketplaceText = activeItem.getAttribute('data-marketplace-text');
-        if (marketplaceUrl) {
-            marketplaceLink.href = marketplaceUrl;
+    // Update marketplace links
+    const cmLink = document.getElementById('marketplace-link-cm');
+    if (cmLink) {
+        const cmUrl = activeItem.getAttribute('data-cm-url');
+        if (cmUrl) {
+            cmLink.href = cmUrl;
         }
-        if (marketplaceText) {
-            marketplaceLink.textContent = marketplaceText;
+    }
+
+    const tcgLink = document.getElementById('marketplace-link-tcg');
+    if (tcgLink) {
+        const tcgUrl = activeItem.getAttribute('data-tcg-url');
+        if (tcgUrl) {
+            tcgLink.href = tcgUrl;
         }
     }
 }

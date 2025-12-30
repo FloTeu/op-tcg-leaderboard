@@ -6,7 +6,7 @@ from op_tcg.frontend.utils.card_price import get_marketplace_link
 
 
 def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardData], popularity: float,
-                      currency: CardCurrency) -> ft.Div:
+                      currency: CardCurrency, selected_aa_version: int = 0) -> ft.Div:
     """Create a modal dialog for displaying card details.
 
     Args:
@@ -14,6 +14,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
         card_versions: List of all versions of the card (including alt arts)
         popularity: The card's popularity (0-1)
         currency: The selected currency for price display
+        selected_aa_version: The AA version to show initially (default: 0)
 
     Returns:
         A FastHTML Div containing the modal dialog
@@ -37,8 +38,20 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
             cls="flex justify-between items-center py-2 border-b border-gray-700"
         )
 
+    # Find the selected card version for initial display
+    selected_card = card
+    if selected_aa_version > 0:
+        for v in card_versions:
+            if v.aa_version == selected_aa_version:
+                selected_card = v
+                break
+
     # Create carousel items starting with the base card
-    base_marketplace_url, base_marketplace_text = get_marketplace_link(card, currency)
+    cm_url, _ = get_marketplace_link(card, CardCurrency.EURO)
+    tcg_url, _ = get_marketplace_link(card, CardCurrency.US_DOLLAR)
+
+    is_base_active = (card.aa_version == selected_aa_version)
+    base_cls = "carousel-item active relative" if is_base_active else "carousel-item relative"
 
     carousel_items = [
         ft.Div(
@@ -59,7 +72,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 onclick="window.nextCarouselItem(this)",
                 title="Next version"
             ) if len(card_versions) > 0 else None,
-            cls="carousel-item active relative",
+            cls=base_cls,
             id="carousel-item-base",
             data_card_id=card.id,
             data_aa_version=card.aa_version,
@@ -68,15 +81,19 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
             data_currency=CardCurrency.EURO if currency == CardCurrency.EURO else CardCurrency.US_DOLLAR,
             data_eur_price=f"{card.latest_eur_price:.2f}" if card.latest_eur_price else "N/A",
             data_usd_price=f"{card.latest_usd_price:.2f}" if card.latest_usd_price else "N/A",
-            data_marketplace_url=base_marketplace_url,
-            data_marketplace_text=base_marketplace_text
+            data_cm_url=cm_url,
+            data_tcg_url=tcg_url
         )
     ]
 
     # Add alternate art versions
     for i, version in enumerate(card_versions):
         # Build external marketplace link for version
-        v_marketplace_url, v_marketplace_text = get_marketplace_link(version, currency)
+        v_cm_url, _ = get_marketplace_link(version, CardCurrency.EURO)
+        v_tcg_url, _ = get_marketplace_link(version, CardCurrency.US_DOLLAR)
+
+        is_active = (version.aa_version == selected_aa_version)
+        item_cls = "carousel-item active relative" if is_active else "carousel-item relative"
 
         carousel_items.append(
             ft.Div(
@@ -97,7 +114,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     onclick="window.nextCarouselItem(this)",
                     title="Next version"
                 ),
-                cls="carousel-item relative",
+                cls=item_cls,
                 id=f"carousel-item-{i}",
                 data_card_id=version.id,
                 data_aa_version=version.aa_version,
@@ -106,8 +123,8 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 data_currency=CardCurrency.EURO if currency == CardCurrency.EURO else CardCurrency.US_DOLLAR,
                 data_eur_price=f"{version.latest_eur_price:.2f}" if version.latest_eur_price else "N/A",
                 data_usd_price=f"{version.latest_usd_price:.2f}" if version.latest_usd_price else "N/A",
-                data_marketplace_url=v_marketplace_url,
-                data_marketplace_text=v_marketplace_text
+                data_cm_url=v_cm_url,
+                data_tcg_url=v_tcg_url
             )
         )
 
@@ -136,23 +153,24 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
     # Determine button color based on marketplace
     button_color_cls = "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
 
-    # Build external marketplace link
-    marketplace_url, marketplace_text = get_marketplace_link(card, currency)
+    # Build external marketplace link using selected card
+    cm_url, _ = get_marketplace_link(selected_card, CardCurrency.EURO)
+    tcg_url, _ = get_marketplace_link(selected_card, CardCurrency.US_DOLLAR)
 
     # Format the initial price display - show both currencies when available
     initial_price = "N/A"
-    if card.latest_eur_price and card.latest_usd_price:
-        initial_price = f"€{card.latest_eur_price:.2f} | ${card.latest_usd_price:.2f}"
+    if selected_card.latest_eur_price and selected_card.latest_usd_price:
+        initial_price = f"€{selected_card.latest_eur_price:.2f} | ${selected_card.latest_usd_price:.2f}"
         price_label = "Price (EUR | USD)"
         price_symbol = "💰"
-    elif currency == CardCurrency.EURO and card.latest_eur_price:
-        initial_price = f"€{card.latest_eur_price:.2f}"
-    elif currency == CardCurrency.US_DOLLAR and card.latest_usd_price:
-        initial_price = f"${card.latest_usd_price:.2f}"
-    elif card.latest_eur_price:
-        initial_price = f"€{card.latest_eur_price:.2f}"
-    elif card.latest_usd_price:
-        initial_price = f"${card.latest_usd_price:.2f}"
+    elif currency == CardCurrency.EURO and selected_card.latest_eur_price:
+        initial_price = f"€{selected_card.latest_eur_price:.2f}"
+    elif currency == CardCurrency.US_DOLLAR and selected_card.latest_usd_price:
+        initial_price = f"${selected_card.latest_usd_price:.2f}"
+    elif selected_card.latest_eur_price:
+        initial_price = f"€{selected_card.latest_eur_price:.2f}"
+    elif selected_card.latest_usd_price:
+        initial_price = f"${selected_card.latest_usd_price:.2f}"
 
     return ft.Div(
         # Modal backdrop
@@ -241,16 +259,27 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                             ft.Div(
                                 ft.Div(
                                     ft.I("🛒", cls="text-gray-400"),
-                                    ft.Span("Marketplace", cls="text-gray-400 ml-2 mr-2"),
+                                    ft.Span("Buy on", cls="text-gray-400 ml-2 mr-2"),
                                     cls="flex items-center"
                                 ),
-                                ft.A(
-                                    marketplace_text,
-                                    href=marketplace_url,
-                                    target="_blank",
-                                    rel="noopener",
-                                    cls=f"inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded shadow-sm text-white {button_color_cls} focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors",
-                                    id="marketplace-link"
+                                ft.Div(
+                                    ft.A(
+                                        "Cardmarket",
+                                        href=cm_url,
+                                        target="_blank",
+                                        rel="noopener",
+                                        cls="flex-1 text-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-l-lg transition-colors border-r border-blue-800",
+                                        id="marketplace-link-cm"
+                                    ),
+                                    ft.A(
+                                        "TCGPlayer",
+                                        href=tcg_url,
+                                        target="_blank",
+                                        rel="noopener",
+                                        cls="flex-1 text-center px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-r-lg transition-colors",
+                                        id="marketplace-link-tcg"
+                                    ),
+                                    cls="flex w-full max-w-xs"
                                 ),
                                 cls="flex justify-between items-center py-2 border-b border-gray-700"
                             ),
@@ -355,7 +384,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                                 hx_get=f"/api/card-price-development-chart",
                                 hx_target=f"#price-chart-container-{card.id}",
                                 hx_indicator=f"#price-chart-loading-{card.id}",
-                                hx_vals=f'js:{{"card_id": "{card.id}", "days": document.getElementById("price-period-selector-{card.id}").value, "include_alt_art": "false"}}',
+                                hx_vals=f'js:{{"card_id": "{card.id}", "days": document.getElementById("price-period-selector-{card.id}").value, "include_alt_art": "false", "aa_version": "{selected_aa_version}"}}',
                                 **{
                                     "hx-on::before-request": f"document.getElementById('price-chart-container-{card.id}').innerHTML = ''; document.getElementById('price-chart-loading-{card.id}').style.display = 'flex';"}
                             ),
@@ -365,7 +394,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     ),
                     ft.Div(
                         id=f"price-chart-container-{card.id}",
-                        hx_get=f"/api/card-price-development-chart?card_id={card.id}&days=90",
+                        hx_get=f"/api/card-price-development-chart?card_id={card.id}&days=90&aa_version={selected_aa_version}",
                         hx_trigger="load",
                         hx_indicator=f"#price-chart-loading-{card.id}",
                         cls="min-h-[300px]"

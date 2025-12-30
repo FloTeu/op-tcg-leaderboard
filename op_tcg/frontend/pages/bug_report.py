@@ -47,8 +47,8 @@ def bug_report_page():
                 cls="text-gray-500 italic"
             ),
             
-            cls="max-w-2xl"
+            cls="bg-gray-800 rounded-lg p-8 shadow-lg"
         ),
         
-        cls="min-h-screen p-6"
-    ) 
+        cls="container mx-auto px-4 py-8 max-w-4xl"
+    )

@@ -1,6 +1,14 @@
 from fasthtml import ft
 from op_tcg.frontend.components.sidebar import sidebar
 
+def create_mobile_filter_button():
+    """Create a button to toggle the sidebar on mobile devices."""
+    return ft.Button(
+        "Show Filters",
+        type="button",
+        cls="mobile-filter-btn md:hidden hide-on-sidebar-open text-sm text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 rounded-full px-4 py-2 transition-colors mb-8 relative z-10 cursor-pointer"
+    )
+
 def layout(content, filter_component=None, current_path="/", persist_query=None):
     """
     Main layout component that includes the sidebar navigation and content area.

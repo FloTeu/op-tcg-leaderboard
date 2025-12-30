@@ -26,8 +26,13 @@ class DoubleRangeSlider {
         const percentage = (value) => ((value - this.minRange.min) / (this.minRange.max - this.minRange.min)) * 100;
 
         // Update the values display with proper formatting
-        this.minValue.textContent = min.toLocaleString();
-        this.maxValue.textContent = max.toLocaleString();
+        if (this.container.dataset.type === 'date') {
+            this.minValue.textContent = new Date(min * 1000).toLocaleDateString();
+            this.maxValue.textContent = new Date(max * 1000).toLocaleDateString();
+        } else {
+            this.minValue.textContent = min.toLocaleString();
+            this.maxValue.textContent = max.toLocaleString();
+        }
 
         // Update track position using CSS variables
         this.sliderTrack.style.setProperty('--left-percent', `${percentage(min)}%`);
@@ -70,4 +75,4 @@ function initializeDoubleRangeSliders() {
 document.addEventListener('DOMContentLoaded', initializeDoubleRangeSliders);
 
 // Re-initialize after HTMX swaps (for dynamic content)
-document.addEventListener('htmx:afterSwap', initializeDoubleRangeSliders); 
+document.addEventListener('htmx:afterSwap', initializeDoubleRangeSliders);

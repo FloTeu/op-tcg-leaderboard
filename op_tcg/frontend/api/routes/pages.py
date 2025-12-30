@@ -301,6 +301,7 @@ def setup_api_routes(rt):
         card_id = request.query_params.get("card_id")
         meta_format = request.query_params.get("meta_format")
         currency = request.query_params.get("currency")
+        selected_aa_version = int(request.query_params.get("aa_version", 0))
         currency = CardCurrency(currency) if currency is not None else CardCurrency.EURO
         
         if not card_id:
@@ -338,4 +339,4 @@ def setup_api_routes(rt):
         # but is no longer used for prev/next navigation
 
         # Create and return modal using the component
-        return create_card_modal(base_card, card_versions, popularity, currency)
+        return create_card_modal(base_card, card_versions, popularity, currency, selected_aa_version=selected_aa_version)

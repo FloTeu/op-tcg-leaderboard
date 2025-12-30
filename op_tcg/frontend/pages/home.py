@@ -5,6 +5,7 @@ from fasthtml import ft
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended, LeaderboardSortBy
 from op_tcg.frontend.components.loading import create_loading_overlay, create_loading_spinner
+from op_tcg.frontend.components.layout import create_mobile_filter_button
 
 
 # Common HTMX attributes for filter components
@@ -165,36 +166,29 @@ def create_chart_data_for_leader(leader: LeaderExtended, all_leaders: list[Leade
     # Get leader history from all_leaders
     leader_history = [l for l in all_leaders if l.id == leader.id and l.only_official == leader.only_official]
     
-    # Sort by meta format to ensure chronological order
-    leader_history.sort(key=lambda x: all_meta_formats.index(x.meta_format))
-    
-    # Find the first meta format where this leader has data
-    first_meta_format = leader_history[0].meta_format if leader_history else None
-    start_index = all_meta_formats.index(first_meta_format) if first_meta_format in all_meta_formats else 0
-    meta_formats_between = all_meta_formats[start_index:]
-    
     # Create a lookup for existing data points
     meta_to_leader = {l.meta_format: l for l in leader_history}
     
     # Determine range of meta formats to include based on last_n
-    end_index = meta_format_index + 1 - start_index  # Exclusive end index
-    start_index = max(0, end_index - last_n)  # Take at most last_n meta formats
-    relevant_meta_formats = meta_formats_between[start_index:end_index]
-    
+    # We want a fixed window ending at the current meta_format to ensure alignment across all leaders
+    end_index = meta_format_index + 1
+    start_index = max(0, end_index - last_n)
+    relevant_meta_formats = all_meta_formats[start_index:end_index]
+
     # Prepare data for the chart, including null values for missing meta formats
     chart_data = []
-    for meta_format in relevant_meta_formats:
-        if meta_format in meta_to_leader:
-            leader_data = meta_to_leader[meta_format]
+    for mf in relevant_meta_formats:
+        if mf in meta_to_leader:
+            leader_data = meta_to_leader[mf]
             chart_data.append({
-                "meta": str(meta_format),
+                "meta": str(mf),
                 "winRate": round(leader_data.win_rate * 100, 2) if leader_data.win_rate is not None else None,
                 "elo": leader_data.elo,
                 "matches": leader_data.total_matches
             })
         else:
             chart_data.append({
-                "meta": str(meta_format),
+                "meta": str(mf),
                 "winRate": None,
                 "elo": None,
                 "matches": None
@@ -399,6 +393,7 @@ def home_page():
         ft.H1("Leaderboard", cls="text-3xl font-bold text-white mb-6"),
         ft.Div(
             ft.Div(
+                create_mobile_filter_button(),
                 # Loading indicator
                 create_loading_spinner(
                     id="loading-indicator",

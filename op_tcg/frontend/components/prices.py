@@ -5,7 +5,7 @@ from op_tcg.backend.models.input import MetaFormat
 from op_tcg.frontend.utils.card_price import get_marketplace_link
 
 
-def price_tile(item: dict, currency: CardCurrency, card_id2card_data: Dict[str, ExtendedCardData] | None = None) -> ft.Div:
+def price_tile(item: dict, currency: CardCurrency, card_id2card_data: Dict[str, Dict[int, ExtendedCardData]] | None = None) -> ft.Div:
     symbol = "€" if currency == CardCurrency.EURO else "$"
     name = item.get('name') or item.get('card_id')
     latest = item.get('latest_price') or 0
@@ -18,14 +18,15 @@ def price_tile(item: dict, currency: CardCurrency, card_id2card_data: Dict[str, 
     pct_str = f"{pct_change*100:.1f}%" if pct_change is not None else "—"
     abs_str = f"{symbol}{abs_change:.2f}" if abs_change is not None else "—"
     card_id = item.get('card_id')
+    aa_version = item.get('aa_version', 0)
 
     latest_meta = MetaFormat.latest_meta_format()
 
-    local_indicator_id = f"price-modal-indicator-{card_id}"
+    local_indicator_id = f"price-modal-indicator-{card_id}-{aa_version}"
     image = ft.Img(
         src=item.get('image_url'), alt=name,
         cls="w-full h-auto rounded-t-lg cursor-pointer hover:opacity-90 transition-opacity",
-        hx_get=f"/api/card-modal?card_id={card_id}&meta_format={latest_meta}",
+        hx_get=f"/api/card-modal?card_id={card_id}&meta_format={latest_meta}&aa_version={aa_version}",
         hx_include="[name='currency']",
         hx_target="body", hx_swap="beforeend",
         hx_indicator=f"#{local_indicator_id}"
@@ -43,14 +44,19 @@ def price_tile(item: dict, currency: CardCurrency, card_id2card_data: Dict[str, 
     # Build vendor-specific query. For Cardmarket use card_id; for TCGplayer use name + set code/name when available
     external_link = ft.A()
     if card_id2card_data and card_id in card_id2card_data:
-        marketplace_url, marketplace_text = get_marketplace_link(card_id2card_data[card_id], currency)
-        external_link = ft.A(
-            marketplace_text,
-            href=marketplace_url,
-            target="_blank",
-            rel="noopener",
-            cls="text-blue-300 text-xs hover:underline"
-        )
+        card_versions = card_id2card_data[card_id]
+        # Try to get specific version, fallback to base version (0)
+        card_data = card_versions.get(aa_version) or card_versions.get(0)
+
+        if card_data:
+            marketplace_url, marketplace_text = get_marketplace_link(card_data, currency)
+            external_link = ft.A(
+                marketplace_text,
+                href=marketplace_url,
+                target="_blank",
+                rel="noopener",
+                cls="text-blue-300 text-xs hover:underline"
+            )
 
     return ft.Div(
         ft.Div(
@@ -63,7 +69,7 @@ def price_tile(item: dict, currency: CardCurrency, card_id2card_data: Dict[str, 
     )
 
 
-def price_tiles(items: List[dict], currency: CardCurrency, card_id2card_data: Dict[str, ExtendedCardData] | None = None) -> ft.Div:
+def price_tiles(items: List[dict], currency: CardCurrency, card_id2card_data: Dict[str, Dict[int, ExtendedCardData]] | None = None) -> ft.Div:
     tile_grid_cls = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4"
     return ft.Div(
         ft.Div(*[price_tile(it, currency, card_id2card_data) for it in items], cls=tile_grid_cls)
