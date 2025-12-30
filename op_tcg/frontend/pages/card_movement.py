@@ -463,7 +463,7 @@ def create_card_movement_content(leader_id: str, current_meta: MetaFormat):
             id="tabs-content",
             cls="mt-4"
         ),
-        cls="p-6"
+        cls=""
     )
 
 def create_summary_content(leader_id: str, current_meta: MetaFormat, analysis: Dict):

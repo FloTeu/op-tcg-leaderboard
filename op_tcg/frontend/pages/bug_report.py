@@ -50,5 +50,5 @@ def bug_report_page():
             cls="max-w-2xl"
         ),
         
-        cls="min-h-screen p-6"
+        cls="min-h-screen px-4 py-8"
     ) 
