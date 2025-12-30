@@ -116,10 +116,10 @@ def create_tournament_section(leader_id: str, tournament_decklists: List[Tournam
             continue
         elif not isinstance(td.tournament_timestamp, datetime):
             continue
-            
+
         t_date = td.tournament_timestamp.date()
         day_count[t_date] = day_count.get(t_date, 0) + 1
-    
+
     # Get tournaments where this leader won
     for t in tournaments:
         if leader_id not in t.leader_ids_placings:
@@ -127,7 +127,7 @@ def create_tournament_section(leader_id: str, tournament_decklists: List[Tournam
         elif 1 not in t.leader_ids_placings[leader_id]:
             continue
         tournaments_with_win.append(t)
-    
+
     # Prepare chart data
     chart_data = [{"date": date.isoformat(), "wins": count} for date, count in sorted(day_count.items())]
     
@@ -136,14 +136,14 @@ def create_tournament_section(leader_id: str, tournament_decklists: List[Tournam
     
     # Get initial tournament for details
     initial_tournament = tournaments_with_win[0] if tournaments_with_win else None
-    
+
     # Create the tournament section
     return ft.Div(
         # Tournament wins count and chart section
         ft.Div(
             ft.H3("Tournament Wins", cls="text-2xl font-bold text-white mb-4"),
             ft.P(f"Total Wins: {len(tournaments_with_win)}", cls="text-xl text-gray-200 mb-4"),
-            
+
             # Tournament wins chart
             ft.Div(
                 create_stream_chart(
@@ -165,7 +165,7 @@ def create_tournament_section(leader_id: str, tournament_decklists: List[Tournam
         # Tournament details section
         ft.Div(
             ft.H4("Tournament Details", cls="text-xl font-bold text-white mb-4"),
-            
+
             # Tournament selector
             ft.Select(
                 *[ft.Option(t.name, value=t.id, selected=(t == initial_tournament)) for t in tournaments_with_win],
@@ -177,23 +177,23 @@ def create_tournament_section(leader_id: str, tournament_decklists: List[Tournam
                 hx_include=f"{hx_include}[name='tournament_id']",
                 hx_indicator="#tournament-details-loading"
             ) if tournaments_with_win else None,
-            
+
             # Loading spinner
             create_loading_spinner(
                 id="tournament-details-loading",
                 size="w-8 h-8",
                 container_classes="min-h-[50px]"
             ),
-            
+
             # Tournament details container
             ft.Div(
                 id="tournament-details",
                 cls="space-y-4"
             ),
-            
+
             cls="space-y-4 bg-gray-800 rounded-lg p-6 shadow-lg"
         ) if tournaments_with_win else None,
-        
+
         cls="space-y-6"
     )
 

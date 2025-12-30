@@ -220,10 +220,10 @@ def create_tournament_content():
                                 })();
                                 """
                             ),
-                            cls="relative bg-gray-800/30 rounded-lg p-2 md:p-4 overflow-hidden",
+                            cls="relative bg-gray-900/50 rounded-lg p-2 md:p-4 overflow-hidden",
                             style="min-height: 320px; height: 400px; width: 100%;"
                         ),
-                        cls="bg-gray-900/50 rounded-xl p-3 md:p-6 backdrop-blur-sm border border-gray-700/30"
+                        cls="bg-gray-800 rounded-lg p-3 md:p-6 shadow-xl"
                     ),
                     cls="w-full"
                 ),
@@ -252,7 +252,7 @@ def create_tournament_content():
                                 hx_include="[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']",
                                 cls="w-full h-full"
                             ),
-                            cls="relative bg-gray-800/30 rounded-lg p-2 md:p-4 overflow-hidden",
+                            cls="relative bg-gray-900/50 rounded-lg p-2 md:p-4 overflow-hidden",
                             style="min-height: 400px; height: auto; width: 100%;"
                         ),
                         # Slider lives outside of the swap target so it isn't replaced on each HTMX response
@@ -335,7 +335,7 @@ def create_tournament_content():
                                 }
                             });
                         """),
-                        cls="bg-gray-900/50 rounded-xl p-3 md:p-6 backdrop-blur-sm border border-gray-700/30"
+                        cls="bg-gray-800 rounded-lg p-3 md:p-6 shadow-xl"
                     ),
                     cls="w-full"
                 ),
@@ -363,10 +363,10 @@ def create_tournament_content():
                         hx_indicator="#tournament-list-loading",
                         cls="w-full h-full"
                     ),
-                    cls="relative bg-gray-900/30 rounded-xl p-3 md:p-6 backdrop-blur-sm border border-gray-700/20 overflow-x-auto",
+                    cls="relative bg-gray-900/50 rounded-lg p-3 md:p-6 overflow-x-auto",
                     style="min-height: 200px;"
                 ),
-                cls="bg-gradient-to-br from-gray-900/40 to-gray-800/40 rounded-2xl p-4 md:p-8 backdrop-blur-sm border border-gray-600/20"
+                cls="bg-gray-800 rounded-lg p-4 md:p-8 shadow-xl"
             ),
             cls="mt-8 md:mt-16"
         ),
