@@ -302,11 +302,16 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
                             cls="text-center"
                         ),
                         ft.Div(
+                            ft.Span("Top 1", cls="text-xs text-gray-400 block"),
+                            ft.Span(str(leader.tournament_wins), cls="font-semibold"),
+                            cls="text-center"
+                        ),
+                        ft.Div(
                             ft.Span("D-Score", cls="text-xs text-gray-400 block"),
                             ft.Span(f"{int(leader.d_score * 100)}%" if leader.d_score is not None else "N/A", cls="font-semibold"),
                             cls="text-center"
                         ),
-                        cls="grid grid-cols-2 gap-2 flex-grow"
+                        cls="grid grid-cols-3 gap-2 flex-grow"
                     ),
                     cls="flex"
                 ),
@@ -321,7 +326,7 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
                     # Chart loading indicator
                     create_loading_overlay(
                         id=f"chart-loading-mobile-{leader.id}",
-                        size="w-8 h-8"
+                        size="w-6 h-6"
                     ),
                     # Chart container with embedded chart data
                     ft.Div(
@@ -333,10 +338,10 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
                         hx_include=HX_INCLUDE,
                         hx_indicator=f"#chart-loading-mobile-{leader.id}",
                         hx_vals=f'{{"chart_data": "{chart_data_escaped}"}}',
-                        cls="w-full h-[120px]",
+                        cls="w-full h-[80px]",
                         data_chart_data=chart_data_json
                     ),
-                    cls="relative w-full h-[120px] mt-4 border-t border-gray-700 pt-2"
+                    cls="relative w-full h-[80px] mt-4 border-t border-gray-700 pt-2"
                 ),
                 cls="bg-gray-800 rounded-lg p-4 shadow-md border border-gray-700 text-left"
             )
