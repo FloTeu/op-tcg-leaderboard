@@ -326,7 +326,7 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
                     # Chart loading indicator
                     create_loading_overlay(
                         id=f"chart-loading-mobile-{leader.id}",
-                        size="w-6 h-6"
+                        size="w-8 h-8"
                     ),
                     # Chart container with embedded chart data
                     ft.Div(
@@ -338,10 +338,12 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
                         hx_include=HX_INCLUDE,
                         hx_indicator=f"#chart-loading-mobile-{leader.id}",
                         hx_vals=f'{{"chart_data": "{chart_data_escaped}"}}',
-                        cls="w-full h-[80px]",
+                        cls="w-full",
+                        style="height: 80px;",
                         data_chart_data=chart_data_json
                     ),
-                    cls="relative w-full h-[80px] mt-4 border-t border-gray-700 pt-2"
+                    cls="relative w-full mt-4 border-t border-gray-700 pt-2",
+                    style="height: 80px;"
                 ),
                 cls="bg-gray-800 rounded-lg p-4 shadow-md border border-gray-700 text-left"
             )
@@ -393,12 +395,15 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
                         hx_include=HX_INCLUDE,
                         hx_indicator=f"#chart-loading-{leader.id}",
                         hx_vals=f'{{"chart_data": "{chart_data_escaped}"}}',
-                        cls="w-[200px] h-[120px]",
+                        cls="w-[200px]",
+                        style="height: 120px;",
                         data_chart_data=chart_data_json
                     ),
-                    cls="relative w-[200px] h-[120px]"
+                    cls="relative w-[200px]",
+                    style="height: 120px;"
                 ),
-                cls="px-0 py-0 min-w-[200px] h-[120px] relative"
+                cls="px-0 py-0 min-w-[200px] relative",
+                style="height: 120px;"
             )
         ]
         
@@ -492,7 +497,7 @@ def home_page():
                 ),
                 # Content
                 ft.Div(
-                    cls="text-white text-center py-8",
+                    cls="text-white text-center py-2",
                     hx_get="/api/leaderboard",
                     hx_trigger="load",
                     hx_include=HX_INCLUDE,
