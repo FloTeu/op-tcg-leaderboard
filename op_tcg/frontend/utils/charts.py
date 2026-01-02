@@ -83,7 +83,7 @@ def create_line_chart(container_id: str, data: List[dict[str, Any]],
             cls="h-full w-full"  # Use full height and width
         ),
         _create_chart_script('createLineChart', container_id, config),
-        style="height: 120px; width: 100%;"  # Explicit height in style attribute
+        cls="w-full h-full"  # Use full height and width of parent
     )
 
 def create_leader_win_rate_radar_chart(container_id: str, data: List[dict[str, Any]], 
@@ -185,7 +185,7 @@ def create_bar_chart(container_id: str, data: List[dict[str, Any]],
             cls="h-full w-full"  # Use full height and width
         ),
         _create_chart_script('createBarChart', container_id, config),
-        style="height: 120px; width: 100%;"  # Explicit height in style attribute
+        cls="w-full h-full"  # Use full height and width of parent
     )
 
 def create_stream_chart(container_id: str, data: List[dict[str, Any]],

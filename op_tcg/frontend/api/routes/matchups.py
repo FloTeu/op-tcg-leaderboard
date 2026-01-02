@@ -161,7 +161,8 @@ def setup_api_routes(rt):
                     show_x_axis=True,
                     show_y_axis=True
                 ),
-                cls="mb-4"
+                cls="mb-4",
+                style="height: 120px;"
             ),
             # Match count chart
             ft.Div(
@@ -171,7 +172,8 @@ def setup_api_routes(rt):
                     show_x_axis=True,
                     show_y_axis=True
                 ),
-                cls="h-[120px] w-full"
+                cls="mb-4",
+                style="height: 120px;"
             ),
             cls="w-full"
         )

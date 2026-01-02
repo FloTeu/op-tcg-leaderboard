@@ -429,7 +429,8 @@ def create_leader_content(leader_id: str, leader_name: str, aa_image_url: str, t
                 hx_indicator="#win-rate-chart-loading-indicator",
                 hx_vals=f'{{"last_n": "10", "color": "neutral"}}',
                 id="win-rate-chart-container",
-                cls="min-h-[150px] flex items-center justify-center w-full"
+                cls="w-full",
+                style="height: 150px;"
             ),
             cls="bg-gray-800 rounded-lg p-6 shadow-xl mb-6"
         ),
