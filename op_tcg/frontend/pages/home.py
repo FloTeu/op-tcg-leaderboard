@@ -241,6 +241,7 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
     
     # Create table body
     rows = []
+    mobile_cards = []
     # Calculate max_elo only from leaders with elo data
     leaders_with_elo = [leader for leader in selected_meta_leaders if leader.elo is not None]
     max_elo = max(leader.elo for leader in leaders_with_elo) if leaders_with_elo else 0
@@ -262,6 +263,85 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
         # Get price
         price = leader_prices.get(leader.id) if leader_prices else None
         price_text = f"€{price:.2f}" if price is not None else "N/A"
+
+        # Mobile Card
+        mobile_card = ft.Div(
+            ft.Div(
+                # Header: Rank and Name
+                ft.Div(
+                    ft.Span(f"#{idx + 1}", cls="text-xl font-bold text-gray-400 mr-2"),
+                    ft.A(
+                        leader.name.replace('"', " ").replace('.', " "),
+                        href=f"/leader?lid={leader.id}&meta_format={meta_format}{f'&region={region}' if region else ''}",
+                        cls="text-lg font-bold text-blue-400 hover:text-blue-300 truncate"
+                    ),
+                    cls="flex items-center mb-2"
+                ),
+                # Image and Stats
+                ft.Div(
+                    # Image
+                    ft.Div(
+                        cls="w-20 h-20 bg-cover bg-center rounded-lg flex-shrink-0 mr-4",
+                        style=f"background-image: url('{leader.aa_image_url}'); border: 2px solid {leader.to_hex_color()};"
+                    ),
+                    # Stats Grid
+                    ft.Div(
+                        ft.Div(
+                            ft.Span("Win Rate", cls="text-xs text-gray-400 block"),
+                            ft.Span(f"{leader.win_rate * 100:.1f}%" if leader.win_rate is not None else "N/A", cls="font-semibold"),
+                            cls="text-center"
+                        ),
+                        ft.Div(
+                            ft.Span("Elo", cls="text-xs text-gray-400 block"),
+                            ft.Span(str(leader.elo) if leader.elo is not None else "N/A", cls=f"font-semibold {elo_color_class}"),
+                            cls="text-center"
+                        ),
+                        ft.Div(
+                            ft.Span("Matches", cls="text-xs text-gray-400 block"),
+                            ft.Span(str(leader.total_matches) if leader.total_matches is not None else "N/A", cls="font-semibold"),
+                            cls="text-center"
+                        ),
+                        ft.Div(
+                            ft.Span("D-Score", cls="text-xs text-gray-400 block"),
+                            ft.Span(f"{int(leader.d_score * 100)}%" if leader.d_score is not None else "N/A", cls="font-semibold"),
+                            cls="text-center"
+                        ),
+                        cls="grid grid-cols-2 gap-2 flex-grow"
+                    ),
+                    cls="flex"
+                ),
+                # Footer: Price and Set
+                ft.Div(
+                    ft.Span(f"Set: {leader.id.split('-')[0]}", cls="text-xs text-gray-500"),
+                    ft.Span(price_text, cls="text-xs text-gray-300"),
+                    cls="flex justify-between mt-2 pt-2 border-t border-gray-700"
+                ),
+                # Chart (New)
+                ft.Div(
+                    # Chart loading indicator
+                    create_loading_overlay(
+                        id=f"chart-loading-mobile-{leader.id}",
+                        size="w-8 h-8"
+                    ),
+                    # Chart container with embedded chart data
+                    ft.Div(
+                        id=f"leader-chart-mobile-{leader.id}",
+                        hx_post=f"/api/leader-chart/{leader.id}",
+                        hx_trigger="intersect once",
+                        hx_swap="innerHTML",
+                        hx_target=f"#leader-chart-mobile-{leader.id}",
+                        hx_include=HX_INCLUDE,
+                        hx_indicator=f"#chart-loading-mobile-{leader.id}",
+                        hx_vals=f'{{"chart_data": "{chart_data_escaped}"}}',
+                        cls="w-full h-[120px]",
+                        data_chart_data=chart_data_json
+                    ),
+                    cls="relative w-full h-[120px] mt-4 border-t border-gray-700 pt-2"
+                ),
+                cls="bg-gray-800 rounded-lg p-4 shadow-md border border-gray-700 text-left"
+            )
+        )
+        mobile_cards.append(mobile_card)
 
         cells = [
             ft.Td(
@@ -302,7 +382,7 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
                     ft.Div(
                         id=f"leader-chart-{leader.id}",
                         hx_post=f"/api/leader-chart/{leader.id}",
-                        hx_trigger="load",
+                        hx_trigger="intersect once",
                         hx_swap="innerHTML",
                         hx_target=f"#leader-chart-{leader.id}",
                         hx_include=HX_INCLUDE,
@@ -329,11 +409,16 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
             size="w-12 h-12",
             container_classes="htmx-indicator w-full h-[200px]"
         ),
-        # Table
+        # Desktop Table
         ft.Table(
             header,
             body,
-            cls="min-w-full divide-y divide-gray-700"
+            cls="min-w-full divide-y divide-gray-700 hidden md:table"
+        ),
+        # Mobile Cards
+        ft.Div(
+            *mobile_cards,
+            cls="md:hidden space-y-4 text-left"
         ),
         cls="relative",
         hx_indicator="#leaderboard-loading"
