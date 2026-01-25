@@ -256,11 +256,17 @@ def get_price_change_data(start_date: int, end_date: int, currency: CardCurrency
         where_extra = ""
     elif sort_by == "diff_eur_high":
         # Sort by EUR - USD (Top EUR > USD diff)
-        order_expr = "(IFNULL(l.latest_eur_price, 0) - IFNULL(l.latest_usd_price, 0))"
+        if change_metric == "relative":
+            order_expr = "SAFE_DIVIDE(IFNULL(l.latest_eur_price, 0) - IFNULL(l.latest_usd_price, 0), IFNULL(l.latest_usd_price, 0))"
+        else:
+            order_expr = "(IFNULL(l.latest_eur_price, 0) - IFNULL(l.latest_usd_price, 0))"
         where_extra = "AND latest_eur_price IS NOT NULL AND latest_usd_price IS NOT NULL"
     elif sort_by == "diff_usd_high":
         # Sort by USD - EUR (Top USD > EUR diff)
-        order_expr = "(IFNULL(l.latest_usd_price, 0) - IFNULL(l.latest_eur_price, 0))"
+        if change_metric == "relative":
+            order_expr = "SAFE_DIVIDE(IFNULL(l.latest_usd_price, 0) - IFNULL(l.latest_eur_price, 0), IFNULL(l.latest_eur_price, 0))"
+        else:
+            order_expr = "(IFNULL(l.latest_usd_price, 0) - IFNULL(l.latest_eur_price, 0))"
         where_extra = "AND latest_eur_price IS NOT NULL AND latest_usd_price IS NOT NULL"
     else:
         order_expr = "IFNULL(abs_change, 0)" if change_metric == "absolute" else "IFNULL(pct_change, 0)"
