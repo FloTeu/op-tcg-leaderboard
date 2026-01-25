@@ -7,7 +7,6 @@ from op_tcg.frontend.api.models import PriceOverviewParams
 from op_tcg.frontend.utils.api import get_query_params_as_dict
 from op_tcg.frontend.utils.extract import (
     get_price_change_data,
-    get_top_current_prices,
 )
 from op_tcg.backend.models.cards import CardCurrency
 from op_tcg.frontend.components.prices import price_tiles
@@ -24,7 +23,9 @@ def _header(currency: CardCurrency, start_date: int, end_date: int) -> ft.Div:
             f"From {start_str} to {end_str} • Currency: {'EUR' if currency == CardCurrency.EURO else 'USD'}",
             cls="text-gray-300"
         ),
-        cls="mb-4"
+        cls="mb-4",
+        id="prices-header-container",
+        hx_swap_oob="true"
     )
 
 
@@ -42,22 +43,15 @@ def setup_api_routes(rt):
         items: list[dict]
         if params.order_by == "rising":
             items = get_price_change_data(
-                params.start_date, params.end_date, params.currency, params.min_latest_price, params.max_latest_price, params.page, params.max_results, order_dir="DESC", include_alt_art=params.include_alt_art, change_metric=params.change_metric
+                params.start_date, params.end_date, params.currency, params.min_latest_price, params.max_latest_price, params.page, params.max_results, order_dir="DESC", include_alt_art=params.include_alt_art, change_metric=params.change_metric, query_text=params.query, sort_by="change"
             )
         elif params.order_by == "fallers":
             items = get_price_change_data(
-                params.start_date, params.end_date, params.currency, params.min_latest_price, params.max_latest_price, params.page, params.max_results, order_dir="ASC", include_alt_art=params.include_alt_art, change_metric=params.change_metric
+                params.start_date, params.end_date, params.currency, params.min_latest_price, params.max_latest_price, params.page, params.max_results, order_dir="ASC", include_alt_art=params.include_alt_art, change_metric=params.change_metric, query_text=params.query, sort_by="change"
             )
         else:  # expensive
-            items = get_top_current_prices(
-                params.currency,
-                params.page,
-                params.max_results,
-                params.min_latest_price,
-                params.max_latest_price,
-                direction="DESC",
-                language='en',
-                include_alt_art=params.include_alt_art
+            items = get_price_change_data(
+                params.start_date, params.end_date, params.currency, params.min_latest_price, params.max_latest_price, params.page, params.max_results, order_dir="DESC", include_alt_art=params.include_alt_art, change_metric=params.change_metric, query_text=params.query, sort_by="price"
             )
 
         # Pagination (infinite scroll)
@@ -79,7 +73,7 @@ def setup_api_routes(rt):
         skeleton = create_skeleton_cards_indicator(id="price-batch-skeleton", count=15)
 
         if params.page == 1:
-            # First page returns header + container with infinite scroll trigger
+            # First page returns header (OOB) + container with infinite scroll trigger
             return ft.Div(
                 _header(params.currency, params.start_date, params.end_date),
                 ft.Div(
@@ -90,7 +84,7 @@ def setup_api_routes(rt):
                         hx_trigger="revealed",
                         hx_target="this",
                         hx_swap="outerHTML",
-                        hx_include="[name='currency'],[name='start_date'],[name='end_date'],[name='min_latest_price'],[name='max_latest_price'],[name='max_results'],[name='order_by'],[name='change_metric'],[name='include_alt_art']",
+                        hx_include="[name='currency'],[name='start_date'],[name='end_date'],[name='min_latest_price'],[name='max_latest_price'],[name='max_results'],[name='order_by'],[name='change_metric'],[name='include_alt_art'],[name='query']",
                         hx_indicator="#price-batch-loading, #price-batch-skeleton",
                         cls="h-10"
                     ) if has_more else None,
@@ -110,7 +104,7 @@ def setup_api_routes(rt):
                 hx_trigger="revealed",
                 hx_target="this",
                 hx_swap="outerHTML",
-                hx_include="[name='currency'],[name='start_date'],[name='end_date'],[name='min_latest_price'],[name='max_latest_price'],[name='max_results'],[name='order_by'],[name='change_metric'],[name='include_alt_art']",
+                hx_include="[name='currency'],[name='start_date'],[name='end_date'],[name='min_latest_price'],[name='max_latest_price'],[name='max_results'],[name='order_by'],[name='change_metric'],[name='include_alt_art'],[name='query']",
                 hx_indicator="#price-batch-loading, #price-batch-skeleton",
                 cls="h-10"
             ) if has_more else None

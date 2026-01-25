@@ -387,6 +387,7 @@ class PriceOverviewParams(BaseModel):
     order_by: str = "rising"  # rising | fallers | expensive
     change_metric: str = "absolute"  # absolute | relative
     page: int = 1
+    query: Optional[str] = None
 
     @field_validator('currency', mode='before')
     def validate_currency(cls, value):

@@ -5,10 +5,11 @@ from op_tcg.frontend.components.layout import create_mobile_filter_button
 import time
 from datetime import datetime, timedelta
 
-HX_INCLUDE = "[name='currency'],[name='start_date'],[name='end_date'],[name='min_latest_price'],[name='max_latest_price'],[name='order_by'],[name='include_alt_art'],[name='change_metric']"
+HX_INCLUDE = "[name='currency'],[name='start_date'],[name='end_date'],[name='min_latest_price'],[name='max_latest_price'],[name='order_by'],[name='include_alt_art'],[name='change_metric'],[name='query']"
 
 # Common CSS classes for select components (aligned with card popularity page)
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+INPUT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400"
 CHECKBOX_CLS = "w-5 h-5 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500 focus:ring-2 focus:ring-offset-gray-800"
 
 
@@ -171,6 +172,22 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
 def prices_page():
     return ft.Div(
         create_mobile_filter_button(),
+        ft.Div(id="prices-header-container"),
+        ft.Div(
+            ft.Label("Search Cards", cls="text-white font-medium block mb-2"),
+            ft.Input(
+                type="search",
+                name="query",
+                placeholder="Search card name or ID...",
+                cls=INPUT_CLS + " mb-4",
+                hx_get="/api/price-overview",
+                hx_trigger="keyup changed delay:500ms, search",
+                hx_target="#price-overview",
+                hx_include=HX_INCLUDE,
+                hx_indicator="#price-loading-indicator"
+            ),
+            cls="w-full mx-0 mb-2"
+        ),
         create_loading_spinner(
             id="price-loading-indicator",
             size="w-8 h-8",
