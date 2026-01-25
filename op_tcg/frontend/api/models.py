@@ -459,7 +459,7 @@ class PriceOverviewParams(BaseModel):
         if not value:
             return "rising"
         v = str(value).lower()
-        return v if v in ("rising", "fallers", "expensive") else "rising"
+        return v if v in ("rising", "fallers", "expensive", "diff_eur_high", "diff_usd_high") else "rising"
 
     @field_validator('change_metric', mode='before')
     def validate_change_metric(cls, value):

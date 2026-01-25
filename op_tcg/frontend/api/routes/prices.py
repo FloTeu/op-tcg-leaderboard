@@ -49,6 +49,14 @@ def setup_api_routes(rt):
             items = get_price_change_data(
                 params.start_date, params.end_date, params.currency, params.min_latest_price, params.max_latest_price, params.page, params.max_results, order_dir="ASC", include_alt_art=params.include_alt_art, change_metric=params.change_metric, query_text=params.query, sort_by="change"
             )
+        elif params.order_by == "diff_eur_high":
+             items = get_price_change_data(
+                params.start_date, params.end_date, params.currency, params.min_latest_price, params.max_latest_price, params.page, params.max_results, order_dir="DESC", include_alt_art=params.include_alt_art, change_metric=params.change_metric, query_text=params.query, sort_by="diff_eur_high"
+            )
+        elif params.order_by == "diff_usd_high":
+             items = get_price_change_data(
+                params.start_date, params.end_date, params.currency, params.min_latest_price, params.max_latest_price, params.page, params.max_results, order_dir="DESC", include_alt_art=params.include_alt_art, change_metric=params.change_metric, query_text=params.query, sort_by="diff_usd_high"
+            )
         else:  # expensive
             items = get_price_change_data(
                 params.start_date, params.end_date, params.currency, params.min_latest_price, params.max_latest_price, params.page, params.max_results, order_dir="DESC", include_alt_art=params.include_alt_art, change_metric=params.change_metric, query_text=params.query, sort_by="price"

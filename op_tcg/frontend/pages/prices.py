@@ -37,6 +37,8 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
                 ft.Option("Top Rising", value="rising", selected=True),
                 ft.Option("Top Fallers", value="fallers"),
                 ft.Option("Most Expensive", value="expensive"),
+                ft.Option("Higher in EUR (vs USD)", value="diff_eur_high"),
+                ft.Option("Higher in USD (vs EUR)", value="diff_usd_high"),
                 id="price-order-by-select",
                 name="order_by",
                 cls=SELECT_CLS + " styled-select",
