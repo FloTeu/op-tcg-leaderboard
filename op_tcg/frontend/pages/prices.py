@@ -1,11 +1,11 @@
 from fasthtml import ft
-from op_tcg.backend.models.cards import CardCurrency
+from op_tcg.backend.models.cards import CardCurrency, OPTcgCardRarity
 from op_tcg.frontend.components.loading import create_loading_spinner, create_skeleton_cards_indicator
 from op_tcg.frontend.components.layout import create_mobile_filter_button
 import time
 from datetime import datetime, timedelta
 
-HX_INCLUDE = "[name='currency'],[name='start_date'],[name='end_date'],[name='min_latest_price'],[name='max_latest_price'],[name='order_by'],[name='include_alt_art'],[name='change_metric'],[name='query']"
+HX_INCLUDE = "[name='currency'],[name='start_date'],[name='end_date'],[name='min_latest_price'],[name='max_latest_price'],[name='order_by'],[name='include_alt_art'],[name='change_metric'],[name='query'],[name='rarity']"
 
 # Common CSS classes for select components (aligned with card popularity page)
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -57,6 +57,19 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
                 cls=SELECT_CLS + " styled-select",
                 hx_get="/api/price-overview", hx_trigger="change", hx_target="#price-overview",
                 hx_include=HX_INCLUDE+",[name='change_metric']", hx_indicator="#price-loading-indicator"
+            ),
+            cls="mb-2"
+        ),
+        ft.Div(
+            ft.Label("Card Rarity", cls="block text-sm text-gray-300 mb-1"),
+            ft.Select(
+                ft.Option("All", value="All", selected=True),
+                *[ft.Option(rarity.value, value=rarity.value) for rarity in OPTcgCardRarity],
+                id="price-rarity-select",
+                name="rarity",
+                cls=SELECT_CLS + " styled-select",
+                hx_get="/api/price-overview", hx_trigger="change", hx_target="#price-overview",
+                hx_include=HX_INCLUDE, hx_indicator="#price-loading-indicator"
             ),
             cls="mb-2"
         ),

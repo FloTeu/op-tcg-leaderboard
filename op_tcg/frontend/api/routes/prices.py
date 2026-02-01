@@ -43,23 +43,23 @@ def setup_api_routes(rt):
         items: list[dict]
         if params.order_by == "rising":
             items = get_price_change_data(
-                params.start_date, params.end_date, params.currency, params.min_latest_price, params.max_latest_price, params.page, params.max_results, order_dir="DESC", include_alt_art=params.include_alt_art, change_metric=params.change_metric, query_text=params.query, sort_by="change"
+                params.start_date, params.end_date, params.currency, params.min_latest_price, params.max_latest_price, params.page, params.max_results, order_dir="DESC", include_alt_art=params.include_alt_art, change_metric=params.change_metric, query_text=params.query, sort_by="change", rarity=params.rarity
             )
         elif params.order_by == "fallers":
             items = get_price_change_data(
-                params.start_date, params.end_date, params.currency, params.min_latest_price, params.max_latest_price, params.page, params.max_results, order_dir="ASC", include_alt_art=params.include_alt_art, change_metric=params.change_metric, query_text=params.query, sort_by="change"
+                params.start_date, params.end_date, params.currency, params.min_latest_price, params.max_latest_price, params.page, params.max_results, order_dir="ASC", include_alt_art=params.include_alt_art, change_metric=params.change_metric, query_text=params.query, sort_by="change", rarity=params.rarity
             )
         elif params.order_by == "diff_eur_high":
              items = get_price_change_data(
-                params.start_date, params.end_date, params.currency, params.min_latest_price, params.max_latest_price, params.page, params.max_results, order_dir="DESC", include_alt_art=params.include_alt_art, change_metric=params.change_metric, query_text=params.query, sort_by="diff_eur_high"
+                params.start_date, params.end_date, params.currency, params.min_latest_price, params.max_latest_price, params.page, params.max_results, order_dir="DESC", include_alt_art=params.include_alt_art, change_metric=params.change_metric, query_text=params.query, sort_by="diff_eur_high", rarity=params.rarity
             )
         elif params.order_by == "diff_usd_high":
              items = get_price_change_data(
-                params.start_date, params.end_date, params.currency, params.min_latest_price, params.max_latest_price, params.page, params.max_results, order_dir="DESC", include_alt_art=params.include_alt_art, change_metric=params.change_metric, query_text=params.query, sort_by="diff_usd_high"
+                params.start_date, params.end_date, params.currency, params.min_latest_price, params.max_latest_price, params.page, params.max_results, order_dir="DESC", include_alt_art=params.include_alt_art, change_metric=params.change_metric, query_text=params.query, sort_by="diff_usd_high", rarity=params.rarity
             )
         else:  # expensive
             items = get_price_change_data(
-                params.start_date, params.end_date, params.currency, params.min_latest_price, params.max_latest_price, params.page, params.max_results, order_dir="DESC", include_alt_art=params.include_alt_art, change_metric=params.change_metric, query_text=params.query, sort_by="price"
+                params.start_date, params.end_date, params.currency, params.min_latest_price, params.max_latest_price, params.page, params.max_results, order_dir="DESC", include_alt_art=params.include_alt_art, change_metric=params.change_metric, query_text=params.query, sort_by="price", rarity=params.rarity
             )
 
         # Pagination (infinite scroll)
@@ -92,7 +92,7 @@ def setup_api_routes(rt):
                         hx_trigger="revealed",
                         hx_target="this",
                         hx_swap="outerHTML",
-                        hx_include="[name='currency'],[name='start_date'],[name='end_date'],[name='min_latest_price'],[name='max_latest_price'],[name='max_results'],[name='order_by'],[name='change_metric'],[name='include_alt_art'],[name='query']",
+                        hx_include="[name='currency'],[name='start_date'],[name='end_date'],[name='min_latest_price'],[name='max_latest_price'],[name='max_results'],[name='order_by'],[name='change_metric'],[name='include_alt_art'],[name='query'],[name='rarity']",
                         hx_indicator="#price-batch-loading, #price-batch-skeleton",
                         cls="h-10"
                     ) if has_more else None,
@@ -112,7 +112,7 @@ def setup_api_routes(rt):
                 hx_trigger="revealed",
                 hx_target="this",
                 hx_swap="outerHTML",
-                hx_include="[name='currency'],[name='start_date'],[name='end_date'],[name='min_latest_price'],[name='max_latest_price'],[name='max_results'],[name='order_by'],[name='change_metric'],[name='include_alt_art'],[name='query']",
+                hx_include="[name='currency'],[name='start_date'],[name='end_date'],[name='min_latest_price'],[name='max_latest_price'],[name='max_results'],[name='order_by'],[name='change_metric'],[name='include_alt_art'],[name='query'],[name='rarity']",
                 hx_indicator="#price-batch-loading, #price-batch-skeleton",
                 cls="h-10"
             ) if has_more else None

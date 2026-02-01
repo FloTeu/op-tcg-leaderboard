@@ -384,6 +384,7 @@ class PriceOverviewParams(BaseModel):
     max_latest_price: Optional[float] = None
     max_results: int = 20
     include_alt_art: bool = False
+    rarity: Optional[str] = None
     order_by: str = "rising"  # rising | fallers | expensive
     change_metric: str = "absolute"  # absolute | relative
     page: int = 1
@@ -478,3 +479,12 @@ class PriceOverviewParams(BaseModel):
             except (ValueError, TypeError):
                 return 1
         return max(1, value if value is not None else 1)
+
+    @field_validator('rarity', mode='before')
+    def validate_rarity(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if value == "All":
+            return None
+        return value
+

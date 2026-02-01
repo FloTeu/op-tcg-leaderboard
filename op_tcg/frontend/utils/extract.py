@@ -222,7 +222,7 @@ def get_tournament_match_data(tournament_id: str, leader_id: str | None = None) 
 
 # --------------- Price overview extraction helpers ---------------
 def get_price_change_data(start_date: int, end_date: int, currency: CardCurrency, min_latest_price: float, max_latest_price: float,
-                          page: int, page_size: int, order_dir: str = "DESC", include_alt_art: bool = False, change_metric: str = "absolute", query_text: str = None, sort_by: str = "change") -> list[dict]:
+                          page: int, page_size: int, order_dir: str = "DESC", include_alt_art: bool = False, change_metric: str = "absolute", query_text: str = None, sort_by: str = "change", rarity: str = None) -> list[dict]:
     """Return price changes over a window for cards, ordered by percentage change or price.
 
     Args:
@@ -243,6 +243,10 @@ def get_price_change_data(start_date: int, end_date: int, currency: CardCurrency
     aa_filter = "" if include_alt_art else "AND aa_version = 0"
     # max_latest_price is already normalized by pydantic: None means unbounded
     upper_bound = f"AND {currency_col} <= {max_latest_price}" if max_latest_price is not None else ""
+
+    rarity_filter = ""
+    if rarity:
+        rarity_filter = f"AND l.rarity = '{rarity}'"
 
     query_filter = ""
     if query_text:
@@ -293,12 +297,13 @@ def get_price_change_data(start_date: int, end_date: int, currency: CardCurrency
     ),
     latest AS (
       SELECT id AS card_id, language, aa_version, name, image_url, latest_eur_price, latest_usd_price
-      FROM `{latest_tbl}`
+      FROM `{latest_tbl}` AS l
       WHERE {currency_col} IS NOT NULL
         AND {currency_col} >= {min_latest_price}
         {upper_bound}
         {aa_filter}
         {query_filter}
+        {rarity_filter}
         {where_extra}
     )
     SELECT l.card_id, l.language, l.aa_version, l.name, l.image_url, 
