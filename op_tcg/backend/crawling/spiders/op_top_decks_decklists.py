@@ -136,9 +136,11 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
             for meta in self.meta_formats:
                 if self.is_meta_in_url(meta, url, region):
                     matching_meta_format = meta
+                    self.logger.info("url %s matched to meta format %s and region %s", url, meta, region)
                     # stop at first meta format found
                     break
             if matching_meta_format is None:
+                self.logger.info("url %s does not match any meta format", url)
                 continue
 
             if region is None:
