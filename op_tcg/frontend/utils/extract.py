@@ -222,8 +222,8 @@ def get_tournament_match_data(tournament_id: str, leader_id: str | None = None) 
 
 # --------------- Price overview extraction helpers ---------------
 def get_price_change_data(start_date: int, end_date: int, currency: CardCurrency, min_latest_price: float, max_latest_price: float,
-                          page: int, page_size: int, order_dir: str = "DESC", include_alt_art: bool = False, change_metric: str = "absolute") -> list[dict]:
-    """Return price changes over a window for cards, ordered by percentage change.
+                          page: int, page_size: int, order_dir: str = "DESC", include_alt_art: bool = False, change_metric: str = "absolute", query_text: str = None, sort_by: str = "change", rarity: str = None) -> list[dict]:
+    """Return price changes over a window for cards, ordered by percentage change or price.
 
     Args:
         start_date: Start timestamp
@@ -233,6 +233,8 @@ def get_price_change_data(start_date: int, end_date: int, currency: CardCurrency
         max_latest_price: maximum latest price filter
         limit: number of rows
         order: 'pct_change DESC' or 'pct_change ASC'
+        query_text: Search query for card name
+        sort_by: 'change' (default) or 'price'
     """
     latest_tbl = get_bq_table_id(LatestCardPrice).replace(":", ".")
     history_tbl = get_bq_table_id(CardPrice).replace(":", ".")
@@ -241,8 +243,39 @@ def get_price_change_data(start_date: int, end_date: int, currency: CardCurrency
     aa_filter = "" if include_alt_art else "AND aa_version = 0"
     # max_latest_price is already normalized by pydantic: None means unbounded
     upper_bound = f"AND {currency_col} <= {max_latest_price}" if max_latest_price is not None else ""
+
+    rarity_filter = ""
+    if rarity:
+        rarity_filter = f"AND l.rarity = '{rarity}'"
+
+    query_filter = ""
+    if query_text:
+        safe_query = query_text.replace("'", "\\'")
+        # Search match in name OR card id
+        query_filter = f"AND (LOWER(name) LIKE LOWER('%{safe_query}%') OR LOWER(id) LIKE LOWER('%{safe_query}%'))"
+
     # ORDER BY expression
-    order_expr = "IFNULL(abs_change, 0)" if change_metric == "absolute" else "IFNULL(pct_change, 0)"
+    if sort_by == "price":
+        order_expr = f"l.{currency_col}"
+        where_extra = ""
+    elif sort_by == "diff_eur_high":
+        # Sort by EUR - USD (Top EUR > USD diff)
+        if change_metric == "relative":
+            order_expr = "SAFE_DIVIDE(IFNULL(l.latest_eur_price, 0) - IFNULL(l.latest_usd_price, 0), IFNULL(l.latest_usd_price, 0))"
+        else:
+            order_expr = "(IFNULL(l.latest_eur_price, 0) - IFNULL(l.latest_usd_price, 0))"
+        where_extra = "AND latest_eur_price IS NOT NULL AND latest_usd_price IS NOT NULL"
+    elif sort_by == "diff_usd_high":
+        # Sort by USD - EUR (Top USD > EUR diff)
+        if change_metric == "relative":
+            order_expr = "SAFE_DIVIDE(IFNULL(l.latest_usd_price, 0) - IFNULL(l.latest_eur_price, 0), IFNULL(l.latest_eur_price, 0))"
+        else:
+            order_expr = "(IFNULL(l.latest_usd_price, 0) - IFNULL(l.latest_eur_price, 0))"
+        where_extra = "AND latest_eur_price IS NOT NULL AND latest_usd_price IS NOT NULL"
+    else:
+        order_expr = "IFNULL(abs_change, 0)" if change_metric == "absolute" else "IFNULL(pct_change, 0)"
+        where_extra = ""
+
     order_dir = order_dir if order_dir in ("ASC", "DESC") else "DESC"
     offset = max(0, (page - 1) * page_size)
     fetch_count = page_size + 1  # fetch one extra to detect has_more
@@ -263,20 +296,23 @@ def get_price_change_data(start_date: int, end_date: int, currency: CardCurrency
       GROUP BY card_id, language, aa_version
     ),
     latest AS (
-      SELECT id AS card_id, language, aa_version, name, image_url, {currency_col} AS latest_price
-      FROM `{latest_tbl}`
+      SELECT id AS card_id, language, aa_version, name, image_url, latest_eur_price, latest_usd_price
+      FROM `{latest_tbl}` AS l
       WHERE {currency_col} IS NOT NULL
         AND {currency_col} >= {min_latest_price}
         {upper_bound}
         {aa_filter}
+        {query_filter}
+        {rarity_filter}
+        {where_extra}
     )
     SELECT l.card_id, l.language, l.aa_version, l.name, l.image_url, 
-           w.end_price as latest_price,
+           COALESCE(w.end_price, l.{currency_col}) as latest_price,
            w.start_price as window_price,
-           SAFE_DIVIDE(w.end_price - w.start_price, NULLIF(w.start_price, 0)) AS pct_change,
-           (w.end_price - w.start_price) AS abs_change
+           SAFE_DIVIDE(COALESCE(w.end_price, l.{currency_col}) - w.start_price, NULLIF(w.start_price, 0)) AS pct_change,
+           (COALESCE(w.end_price, l.{currency_col}) - w.start_price) AS abs_change
     FROM latest l
-    JOIN window_prices w
+    LEFT JOIN window_prices w
       ON l.card_id = w.card_id AND l.language = w.language AND l.aa_version = w.aa_version
     ORDER BY {order_expr} {order_dir}
     LIMIT {fetch_count}
@@ -294,7 +330,8 @@ def get_top_current_prices(
     max_latest_price: float,
     direction: str = "DESC",
     language: str = 'en',
-    include_alt_art: bool = False
+    include_alt_art: bool = False,
+    query_text: str = None
 ) -> list[dict]:
     """Return cards by current latest price in the selected currency."""
     latest_tbl = get_bq_table_id(LatestCardPrice).replace(":", ".")
@@ -303,6 +340,12 @@ def get_top_current_prices(
     offset = max(0, (page - 1) * page_size)
     fetch_count = page_size + 1
     upper_bound = f"AND {currency_col} <= {max_latest_price}" if max_latest_price is not None else ""
+
+    query_filter = ""
+    if query_text:
+        safe_query = query_text.replace("'", "\\'")
+        query_filter = f"AND LOWER(name) LIKE LOWER('%{safe_query}%')"
+
     query = f"""
     SELECT id AS card_id, language, aa_version, name, image_url, {currency_col} AS latest_price,
            NULL AS window_price, NULL AS pct_change, NULL AS abs_change
@@ -310,6 +353,38 @@ def get_top_current_prices(
     WHERE language = '{language}' {aa_filter} AND {currency_col} IS NOT NULL
       AND {currency_col} >= {min_latest_price}
       {upper_bound}
+      {query_filter}
+    ORDER BY {currency_col} {direction}
+    LIMIT {fetch_count}
+    OFFSET {offset}
+    """
+    return run_bq_query(query, ttl_hours=24.0)
+
+
+def get_leader_average_deck_prices(meta_format: MetaFormat, region: MetaFormatRegion) -> dict[str, float]:
+    """Calculate average deck price in EUR for each leader in the given meta format and region."""
+    decklists = get_tournament_decklist_data(meta_formats=[meta_format], meta_format_region=region)
+    leader_prices = defaultdict(list)
+    for d in decklists:
+        if hasattr(d, 'price_eur') and d.price_eur and d.price_eur > 0:
+            leader_prices[d.leader_id].append(d.price_eur)
+
+    return {lid: sum(prices)/len(prices) for lid, prices in leader_prices.items()}
+
+
+    query_filter = ""
+    if query_text:
+        safe_query = query_text.replace("'", "\\'")
+        query_filter = f"AND LOWER(name) LIKE LOWER('%{safe_query}%')"
+
+    query = f"""
+    SELECT id AS card_id, language, aa_version, name, image_url, {currency_col} AS latest_price,
+           NULL AS window_price, NULL AS pct_change, NULL AS abs_change
+    FROM `{latest_tbl}`
+    WHERE language = '{language}' {aa_filter} AND {currency_col} IS NOT NULL
+      AND {currency_col} >= {min_latest_price}
+      {upper_bound}
+      {query_filter}
     ORDER BY {currency_col} {direction}
     LIMIT {fetch_count}
     OFFSET {offset}

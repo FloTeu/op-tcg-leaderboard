@@ -384,9 +384,11 @@ class PriceOverviewParams(BaseModel):
     max_latest_price: Optional[float] = None
     max_results: int = 20
     include_alt_art: bool = False
+    rarity: Optional[str] = None
     order_by: str = "rising"  # rising | fallers | expensive
     change_metric: str = "absolute"  # absolute | relative
     page: int = 1
+    query: Optional[str] = None
 
     @field_validator('currency', mode='before')
     def validate_currency(cls, value):
@@ -458,7 +460,7 @@ class PriceOverviewParams(BaseModel):
         if not value:
             return "rising"
         v = str(value).lower()
-        return v if v in ("rising", "fallers", "expensive") else "rising"
+        return v if v in ("rising", "fallers", "expensive", "diff_eur_high", "diff_usd_high") else "rising"
 
     @field_validator('change_metric', mode='before')
     def validate_change_metric(cls, value):
@@ -477,3 +479,12 @@ class PriceOverviewParams(BaseModel):
             except (ValueError, TypeError):
                 return 1
         return max(1, value if value is not None else 1)
+
+    @field_validator('rarity', mode='before')
+    def validate_rarity(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if value == "All":
+            return None
+        return value
+

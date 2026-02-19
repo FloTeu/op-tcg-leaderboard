@@ -14,7 +14,7 @@ from google.cloud import bigquery
 
 from op_tcg.backend.models.common import DataSource
 from op_tcg.backend.models.decklists import OpTopDeckDecklistExtended, Decklist, OpTopDeckDecklist
-from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion, meta_format2side_meta_format
 from op_tcg.backend.models.tournaments import TournamentRecord, Tournament, TournamentStanding
 from op_tcg.backend.utils.database import create_decklist_id
 
@@ -95,22 +95,27 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
                              errback=self.errback_httpbin)
 
     @staticmethod
-    def is_meta_in_url(meta_format: MetaFormat, url: str):
-        # Extract the prefix and number using slicing
-        prefix = meta_format[:2]  # Assuming 'OP'
-        number = meta_format[2:]  # Assuming the number part
+    def is_meta_in_url(meta_format: MetaFormat, url: str, region: MetaFormatRegion | None = None) -> bool:
+        matches = []
+        for mf in [meta_format, meta_format2side_meta_format(meta_format, region=region)]:
+            if mf is None:
+                continue
+            # Extract the prefix and number using slicing
+            prefix = mf[:2]  # Assuming 'OP'
+            number = mf[2:]  # Assuming the number part
 
-        # Generate variations
-        variations = [
-            f"{prefix.upper()}{number}",  # OP08
-            f"{prefix.lower()}{number}",  # op08
-            f"{prefix.upper()}-{number}",  # OP-08
-            f"{prefix.lower()}-{number}",  # op-08
-            f"{prefix.upper()} {number}",  # OP 08
-            f"{prefix.lower()} {number}",  # op 08
-        ]
+            # Generate variations
+            variations = [
+                f"{prefix.upper()}{number}",  # OP08
+                f"{prefix.lower()}{number}",  # op08
+                f"{prefix.upper()}-{number}",  # OP-08
+                f"{prefix.lower()}-{number}",  # op-08
+                f"{prefix.upper()} {number}",  # OP 08
+                f"{prefix.lower()} {number}",  # op 08
+            ]
+            matches.append(any(variation in url for variation in variations))
 
-        return any(variation in url for variation in variations)
+        return any(matches)
 
     def parse_decklist_landingpage(self, response):
         """Extracts all meta format and country meta format urls for further steps"""
@@ -123,20 +128,23 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
             if "deck-list" not in url:
                 continue
             matching_meta_format = None
+            region = None
+            if any(w in url.lower() for w in ["japan", "jp-"]):
+                region = MetaFormatRegion.ASIA
+            elif any(w in url.lower() for w in ["english", "en-"]):
+                region = MetaFormatRegion.WEST
             for meta in self.meta_formats:
-                if self.is_meta_in_url(meta, url):
+                if self.is_meta_in_url(meta, url, region):
                     matching_meta_format = meta
                     # stop at first meta format found
                     break
             if matching_meta_format is None:
                 continue
 
-            if any(w in url.lower() for w in ["japan", "jp-"]):
-                urls_to_crawl[MetaFormatRegion.ASIA].append((matching_meta_format, url))
-            elif any(w in url.lower() for w in ["english", "en-"]):
-                urls_to_crawl[MetaFormatRegion.WEST].append((matching_meta_format, url))
-            else:
+            if region is None:
                 self.logger.error(f"url {url} could not be matched to any of {MetaFormatRegion.to_list()}")
+            else:
+                urls_to_crawl[region].append((matching_meta_format, url))
 
         for meta_format_region, meta_format_and_urls in urls_to_crawl.items():
             for meta_format, url in meta_format_and_urls:
