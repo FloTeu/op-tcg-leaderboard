@@ -193,6 +193,8 @@ def home(request: Request):
     selected_meta_format_enum = MetaFormat(selected_meta_format) if selected_meta_format else None
     selected_region_enum = MetaFormatRegion(selected_region) if selected_region else None
     
+    user = request.session.get('user')
+
     return (
         ft.Title(title),
         ft.Meta(name="description", content=description),
@@ -204,7 +206,8 @@ def home(request: Request):
             home_page(),
             filter_component=home_filters(selected_meta_format=selected_meta_format_enum, selected_region=selected_region_enum),
             current_path="/",
-            persist_query=persist_query
+            persist_query=persist_query,
+            user=user
         )
     )
 
@@ -235,6 +238,9 @@ def leader_default(request: Request):
         "meta_format": request.query_params.get("meta_format"),
         "region": request.query_params.get("region")
     }
+
+    user = request.session.get('user')
+
     return (
         ft.Title(title),
         ft.Meta(name="description", content=description),
@@ -252,7 +258,8 @@ def leader_default(request: Request):
                 selected_region=selected_meta_format_region
             ),
             current_path="/leader",
-            persist_query=persist_query
+            persist_query=persist_query,
+            user=user
         )
     )
 
@@ -272,6 +279,9 @@ def tournaments(request: Request):
     selected_meta_formats = [MetaFormat(mf) for mf in selected_meta_formats] if selected_meta_formats else None
     selected_region = request.query_params.get("region")
     selected_region_enum = MetaFormatRegion(selected_region) if selected_region else None
+
+    user = request.session.get('user')
+
     return (
         ft.Title(title),
         ft.Meta(name="description", content=description),
@@ -281,7 +291,7 @@ def tournaments(request: Request):
         ft.Link(rel="canonical", href=canonical_url),
         # Shared deep-linking functionality for decklist modals
         create_decklist_deep_link_script(),
-        layout(tournaments_page(), filter_component=tournament_filters(selected_meta_formats=selected_meta_formats, selected_region=selected_region_enum), current_path="/tournaments", persist_query=persist_query)
+        layout(tournaments_page(), filter_component=tournament_filters(selected_meta_formats=selected_meta_formats, selected_region=selected_region_enum), current_path="/tournaments", persist_query=persist_query, user=user)
     )
 
 @rt("/card-movement")
@@ -304,6 +314,9 @@ def card_movement(request: Request):
         "meta_format": request.query_params.get("meta_format"),
         "region": request.query_params.get("region")
     }
+
+    user = request.session.get('user')
+
     return (
         ft.Title(title),
         ft.Meta(name="description", content=description),
@@ -311,7 +324,7 @@ def card_movement(request: Request):
         ft.Meta(property="og:description", content=description),
         ft.Meta(property="og:url", content=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
-        layout(card_movement_page(), filter_component=card_movement_filters(selected_meta_format=selected_meta_format, selected_leader_id=selected_leader_id), current_path="/card-movement", persist_query=persist_query)
+        layout(card_movement_page(), filter_component=card_movement_filters(selected_meta_format=selected_meta_format, selected_leader_id=selected_leader_id), current_path="/card-movement", persist_query=persist_query, user=user)
     )
 
 @rt("/matchups")
@@ -335,6 +348,9 @@ def matchups(request: Request):
         "meta_format": request.query_params.get("meta_format"),
         "region": request.query_params.get("region")
     }
+
+    user = request.session.get('user')
+
     return (
         ft.Title(title),
         ft.Meta(name="description", content=description),
@@ -342,7 +358,7 @@ def matchups(request: Request):
         ft.Meta(property="og:description", content=description),
         ft.Meta(property="og:url", content=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
-        layout(matchups_page(), filter_component=matchups_filters(selected_meta_formats=selected_meta_formats, selected_leader_ids=selected_leader_ids, only_official=only_official), current_path="/matchups", persist_query=persist_query)
+        layout(matchups_page(), filter_component=matchups_filters(selected_meta_formats=selected_meta_formats, selected_leader_ids=selected_leader_ids, only_official=only_official), current_path="/matchups", persist_query=persist_query, user=user)
     )
 
 # Card pages
@@ -363,6 +379,9 @@ def card_popularity(request: Request):
     from op_tcg.backend.models.cards import CardCurrency
     selected_currency = request.query_params.get("currency")
     selected_currency_enum = CardCurrency(selected_currency) if selected_currency else None
+
+    user = request.session.get('user')
+
     return (
         ft.Title(title),
         ft.Meta(name="description", content=description),
@@ -370,7 +389,7 @@ def card_popularity(request: Request):
         ft.Meta(property="og:description", content=description),
         ft.Meta(property="og:url", content=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
-        layout(card_popularity_page(), filter_component=card_popularity_filters(selected_meta_format=selected_meta_format_enum, currency=selected_currency_enum), current_path="/card-popularity", persist_query=persist_query)
+        layout(card_popularity_page(), filter_component=card_popularity_filters(selected_meta_format=selected_meta_format_enum, currency=selected_currency_enum), current_path="/card-popularity", persist_query=persist_query, user=user)
     )
 
 # Prices page
@@ -379,6 +398,9 @@ def prices(request: Request):
     canonical_url = f"{canonical_base(request)}/prices"
     title = "Card Prices – Market Trends – OP TCG Leaderboard"
     description = "See current OP TCG card prices and market movement with historical trends."
+
+    user = request.session.get('user')
+
     return (
         ft.Title(title),
         ft.Meta(name="description", content=description),
@@ -386,7 +408,7 @@ def prices(request: Request):
         ft.Meta(property="og:description", content=description),
         ft.Meta(property="og:url", content=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
-        layout(prices_page(), filter_component=prices_filters(), current_path="/prices")
+        layout(prices_page(), filter_component=prices_filters(), current_path="/prices", user=user)
     )
 
 # Support pages
@@ -401,6 +423,9 @@ def bug_report(request: Request):
         "meta_format": request.query_params.get("meta_format"),
         "region": request.query_params.get("region")
     }
+
+    user = request.session.get('user')
+
     return (
         ft.Title(title),
         ft.Meta(name="description", content=description),
@@ -408,7 +433,7 @@ def bug_report(request: Request):
         ft.Meta(property="og:description", content=description),
         ft.Meta(property="og:url", content=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
-        layout(bug_report_page(), filter_component=None, current_path="/bug-report", persist_query=persist_query)
+        layout(bug_report_page(), filter_component=None, current_path="/bug-report", persist_query=persist_query, user=user)
     )
 
 @rt("/about")
@@ -422,6 +447,9 @@ def about(request: Request):
         "meta_format": request.query_params.get("meta_format"),
         "region": request.query_params.get("region")
     }
+
+    user = request.session.get('user')
+
     return (
         ft.Title(title),
         ft.Meta(name="description", content=description),
@@ -429,7 +457,7 @@ def about(request: Request):
         ft.Meta(property="og:description", content=description),
         ft.Meta(property="og:url", content=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
-        layout(about_page(), filter_component=None, current_path="/about", persist_query=persist_query)
+        layout(about_page(), filter_component=None, current_path="/about", persist_query=persist_query, user=user)
     )
 
 if __name__ == "__main__":

@@ -76,15 +76,18 @@ function setSidebarState(isOpen) {
         toggleBurgerMenu(isOpen);
     } else {
         // Desktop behavior
+        const burgerMenu = document.getElementById('burger-menu');
         if (isOpen) {
             sidebar.style.transform = 'translateX(0)';
             mainContent.style.marginLeft = '320px';
-            topBar.style.display = 'none';
+            topBar.style.left = '320px'; // Shift top bar to the right
+            if (burgerMenu) burgerMenu.style.visibility = 'hidden'; // Hide the duplicate burger menu
             document.body.style.overflow = ''; // Always allow scrolling on desktop
         } else {
             sidebar.style.transform = 'translateX(-100%)';
             mainContent.style.marginLeft = '0';
-            topBar.style.display = 'block';
+            topBar.style.left = '0'; // Reset top bar position
+            if (burgerMenu) burgerMenu.style.visibility = 'visible';
             document.body.style.overflow = ''; // Always allow scrolling on desktop
         }
         toggleBurgerMenu(isOpen);

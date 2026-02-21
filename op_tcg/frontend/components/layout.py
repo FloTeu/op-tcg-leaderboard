@@ -1,3 +1,5 @@
+from typing import Any
+
 from fasthtml import ft
 from op_tcg.frontend.components.sidebar import sidebar
 
@@ -9,7 +11,7 @@ def create_mobile_filter_button():
         cls="mobile-filter-btn md:hidden hide-on-sidebar-open text-sm text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 rounded-full px-4 py-2 transition-colors mb-8 relative z-10 cursor-pointer"
     )
 
-def layout(content, filter_component=None, current_path="/", persist_query=None):
+def layout(content, filter_component=None, current_path="/", persist_query=None, user=None):
     """
     Main layout component that includes the sidebar navigation and content area.
     
@@ -29,6 +31,11 @@ def layout(content, filter_component=None, current_path="/", persist_query=None)
         )
 
     # Main layout
+    if user:
+        user_control = get_user_control_view(user)
+    else:
+        user_control = ft.A("Login", href="/login", cls="text-white bg-blue-600 hover:bg-blue-700 font-medium rounded-lg text-sm px-3 py-1.5 text-center transition-colors")
+
     return ft.Div(
         # Include external CSS files
         ft.Link(rel="stylesheet", href="public/css/leaderboard.css"),
@@ -47,7 +54,8 @@ def layout(content, filter_component=None, current_path="/", persist_query=None)
                     onclick="toggleSidebar()",
                     id="burger-menu"
                 ),
-                cls="flex items-center h-16 px-4"
+                user_control,
+                cls="flex justify-between items-center h-16 px-4"
             ),
             cls="fixed top-0 left-0 right-0 bg-gray-900 z-40 shadow-md",
             id="top-bar",
@@ -146,4 +154,50 @@ def layout(content, filter_component=None, current_path="/", persist_query=None)
             }
         """),
         cls="relative bg-gray-900"
-    ) 
+    )
+
+
+def get_user_control_view(user) -> Any:
+    user_name = user.get('name', 'User')
+    user_img = user.get('picture', None)
+
+    user_control = ft.Div(
+        ft.Button(
+            ft.Img(src=user_img, cls="w-8 h-8 rounded-full") if user_img else \
+                ft.Div(user_name[0].upper(),
+                       cls="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium"),
+            id="user-menu-button",
+            onclick="document.getElementById('user-dropdown').classList.toggle('hidden')",
+            cls="flex text-sm bg-gray-800 rounded-full focus:ring-4 focus:ring-gray-600",
+            type="button"
+        ),
+        ft.Div(
+            ft.Div(
+                ft.Div(user_name, cls="px-4 py-3 text-sm text-white"),
+                ft.Div(user.get('email', ''), cls="px-4 pb-3 text-sm font-medium text-gray-400 truncate"),
+                cls="border-b border-gray-600"
+            ),
+            ft.Ul(
+                ft.Li(
+                    ft.A("Logout", href="/logout",
+                         cls="block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white")
+                ),
+                cls="py-1"
+            ),
+            cls="z-50 hidden absolute right-0 mt-2 w-48 text-base list-none bg-gray-700 divide-y divide-gray-600 rounded shadow-lg",
+            id="user-dropdown"
+        ),
+        # Click outside to close (simple implementation)
+        ft.Script("""
+                window.addEventListener('click', function(e){
+                    const dropdown = document.getElementById('user-dropdown');
+                    const button = document.getElementById('user-menu-button');
+                    // Check if click is outside dropdown AND outside button
+                    if (dropdown && button && !dropdown.contains(e.target) && !button.contains(e.target) && !dropdown.classList.contains('hidden')) {
+                        dropdown.classList.add('hidden');
+                    }
+                });
+            """),
+        cls="relative"
+    )
+    return user_control
