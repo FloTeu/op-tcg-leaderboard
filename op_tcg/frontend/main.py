@@ -15,6 +15,7 @@ from op_tcg.frontend.pages.card_movement import card_movement_page, create_filte
 from op_tcg.frontend.pages.matchups import matchups_page, create_filter_components as matchups_filters
 from op_tcg.frontend.pages.card_popularity import card_popularity_page, create_filter_components as card_popularity_filters
 from op_tcg.frontend.pages.prices import prices_page, create_filter_components as prices_filters
+from op_tcg.frontend.pages.watchlist import watchlist_page
 from op_tcg.frontend.pages.bug_report import bug_report_page
 from op_tcg.frontend.pages.about import about_page
 from op_tcg.frontend.api.routes.main import setup_api_routes
@@ -458,6 +459,28 @@ def about(request: Request):
         ft.Meta(property="og:url", content=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
         layout(about_page(), filter_component=None, current_path="/about", persist_query=persist_query, user=user)
+    )
+
+@rt("/watchlist")
+def watchlist_route(request: Request):
+    user = request.session.get('user')
+    if not user:
+        return ft.RedirectResponse(url="/login")
+
+    # Add canonical link to head based on incoming host
+    canonical_url = f"{canonical_base(request)}/watchlist"
+    title = "My Watchlist – OP TCG Leaderboard"
+    description = "View and manage your tracked One Piece TCG cards."
+
+    return (
+        ft.Title(title),
+        ft.Meta(name="description", content=description),
+        ft.Link(rel="canonical", href=canonical_url),
+        layout(
+            watchlist_page(request),
+            current_path="/watchlist",
+            user=user
+        )
     )
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 from google.cloud import firestore
+from op_tcg.backend.models.cards import OPTcgLanguage
 
 # Initialize Firestore
 # Using a singleton pattern to avoid re-initializing the client
@@ -51,6 +52,52 @@ def update_user_login(user_info: dict):
         'last_login': firestore.SERVER_TIMESTAMP
     }
 
-    # Update or create user document
+    # Use merge=True to update fields without overwriting the entire document
     db.collection('users').document(user_id).set(data, merge=True)
 
+def add_to_watchlist(user_id: str, card_id: str, card_version: int = 0, language: OPTcgLanguage = OPTcgLanguage.EN):
+    """
+    Adds a card to the user's watchlist efficiently.
+    """
+    db = get_db()
+    if not db:
+        return
+
+    # Use a subcollection for scalable watchlist storage
+    # avoids hitting document size limits if user tracks many cards
+    watchlist_ref = db.collection('users').document(user_id).collection('watchlist')
+
+    # Store minimal data, use composite key as document ID for uniqueness
+    doc_id = f"{card_id}_{card_version}_{language}"
+    watchlist_ref.document(doc_id).set({
+        'card_id': card_id,
+        'card_version': card_version,
+        'language': language,
+        'added_at': firestore.SERVER_TIMESTAMP
+    })
+
+def remove_from_watchlist(user_id: str, card_id: str, card_version: int  = 0, language: OPTcgLanguage = OPTcgLanguage.EN):
+    """
+    Removes a card from the user's watchlist.
+    """
+    db = get_db()
+    if not db:
+        return
+
+    watchlist_ref = db.collection('users').document(user_id).collection('watchlist')
+    doc_id = f"{card_id}_{card_version}_{language}"
+    watchlist_ref.document(doc_id).delete()
+
+def get_watchlist(user_id: str):
+    """
+    Retrieves the user's watchlist.
+    """
+    db = get_db()
+    if not db:
+        return []
+
+    watchlist_ref = db.collection('users').document(user_id).collection('watchlist')
+    # Use stream() for memory efficiency with large result sets
+    docs = watchlist_ref.stream()
+
+    return [doc.to_dict() for doc in docs]
