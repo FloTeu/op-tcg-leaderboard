@@ -6,7 +6,7 @@ from op_tcg.frontend.utils.card_price import get_marketplace_link
 
 
 def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardData], popularity: float,
-                      currency: CardCurrency, selected_aa_version: int = 0) -> ft.Div:
+                      currency: CardCurrency, selected_aa_version: int = 0, watched_versions: set = None) -> ft.Div:
     """Create a modal dialog for displaying card details.
 
     Args:
@@ -23,6 +23,8 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
         Card navigation (prev/next) is handled dynamically via JavaScript,
         which scans the DOM for all loaded cards at navigation time.
     """
+    if watched_versions is None:
+        watched_versions = set()
 
     # Helper function to create a key fact row
     def create_key_fact(label: str, value: str | None, icon: str = None) -> ft.Div:
@@ -52,6 +54,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
 
     is_base_active = (card.aa_version == selected_aa_version)
     base_cls = "carousel-item active relative" if is_base_active else "carousel-item relative"
+    base_in_watchlist = card.aa_version in watched_versions
 
     carousel_items = [
         ft.Div(
@@ -76,6 +79,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
             id="carousel-item-base",
             data_card_id=card.id,
             data_aa_version=card.aa_version,
+            data_in_watchlist="true" if base_in_watchlist else "false",
             data_price=f"{card.latest_eur_price:.2f}" if currency == CardCurrency.EURO and card.latest_eur_price else
             f"{card.latest_usd_price:.2f}" if currency == CardCurrency.US_DOLLAR and card.latest_usd_price else "N/A",
             data_currency=CardCurrency.EURO if currency == CardCurrency.EURO else CardCurrency.US_DOLLAR,
@@ -94,6 +98,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
 
         is_active = (version.aa_version == selected_aa_version)
         item_cls = "carousel-item active relative" if is_active else "carousel-item relative"
+        version_in_watchlist = version.aa_version in watched_versions
 
         carousel_items.append(
             ft.Div(
@@ -118,6 +123,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 id=f"carousel-item-{i}",
                 data_card_id=version.id,
                 data_aa_version=version.aa_version,
+                data_in_watchlist="true" if version_in_watchlist else "false",
                 data_price=f"{version.latest_eur_price:.2f}" if currency == CardCurrency.EURO and version.latest_eur_price else
                 f"{version.latest_usd_price:.2f}" if currency == CardCurrency.US_DOLLAR and version.latest_usd_price else "N/A",
                 data_currency=CardCurrency.EURO if currency == CardCurrency.EURO else CardCurrency.US_DOLLAR,
@@ -172,6 +178,9 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
     elif selected_card.latest_usd_price:
         initial_price = f"${selected_card.latest_usd_price:.2f}"
 
+    # Determine initial watchlist state
+    initial_in_watchlist = selected_card.aa_version in watched_versions
+
     return ft.Div(
         # Modal backdrop
         ft.Div(
@@ -183,6 +192,25 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     type="button",
                     cls="absolute top-4 right-4 md:top-4 md:right-4 inline-flex items-center justify-center w-9 h-9 rounded-full bg-gray-700/60 hover:bg-gray-700 text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 transition z-30 mobile-close-btn",
                     onclick="event.stopPropagation(); window.closeCardModal();"
+                ),
+
+                # Watchlist button (Heart icon)
+                ft.Button(
+                    ft.Svg(
+                        ft.Safe('<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>'),
+                        viewBox="0 0 24 24",
+                        cls="w-6 h-6",
+                        fill="currentColor" if initial_in_watchlist else "none",
+                        stroke="currentColor",
+                        stroke_width="2",
+                        stroke_linecap="round",
+                        stroke_linejoin="round"
+                    ),
+                    id="watchlist-btn",
+                    type="button",
+                    cls=f"absolute top-4 right-16 md:top-4 md:right-16 inline-flex items-center justify-center w-9 h-9 rounded-full bg-gray-700/60 hover:bg-gray-700 {'text-red-500' if initial_in_watchlist else 'text-gray-300 hover:text-red-400'} shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-400 transition z-30",
+                    onclick="window.toggleWatchlist(this)",
+                    title="Add to Watchlist" if not initial_in_watchlist else "Remove from Watchlist"
                 ),
 
                 # Card navigation areas (only for top section, not charts) - positioned at modal edges
@@ -217,6 +245,143 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                         *carousel_nav,
                         cls="md:w-1/2 relative"
                     ),
+                    # Script to handle watchlist
+                    ft.Script("""
+                        (function() {
+                            // Ensure toggling watchlist works
+                            window.toggleWatchlist = async function(btn) {
+                                const activeItem = document.querySelector('.carousel-item.active');
+                                if (!activeItem) return;
+
+                                const cardId = activeItem.dataset.cardId;
+                                const cardVersion = activeItem.dataset.aaVersion; // This is a string from dataset
+                                const isInWatchlist = activeItem.dataset.inWatchlist === 'true';
+                                
+                                const endpoint = isInWatchlist ? '/api/watchlist/remove' : '/api/watchlist/add';
+                                const method = 'POST';
+                                
+                                try {
+                                    // Optimistic update
+                                    updateWatchlistButtonState(!isInWatchlist);
+                                    
+                                    const response = await fetch(endpoint, {
+                                        method: method,
+                                        headers: {
+                                            'Content-Type': 'application/json'
+                                        },
+                                        body: JSON.stringify({
+                                            card_id: cardId,
+                                            card_version: parseInt(cardVersion) || 0,
+                                            // TODO: Make language dynamic if needed, defaulting to English/EN for now as per modal context
+                                            language: 'en' 
+                                        })
+                                    });
+                                    
+                                    if (response.ok) {
+                                        // Update data attribute on successful api call
+                                        activeItem.dataset.inWatchlist = (!isInWatchlist).toString();
+                                        updateWatchlistButtonState(!isInWatchlist);
+                                    } else {
+                                        // Revert on failure
+                                        updateWatchlistButtonState(isInWatchlist);
+                                        
+                                        if (response.status === 401) {
+                                            // Show generic login info modal
+                                            fetch('/api/info-modal?title=Login+Required&message=Please+login+to+add+cards+to+your+watchlist.&type=info&login=true')
+                                                .then(r => r.text())
+                                                .then(html => {
+                                                    document.body.insertAdjacentHTML('beforeend', html);
+                                                });
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.error('Watchlist toggle failed', e);
+                                    updateWatchlistButtonState(isInWatchlist);
+                                }
+                            };
+
+                            function updateWatchlistButtonState(isInWatchlist) {
+                                const btn = document.getElementById('watchlist-btn');
+                                if (!btn) return;
+                                const svg = btn.querySelector('svg');
+                                
+                                if (isInWatchlist) {
+                                    svg.setAttribute('fill', 'currentColor');
+                                    btn.classList.remove('text-gray-300', 'hover:text-red-400');
+                                    btn.classList.add('text-red-500');
+                                    btn.title = "Remove from Watchlist";
+                                } else {
+                                    svg.setAttribute('fill', 'none');
+                                    btn.classList.add('text-gray-300', 'hover:text-red-400');
+                                    btn.classList.remove('text-red-500');
+                                    btn.title = "Add to Watchlist";
+                                }
+                            }
+
+                            // Hook into existing global showCarouselItem if possible, or poll, 
+                            // but since we are inside the component, we can overwrite/extend
+                            // helper to update button when slide changes
+                            const originalShowCarouselItem = window.showCarouselItem;
+                            window.showCarouselItem = function(element, index) {
+                                if (originalShowCarouselItem) {
+                                    originalShowCarouselItem(element, index);
+                                }
+                                
+                                // Update watchlist button based on new active item
+                                setTimeout(() => {
+                                    const activeItem = document.querySelector(`.carousel-item#carousel-item-${index}`) || document.getElementById('carousel-item-base'); 
+                                    // Note: carousel logic in card-modal.js might effectively toggle 'active' class
+                                    // Let's find the one that IS active after a short delay or trust the index
+                                    // Actually, we can find the item by id constructed same way as in python
+                                    
+                                    let targetId = 'carousel-item-base';
+                                    if (index > 0 || (element && element.dataset && element.dataset.index)) { 
+                                         // The existing JS logic uses index to find items. 
+                                         // If index is provided to this function.
+                                         // Warning: index 0 might be base or first AA? 
+                                         // In python: base is manual, then loop AA. 
+                                         // Actually base is separate. Let's check python logic.
+                                         // base is `carousel_items[0]`.
+                                    }
+                                    
+                                    // We need to find the item that corresponds to `index`.
+                                    // The generated HTML structure has ALL items in `carousel_items` list.
+                                    // Base is item 0. AA are items 1..N.
+                                    // The container `carousel_items` variable holds them in order.
+                                    // Our `window.showCarouselItem` logic in JS likely iterates all `.carousel-item` 
+                                    // and toggles active.
+                                    
+                                    const items = document.querySelectorAll('.carousel-item');
+                                    if (items[index]) {
+                                         const isIn = items[index].dataset.inWatchlist === 'true';
+                                         updateWatchlistButtonState(isIn);
+                                    }
+                                }, 50);
+                            };
+                            
+                            // Also need to handle next/prev buttons which might call other functions
+                            // window.nextCarouselItem calls showCarouselItem internally usually?
+                            // Let's check card-modal.js via read_file or just override next/prev too if needed.
+                            // Assuming they eventually update the 'active' class.
+                            // We can use a MutationObserver on the carousel container to be robust.
+                            
+                            const observer = new MutationObserver((mutations) => {
+                                mutations.forEach((mutation) => {
+                                    if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                                        if (mutation.target.classList.contains('active')) {
+                                            const isIn = mutation.target.dataset.inWatchlist === 'true';
+                                            updateWatchlistButtonState(isIn);
+                                        }
+                                    }
+                                });
+                            });
+                            
+                            document.querySelectorAll('.carousel-item').forEach(item => {
+                                observer.observe(item, { attributes: true });
+                            });
+                            
+                        })();
+                    """),
                     # Card details
                     ft.Div(
                         # Card name and ID

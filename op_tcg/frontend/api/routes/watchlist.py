@@ -39,8 +39,12 @@ def setup_watchlist_routes(rt):
              return JSONResponse({"error": "Invalid JSON"}, status_code=400)
 
         card_id = data.get('card_id')
-        card_version = data.get('card_version', 'Base')
-        language = data.get('language', 'English')
+        card_version = data.get('card_version', 0)
+        language = data.get('language', 'en')
+
+        # Map 'Base' to 0 for compatibility
+        if card_version == 'Base':
+            card_version = 0
 
         if not card_id:
             return JSONResponse({"error": "Missing card_id"}, status_code=400)
