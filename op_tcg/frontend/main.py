@@ -18,16 +18,22 @@ from op_tcg.frontend.pages.prices import prices_page, create_filter_components a
 from op_tcg.frontend.pages.bug_report import bug_report_page
 from op_tcg.frontend.pages.about import about_page
 from op_tcg.frontend.api.routes.main import setup_api_routes
+from op_tcg.frontend.api.routes.auth import setup_auth_routes
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from starlette.requests import Request
 from op_tcg.frontend.utils.cache_warmer import start_cache_warming, stop_cache_warming, warm_cache_now
 from op_tcg.frontend.utils.seo import canonical_base, write_static_sitemap
 from op_tcg.frontend.utils.middleware import canonical_redirect_middleware
+from starlette.middleware.sessions import SessionMiddleware
+import os
 import logging
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Security: Load secret key from environment
+SECRET_KEY = os.getenv("SESSION_MIDDLEWARE_SECRET_KEY", "dev_not_secure_key")
 
 
 @asynccontextmanager
@@ -114,7 +120,8 @@ app, rt = fast_app(
     #static_path='public'
 )
 
-
+# Add session middleware for authentication
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 
 # Sitemap works reliably 
 @rt("/sitemap.xml")
@@ -125,6 +132,7 @@ async def serve_sitemap():
 
 # Setup API routes
 setup_api_routes(rt)
+setup_auth_routes(rt)
 
 @rt("/api/cache/status")
 def cache_status():
