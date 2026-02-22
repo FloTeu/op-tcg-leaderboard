@@ -907,7 +907,7 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
         ),
         _create_chart_script('createCardOccurrenceChart', unique_container_id, config),
         style="height: 400px; width: 100%;",
-        cls="bg-gray-800/30 rounded-lg p-4"
+        cls="bg-gray-800/30 rounded-lg p-2"
     )
 
 
@@ -960,6 +960,5 @@ def create_price_development_chart(container_id: str, price_data: dict[str, list
             cls="h-full w-full"
         ),
         _create_chart_script('createPriceDevelopmentChart', container_id, config),
-        style="height: 300px; width: 100%;",
-        cls="bg-gray-800/30 rounded-lg p-4"
+        cls="bg-gray-800/30 rounded-lg p-0 h-full w-full"
     )

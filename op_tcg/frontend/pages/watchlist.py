@@ -74,25 +74,30 @@ def watchlist_page(request):
         items.append(
             ft.Div(
                 ft.Div(
-                    # Header with Card Info
+                    # Header: Image + Details + Toggle (Flex Row)
                     ft.Div(
+                         # Image
                         ft.Div(
-                            ft.H3(card_name, cls="text-xl font-bold text-white"),
-                            ft.P(f"{card_id} • {version_label} • {language}", cls="text-sm text-gray-400 mt-1"),
-                            cls="flex-1"
-                        ),
-                        toggle_btn,
-                        cls="flex justify-between items-start mb-4"
-                    ),
-                    # Content Area: Image + Chart
-                    ft.Div(
-                        # Image (condensed)
-                        ft.Div(
-                             ft.Img(src=image_url, cls="w-16 sm:w-24 h-auto rounded shadow-sm hover:opacity-100 transition-opacity",
+                             ft.Img(src=image_url, cls="w-16 sm:w-20 h-auto rounded shadow-sm hover:opacity-100 transition-opacity",
                                     alt=card_name),
                              cls="flex-shrink-0 mr-4"
                         ),
-                        # Chart Container
+                        # Title + Meta
+                        ft.Div(
+                            ft.H3(card_name, cls="text-xl font-bold text-white"),
+                            ft.P(f"{card_id} • {version_label} • {language}", cls="text-sm text-gray-400 mt-1"),
+                            cls="flex-1 min-w-0 pr-4" # min-w-0 for truncate text if needed
+                        ),
+                        # Toggle
+                        ft.Div(
+                            toggle_btn,
+                            cls="flex-shrink-0"
+                        ),
+                        cls="flex items-start mb-0" # Removed mb-4 to decrease space to chart
+                    ),
+
+                    # Content Area: Chart Only (Full Width)
+                    ft.Div(
                         ft.Div(
                             ft.Div(
                                 id=chart_id,
@@ -106,11 +111,11 @@ def watchlist_page(request):
                                 size="w-8 h-8",
                                 container_classes="h-48 sm:h-64 flex items-center justify-center"
                             ),
-                            cls="flex-1 min-w-0 bg-gray-900/50 rounded p-2"
+                            cls="w-full min-w-0 bg-gray-900/50 rounded p-0 mt-3" # Removed padding p-2->p-0, added small top margin
                         ),
-                        cls="flex flex-row"
+                        cls="w-full"
                     ),
-                    cls="watchlist-card-item bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 hover:border-gray-600 transition-colors"
+                    cls="watchlist-card-item bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg border border-gray-700 hover:border-gray-600 transition-colors"
                 )
             )
         )
