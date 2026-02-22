@@ -396,8 +396,9 @@ def setup_api_routes(rt):
                 )
             
             # Create the price development chart with unique container ID
+            # Include aa_version in ID to allow differentiation when multiple versions of same card are displayed
             return create_price_development_chart(
-                container_id=f"price-development-chart-{card_id}-{days}",
+                container_id=f"price-development-chart-{card_id}-{days}-{aa_version}",
                 price_data=price_data,
                 card_name=card_name
             )
