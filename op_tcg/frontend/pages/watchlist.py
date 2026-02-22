@@ -80,13 +80,19 @@ def watchlist_page(request):
                         ft.Div(
                              ft.Img(src=image_url, cls="w-16 sm:w-20 h-auto rounded shadow-sm hover:opacity-100 transition-opacity",
                                     alt=card_name),
-                             cls="flex-shrink-0 mr-4"
+                             cls="flex-shrink-0 mr-4 cursor-pointer",
+                             hx_get=f"/api/card-modal?card_id={card_id}&meta_format=latest&aa_version={aa_version}",
+                             hx_target="body",
+                             hx_swap="beforeend"
                         ),
                         # Title + Meta
                         ft.Div(
-                            ft.H3(card_name, cls="text-xl font-bold text-white"),
+                            ft.H3(card_name, cls="text-xl font-bold text-white hover:text-blue-400 transition-colors"),
                             ft.P(f"{card_id} • {version_label} • {language}", cls="text-sm text-gray-400 mt-1"),
-                            cls="flex-1 min-w-0 pr-4" # min-w-0 for truncate text if needed
+                            cls="flex-1 min-w-0 pr-4 cursor-pointer", # min-w-0 for truncate text if needed
+                            hx_get=f"/api/card-modal?card_id={card_id}&meta_format=latest&aa_version={aa_version}",
+                            hx_target="body",
+                            hx_swap="beforeend"
                         ),
                         # Toggle
                         ft.Div(
