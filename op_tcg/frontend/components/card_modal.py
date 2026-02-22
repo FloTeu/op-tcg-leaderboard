@@ -195,8 +195,8 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
 
                 # Watchlist button (Heart icon) - Reusable component
                 create_watchlist_toggle(
-                    card_id=card.id,
-                    card_version=card.aa_version,
+                    card_id=selected_card.id,
+                    card_version=selected_card.aa_version,
                     language="en", # Default for now
                     is_in_watchlist=initial_in_watchlist,
                     # Position it exactly where the old one was
