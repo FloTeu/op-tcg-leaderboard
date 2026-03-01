@@ -1,6 +1,7 @@
 from fasthtml import ft
 from op_tcg.backend.db import get_watchlist
 from op_tcg.frontend.components.watchlist_toggle import create_watchlist_toggle
+from op_tcg.frontend.utils.card_price import get_marketplace_link
 from op_tcg.frontend.utils.extract import get_card_id_card_data_lookup, get_card_lookup_by_id_and_aa
 from op_tcg.frontend.components.loading import create_loading_spinner
 from op_tcg.backend.models.cards import CardCurrency
@@ -54,6 +55,15 @@ def watchlist_page(request):
 
         card_name = getattr(card_details, 'name', 'Unknown Card') if card_details else card_id
         image_url = getattr(card_details, 'image_url', '') if card_details else ''
+
+        # Generate marketplace links
+        if card_details:
+            cm_url, _ = get_marketplace_link(card_details, CardCurrency.EURO)
+            tcg_url, _ = get_marketplace_link(card_details, CardCurrency.US_DOLLAR)
+        else:
+            # Fallback generic search if card details missing
+            cm_url = f"https://www.cardmarket.com/en/OnePiece/Products/Search?searchString={card_id}"
+            tcg_url = f"https://www.tcgplayer.com/search/one-piece-card-game/product?q={card_id}"
 
         # Determine label for version
         version_label = "Base" if aa_version == 0 else f"Ver. {aa_version}"
@@ -137,6 +147,28 @@ def watchlist_page(request):
                                 container_classes="absolute inset-0 flex items-center justify-center h-48 sm:h-64 pointer-events-none hidden"
                             ),
                             cls="w-full min-w-0 bg-gray-900/50 rounded p-0 mt-0 relative" # Added relative positioning for absolute loading spinner
+                        ),
+
+                        # Marketplace Buttons
+                        ft.Div(
+                            ft.Div(
+                                ft.A(
+                                    "Cardmarket",
+                                    href=cm_url,
+                                    target="_blank",
+                                    rel="noopener",
+                                    cls="flex-1 text-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-l-lg transition-colors border-r border-blue-800",
+                                ),
+                                ft.A(
+                                    "TCGPlayer",
+                                    href=tcg_url,
+                                    target="_blank",
+                                    rel="noopener",
+                                    cls="flex-1 text-center px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-r-lg transition-colors",
+                                ),
+                                cls="flex w-full"
+                            ),
+                            cls="mt-3"
                         ),
                         cls="w-full mt-2"
                     ),
