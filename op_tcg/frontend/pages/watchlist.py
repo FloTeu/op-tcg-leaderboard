@@ -88,13 +88,13 @@ def watchlist_page(request):
         ft.A(
             ft.I(cls="fas fa-th-large mr-2"),
             "Grid",
-            href="?view=list",
+            href=f"?view=list&sort={sort_by}&order={sort_order}",
             cls=f"px-4 py-2 rounded-l-lg border border-gray-600 {'bg-blue-600 text-white' if view_mode == 'list' else 'bg-gray-800 text-gray-400 hover:bg-gray-700'} flex items-center transition-colors text-sm font-medium"
         ),
         ft.A(
             ft.I(cls="fas fa-table mr-2"),
             "Table",
-            href="?view=table",
+            href=f"?view=table&sort={sort_by}&order={sort_order}",
             cls=f"px-4 py-2 rounded-r-lg border border-gray-600 border-l-0 {'bg-blue-600 text-white' if view_mode == 'table' else 'bg-gray-800 text-gray-400 hover:bg-gray-700'} flex items-center transition-colors text-sm font-medium"
         ),
         cls="flex items-center"
@@ -105,8 +105,6 @@ def watchlist_page(request):
     if view_mode == 'table':
         # Helpers for sort links
         def sort_link(label, column):
-            icon = ""
-            new_order = "asc"
             if sort_by == column:
                 if sort_order == "asc":
                     icon = "fa-sort-up"
@@ -114,14 +112,17 @@ def watchlist_page(request):
                 else:
                     icon = "fa-sort-down"
                     new_order = "asc"
+                link_cls = "flex items-center cursor-pointer transition-colors text-white"
             else:
-                icon = "fa-sort text-gray-600"
+                icon = "fa-sort opacity-50"
+                new_order = "asc"
+                link_cls = "flex items-center cursor-pointer transition-colors hover:text-white text-gray-400"
 
             return ft.A(
                 ft.Span(label),
                 ft.I(cls=f"fas {icon} ml-1"),
                 href=f"?view=table&sort={column}&order={new_order}",
-                cls="flex items-center cursor-pointer hover:text-white transition-colors"
+                cls=link_cls
             )
 
         # Render Table View
@@ -418,6 +419,27 @@ def watchlist_page(request):
             *items,
             cls="grid grid-cols-1 gap-6"
         )
+
+        # Add sorting options for grid view
+        sort_options = ft.Div(
+            ft.Span("Sort by:", cls="text-gray-400 mr-2 text-sm"),
+            ft.A(
+                ft.Span("Name"),
+                ft.I(cls=f"fas fa-sort-{'up' if sort_order == 'asc' else 'down'} ml-1" if sort_by == 'name' else "fas fa-sort ml-1 opacity-50"),
+                href=f"?view=list&sort=name&order={'desc' if sort_by == 'name' and sort_order == 'asc' else 'asc'}",
+                cls=f"mr-4 text-sm font-medium transition-colors flex items-center {'text-blue-400' if sort_by == 'name' else 'text-gray-400 hover:text-white'}"
+            ),
+            ft.A(
+                ft.Span("Price"),
+                ft.I(cls=f"fas fa-sort-{'up' if sort_order == 'asc' else 'down'} ml-1" if sort_by == 'price' else "fas fa-sort ml-1 opacity-50"),
+                href=f"?view=list&sort=price&order={'desc' if sort_by == 'price' and sort_order == 'asc' else 'asc'}",
+                cls=f"text-sm font-medium transition-colors flex items-center {'text-blue-400' if sort_by == 'price' else 'text-gray-400 hover:text-white'}"
+            ),
+            cls="flex items-center mb-4 justify-end"
+        )
+
+        # Prepend sort options to content
+        content = ft.Div(sort_options, content)
 
     return ft.Div(
         ft.Div(

@@ -105,6 +105,10 @@ app, rt = fast_app(
             href="/public/css/decklist.css",
             rel="stylesheet"
         ),
+        ft.Link(
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css",
+            rel="stylesheet"
+        ),
         # GoatCounter script
         ft.Script(data_goatcounter="https://op-leaderboard.goatcounter.com/count", src="//gc.zgo.at/count.js"),
         ft.Script(src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"),
