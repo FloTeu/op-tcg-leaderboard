@@ -184,15 +184,15 @@ def watchlist_page(request):
                     ft.Td(
                         ft.Div(
                             ft.A(
-                                ft.Span(f"€{item['latest_eur']:.2f}", cls="font-bold text-gray-200 group-hover:text-blue-400 transition-colors mr-2 text-sm"),
-                                ft.Span("CM", cls="text-[10px] bg-blue-600/20 text-blue-300 group-hover:bg-blue-600 group-hover:text-white px-1.5 py-0.5 rounded transition-colors"),
+                                ft.Span(f"€{item['latest_eur']:.2f}", cls="font-bold text-gray-200 group-hover:text-green-400 transition-colors mr-2 text-sm"),
+                                ft.Span("CM", cls="text-[10px] bg-green-600/20 text-green-300 group-hover:bg-green-600 group-hover:text-white px-1.5 py-0.5 rounded transition-colors"),
                                 href=cm_url,
                                 target="_blank",
                                 cls="flex items-center justify-end group cursor-pointer hover:bg-gray-700/50 rounded px-2 py-1 transition-colors mb-1 w-full"
                             ),
                             ft.A(
-                                ft.Span(f"${item['latest_usd']:.2f}", cls="font-bold text-gray-200 group-hover:text-green-400 transition-colors mr-2 text-sm"),
-                                ft.Span("TCG", cls="text-[10px] bg-green-600/20 text-green-300 group-hover:bg-green-600 group-hover:text-white px-1.5 py-0.5 rounded transition-colors"),
+                                ft.Span(f"${item['latest_usd']:.2f}", cls="font-bold text-gray-200 group-hover:text-blue-400 transition-colors mr-2 text-sm"),
+                                ft.Span("TCG", cls="text-[10px] bg-blue-600/20 text-blue-300 group-hover:bg-blue-600 group-hover:text-white px-1.5 py-0.5 rounded transition-colors"),
                                 href=tcg_url,
                                 target="_blank",
                                 cls="flex items-center justify-end group cursor-pointer hover:bg-gray-700/50 rounded px-2 py-1 transition-colors w-full"
@@ -333,8 +333,8 @@ def watchlist_page(request):
                                 ft.P(f"{card_id} • {version_label} • {language}", cls="text-sm text-gray-400 mt-1"),
                                 # Check if prices exist and display them
                                 ft.Div(
-                                    ft.Span(f"€{item['latest_eur']:.2f}", cls="text-sm font-bold text-blue-400 mr-3"),
-                                    ft.Span(f"${item['latest_usd']:.2f}", cls="text-sm font-bold text-green-400"),
+                                    ft.Span(f"€{item['latest_eur']:.2f}", cls="text-sm font-bold text-green-400 mr-3"),
+                                    ft.Span(f"${item['latest_usd']:.2f}", cls="text-sm font-bold text-blue-400"),
                                     cls="mt-1"
                                 ),
                                 cls="flex-1 min-w-0 pr-4 cursor-pointer", # min-w-0 for truncate text if needed
@@ -395,14 +395,14 @@ def watchlist_page(request):
                                         href=cm_url,
                                         target="_blank",
                                         rel="noopener",
-                                        cls="flex-1 text-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-l-lg transition-colors border-r border-blue-800",
+                                        cls="flex-1 text-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-l-lg transition-colors border-r border-green-800",
                                     ),
                                     ft.A(
                                         "TCGPlayer",
                                         href=tcg_url,
                                         target="_blank",
                                         rel="noopener",
-                                        cls="flex-1 text-center px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-r-lg transition-colors",
+                                        cls="flex-1 text-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-r-lg transition-colors",
                                     ),
                                     cls="flex w-full"
                                 ),

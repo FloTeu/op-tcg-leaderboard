@@ -395,7 +395,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                                         href=cm_url,
                                         target="_blank",
                                         rel="noopener",
-                                        cls="flex-1 text-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-l-lg transition-colors border-r border-blue-800",
+                                        cls="flex-1 text-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-l-lg transition-colors border-r border-green-800",
                                         id="marketplace-link-cm"
                                     ),
                                     ft.A(
@@ -403,7 +403,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                                         href=tcg_url,
                                         target="_blank",
                                         rel="noopener",
-                                        cls="flex-1 text-center px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-r-lg transition-colors",
+                                        cls="flex-1 text-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-r-lg transition-colors",
                                         id="marketplace-link-tcg"
                                     ),
                                     cls="flex w-full max-w-xs"
