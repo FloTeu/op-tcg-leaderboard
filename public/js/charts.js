@@ -874,7 +874,9 @@ class ChartManager {
         const {
             containerId,
             data,
-            cardName
+            cardName,
+            showXAxis = true,
+            showLegend = true
         } = config;
 
         this.destroyChart(containerId);
@@ -962,7 +964,7 @@ class ChartManager {
                     },
                     plugins: {
                         legend: {
-                            display: true,
+                            display: showLegend,
                             position: 'top',
                             labels: {
                                 color: '#E5E7EB',
@@ -1001,12 +1003,13 @@ class ChartManager {
                     },
                     scales: {
                         x: {
-                            display: true,
+                            display: showXAxis,
                             grid: {
-                                display: true,
+                                display: showXAxis,
                                 color: 'rgba(75, 85, 99, 0.3)'
                             },
                             ticks: {
+                                display: showXAxis,
                                 color: '#9CA3AF',
                                 font: {
                                     size: 11

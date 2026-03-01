@@ -911,7 +911,7 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
     )
 
 
-def create_price_development_chart(container_id: str, price_data: dict[str, list[dict]], card_name: str = "") -> ft.Div:
+def create_price_development_chart(container_id: str, price_data: dict[str, list[dict]], card_name: str = "", show_x_axis: bool = True, show_legend: bool = True) -> ft.Div:
     """
     Creates a price development chart showing EUR and USD prices over time using Chart.js
 
@@ -919,6 +919,8 @@ def create_price_development_chart(container_id: str, price_data: dict[str, list
         container_id: Unique ID for the chart container
         price_data: Dictionary with 'eur' and 'usd' keys containing price history data
         card_name: Name of the card for the chart title
+        show_x_axis: Whether to show the X-axis labels and grid (default: True)
+        show_legend: Whether to show the chart legend (default: True)
     """
 
     # Extract data for both currencies
@@ -950,7 +952,9 @@ def create_price_development_chart(container_id: str, price_data: dict[str, list
     # Prepare config for JavaScript ChartManager
     config = {
         'data': chart_data,
-        'cardName': card_name
+        'cardName': card_name,
+        'showXAxis': show_x_axis,
+        'showLegend': show_legend
     }
 
     return ft.Div(
