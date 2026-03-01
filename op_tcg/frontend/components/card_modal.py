@@ -511,7 +511,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                                 hx_get=f"/api/card-price-development-chart",
                                 hx_target=f"#price-chart-container-{card.id}",
                                 hx_indicator=f"#price-chart-loading-{card.id}",
-                                hx_vals=f'js:{{"card_id": "{card.id}", "days": document.getElementById("price-period-selector-{card.id}").value, "include_alt_art": "false", "aa_version": "{selected_aa_version}"}}',
+                                hx_vals=f'js:{{"card_id": "{card.id}", "days": document.getElementById("price-period-selector-{card.id}").value, "include_alt_art": "false", "aa_version": "{selected_aa_version}", "location": "modal"}}',
                                 **{
                                     "hx-on::before-request": f"document.getElementById('price-chart-container-{card.id}').innerHTML = ''; document.getElementById('price-chart-loading-{card.id}').style.display = 'flex';"}
                             ),
@@ -521,7 +521,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     ),
                     ft.Div(
                         id=f"price-chart-container-{card.id}",
-                        hx_get=f"/api/card-price-development-chart?card_id={card.id}&days=90&aa_version={selected_aa_version}",
+                        hx_get=f"/api/card-price-development-chart?card_id={card.id}&days=90&aa_version={selected_aa_version}&location=modal",
                         hx_trigger="load",
                         hx_indicator=f"#price-chart-loading-{card.id}",
                         cls="min-h-[300px]"

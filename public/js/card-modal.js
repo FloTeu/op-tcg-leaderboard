@@ -419,7 +419,7 @@ window.showCarouselItem = function(element, index) {
                 // Update hx-vals in selector
                 const days = pricePeriodSelector.value;
                 const aaVersionParam = aaVersion !== null ? `, "aa_version": "${aaVersion}"` : '';
-                pricePeriodSelector.setAttribute('hx-vals', `js:{"card_id": "${cardId}", "days": document.getElementById("price-period-selector-${cardId}").value, "include_alt_art": "false"${aaVersionParam}}`);
+                pricePeriodSelector.setAttribute('hx-vals', `js:{"card_id": "${cardId}", "days": document.getElementById("price-period-selector-${cardId}").value, "include_alt_art": "false"${aaVersionParam}, "location": "modal"}`);
                 pricePeriodSelector.setAttribute('hx-target', `#price-chart-container-${cardId}`);
                 pricePeriodSelector.setAttribute('hx-indicator', `#price-chart-loading-${cardId}`);
                 pricePeriodSelector.setAttribute('hx-on::before-request', `document.getElementById('price-chart-container-${cardId}').innerHTML = ''; document.getElementById('price-chart-loading-${cardId}').style.display = 'flex';`);
@@ -429,6 +429,7 @@ window.showCarouselItem = function(element, index) {
                 if (aaVersion !== null) {
                     url += `&aa_version=${aaVersion}`;
                 }
+                url += `&location=modal`;
 
                 htmx.ajax('GET', url, {
                     target: `#price-chart-container-${cardId}`,

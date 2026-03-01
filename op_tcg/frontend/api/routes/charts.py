@@ -354,6 +354,7 @@ def setup_api_routes(rt):
         include_alt_art = request.query_params.get("include_alt_art", "false").lower() == "true"
         aa_version_param = request.query_params.get("aa_version")
         compact = request.query_params.get("compact", "false").lower() == "true"
+        location = request.query_params.get("location", "default")
 
         if not card_id:
             return ft.Div("No card ID provided", cls="text-red-400")
@@ -399,7 +400,7 @@ def setup_api_routes(rt):
             # Create the price development chart with unique container ID
             # Include aa_version in ID to allow differentiation when multiple versions of same card are displayed
             return create_price_development_chart(
-                container_id=f"price-development-chart-{card_id}-{days}-{aa_version}-{compact}",
+                container_id=f"price-development-chart-{card_id}-{days}-{aa_version}-{compact}-{location}",
                 price_data=price_data,
                 card_name=card_name,
                 show_x_axis=not compact
@@ -407,6 +408,8 @@ def setup_api_routes(rt):
             
         except Exception as e:
             return ft.Div(f"Error loading price chart: {str(e)}", cls="text-red-400")
+
+
 
 
 

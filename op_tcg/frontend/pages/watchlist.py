@@ -234,12 +234,12 @@ def watchlist_page(request):
                                 hx_get="/api/card-price-development-chart",
                                 hx_target=f"#{chart_id}",
                                 hx_indicator=f"#{chart_id}-loading",
-                                hx_vals=f'{{"card_id": "{card_id}", "aa_version": "{aa_version}", "include_alt_art": "false", "compact": "true"}}', # Ensure compact stays true
+                                hx_vals=f'{{"card_id": "{card_id}", "aa_version": "{aa_version}", "include_alt_art": "false", "compact": "true", "location": "watchlist"}}', # Ensure compact stays true
                                 hx_on__before_request=f"document.getElementById('{chart_id}').innerHTML = ''; document.getElementById('{chart_id}-loading').classList.remove('hidden');"
                             ),
                             ft.Div(
                                 id=chart_id,
-                                hx_get=f"/api/card-price-development-chart?card_id={card_id}&days=90&aa_version={aa_version}&compact=true",
+                                hx_get=f"/api/card-price-development-chart?card_id={card_id}&days=90&aa_version={aa_version}&compact=true&location=watchlist",
                                 hx_trigger="revealed",
                                 hx_indicator=f"#{chart_id}-loading",
                                 cls="w-full h-32"
@@ -366,7 +366,7 @@ def watchlist_page(request):
                                     hx_get="/api/card-price-development-chart",
                                     hx_target=f"#{chart_id}",
                                     hx_indicator=f"#{chart_id}-loading",
-                                    hx_vals=f'{{"card_id": "{card_id}", "aa_version": "{aa_version}", "include_alt_art": "false"}}',
+                                    hx_vals=f'{{"card_id": "{card_id}", "aa_version": "{aa_version}", "include_alt_art": "false", "location": "watchlist"}}',
                                     hx_on__before_request=f"document.getElementById('{chart_id}').innerHTML = ''; document.getElementById('{chart_id}-loading').classList.remove('hidden');"
                                 ),
                                 cls="flex justify-end pr-1 pt-1"
@@ -374,7 +374,7 @@ def watchlist_page(request):
                             ft.Div(
                                 ft.Div(
                                     id=chart_id,
-                                    hx_get=f"/api/card-price-development-chart?card_id={card_id}&days=90&aa_version={aa_version}",
+                                    hx_get=f"/api/card-price-development-chart?card_id={card_id}&days=90&aa_version={aa_version}&location=watchlist",
                                     hx_trigger="revealed", # Load when scrolled into view
                                     hx_indicator=f"#{chart_id}-loading",
                                     cls="w-full h-48 sm:h-64"
