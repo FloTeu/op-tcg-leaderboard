@@ -31,6 +31,57 @@ def watchlist_page(request):
 
     # Determine View Mode
     view_mode = request.query_params.get("view", "list")
+    sort_by = request.query_params.get("sort", "name")
+    sort_order = request.query_params.get("order", "asc")
+
+    # Prepare data for rendering (needed for both views to support sorting/prices)
+    prepared_items = []
+
+    for item in watchlist:
+        card_id = item.get('card_id')
+        version_val = item.get('card_version', 0)
+        try:
+             aa_version = int(version_val) if version_val != 'Base' else 0
+        except:
+             aa_version = 0
+        language = item.get('language', 'en')
+
+        # Data Lookup
+        card_details = None
+        if card_id in card_lookup:
+            card_details = card_lookup[card_id].get(aa_version)
+            if not card_details:
+                card_details = card_lookup[card_id].get(0)
+                if not card_details and card_lookup[card_id]:
+                        card_details = next(iter(card_lookup[card_id].values()))
+
+        card_name = getattr(card_details, 'name', 'Unknown Card') if card_details else card_id
+        image_url = getattr(card_details, 'image_url', '') if card_details else ''
+        latest_eur = getattr(card_details, 'latest_eur_price', 0.0) if card_details else 0.0
+        latest_usd = getattr(card_details, 'latest_usd_price', 0.0) if card_details else 0.0
+
+        # Ensure prices are floats
+        if latest_eur is None: latest_eur = 0.0
+        if latest_usd is None: latest_usd = 0.0
+
+        item_data = {
+            'card_id': card_id,
+            'aa_version': aa_version,
+            'language': language,
+            'card_details': card_details,
+            'card_name': card_name,
+            'image_url': image_url,
+            'latest_eur': latest_eur,
+            'latest_usd': latest_usd
+        }
+        prepared_items.append(item_data)
+
+    # Sort items
+    reverse = (sort_order == 'desc')
+    if sort_by == 'price':
+        prepared_items.sort(key=lambda x: x['latest_usd'], reverse=reverse)
+    else: # name
+        prepared_items.sort(key=lambda x: x['card_name'], reverse=reverse)
 
     # Create View Switcher
     view_switcher = ft.Div(
@@ -52,28 +103,36 @@ def watchlist_page(request):
     content = None
 
     if view_mode == 'table':
+        # Helpers for sort links
+        def sort_link(label, column):
+            icon = ""
+            new_order = "asc"
+            if sort_by == column:
+                if sort_order == "asc":
+                    icon = "fa-sort-up"
+                    new_order = "desc"
+                else:
+                    icon = "fa-sort-down"
+                    new_order = "asc"
+            else:
+                icon = "fa-sort text-gray-600"
+
+            return ft.A(
+                ft.Span(label),
+                ft.I(cls=f"fas {icon} ml-1"),
+                href=f"?view=table&sort={column}&order={new_order}",
+                cls="flex items-center cursor-pointer hover:text-white transition-colors"
+            )
+
         # Render Table View
         rows = []
-        for item in watchlist:
-            card_id = item.get('card_id')
-            version_val = item.get('card_version', 0)
-            try:
-                 aa_version = int(version_val) if version_val != 'Base' else 0
-            except:
-                 aa_version = 0
-            language = item.get('language', 'en')
-
-            # Data Lookup
-            card_details = None
-            if card_id in card_lookup:
-                card_details = card_lookup[card_id].get(aa_version)
-                if not card_details:
-                    card_details = card_lookup[card_id].get(0)
-                    if not card_details and card_lookup[card_id]:
-                         card_details = next(iter(card_lookup[card_id].values()))
-
-            card_name = getattr(card_details, 'name', 'Unknown Card') if card_details else card_id
-            image_url = getattr(card_details, 'image_url', '') if card_details else ''
+        for item in prepared_items:
+            card_id = item['card_id']
+            aa_version = item['aa_version']
+            language = item['language']
+            card_details = item['card_details']
+            card_name = item['card_name']
+            image_url = item['image_url']
 
             # Marketplace Links
             if card_details:
@@ -103,22 +162,43 @@ def watchlist_page(request):
                     # Card Info
                     ft.Td(
                         ft.Div(
-                            ft.Img(src=image_url, cls="w-16 h-auto rounded shadow-sm mr-4 cursor-pointer hover:opacity-80 transition-opacity",
+                            ft.Img(src=image_url, cls="w-16 h-auto rounded shadow-sm mr-4 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0",
                                    alt=card_name,
                                    hx_get=f"/api/card-modal?card_id={card_id}&meta_format=latest&aa_version={aa_version}",
                                    hx_target="body",
                                    hx_swap="beforeend"),
                             ft.Div(
-                                ft.Div(card_name, cls="font-bold text-white text-base cursor-pointer hover:text-blue-400",
+                                ft.Div(card_name, cls="font-bold text-white text-base cursor-pointer hover:text-blue-400 whitespace-normal break-words line-clamp-2",
                                        hx_get=f"/api/card-modal?card_id={card_id}&meta_format=latest&aa_version={aa_version}",
                                        hx_target="body",
                                        hx_swap="beforeend"),
                                 ft.Div(f"{card_id}", cls="text-sm text-gray-400"),
-                                cls="flex flex-col"
+                                cls="flex flex-col min-w-0"
                             ),
                             cls="flex items-center"
                         ),
-                        cls="px-4 py-3 whitespace-nowrap"
+                        cls="px-4 py-3 align-top"
+                    ),
+                    # Latest Price
+                    ft.Td(
+                        ft.Div(
+                            ft.A(
+                                ft.Span(f"€{item['latest_eur']:.2f}", cls="font-bold text-gray-200 group-hover:text-blue-400 transition-colors mr-2 text-sm"),
+                                ft.Span("CM", cls="text-[10px] bg-blue-600/20 text-blue-300 group-hover:bg-blue-600 group-hover:text-white px-1.5 py-0.5 rounded transition-colors"),
+                                href=cm_url,
+                                target="_blank",
+                                cls="flex items-center justify-end group cursor-pointer hover:bg-gray-700/50 rounded px-2 py-1 transition-colors mb-1 w-full"
+                            ),
+                            ft.A(
+                                ft.Span(f"${item['latest_usd']:.2f}", cls="font-bold text-gray-200 group-hover:text-green-400 transition-colors mr-2 text-sm"),
+                                ft.Span("TCG", cls="text-[10px] bg-green-600/20 text-green-300 group-hover:bg-green-600 group-hover:text-white px-1.5 py-0.5 rounded transition-colors"),
+                                href=tcg_url,
+                                target="_blank",
+                                cls="flex items-center justify-end group cursor-pointer hover:bg-gray-700/50 rounded px-2 py-1 transition-colors w-full"
+                            ),
+                            cls="flex flex-col items-end min-w-[100px]"
+                        ),
+                        cls="px-4 py-3 whitespace-nowrap align-middle"
                     ),
                     # Details
                     ft.Td(
@@ -127,39 +207,50 @@ def watchlist_page(request):
                             ft.Div(language, cls="text-xs text-gray-500 uppercase"),
                             cls="flex flex-col"
                         ),
-                        cls="px-4 py-3 whitespace-nowrap"
+                        cls="px-4 py-3 whitespace-nowrap align-middle"
                     ),
                     # Actions
                     ft.Td(
                         ft.Div(
                             toggle_btn,
-                            ft.Div(
-                                ft.A("CM", href=cm_url, target="_blank", cls="text-xs bg-blue-600/80 hover:bg-blue-600 text-white px-2 py-1 rounded transition-colors block text-center mb-1"),
-                                ft.A("TCG", href=tcg_url, target="_blank", cls="text-xs bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded transition-colors block text-center"),
-                                cls="ml-2 w-12"
-                            ),
-                            cls="flex items-center"
+                            cls="flex items-center justify-center pl-2"
                         ),
-                        cls="px-4 py-3 whitespace-nowrap"
+                        cls="px-4 py-3 whitespace-nowrap align-middle"
                     ),
                     # Price Chart
                     ft.Td(
                         ft.Div(
+                            # Absolute positioned time selector
+                            ft.Select(
+                                ft.Option("30d", value="30"),
+                                ft.Option("90d", value="90", selected=True),
+                                ft.Option("180d", value="180"),
+                                ft.Option("1y", value="365"),
+                                ft.Option("All", value="1000"),
+                                name="days",
+                                id=f"price-period-selector-table-{chart_id}",
+                                cls="absolute top-1 right-1 z-10 bg-gray-800 text-white border border-gray-600 rounded px-1 py-0 text-[10px] focus:ring-blue-500 focus:border-blue-500 block cursor-pointer hover:bg-gray-700 transition-colors opacity-100 placeholder-transparent appearance-none text-center min-w-[34px]",
+                                hx_get="/api/card-price-development-chart",
+                                hx_target=f"#{chart_id}",
+                                hx_indicator=f"#{chart_id}-loading",
+                                hx_vals=f'{{"card_id": "{card_id}", "aa_version": "{aa_version}", "include_alt_art": "false", "compact": "true"}}', # Ensure compact stays true
+                                hx_on__before_request=f"document.getElementById('{chart_id}').innerHTML = ''; document.getElementById('{chart_id}-loading').classList.remove('hidden');"
+                            ),
                             ft.Div(
                                 id=chart_id,
                                 hx_get=f"/api/card-price-development-chart?card_id={card_id}&days=90&aa_version={aa_version}&compact=true",
                                 hx_trigger="revealed",
                                 hx_indicator=f"#{chart_id}-loading",
-                                cls="w-full h-32" # Increased height
+                                cls="w-full h-32"
                             ),
                             create_loading_spinner(
                                 id=f"{chart_id}-loading",
-                                size="w-8 h-8",
+                                size="w-6 h-6",
                                 container_classes="absolute inset-0 flex items-center justify-center h-32 pointer-events-none hidden"
                             ),
-                            cls="w-80 min-w-[200px] h-32 bg-gray-900/30 rounded relative overflow-hidden" # Increased width and height
+                            cls="w-full min-w-[200px] h-32 bg-gray-900/30 rounded relative overflow-hidden group"
                         ),
-                        cls="px-4 py-2"
+                        cls="px-4 py-2 w-full align-middle"
                     ),
                     cls="bg-gray-800 border-b border-gray-700 hover:bg-gray-750 transition-colors watchlist-card-item"
                 )
@@ -169,10 +260,11 @@ def watchlist_page(request):
             ft.Table(
                 ft.Thead(
                     ft.Tr(
-                        ft.Th("Card", cls="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider"),
-                        ft.Th("Version", cls="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider"),
-                        ft.Th("Actions", cls="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider"),
-                        ft.Th("Price Trend (90d)", cls="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider w-64"),
+                        ft.Th(sort_link("Card", "name"), cls="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider w-1/3 min-w-[250px]"),
+                        ft.Th(sort_link("Latest Price", "price"), cls="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap w-28"),
+                        ft.Th("Version", cls="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap w-24"),
+                        ft.Th("Actions", cls="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider w-24"),
+                        ft.Th("Price Trend (90d)", cls="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider min-w-[300px]"),
                     ),
                     cls="bg-gray-900"
                 ),
@@ -188,27 +280,13 @@ def watchlist_page(request):
     else:
         # LIST VIEW (Existing Logic)
         items = []
-        for item in watchlist:
-            card_id = item.get('card_id')
-            version_val = item.get('card_version', 0)
-            try:
-                 aa_version = int(version_val) if version_val != 'Base' else 0
-            except:
-                 aa_version = 0
-
-            language = item.get('language', 'en')
-
-            # Lookup card details
-            card_details = None
-            if card_id in card_lookup:
-                card_details = card_lookup[card_id].get(aa_version)
-                if not card_details:
-                    card_details = card_lookup[card_id].get(0)
-                    if not card_details and card_lookup[card_id]:
-                         card_details = next(iter(card_lookup[card_id].values()))
-
-            card_name = getattr(card_details, 'name', 'Unknown Card') if card_details else card_id
-            image_url = getattr(card_details, 'image_url', '') if card_details else ''
+        for item in prepared_items:
+            card_id = item['card_id']
+            aa_version = item['aa_version']
+            language = item['language']
+            card_details = item['card_details']
+            card_name = item['card_name']
+            image_url = item['image_url']
 
             # Generate marketplace links
             if card_details:
@@ -252,6 +330,12 @@ def watchlist_page(request):
                             ft.Div(
                                 ft.H3(card_name, cls="text-xl font-bold text-white hover:text-blue-400 transition-colors"),
                                 ft.P(f"{card_id} • {version_label} • {language}", cls="text-sm text-gray-400 mt-1"),
+                                # Check if prices exist and display them
+                                ft.Div(
+                                    ft.Span(f"€{item['latest_eur']:.2f}", cls="text-sm font-bold text-blue-400 mr-3"),
+                                    ft.Span(f"${item['latest_usd']:.2f}", cls="text-sm font-bold text-green-400"),
+                                    cls="mt-1"
+                                ),
                                 cls="flex-1 min-w-0 pr-4 cursor-pointer", # min-w-0 for truncate text if needed
                                 hx_get=f"/api/card-modal?card_id={card_id}&meta_format=latest&aa_version={aa_version}",
                                 hx_target="body",
