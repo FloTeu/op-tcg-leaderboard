@@ -104,6 +104,25 @@ def watchlist_page(request):
 
                     # Content Area: Chart Only (Full Width)
                     ft.Div(
+                        # Control Bar (Time Range Selector)
+                        ft.Div(
+                            ft.Select(
+                                ft.Option("30 Days", value="30"),
+                                ft.Option("90 Days", value="90", selected=True),
+                                ft.Option("180 Days", value="180"),
+                                ft.Option("1 Year", value="365"),
+                                ft.Option("All Time", value="1000"),
+                                name="days", # Send value as 'days' parameter
+                                id=f"price-period-selector-{chart_id}",
+                                cls="bg-gray-700 text-white border border-gray-600 rounded px-2 py-0.5 text-xs focus:ring-blue-500 focus:border-blue-500 block cursor-pointer hover:bg-gray-600 transition-colors",
+                                hx_get="/api/card-price-development-chart",
+                                hx_target=f"#{chart_id}",
+                                hx_indicator=f"#{chart_id}-loading",
+                                hx_vals=f'{{"card_id": "{card_id}", "aa_version": "{aa_version}", "include_alt_art": "false"}}',
+                                hx_on__before_request=f"document.getElementById('{chart_id}').innerHTML = ''; document.getElementById('{chart_id}-loading').classList.remove('hidden');"
+                            ),
+                            cls="flex justify-end pr-1 pt-1" # Align right, small padding
+                        ),
                         ft.Div(
                             ft.Div(
                                 id=chart_id,
@@ -115,11 +134,11 @@ def watchlist_page(request):
                             create_loading_spinner(
                                 id=f"{chart_id}-loading",
                                 size="w-8 h-8",
-                                container_classes="h-48 sm:h-64 flex items-center justify-center"
+                                container_classes="absolute inset-0 flex items-center justify-center h-48 sm:h-64 pointer-events-none hidden"
                             ),
-                            cls="w-full min-w-0 bg-gray-900/50 rounded p-0 mt-3" # Removed padding p-2->p-0, added small top margin
+                            cls="w-full min-w-0 bg-gray-900/50 rounded p-0 mt-0 relative" # Added relative positioning for absolute loading spinner
                         ),
-                        cls="w-full"
+                        cls="w-full mt-2"
                     ),
                     cls="watchlist-card-item bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg border border-gray-700 hover:border-gray-600 transition-colors"
                 )
