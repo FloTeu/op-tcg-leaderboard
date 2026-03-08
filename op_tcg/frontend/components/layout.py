@@ -197,6 +197,10 @@ def get_user_control_view(user) -> Any:
                          cls="block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white")
                 ),
                 ft.Li(
+                    ft.A("Settings", href="/settings",
+                         cls="block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white")
+                ),
+                ft.Li(
                     ft.A("Logout", href="/logout",
                          cls="block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white")
                 ),

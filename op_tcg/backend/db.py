@@ -1,5 +1,6 @@
 from google.cloud import firestore
-from op_tcg.backend.models.cards import OPTcgLanguage
+from op_tcg.backend.models.cards import OPTcgLanguage, CardCurrency
+from op_tcg.backend.models.input import MetaFormatRegion
 
 # Initialize Firestore
 # Using a singleton pattern to avoid re-initializing the client
@@ -101,3 +102,32 @@ def get_watchlist(user_id: str):
     docs = watchlist_ref.stream()
 
     return [doc.to_dict() for doc in docs]
+
+
+def get_user_settings(user_id: str) -> dict:
+    """Retrieves persisted user settings, returns defaults if not set."""
+    user = get_user(user_id)
+    defaults = {"currency": CardCurrency.EURO.value, "region": MetaFormatRegion.ALL.value}
+    if not user:
+        return defaults
+    return {**defaults, **user.get("settings", {})}
+
+
+def update_user_settings(user_id: str, settings: dict):
+    """Persists user settings (currency, region) in the user document."""
+    db = get_db()
+    if not db:
+        return
+    db.collection('users').document(user_id).set({"settings": settings}, merge=True)
+
+
+def delete_user(user_id: str):
+    """Deletes a user's watchlist subcollection and user document."""
+    db = get_db()
+    if not db:
+        return
+    # Delete all watchlist docs first (subcollections must be removed manually)
+    watchlist_ref = db.collection('users').document(user_id).collection('watchlist')
+    for doc in watchlist_ref.stream():
+        doc.reference.delete()
+    db.collection('users').document(user_id).delete()

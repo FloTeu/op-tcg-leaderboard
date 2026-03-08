@@ -16,10 +16,12 @@ from op_tcg.frontend.pages.matchups import matchups_page, create_filter_componen
 from op_tcg.frontend.pages.card_popularity import card_popularity_page, create_filter_components as card_popularity_filters
 from op_tcg.frontend.pages.prices import prices_page, create_filter_components as prices_filters
 from op_tcg.frontend.pages.watchlist import watchlist_page
+from op_tcg.frontend.pages.settings import settings_content
 from op_tcg.frontend.pages.bug_report import bug_report_page
 from op_tcg.frontend.pages.about import about_page
 from op_tcg.frontend.api.routes.main import setup_api_routes
 from op_tcg.frontend.api.routes.auth import setup_auth_routes
+from op_tcg.frontend.api.routes.settings import setup_settings_routes
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from starlette.requests import Request
 from op_tcg.frontend.utils.cache_warmer import start_cache_warming, stop_cache_warming, warm_cache_now
@@ -138,6 +140,7 @@ async def serve_sitemap():
 # Setup API routes
 setup_api_routes(rt)
 setup_auth_routes(rt)
+setup_settings_routes(rt)
 
 @rt("/api/cache/status")
 def cache_status():
@@ -486,6 +489,25 @@ def watchlist_route(request: Request):
             user=user
         )
     )
+
+@rt("/settings")
+def settings(request: Request):
+    user = request.session.get('user')
+    canonical_url = f"{canonical_base(request)}/settings"
+    title = "Settings – OP TCG Leaderboard"
+    description = "Manage your account settings and preferences."
+
+    return (
+        ft.Title(title),
+        ft.Meta(name="description", content=description),
+        ft.Link(rel="canonical", href=canonical_url),
+        layout(
+            settings_content(user=user),
+            current_path="/settings",
+            user=user
+        )
+    )
+
 
 if __name__ == "__main__":
     # Start background tasks
