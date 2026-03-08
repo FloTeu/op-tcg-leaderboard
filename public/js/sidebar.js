@@ -80,11 +80,13 @@ function setSidebarState(isOpen) {
         if (isOpen) {
             sidebar.style.transform = 'translateX(0)';
             mainContent.style.marginLeft = '320px';
-            if (burgerMenu) burgerMenu.style.display = 'none';
+            topBar.style.left = '320px';
+            if (burgerMenu) burgerMenu.style.visibility = 'hidden';
         } else {
             sidebar.style.transform = 'translateX(-100%)';
             mainContent.style.marginLeft = '0';
-            if (burgerMenu) burgerMenu.style.display = '';
+            topBar.style.left = '0';
+            if (burgerMenu) burgerMenu.style.visibility = 'visible';
         }
         toggleBurgerMenu(isOpen);
     }
