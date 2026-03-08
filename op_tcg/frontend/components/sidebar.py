@@ -51,17 +51,11 @@ def sidebar_content(filter_component=None, current_path="/", persist_query: dict
         (build_href("/card-popularity"), "Card Popularity", "💃", current_path == "/card-popularity"),
         #(build_href("/card-prices"), "Card Prices", "💰", current_path == "/card-prices"),
     ]
-    
-    support_links = [
-        (build_href("/about"), "About", "ℹ️", current_path == "/about"),
-        (build_href("/bug-report"), "Bug Report", "👾", current_path == "/bug-report"),
-    ]
 
     return ft.Div(
         # Navigation sections
         create_nav_section("Leader", leader_links),
         create_nav_section("Card", card_links),
-        create_nav_section("Support", support_links),
         # Filter section
         ft.Div(
             ft.H2("Filters", cls="text-xl font-bold text-white mb-4") if filter_component else None,

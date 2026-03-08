@@ -80,15 +80,11 @@ function setSidebarState(isOpen) {
         if (isOpen) {
             sidebar.style.transform = 'translateX(0)';
             mainContent.style.marginLeft = '320px';
-            topBar.style.left = '320px'; // Shift top bar to the right
-            if (burgerMenu) burgerMenu.style.visibility = 'hidden'; // Hide the duplicate burger menu
-            document.body.style.overflow = ''; // Always allow scrolling on desktop
+            if (burgerMenu) burgerMenu.style.display = 'none';
         } else {
             sidebar.style.transform = 'translateX(-100%)';
             mainContent.style.marginLeft = '0';
-            topBar.style.left = '0'; // Reset top bar position
-            if (burgerMenu) burgerMenu.style.visibility = 'visible';
-            document.body.style.overflow = ''; // Always allow scrolling on desktop
+            if (burgerMenu) burgerMenu.style.display = '';
         }
         toggleBurgerMenu(isOpen);
     }
@@ -148,34 +144,37 @@ function closeSidebarOnOutsideClick(event) {
 
 // Set initial state on load
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize state properly
     sidebarState.isMobile = isMobileDevice();
-    
-    // Detect actual sidebar state from DOM instead of assuming false
-    sidebarState.isOpen = getCurrentSidebarState();
-    
-    // Force correct initial state based on device type
+
+    // The correct visual state was already applied before first paint by the inline head script
+    // (class sidebar-initially-open on <html>). Remove that class now that JS inline styles take over,
+    // then call setSidebarState to sync the sidebarState object and set matching inline styles.
+    document.documentElement.classList.remove('sidebar-initially-open');
+
     if (isMobileDevice()) {
-        // On mobile, always start closed
         setSidebarState(false);
     } else {
-        // On desktop, start open
-        setSidebarState(true);
+        const saved = sessionStorage.getItem('sidebarOpen');
+        setSidebarState(saved === null ? true : saved === 'true');
     }
-    
+
+    // Persist desktop state changes to sessionStorage
+    const _orig = setSidebarState;
+    setSidebarState = function(isOpen) {
+        _orig(isOpen);
+        if (!isMobileDevice()) sessionStorage.setItem('sidebarOpen', isOpen);
+    };
+
     // Add outside click listener
     document.addEventListener('click', closeSidebarOnOutsideClick);
-    
+
     // Close sidebar on mobile when any link in sidebar is clicked
     document.addEventListener('click', function(event) {
-        // Check if the clicked element is a link inside the sidebar
         const clickedLink = event.target.closest('#sidebar a[href]');
         if (clickedLink && isMobileDevice()) {
-            // Close sidebar immediately on mobile
             setSidebarState(false);
         }
 
-        // Handle mobile filter button click
         if (event.target.closest('.mobile-filter-btn')) {
             toggleSidebar();
         }

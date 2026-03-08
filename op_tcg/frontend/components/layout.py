@@ -53,6 +53,9 @@ def layout(content, filter_component=None, current_path="/", persist_query=None,
     return ft.Div(
         # Include external CSS files
         ft.Link(rel="stylesheet", href="public/css/leaderboard.css"),
+        # Synchronous script — runs before first paint so the sidebar appears in its correct
+        # open/closed state with no slide-in animation on every page navigation.
+        ft.Script("""(function(){try{var s=sessionStorage.getItem('sidebarOpen');var m=window.innerWidth<=768;if(!m&&s!=='false')document.documentElement.classList.add('sidebar-initially-open');}catch(e){}})();"""),
         
         # Top bar that appears when sidebar is collapsed
         ft.Div(
@@ -78,6 +81,16 @@ def layout(content, filter_component=None, current_path="/", persist_query=None,
         sidebar(filter_component, current_path, persist_query),
         ft.Div(
             content,
+            ft.Footer(
+                ft.Div(
+                    ft.A("About", href="/about", cls="text-gray-500 hover:text-gray-300 text-sm transition-colors"),
+                    ft.A("Bug Report", href="/bug-report", cls="text-gray-500 hover:text-gray-300 text-sm transition-colors"),
+                    ft.A("Privacy Policy", href="/privacy", cls="text-gray-500 hover:text-gray-300 text-sm transition-colors"),
+                    ft.Span("© 2026 OP TCG Leaderboard", cls="text-gray-600 text-sm"),
+                    cls="flex flex-wrap items-center gap-6 justify-center"
+                ),
+                cls="border-t border-gray-800 mt-16 py-8 px-4"
+            ),
             cls="p-4 min-h-screen bg-gray-900 transition-all duration-300 ease-in-out mt-16 relative",
             id="main-content",
             style="margin-left: 0;"  # Start with no left margin (mobile state)

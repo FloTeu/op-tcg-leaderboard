@@ -19,6 +19,7 @@ from op_tcg.frontend.pages.watchlist import watchlist_page
 from op_tcg.frontend.pages.settings import settings_content
 from op_tcg.frontend.pages.bug_report import bug_report_page
 from op_tcg.frontend.pages.about import about_page
+from op_tcg.frontend.pages.privacy import privacy_page
 from op_tcg.frontend.api.routes.main import setup_api_routes
 from op_tcg.frontend.api.routes.auth import setup_auth_routes
 from op_tcg.frontend.api.routes.settings import setup_settings_routes
@@ -493,6 +494,24 @@ def about(request: Request):
         ft.Meta(property="og:url", content=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
         layout(about_page(), filter_component=None, current_path="/about", persist_query=persist_query, user=user)
+    )
+
+@rt("/privacy")
+def privacy(request: Request):
+    canonical_url = f"{canonical_base(request)}/privacy"
+    title = "Privacy Policy – OP TCG Leaderboard"
+    description = "Privacy policy for OP TCG Leaderboard, covering data collection, Google OAuth, and your rights."
+
+    user = request.session.get('user')
+
+    return (
+        ft.Title(title),
+        ft.Meta(name="description", content=description),
+        ft.Meta(property="og:title", content=title),
+        ft.Meta(property="og:description", content=description),
+        ft.Meta(property="og:url", content=canonical_url),
+        ft.Link(rel="canonical", href=canonical_url),
+        layout(privacy_page(), filter_component=None, current_path="/privacy", user=user)
     )
 
 @rt("/watchlist")
