@@ -119,13 +119,14 @@ def layout(content, filter_component=None, current_path="/", persist_query=None,
                 if (path === '/leader') {
                     // Keep lid if present
                     if (p.lid) params.set('lid', p.lid); else params.delete('lid');
-                    if (p.meta_format_region) params.set('region', p.meta_format_region); else params.delete('region');
+                    const effRegionL = p.meta_format_region || p.region;
+                    if (effRegionL && effRegionL !== 'all') params.set('region', effRegionL); else params.delete('region');
                     // carry one meta_format for cross-page consistency
                     if (p.meta_format) params.set('meta_format', p.meta_format); else params.delete('meta_format');
                 } else {
                     // On non-leader pages, prefer standard region, but fall back to leader's meta_format_region
                     const effRegion = p.region || p.meta_format_region;
-                    if (effRegion) params.set('region', effRegion); else params.delete('region');
+                    if (effRegion && effRegion !== 'all') params.set('region', effRegion); else params.delete('region');
                     if (p.meta_format) params.set('meta_format', p.meta_format); else params.delete('meta_format');
                 }
                 const newURL = path + (params.toString() ? '?' + params.toString() : '');
@@ -141,11 +142,12 @@ def layout(content, filter_component=None, current_path="/", persist_query=None,
                         const qp = new URLSearchParams();
                         if (basePath === '/leader') {
                             if (p.meta_format) qp.set('meta_format', p.meta_format);
-                            if (p.region || p.meta_format_region) qp.set('region', p.meta_format_region || p.region);
+                            const effRegionL = p.meta_format_region || p.region;
+                            if (effRegionL && effRegionL !== 'all') qp.set('region', effRegionL);
                         } else {
                             if (p.meta_format) qp.set('meta_format', p.meta_format);
                             const effRegion = p.region || p.meta_format_region;
-                            if (effRegion) qp.set('region', effRegion);
+                            if (effRegion && effRegion !== 'all') qp.set('region', effRegion);
                         }
                         a.href = basePath + (qp.toString() ? '?' + qp.toString() : '');
                     } catch (e) { /* no-op */ }

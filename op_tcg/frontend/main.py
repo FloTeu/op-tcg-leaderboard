@@ -23,6 +23,8 @@ from op_tcg.frontend.api.routes.main import setup_api_routes
 from op_tcg.frontend.api.routes.auth import setup_auth_routes
 from op_tcg.frontend.api.routes.settings import setup_settings_routes
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
+from op_tcg.backend.models.cards import CardCurrency
+from op_tcg.backend.db import get_user_settings
 from starlette.requests import Request
 from op_tcg.frontend.utils.cache_warmer import start_cache_warming, stop_cache_warming, warm_cache_now
 from op_tcg.frontend.utils.seo import canonical_base, write_static_sitemap
@@ -183,24 +185,42 @@ def clear_cache():
 async def enforce_canonical_host(request, call_next):
     return await canonical_redirect_middleware(request, call_next)
 
+def _user_setting_defaults(request: Request) -> dict:
+    """Return the logged-in user's saved settings, or empty dict if not logged in / no settings."""
+    user = request.session.get('user')
+    if not user:
+        return {}
+    try:
+        return get_user_settings(user['sub']) or {}
+    except Exception:
+        return {}
+
+
+def _region_for_url(region: str | None) -> str | None:
+    """Return region only when it is a non-default, non-neutral value worth encoding in a URL."""
+    if not region or region == MetaFormatRegion.ALL:
+        return None
+    return region
+
+
 @rt("/")
 def home(request: Request):
     # Add canonical link to head for home page using incoming host
     canonical_url = canonical_base(request)
     title = "OP TCG Leaderboard – Meta, Decklists, Prices & Matchups"
     description = "Track One Piece TCG leaders, meta trends, decklists, prices, and matchups. Updated regularly with official and community results."
-    # Build persisted query object for navigation links
-    persist_query = {
-        "meta_format": request.query_params.get("meta_format"),
-        "region": request.query_params.get("region")
-    }
-    
-    # Determine selected values for filters
+    # Determine selected values for filters (query param > user setting > code default)
+    user_defaults = _user_setting_defaults(request)
     selected_meta_format = request.query_params.get("meta_format")
-    selected_region = request.query_params.get("region")
+    selected_region = request.query_params.get("region") or user_defaults.get("region")
+
+    persist_query = {
+        "meta_format": selected_meta_format,
+        "region": _region_for_url(selected_region),
+    }
     selected_meta_format_enum = MetaFormat(selected_meta_format) if selected_meta_format else None
     selected_region_enum = MetaFormatRegion(selected_region) if selected_region else None
-    
+
     user = request.session.get('user')
 
     return (
@@ -224,27 +244,26 @@ def home(request: Request):
 @rt("/leader")
 def leader_default(request: Request):
     # Get selected meta formats from query params (can be multiple)
+    user_defaults = _user_setting_defaults(request)
     selected_meta_format = request.query_params.getlist("meta_format")
     leader_id = request.query_params.get("lid")
-    selected_meta_format_region = request.query_params.get("region")
-    
+    selected_region_str = request.query_params.get("region") or user_defaults.get("region")
+
     # Convert to MetaFormat enum if present
     if selected_meta_format:
         selected_meta_format = [MetaFormat(mf) for mf in selected_meta_format]
-    
+
     # Convert to MetaFormatRegion enum if present
-    if selected_meta_format_region:
-        selected_meta_format_region = MetaFormatRegion(selected_meta_format_region)
-    
+    selected_meta_format_region = MetaFormatRegion(selected_region_str) if selected_region_str else None
+
     # Add canonical link to head based on incoming host
     canonical_url = f"{canonical_base(request)}/leader"
     title = "Leader Meta & Performance – OP TCG Leaderboard"
     description = "Explore leader performance across formats, with meta share, win rates, and top decklists."
-    
-    # Pass to leader_page which will handle HTMX loading
+
     persist_query = {
         "meta_format": request.query_params.get("meta_format"),
-        "region": request.query_params.get("region")
+        "region": _region_for_url(selected_region_str),
     }
 
     user = request.session.get('user')
@@ -278,15 +297,17 @@ def tournaments(request: Request):
     title = "Tournaments – Results & Decklists – OP TCG Leaderboard"
     description = "Browse tournament results, standings, and decklists across regions and formats."
     
-    persist_query = {
-        "meta_format": request.query_params.get("meta_format"),
-        "region": request.query_params.get("region")
-    }
-    # Parse selections
+    # Parse selections (query param > user setting > code default)
+    user_defaults = _user_setting_defaults(request)
     selected_meta_formats = request.query_params.getlist("meta_format")
     selected_meta_formats = [MetaFormat(mf) for mf in selected_meta_formats] if selected_meta_formats else None
-    selected_region = request.query_params.get("region")
+    selected_region = request.query_params.get("region") or user_defaults.get("region")
     selected_region_enum = MetaFormatRegion(selected_region) if selected_region else None
+
+    persist_query = {
+        "meta_format": request.query_params.get("meta_format"),
+        "region": _region_for_url(selected_region),
+    }
 
     user = request.session.get('user')
 
@@ -317,10 +338,10 @@ def card_movement(request: Request):
     title = "Card Movement – Prices & Popularity – OP TCG Leaderboard"
     description = "Track card price trends and popularity changes to spot rising staples and value."
     
-    # Pass to card_movement_page which will handle HTMX loading
+    user_defaults = _user_setting_defaults(request)
     persist_query = {
         "meta_format": request.query_params.get("meta_format"),
-        "region": request.query_params.get("region")
+        "region": _region_for_url(request.query_params.get("region") or user_defaults.get("region")),
     }
 
     user = request.session.get('user')
@@ -351,10 +372,10 @@ def matchups(request: Request):
     title = "Leader Matchups – Win Rates & Counters – OP TCG Leaderboard"
     description = "Analyze leader vs leader matchups, win rates, and counter picks across formats."
     
-    # Pass to matchups_page which will handle HTMX loading
+    user_defaults = _user_setting_defaults(request)
     persist_query = {
         "meta_format": request.query_params.get("meta_format"),
-        "region": request.query_params.get("region")
+        "region": _region_for_url(request.query_params.get("region") or user_defaults.get("region")),
     }
 
     user = request.session.get('user')
@@ -377,15 +398,15 @@ def card_popularity(request: Request):
     title = "Card Popularity – Usage & Trends – OP TCG Leaderboard"
     description = "Discover the most played cards and shifting usage trends across formats and leaders."
     
+    # Parse selections (query param > user setting > code default)
+    user_defaults = _user_setting_defaults(request)
     persist_query = {
         "meta_format": request.query_params.get("meta_format"),
-        "region": request.query_params.get("region")
+        "region": _region_for_url(request.query_params.get("region") or user_defaults.get("region")),
     }
-    # Parse selections
     selected_meta_format = request.query_params.get("meta_format")
     selected_meta_format_enum = MetaFormat(selected_meta_format) if selected_meta_format else None
-    from op_tcg.backend.models.cards import CardCurrency
-    selected_currency = request.query_params.get("currency")
+    selected_currency = request.query_params.get("currency") or user_defaults.get("currency")
     selected_currency_enum = CardCurrency(selected_currency) if selected_currency else None
 
     user = request.session.get('user')
@@ -407,6 +428,10 @@ def prices(request: Request):
     title = "Card Prices – Market Trends – OP TCG Leaderboard"
     description = "See current OP TCG card prices and market movement with historical trends."
 
+    user_defaults = _user_setting_defaults(request)
+    selected_currency = request.query_params.get("currency") or user_defaults.get("currency")
+    selected_currency_enum = CardCurrency(selected_currency) if selected_currency else CardCurrency.EURO
+
     user = request.session.get('user')
 
     return (
@@ -416,7 +441,7 @@ def prices(request: Request):
         ft.Meta(property="og:description", content=description),
         ft.Meta(property="og:url", content=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
-        layout(prices_page(), filter_component=prices_filters(), current_path="/prices", user=user)
+        layout(prices_page(), filter_component=prices_filters(selected_currency=selected_currency_enum), current_path="/prices", user=user)
     )
 
 # Support pages
@@ -427,9 +452,10 @@ def bug_report(request: Request):
     title = "Report a Bug – OP TCG Leaderboard"
     description = "Spotted an issue? Report bugs and help us improve OP TCG Leaderboard."
     
+    user_defaults = _user_setting_defaults(request)
     persist_query = {
         "meta_format": request.query_params.get("meta_format"),
-        "region": request.query_params.get("region")
+        "region": _region_for_url(request.query_params.get("region") or user_defaults.get("region")),
     }
 
     user = request.session.get('user')
@@ -451,9 +477,10 @@ def about(request: Request):
     title = "About – OP TCG Leaderboard"
     description = "About the OP TCG Leaderboard project."
 
+    user_defaults = _user_setting_defaults(request)
     persist_query = {
         "meta_format": request.query_params.get("meta_format"),
-        "region": request.query_params.get("region")
+        "region": _region_for_url(request.query_params.get("region") or user_defaults.get("region")),
     }
 
     user = request.session.get('user')
