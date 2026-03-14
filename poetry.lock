@@ -529,6 +529,18 @@ files = [
 ]
 
 [[package]]
+name = "cachetools"
+version = "7.0.5"
+description = "Extensible memoizing collections and decorators"
+optional = false
+python-versions = ">=3.10"
+groups = ["frontend"]
+files = [
+    {file = "cachetools-7.0.5-py3-none-any.whl", hash = "sha256:46bc8ebefbe485407621d0a4264b23c080cedd913921bad7ac3ed2f26c183114"},
+    {file = "cachetools-7.0.5.tar.gz", hash = "sha256:0cd042c24377200c1dcd225f8b7b12b0ca53cc2c961b43757e774ebe190fd990"},
+]
+
+[[package]]
 name = "certifi"
 version = "2026.2.25"
 description = "Python package for providing Mozilla's CA Bundle."
@@ -5809,4 +5821,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.13"
-content-hash = "f5f607e058d336da88467642421e536b5dc299c85a4535c93368346a43fe545a"
+content-hash = "5733df0dac3a43b3aac4b522501d28d108212c2f5062e407103dab31ffa29b56"

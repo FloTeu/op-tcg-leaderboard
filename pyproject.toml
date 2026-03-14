@@ -39,6 +39,7 @@ cssutils = "^2.11.1"
 plotly = "^6.0.0"
 python-fasthtml = "^0.12.12"
 google-cloud-firestore = "^2.21.0"
+cachetools = "^7.0.5"
 
 [build-system]
 requires = ["poetry-core"]
