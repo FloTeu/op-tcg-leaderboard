@@ -12,11 +12,11 @@ def setup_watchlist_routes(rt):
 
         try:
             data = await request.json()
-        except:
-             return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+        except Exception:
+            return JSONResponse({"error": "Invalid JSON"}, status_code=400)
 
         card_id = data.get('card_id')
-        card_version = data.get('card_version', 'Base')
+        card_version = 0 if data.get('card_version') in (None, 'Base', 0) else int(data.get('card_version', 0))
         language = data.get('language', 'English')
 
         if not card_id:
@@ -35,16 +35,12 @@ def setup_watchlist_routes(rt):
 
         try:
             data = await request.json()
-        except:
-             return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+        except Exception:
+            return JSONResponse({"error": "Invalid JSON"}, status_code=400)
 
         card_id = data.get('card_id')
-        card_version = data.get('card_version', 0)
+        card_version = 0 if data.get('card_version') in (None, 'Base', 0) else int(data.get('card_version', 0))
         language = data.get('language', 'en')
-
-        # Map 'Base' to 0 for compatibility
-        if card_version == 'Base':
-            card_version = 0
 
         if not card_id:
             return JSONResponse({"error": "Missing card_id"}, status_code=400)

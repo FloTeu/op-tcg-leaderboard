@@ -1,8 +1,8 @@
 from fasthtml import ft
-from op_tcg.backend.db import get_watchlist
+from op_tcg.backend.db import get_watchlist, get_user_settings
 from op_tcg.frontend.components.watchlist_toggle import create_watchlist_toggle
 from op_tcg.frontend.utils.card_price import get_marketplace_link
-from op_tcg.frontend.utils.extract import get_card_id_card_data_lookup, get_card_lookup_by_id_and_aa
+from op_tcg.frontend.utils.extract import get_card_lookup_by_id_and_aa
 from op_tcg.frontend.components.loading import create_loading_spinner
 from op_tcg.backend.models.cards import CardCurrency
 
@@ -79,7 +79,9 @@ def watchlist_page(request):
     # Sort items
     reverse = (sort_order == 'desc')
     if sort_by == 'price':
-        prepared_items.sort(key=lambda x: x['latest_usd'], reverse=reverse)
+        user_settings = get_user_settings(user_id)
+        price_key = 'latest_eur' if user_settings.get('currency') == CardCurrency.EURO else 'latest_usd'
+        prepared_items.sort(key=lambda x: x[price_key], reverse=reverse)
     else: # name
         prepared_items.sort(key=lambda x: x['card_name'], reverse=reverse)
 
@@ -143,9 +145,7 @@ def watchlist_page(request):
                 cm_url = f"https://www.cardmarket.com/en/OnePiece/Products/Search?searchString={card_id}"
                 tcg_url = f"https://www.tcgplayer.com/search/one-piece-card-game/product?q={card_id}"
 
-            version_label = "Base" if aa_version == 0 else f"Ver. {aa_version}"
-            if aa_version > 0:
-                 version_label = f"Alt Art {aa_version}"
+            version_label = "Base" if aa_version == 0 else f"Alt Art {aa_version}"
 
             chart_id = f"chart-table-{card_id}-{aa_version}-{language}"
 
@@ -298,9 +298,7 @@ def watchlist_page(request):
                 tcg_url = f"https://www.tcgplayer.com/search/one-piece-card-game/product?q={card_id}"
 
             # Determine label for version
-            version_label = "Base" if aa_version == 0 else f"Ver. {aa_version}"
-            if aa_version > 0:
-                 version_label = f"Alt Art {aa_version}"
+            version_label = "Base" if aa_version == 0 else f"Alt Art {aa_version}"
 
             # Create unique ID for chart container
             chart_id = f"chart-{card_id}-{aa_version}-{language}"

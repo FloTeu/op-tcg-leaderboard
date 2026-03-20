@@ -115,14 +115,11 @@ def settings_content(user=None):
                     ft.P("All your data — including your watchlist — will be permanently removed.",
                          cls="text-gray-400 text-sm mb-6"),
                     ft.Div(
-                        ft.Form(
-                            ft.Button(
-                                "Yes, delete my account",
-                                type="submit",
-                                cls="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-colors"
-                            ),
-                            method="post",
-                            action="/api/delete-account"
+                        ft.Button(
+                            "Yes, delete my account",
+                            type="button",
+                            hx_post="/api/delete-account",
+                            cls="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-colors"
                         ),
                         ft.Button(
                             "Cancel",
