@@ -223,6 +223,7 @@ def home(request: Request):
     selected_region_enum = MetaFormatRegion(selected_region) if selected_region else None
 
     user = request.session.get('user')
+    flash = request.session.pop('flash', None)
 
     return (
         ft.Title(title),
@@ -236,7 +237,8 @@ def home(request: Request):
             filter_component=home_filters(selected_meta_format=selected_meta_format_enum, selected_region=selected_region_enum),
             current_path="/",
             persist_query=persist_query,
-            user=user
+            user=user,
+            flash=flash,
         )
     )
 

@@ -21,26 +21,44 @@ def setup_auth_routes(rt):
 
     @rt("/auth", name="auth")
     async def auth(request: Request):
+        # Handle errors returned directly by the OAuth provider (e.g. user denied access)
+        error = request.query_params.get("error")
+        if error:
+            error_description = request.query_params.get("error_description", "")
+            if error == "access_denied":
+                msg = "Login was cancelled."
+            else:
+                msg = f"Login failed: {error_description or error}"
+            logger.warning(f"OAuth provider error: {error} – {error_description}")
+            request.session['flash'] = {"message": msg, "type": "error"}
+            return RedirectResponse(url='/', status_code=302)
+
         try:
             token = await oauth.google.authorize_access_token(request)
         except Exception as e:
             logger.error(f"Error authorizing access token: {e}")
-            return RedirectResponse(url='/')
+            request.session['flash'] = {"message": "Login failed. Please try again.", "type": "error"}
+            return RedirectResponse(url='/', status_code=302)
 
         user = token.get('userinfo')
-        if user:
-            # Update user in Firestore
-            try:
-                update_user_login(user)
-            except Exception as e:
-                logger.error(f"Error updating user in Firestore: {e}")
+        if not user:
+            logger.error("No userinfo in token response")
+            request.session['flash'] = {"message": "Login failed: could not retrieve account info.", "type": "error"}
+            return RedirectResponse(url='/', status_code=302)
 
-            request.session['user'] = user
-        return RedirectResponse(url='/')
+        # Update user in Firestore (non-blocking: login proceeds even if this fails)
+        try:
+            update_user_login(user)
+        except Exception as e:
+            logger.error(f"Error updating user in Firestore: {e}")
+
+        request.session['user'] = user
+        request.session['flash'] = {"message": f"Welcome back, {user.get('name', 'there')}!", "type": "success"}
+        return RedirectResponse(url='/', status_code=302)
 
     @rt("/logout", name="logout")
     async def logout(request: Request):
         request.session.pop('user', None)
-        return RedirectResponse(url='/')
+        return RedirectResponse(url='/', status_code=302)
 
 

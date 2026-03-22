@@ -3,6 +3,33 @@ from typing import Any
 from fasthtml import ft
 from op_tcg.frontend.components.sidebar import sidebar
 
+_FLASH_BG = {
+    "error": "bg-red-600",
+    "success": "bg-green-600",
+    "info": "bg-blue-600",
+    "warning": "bg-yellow-500",
+}
+
+def _flash_toast(flash):
+    if not flash:
+        return None
+    bg = _FLASH_BG.get(flash.get("type", "info"), "bg-blue-600")
+    return ft.Div(
+        ft.Div(
+            ft.Span(flash["message"], cls="flex-1 text-sm"),
+            ft.Button(
+                "×",
+                onclick="this.closest('#flash-toast').remove()",
+                cls="ml-4 text-xl font-bold leading-none opacity-70 hover:opacity-100 cursor-pointer",
+                type="button"
+            ),
+            cls=f"flex items-center {bg} text-white font-medium px-4 py-3 rounded-lg shadow-lg"
+        ),
+        ft.Script("setTimeout(function(){var t=document.getElementById('flash-toast');if(t)t.remove();},5000);"),
+        cls="fixed top-20 right-4 z-50 max-w-sm w-full",
+        id="flash-toast"
+    )
+
 def create_mobile_filter_button():
     """Create a button to toggle the sidebar on mobile devices."""
     return ft.Button(
@@ -11,7 +38,7 @@ def create_mobile_filter_button():
         cls="mobile-filter-btn md:hidden hide-on-sidebar-open text-sm text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 rounded-full px-4 py-2 transition-colors mb-8 relative z-10 cursor-pointer"
     )
 
-def layout(content, filter_component=None, current_path="/", persist_query=None, user=None):
+def layout(content, filter_component=None, current_path="/", persist_query=None, user=None, flash=None):
     """
     Main layout component that includes the sidebar navigation and content area.
     
@@ -78,6 +105,7 @@ def layout(content, filter_component=None, current_path="/", persist_query=None,
             id="top-bar",
             style="display: block;"  # Start with top bar visible (mobile state)
         ),
+        _flash_toast(flash),
         sidebar(filter_component, current_path, persist_query),
         ft.Div(
             content,
