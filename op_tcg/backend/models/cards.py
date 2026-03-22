@@ -245,6 +245,7 @@ class ExtendedCardData(LatestCardPrice, CardReleaseSet):
     def from_default(cls, overwrite_dict: dict[str, Any] | None = None):
         """This method can be used inn order to ensure functionality still works even do no data exists yet"""
         init_data = CardReleaseSet.from_default().model_dump()
+        init_data["release_set_name"] = init_data.get("name")
         init_data.update(LatestCardPrice.from_default().model_dump())
         if overwrite_dict:
             init_data.update(overwrite_dict)

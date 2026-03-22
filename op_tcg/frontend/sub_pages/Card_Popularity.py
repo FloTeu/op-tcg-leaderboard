@@ -192,8 +192,9 @@ def main_card_meta_analysis():
             if card_popularity.card_id not in card_popularity_dict and card_popularity.card_id in card_data_lookup and \
                     card_data_lookup[card_popularity.card_id].meta_format:
                 # if card is older than selected meta we, include it in card_popularity_dict with popularity 0
-                if meta_format_list.index(
-                        card_data_lookup[card_popularity.card_id].meta_format) < meta_format_list_selected_index:
+                card_meta_format = card_data_lookup[card_popularity.card_id].meta_format
+                if card_meta_format in meta_format_list and \
+                        meta_format_list.index(card_meta_format) < meta_format_list_selected_index:
                     card_popularity_dict[card_popularity.card_id] = 0.0
 
         if len(card_data_lookup) == 0:
