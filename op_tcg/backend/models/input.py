@@ -23,6 +23,7 @@ class MetaFormat(EnumBase, StrEnum):
     OP12 = "OP12"
     OP13 = "OP13"
     OP14 = "OP14"
+    OP15 = "OP15"
 
     @classmethod
     def to_list(cls, only_after_release: bool = True, until_meta_format: str | None = None):

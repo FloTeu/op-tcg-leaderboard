@@ -41,10 +41,12 @@ class OPTcgAttribute(EnumBase, StrEnum):
     SPECIAL="Special"
     WISDOM="Wisdom"
     RANGED="Ranged"
+    UNKNOWN="?"
 
 class OPTcgTournamentStatus(EnumBase, StrEnum):
     BANNED="banned"
     LEGAL="legal"
+    UNRELEASED="unreleased"
 
 
 class OPTcgLanguage(StrEnum):
@@ -57,7 +59,7 @@ class OPTcgCardCatagory(EnumBase, StrEnum):
     EVENT="Event"
     STAGE="Stage"
 
-class OPTcgCardRarity(StrEnum):
+class OPTcgCardRarity(EnumBase, StrEnum):
     COMMON="Common"
     UNCOMMON="Uncommon"
     RARE="Rare"
@@ -72,12 +74,18 @@ class OPTcgAbility(EnumBase, StrEnum):
     BLOCKER = "Blocker"
     BANISH = "Banish"
     TRIGGER = "Trigger"
+    DOUBLE_ATTACK = "Double Attack"
 
 
 class OPTcgCardSetType(EnumBase, StrEnum):
     BOOSTER = "Booster Packs"
     STARTER_DECK = "Starter Decks"
     PROMO = "Promotional Products"
+
+
+class OPTcgMarketplace(EnumBase, StrEnum):
+    CARDMARKET = "cardmarket"
+    TCGPLAYER = "tcgplayer"
 
 
 class CardCurrency(EnumBase, StrEnum):
@@ -214,8 +222,20 @@ class CardReleaseSet(BQTableBaseModel):
         )
 
 
+class CardMarketplaceUrl(BQTableBaseModel):
+    _dataset_id: str = BQDataset.CARDS
+    card_id: str = Field(description="The op tcg card id e.g. OP03-099", primary_key=True)
+    language: OPTcgLanguage = Field(default=OPTcgLanguage.EN, description="Language of the text data in this instance", primary_key=True)
+    aa_version: int = Field(description="Alt art version of design, 0 is the original design, 1 the first alt art etc.", primary_key=True)
+    marketplace: OPTcgMarketplace = Field(description="Marketplace of the url", primary_key=True)
+    url: str = Field(description="Url to the card on the marketplace")
+    source: DataSource = Field(default=DataSource.LIMITLESS ,description="Source of url")
+
+
 class ExtendedCardData(LatestCardPrice, CardReleaseSet):
-    pass
+    release_set_name: str | None = Field(description="Name of the release set")
+    marketplace_url_cardmarket: str | None = Field(default=None, description="Url to cardmarket")
+    marketplace_url_tcg_player: str | None = Field(default=None, description="Url to tcgplayer")
 
     def get_searchable_string(self):
         return ' '.join(str(value) for value in self.model_dump().values())
