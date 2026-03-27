@@ -17,6 +17,7 @@ from op_tcg.frontend.pages.card_popularity import card_popularity_page, create_f
 from op_tcg.frontend.pages.prices import prices_page, create_filter_components as prices_filters
 from op_tcg.frontend.pages.watchlist import watchlist_page
 from op_tcg.frontend.pages.settings import settings_content
+from op_tcg.frontend.utils.csrf import get_csrf_token
 from op_tcg.frontend.pages.bug_report import bug_report_page
 from op_tcg.frontend.pages.about import about_page
 from op_tcg.frontend.pages.privacy import privacy_page
@@ -550,7 +551,7 @@ def settings(request: Request):
         ft.Meta(name="description", content=description),
         ft.Link(rel="canonical", href=canonical_url),
         layout(
-            settings_content(user=user),
+            settings_content(user=user, csrf_token=get_csrf_token(request.session)),
             current_path="/settings",
             user=user
         )

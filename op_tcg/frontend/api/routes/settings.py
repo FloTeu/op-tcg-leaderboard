@@ -4,6 +4,7 @@ from starlette.responses import RedirectResponse, Response
 from op_tcg.backend.db import get_user_settings, update_user_settings, delete_user
 from op_tcg.backend.models.cards import CardCurrency
 from op_tcg.backend.models.input import MetaFormatRegion
+from op_tcg.frontend.utils.csrf import validate_csrf_token
 
 
 def setup_settings_routes(rt):
@@ -15,6 +16,8 @@ def setup_settings_routes(rt):
             return ft.Div("Unauthorized", cls="text-red-400")
 
         form = await request.form()
+        if not validate_csrf_token(request.session, form.get("csrf_token")):
+            return ft.Div("Invalid request", cls="text-red-400")
         settings = {
             "currency": CardCurrency(form.get("currency", CardCurrency.EURO)).value,
             "region": MetaFormatRegion(form.get("region", MetaFormatRegion.ALL)).value,
@@ -35,6 +38,10 @@ def setup_settings_routes(rt):
         user = request.session.get('user')
         if not user:
             return RedirectResponse(url="/", status_code=303)
+
+        form = await request.form()
+        if not validate_csrf_token(request.session, form.get("csrf_token")):
+            return Response(status_code=403)
 
         delete_user(user['sub'])
         request.session.pop('user', None)

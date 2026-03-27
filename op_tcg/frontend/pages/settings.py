@@ -31,7 +31,7 @@ def _radio(name: str, value: str, label: str, checked: bool) -> ft.Label:
     )
 
 
-def settings_content(user=None):
+def settings_content(user=None, csrf_token: str = ""):
     if not user:
         return ft.Div(
             ft.H1("Access Denied", cls="text-2xl font-bold text-white mb-4"),
@@ -49,6 +49,7 @@ def settings_content(user=None):
         ft.H1("Settings", cls="text-2xl font-bold text-white mb-8"),
 
         ft.Form(
+            ft.Input(type="hidden", name="csrf_token", value=csrf_token),
             # ── Currency ──────────────────────────────────────────────
             ft.Div(
                 ft.H2("Default Currency", cls="text-lg font-semibold text-white mb-1"),
@@ -119,6 +120,7 @@ def settings_content(user=None):
                             "Yes, delete my account",
                             type="button",
                             hx_post="/api/delete-account",
+                            hx_vals=f'{{"csrf_token": "{csrf_token}"}}',
                             cls="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-colors"
                         ),
                         ft.Button(
