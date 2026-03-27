@@ -194,17 +194,17 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 ),
 
                 # Watchlist button (Heart icon) - Reusable component
-                create_watchlist_toggle(
-                    card_id=selected_card.id,
-                    card_version=selected_card.aa_version,
-                    language="en", # Default for now
-                    is_in_watchlist=initial_in_watchlist,
-                    # Position it exactly where the old one was
-                    extra_cls="absolute top-4 right-16 md:top-4 md:right-16 z-30",
-                    # Style the button to match modal overlay style
-                    btn_cls="w-9 h-9 bg-gray-700/60 hover:bg-gray-700 shadow-sm",
-                    include_script=True
-                ),
+                # create_watchlist_toggle(
+                #     card_id=selected_card.id,
+                #     card_version=selected_card.aa_version,
+                #     language="en", # Default for now
+                #     is_in_watchlist=initial_in_watchlist,
+                #     # Position it exactly where the old one was
+                #     extra_cls="absolute top-4 right-16 md:top-4 md:right-16 z-30",
+                #     # Style the button to match modal overlay style
+                #     btn_cls="w-9 h-9 bg-gray-700/60 hover:bg-gray-700 shadow-sm",
+                #     include_script=True
+                # ),
 
                 # Card navigation areas (only for top section, not charts) - positioned at modal edges
                 # Navigation is handled via JavaScript that dynamically collects all loaded cards
