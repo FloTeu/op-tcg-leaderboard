@@ -13,6 +13,7 @@ from starlette.responses import JSONResponse, RedirectResponse
 from fasthtml.common import fast_app
 
 from op_tcg.frontend.api.routes.auth import setup_auth_routes
+from op_tcg.frontend.utils.csrf import get_csrf_token
 
 TEST_SECRET = "test-secret-key"
 
@@ -23,10 +24,14 @@ def make_test_app():
     app.add_middleware(SessionMiddleware, secret_key=TEST_SECRET)
     setup_auth_routes(rt)
 
-    # Helper endpoint to inspect session contents without decoding the cookie manually
     @rt("/test/session")
     async def _session(request: Request):
         return JSONResponse(dict(request.session))
+
+    @rt("/test/set-csrf")
+    async def _set_csrf(request: Request):
+        token = get_csrf_token(request.session)
+        return JSONResponse({"csrf_token": token})
 
     return app
 
@@ -52,7 +57,7 @@ class TestLoginRoute:
 
 
 class TestAuthCallbackRoute:
-    def test_success_stores_user_and_redirects(self, client):
+    def test_returning_user_logs_in_directly(self, client):
         mock_user = {
             "sub": "google-123",
             "name": "Test User",
@@ -60,6 +65,7 @@ class TestAuthCallbackRoute:
             "picture": "https://example.com/pic.jpg",
         }
         with patch("op_tcg.frontend.api.routes.auth.oauth") as mock_oauth, \
+                patch("op_tcg.frontend.api.routes.auth.get_user", return_value={"sub": "google-123"}), \
                 patch("op_tcg.frontend.api.routes.auth.update_user_login") as mock_update:
             mock_oauth.google.authorize_access_token = AsyncMock(return_value={"userinfo": mock_user})
 
@@ -73,6 +79,27 @@ class TestAuthCallbackRoute:
         assert session["user"]["sub"] == "google-123"
         assert session["flash"]["type"] == "success"
         assert "Welcome back" in session["flash"]["message"]
+
+    def test_new_user_redirected_to_register(self, client):
+        mock_user = {
+            "sub": "google-new",
+            "name": "New User",
+            "email": "new@example.com",
+        }
+        with patch("op_tcg.frontend.api.routes.auth.oauth") as mock_oauth, \
+                patch("op_tcg.frontend.api.routes.auth.get_user", return_value=None), \
+                patch("op_tcg.frontend.api.routes.auth.update_user_login") as mock_update:
+            mock_oauth.google.authorize_access_token = AsyncMock(return_value={"userinfo": mock_user})
+
+            response = client.get("/auth?code=valid_code&state=test_state")
+
+        assert response.status_code == 302
+        assert response.headers["location"] == "/register"
+        mock_update.assert_not_called()
+
+        session = client.get("/test/session").json()
+        assert "user" not in session
+        assert session["pending_registration"]["sub"] == "google-new"
 
     def test_auth_access_denied_sets_error_flash(self, client):
         with patch("op_tcg.frontend.api.routes.auth.oauth"):
@@ -142,6 +169,7 @@ class TestAuthCallbackRoute:
         """User should still be logged in even if the Firestore update fails."""
         mock_user = {"sub": "google-456", "name": "Test User", "email": "test@example.com"}
         with patch("op_tcg.frontend.api.routes.auth.oauth") as mock_oauth, \
+                patch("op_tcg.frontend.api.routes.auth.get_user", return_value={"sub": "google-456"}), \
                 patch("op_tcg.frontend.api.routes.auth.update_user_login",
                       side_effect=Exception("Firestore unavailable")):
             mock_oauth.google.authorize_access_token = AsyncMock(return_value={"userinfo": mock_user})
@@ -160,6 +188,7 @@ class TestLogoutRoute:
         # Log in first
         mock_user = {"sub": "google-789", "name": "Test User", "email": "test@example.com"}
         with patch("op_tcg.frontend.api.routes.auth.oauth") as mock_oauth, \
+                patch("op_tcg.frontend.api.routes.auth.get_user", return_value={"sub": "google-789"}), \
                 patch("op_tcg.frontend.api.routes.auth.update_user_login"):
             mock_oauth.google.authorize_access_token = AsyncMock(return_value={"userinfo": mock_user})
             client.get("/auth?code=test_code")
@@ -177,3 +206,61 @@ class TestLogoutRoute:
 
         assert response.status_code == 302
         assert response.headers["location"] == "/"
+
+
+class TestRegistrationFlow:
+    """Tests for the registration confirmation flow (new / re-registering users)."""
+
+    PENDING_USER = {"sub": "google-new", "name": "New User", "email": "new@example.com"}
+
+    def _set_pending(self, client):
+        """Seed pending_registration and CSRF token via the auth callback."""
+        with patch("op_tcg.frontend.api.routes.auth.oauth") as mock_oauth, \
+                patch("op_tcg.frontend.api.routes.auth.get_user", return_value=None), \
+                patch("op_tcg.frontend.api.routes.auth.update_user_login"):
+            mock_oauth.google.authorize_access_token = AsyncMock(return_value={"userinfo": self.PENDING_USER})
+            client.get("/auth?code=test_code")
+        return client.get("/test/set-csrf").json()["csrf_token"]
+
+    def test_confirm_registration_creates_user_and_logs_in(self, client):
+        csrf = self._set_pending(client)
+        with patch("op_tcg.frontend.api.routes.auth.update_user_login") as mock_create:
+            response = client.post("/api/register", data={"csrf_token": csrf})
+
+        assert response.status_code == 302
+        assert response.headers["location"] == "/"
+        mock_create.assert_called_once_with(self.PENDING_USER)
+
+        session = client.get("/test/session").json()
+        assert session["user"]["sub"] == "google-new"
+        assert "pending_registration" not in session
+        assert session["flash"]["type"] == "success"
+        assert "created" in session["flash"]["message"].lower()
+
+    def test_confirm_registration_wrong_csrf_redirects_back(self, client):
+        self._set_pending(client)
+        with patch("op_tcg.frontend.api.routes.auth.update_user_login") as mock_create:
+            response = client.post("/api/register", data={"csrf_token": "forged"})
+
+        assert response.status_code == 302
+        assert response.headers["location"] == "/register"
+        mock_create.assert_not_called()
+
+        session = client.get("/test/session").json()
+        assert "user" not in session
+        assert "pending_registration" in session
+
+    def test_confirm_registration_without_pending_redirects_home(self, client):
+        response = client.post("/api/register", data={"csrf_token": "any"})
+        assert response.status_code == 302
+        assert response.headers["location"] == "/"
+
+    def test_cancel_registration_clears_pending_and_redirects_home(self, client):
+        self._set_pending(client)
+        assert "pending_registration" in client.get("/test/session").json()
+
+        response = client.post("/api/register/cancel")
+
+        assert response.status_code == 302
+        assert response.headers["location"] == "/"
+        assert "pending_registration" not in client.get("/test/session").json()

@@ -1,7 +1,8 @@
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 from op_tcg.backend.auth import oauth
-from op_tcg.backend.db import update_user_login
+from op_tcg.backend.db import update_user_login, get_user
+from op_tcg.frontend.utils.csrf import validate_csrf_token
 import logging
 
 logger = logging.getLogger(__name__)
@@ -46,7 +47,18 @@ def setup_auth_routes(rt):
             request.session['flash'] = {"message": "Login failed: could not retrieve account info.", "type": "error"}
             return RedirectResponse(url='/', status_code=302)
 
-        # Update user in Firestore (non-blocking: login proceeds even if this fails)
+        # New users must confirm registration before being logged in
+        try:
+            existing = get_user(user['sub'])
+        except Exception as e:
+            logger.error(f"Error checking user existence: {e}")
+            existing = None
+
+        if not existing:
+            request.session['pending_registration'] = dict(user)
+            return RedirectResponse(url='/register', status_code=302)
+
+        # Returning user — update last_login (non-blocking)
         try:
             update_user_login(user)
         except Exception as e:
@@ -54,6 +66,32 @@ def setup_auth_routes(rt):
 
         request.session['user'] = user
         request.session['flash'] = {"message": f"Welcome back, {user.get('name', 'there')}!", "type": "success"}
+        return RedirectResponse(url='/', status_code=302)
+
+    @rt("/api/register", methods=["POST"])
+    async def confirm_registration(request: Request):
+        pending = request.session.get('pending_registration')
+        if not pending:
+            return RedirectResponse(url='/', status_code=302)
+
+        form = await request.form()
+        if not validate_csrf_token(request.session, form.get("csrf_token")):
+            request.session['flash'] = {"message": "Invalid request. Please try again.", "type": "error"}
+            return RedirectResponse(url='/register', status_code=302)
+
+        try:
+            update_user_login(pending)
+        except Exception as e:
+            logger.error(f"Error creating user in Firestore: {e}")
+
+        request.session.pop('pending_registration', None)
+        request.session['user'] = pending
+        request.session['flash'] = {"message": f"Welcome, {pending.get('name', 'there')}! Your account has been created.", "type": "success"}
+        return RedirectResponse(url='/', status_code=302)
+
+    @rt("/api/register/cancel", methods=["POST"])
+    async def cancel_registration(request: Request):
+        request.session.pop('pending_registration', None)
         return RedirectResponse(url='/', status_code=302)
 
     @rt("/logout", name="logout")

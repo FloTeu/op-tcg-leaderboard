@@ -17,6 +17,7 @@ from op_tcg.frontend.pages.card_popularity import card_popularity_page, create_f
 from op_tcg.frontend.pages.prices import prices_page, create_filter_components as prices_filters
 from op_tcg.frontend.pages.watchlist import watchlist_page
 from op_tcg.frontend.pages.settings import settings_content
+from op_tcg.frontend.pages.register import register_content
 from op_tcg.frontend.utils.csrf import get_csrf_token
 from op_tcg.frontend.pages.bug_report import bug_report_page
 from op_tcg.frontend.pages.about import about_page
@@ -538,6 +539,21 @@ def watchlist_route(request: Request):
             user=user
         )
     )
+
+@rt("/register")
+def register(request: Request):
+    pending = request.session.get('pending_registration')
+    if not pending:
+        from starlette.responses import RedirectResponse
+        return RedirectResponse(url='/', status_code=302)
+    return (
+        ft.Title("Create Account – OP TCG Leaderboard"),
+        layout(
+            register_content(pending_user=pending, csrf_token=get_csrf_token(request.session)),
+            current_path="/register",
+        )
+    )
+
 
 @rt("/settings")
 def settings(request: Request):
