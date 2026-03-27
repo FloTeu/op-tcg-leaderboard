@@ -51,8 +51,8 @@ def setup_auth_routes(rt):
         try:
             existing = get_user(user['sub'])
         except Exception as e:
-            logger.error(f"Error checking user existence: {e}")
-            existing = None
+            logger.error(f"Error checking user existence, skipping registration gate: {e}")
+            existing = True  # fail safe: don't block login if Firestore is unavailable
 
         if not existing:
             request.session['pending_registration'] = dict(user)

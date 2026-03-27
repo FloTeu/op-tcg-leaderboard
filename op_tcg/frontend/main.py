@@ -3,7 +3,7 @@ load_dotenv()
 
 from fasthtml import ft
 from fasthtml.common import fast_app, serve
-from starlette.responses import FileResponse
+from starlette.responses import FileResponse, RedirectResponse
 from contextlib import asynccontextmanager
 from op_tcg.backend.utils.environment import is_debug
 from op_tcg.frontend.utils.scripts import create_decklist_deep_link_script
@@ -544,7 +544,6 @@ def watchlist_route(request: Request):
 def register(request: Request):
     pending = request.session.get('pending_registration')
     if not pending:
-        from starlette.responses import RedirectResponse
         return RedirectResponse(url='/', status_code=302)
     return (
         ft.Title("Create Account – OP TCG Leaderboard"),
