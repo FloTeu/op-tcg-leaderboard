@@ -217,9 +217,15 @@ class LimitlessTournamentSpider(scrapy.Spider):
             assert len(match_results) == 2
 
             for match_result in match_results:
+                try:
+                    leader_id = response.meta["player_id2leader_id"][match_result.player_id]
+                    opponent_id=response.meta["player_id2leader_id"][match_result.opponent_player_id]
+                except KeyError as e:
+                    logging.warning(f"Player id '{match_result.player_id}' not found in player_id2leader_id mapping", str(e))
+                    raise e
                 matches.append(Match(
-                    leader_id=response.meta["player_id2leader_id"][match_result.player_id],
-                    opponent_id=response.meta["player_id2leader_id"][match_result.opponent_player_id],
+                    leader_id=leader_id,
+                    opponent_id=opponent_id,
                     meta_format=response.meta["meta_format"],
                     tournament_id=response.meta["id"],
                     source=DataSource.LIMITLESS,

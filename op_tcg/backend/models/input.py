@@ -66,6 +66,12 @@ class MetaFormat(EnumBase, StrEnum):
     def latest_meta_format(cls, only_after_release: bool = True, region: MetaFormatRegion = MetaFormatRegion.ALL) -> "MetaFormat":
         return cls.to_list(only_after_release=only_after_release, region=region)[-1]
 
+class SideMetaFormat(EnumBase, StrEnum):
+    EB01 = "EB01"
+    EB02 = "EB02"
+    PRB02 = "PRB02"
+    EB03 = "EB03"
+    EB04 = "EB04"
 
 
 class LimitlessMatch(BaseModel):
@@ -154,6 +160,37 @@ def meta_format2release_datetime(meta_format: MetaFormat, region: MetaFormatRegi
         return japanese_releases.get(meta_format)
     else:
         return None
+
+def meta_format2side_meta_format(meta_format: MetaFormat, region: MetaFormatRegion = MetaFormatRegion.WEST) -> SideMetaFormat | None:
+    """
+    Get the corresponding side meta format for a given meta format, if it exists.
+    Args:
+        meta_format ():
+
+    Returns:
+
+    """
+    mappings_both = {
+        MetaFormat.OP06: SideMetaFormat.EB01,
+        MetaFormat.OP10: SideMetaFormat.EB02,
+        MetaFormat.OP12: SideMetaFormat.PRB02
+    }
+    if region == MetaFormatRegion.ASIA:
+        mapping = {
+            **mappings_both,
+            MetaFormat.OP13: SideMetaFormat.EB03,
+            MetaFormat.OP14: SideMetaFormat.EB04
+        }
+    elif region == MetaFormatRegion.WEST:
+        mapping = {
+            **mappings_both,
+            MetaFormat.OP14: SideMetaFormat.EB03,
+            MetaFormat.OP15: SideMetaFormat.EB04
+        }
+    else:
+        mapping = mappings_both
+
+    return mapping.get(meta_format, None)
 
 def get_meta_format_by_datetime(dt: datetime, region: MetaFormatRegion = MetaFormatRegion.WEST) -> MetaFormat:
     """
