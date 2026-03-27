@@ -1,20 +1,20 @@
 from fasthtml import ft
 
 
-def create_nav_link(href: str, text: str, icon: str, is_active: bool = False) -> ft.A:
-    """Create a navigation link with an icon."""
+def create_nav_link(href: str | None, text: str, icon: str, is_active: bool = False):
+    """Create a navigation link or item with an icon."""
     active_classes = "bg-gray-700 text-white font-semibold border-l-4 border-blue-500" if is_active else "text-gray-300 hover:bg-gray-700"
-    return ft.A(
-        ft.Div(
+    content = ft.Div(
             ft.Span(icon, cls="mr-3"),  # Icon
             ft.Span(text),  # Text
             cls=f"flex items-center px-4 py-2 rounded-lg {active_classes}"
-        ),
-        href=href,
-        cls="block"
-    )
+        )
+    if href:
+        return ft.A(content, href=href, cls="block")
+    else:
+        return ft.Div(content, cls="block cursor-default")
 
-def create_nav_section(title: str, links: list[tuple[str, str, str, bool]]) -> ft.Div:
+def create_nav_section(title: str, links: list[tuple[str | None, str, str, bool]]) -> ft.Div:
     """Create a navigation section with a title and links."""
     return ft.Div(
         ft.H3(title, cls="px-4 py-2 text-sm font-semibold text-gray-400 uppercase"),
@@ -51,17 +51,11 @@ def sidebar_content(filter_component=None, current_path="/", persist_query: dict
         (build_href("/card-popularity"), "Card Popularity", "💃", current_path == "/card-popularity"),
         #(build_href("/card-prices"), "Card Prices", "💰", current_path == "/card-prices"),
     ]
-    
-    support_links = [
-        (build_href("/about"), "About", "ℹ️", current_path == "/about"),
-        (build_href("/bug-report"), "Bug Report", "👾", current_path == "/bug-report"),
-    ]
 
     return ft.Div(
         # Navigation sections
         create_nav_section("Leader", leader_links),
         create_nav_section("Card", card_links),
-        create_nav_section("Support", support_links),
         # Filter section
         ft.Div(
             ft.H2("Filters", cls="text-xl font-bold text-white mb-4") if filter_component else None,

@@ -1,6 +1,8 @@
 from collections import defaultdict
 from fasthtml import ft
 from starlette.requests import Request
+
+from op_tcg.backend.db import get_watchlist
 from op_tcg.backend.models.leader import LeaderExtended, LeaderboardSortBy
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.cards import CardCurrency
@@ -19,6 +21,7 @@ from op_tcg.frontend.pages.tournaments import create_tournament_content
 from op_tcg.frontend.pages.card_popularity import create_card_popularity_content
 from op_tcg.frontend.api.models import LeaderboardFilter, LeaderboardSort, LeaderDataParams, TournamentPageParams, CardPopularityParams
 from op_tcg.frontend.components.card_modal import create_card_modal
+from op_tcg.frontend.components.info_modal import create_info_modal
 
 def filter_cards(cards_data: list, params: CardPopularityParams) -> list:
     """Filter cards based on the provided parameters.
@@ -334,9 +337,45 @@ def setup_api_routes(rt):
             if cp.card_id == card_id and cp.meta_format == meta_format:
                 popularity = max(popularity, cp.popularity)
 
+        # Check watchlist status
+        user = request.session.get('user')
+        watched_versions = set()
+        if user:
+            user_id = user.get('sub')
+            watchlist = get_watchlist(user_id)
+            for item in watchlist:
+                if item.get('card_id') == card_id:
+                    # Ensure we handle both string and int cases for legacy data
+                    version = item.get('card_version')
+                    if version == 'Base':
+                        version = 0
+                    try:
+                        watched_versions.add(int(version) if version is not None else 0)
+                    except (ValueError, TypeError):
+                        pass
+
         # Note: Navigation between cards is now handled by JavaScript dynamically
         # The card_elements query parameter is still accepted for backward compatibility
         # but is no longer used for prev/next navigation
 
         # Create and return modal using the component
-        return create_card_modal(base_card, card_versions, popularity, currency, selected_aa_version=selected_aa_version)
+        return create_card_modal(base_card, card_versions, popularity, currency, selected_aa_version=selected_aa_version, watched_versions=watched_versions)
+
+    @rt("/api/info-modal")
+    def get_info_modal(request: Request):
+        """Return a generic info modal."""
+        title = request.query_params.get("title", "Info")
+        message = request.query_params.get("message", "")
+        type_ = request.query_params.get("type", "info")
+
+        # Add support for login button specific behavior
+        login = request.query_params.get("login", "false")
+
+        primary_text = None
+        primary_url = None
+
+        if login == "true":
+            primary_text = "Login"
+            primary_url = "/login"
+
+        return create_info_modal(title, message, primary_button_text=primary_text, primary_button_url=primary_url, icon_type=type_)

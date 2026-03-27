@@ -1,5 +1,34 @@
+from typing import Any
+
 from fasthtml import ft
 from op_tcg.frontend.components.sidebar import sidebar
+
+_FLASH_BG = {
+    "error": "bg-red-600",
+    "success": "bg-green-600",
+    "info": "bg-blue-600",
+    "warning": "bg-yellow-500",
+}
+
+def _flash_toast(flash):
+    if not flash:
+        return None
+    bg = _FLASH_BG.get(flash.get("type", "info"), "bg-blue-600")
+    return ft.Div(
+        ft.Div(
+            ft.Span(flash["message"], cls="flex-1 text-sm"),
+            ft.Button(
+                "×",
+                onclick="this.closest('#flash-toast').remove()",
+                cls="ml-4 text-xl font-bold leading-none opacity-70 hover:opacity-100 cursor-pointer",
+                type="button"
+            ),
+            cls=f"flex items-center {bg} text-white font-medium px-4 py-3 rounded-lg shadow-lg"
+        ),
+        ft.Script("setTimeout(function(){var t=document.getElementById('flash-toast');if(t)t.remove();},5000);"),
+        cls="fixed top-20 right-4 z-50 max-w-sm w-full",
+        id="flash-toast"
+    )
 
 def create_mobile_filter_button():
     """Create a button to toggle the sidebar on mobile devices."""
@@ -9,7 +38,7 @@ def create_mobile_filter_button():
         cls="mobile-filter-btn md:hidden hide-on-sidebar-open text-sm text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 rounded-full px-4 py-2 transition-colors mb-8 relative z-10 cursor-pointer"
     )
 
-def layout(content, filter_component=None, current_path="/", persist_query=None):
+def layout(content, filter_component=None, current_path="/", persist_query=None, user=None, flash=None):
     """
     Main layout component that includes the sidebar navigation and content area.
     
@@ -29,9 +58,32 @@ def layout(content, filter_component=None, current_path="/", persist_query=None)
         )
 
     # Main layout
+    if user:
+        user_control = get_user_control_view(user)
+    else:
+        # Improved stylish login button using a gradient and icon
+        # user_control = ft.A(
+        #     ft.Div(
+        #         # Simple SVG user icon
+        #         ft.Svg(
+        #             ft.Safe('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>'),
+        #             viewBox="0 0 24 24", fill="none", stroke="currentColor", stroke_width="2", stroke_linecap="round", stroke_linejoin="round",
+        #             cls="w-4 h-4 mr-2"
+        #         ),
+        #         "Login / Register",
+        #         cls="flex items-center"
+        #     ),
+        #     href="/login",
+        #     cls="text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 font-semibold rounded-full text-sm px-5 py-2 shadow-lg hover:shadow-xl transition-all duration-200 border border-blue-400/20"
+        # )
+        user_control = None
+
     return ft.Div(
         # Include external CSS files
         ft.Link(rel="stylesheet", href="public/css/leaderboard.css"),
+        # Synchronous script — runs before first paint so the sidebar appears in its correct
+        # open/closed state with no slide-in animation on every page navigation.
+        ft.Script("""(function(){try{var s=sessionStorage.getItem('sidebarOpen');var m=window.innerWidth<=768;if(!m&&s!=='false')document.documentElement.classList.add('sidebar-initially-open');}catch(e){}})();"""),
         
         # Top bar that appears when sidebar is collapsed
         ft.Div(
@@ -47,15 +99,27 @@ def layout(content, filter_component=None, current_path="/", persist_query=None)
                     onclick="toggleSidebar()",
                     id="burger-menu"
                 ),
-                cls="flex items-center h-16 px-4"
+                user_control,
+                cls="flex justify-between items-center h-16 px-4"
             ),
             cls="fixed top-0 left-0 right-0 bg-gray-900 z-40 shadow-md",
             id="top-bar",
             style="display: block;"  # Start with top bar visible (mobile state)
         ),
+        _flash_toast(flash),
         sidebar(filter_component, current_path, persist_query),
         ft.Div(
             content,
+            ft.Footer(
+                ft.Div(
+                    ft.A("About", href="/about", cls="text-gray-500 hover:text-gray-300 text-sm transition-colors"),
+                    ft.A("Bug Report", href="/bug-report", cls="text-gray-500 hover:text-gray-300 text-sm transition-colors"),
+                    ft.A("Privacy Policy", href="/privacy", cls="text-gray-500 hover:text-gray-300 text-sm transition-colors"),
+                    ft.Span("© 2026 OP TCG Leaderboard", cls="text-gray-600 text-sm"),
+                    cls="flex flex-wrap items-center gap-6 justify-center"
+                ),
+                cls="border-t border-gray-800 mt-16 py-8 px-4"
+            ),
             cls="p-4 min-h-screen bg-gray-900 transition-all duration-300 ease-in-out mt-16 relative",
             id="main-content",
             style="margin-left: 0;"  # Start with no left margin (mobile state)
@@ -97,13 +161,14 @@ def layout(content, filter_component=None, current_path="/", persist_query=None)
                 if (path === '/leader') {
                     // Keep lid if present
                     if (p.lid) params.set('lid', p.lid); else params.delete('lid');
-                    if (p.meta_format_region) params.set('region', p.meta_format_region); else params.delete('region');
+                    const effRegionL = p.meta_format_region || p.region;
+                    if (effRegionL && effRegionL !== 'all') params.set('region', effRegionL); else params.delete('region');
                     // carry one meta_format for cross-page consistency
                     if (p.meta_format) params.set('meta_format', p.meta_format); else params.delete('meta_format');
                 } else {
                     // On non-leader pages, prefer standard region, but fall back to leader's meta_format_region
                     const effRegion = p.region || p.meta_format_region;
-                    if (effRegion) params.set('region', effRegion); else params.delete('region');
+                    if (effRegion && effRegion !== 'all') params.set('region', effRegion); else params.delete('region');
                     if (p.meta_format) params.set('meta_format', p.meta_format); else params.delete('meta_format');
                 }
                 const newURL = path + (params.toString() ? '?' + params.toString() : '');
@@ -119,11 +184,12 @@ def layout(content, filter_component=None, current_path="/", persist_query=None)
                         const qp = new URLSearchParams();
                         if (basePath === '/leader') {
                             if (p.meta_format) qp.set('meta_format', p.meta_format);
-                            if (p.region || p.meta_format_region) qp.set('region', p.meta_format_region || p.region);
+                            const effRegionL = p.meta_format_region || p.region;
+                            if (effRegionL && effRegionL !== 'all') qp.set('region', effRegionL);
                         } else {
                             if (p.meta_format) qp.set('meta_format', p.meta_format);
                             const effRegion = p.region || p.meta_format_region;
-                            if (effRegion) qp.set('region', effRegion);
+                            if (effRegion && effRegion !== 'all') qp.set('region', effRegion);
                         }
                         a.href = basePath + (qp.toString() ? '?' + qp.toString() : '');
                     } catch (e) { /* no-op */ }
@@ -146,4 +212,58 @@ def layout(content, filter_component=None, current_path="/", persist_query=None)
             }
         """),
         cls="relative bg-gray-900"
-    ) 
+    )
+
+
+def get_user_control_view(user) -> Any:
+    user_name = user.get('name', 'User')
+    user_img = user.get('picture', None)
+
+    user_control = ft.Div(
+        ft.Button(
+            ft.Img(src=user_img, cls="w-8 h-8 rounded-full") if user_img else \
+                ft.Div(user_name[0].upper(),
+                       cls="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium"),
+            id="user-menu-button",
+            onclick="document.getElementById('user-dropdown').classList.toggle('hidden')",
+            cls="flex text-sm bg-gray-800 rounded-full focus:ring-4 focus:ring-gray-600",
+            type="button"
+        ),
+        ft.Div(
+            ft.Div(
+                ft.Div(user_name, cls="px-4 py-3 text-sm text-white"),
+                ft.Div(user.get('email', ''), cls="px-4 pb-3 text-sm font-medium text-gray-400 truncate"),
+                cls="border-b border-gray-600"
+            ),
+            ft.Ul(
+                ft.Li(
+                    ft.A("Watchlist", href="/watchlist",
+                         cls="block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white")
+                ),
+                ft.Li(
+                    ft.A("Settings", href="/settings",
+                         cls="block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white")
+                ),
+                ft.Li(
+                    ft.A("Logout", href="/logout",
+                         cls="block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white")
+                ),
+                cls="py-1"
+            ),
+            cls="z-50 hidden absolute right-0 mt-2 w-48 text-base list-none bg-gray-700 divide-y divide-gray-600 rounded shadow-lg",
+            id="user-dropdown"
+        ),
+        # Click outside to close (simple implementation)
+        ft.Script("""
+                window.addEventListener('click', function(e){
+                    const dropdown = document.getElementById('user-dropdown');
+                    const button = document.getElementById('user-menu-button');
+                    // Check if click is outside dropdown AND outside button
+                    if (dropdown && button && !dropdown.contains(e.target) && !button.contains(e.target) && !dropdown.classList.contains('hidden')) {
+                        dropdown.classList.add('hidden');
+                    }
+                });
+            """),
+        cls="relative"
+    )
+    return user_control
