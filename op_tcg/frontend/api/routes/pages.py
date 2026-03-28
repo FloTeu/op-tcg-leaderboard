@@ -150,10 +150,11 @@ def setup_api_routes(rt):
         }
 
         # Sort leaders by the specified sort criteria
+        reverse = not sort_params.ascending
         if sort_params.sort_by == LeaderboardSortBy.TOURNAMENT_WINS:
-            filtered_leaders.sort(key=lambda x: (x.tournament_wins > 0, x.tournament_wins, x.elo or 0), reverse=True)
+            filtered_leaders.sort(key=lambda x: (x.tournament_wins > 0, x.tournament_wins, x.elo or 0), reverse=reverse)
         elif sort_params.sort_by == LeaderboardSortBy.PRICE:
-            filtered_leaders.sort(key=lambda x: leader_prices.get(x.id, 0), reverse=True)
+            filtered_leaders.sort(key=lambda x: leader_prices.get(x.id, 0), reverse=reverse)
         else:
             # Handle None values in sorting by providing default values
             def get_sort_key(leader):
@@ -161,8 +162,8 @@ def setup_api_routes(rt):
                 value = getattr(leader, attr_name)
                 # Return 0 for None values to sort them to the end
                 return value if value is not None else 0
-            
-            filtered_leaders.sort(key=get_sort_key, reverse=True)
+
+            filtered_leaders.sort(key=get_sort_key, reverse=reverse)
 
         # Create the leaderboard table
         table_content = create_leaderboard_table(
@@ -170,7 +171,9 @@ def setup_api_routes(rt):
             leader_extended_data,
             sort_params.meta_format,
             region=filter_params.region,
-            leader_prices=leader_prices
+            leader_prices=leader_prices,
+            sort_by=sort_params.sort_by,
+            ascending=sort_params.ascending,
         )
         
         # Check if leaders exist but have no match data
