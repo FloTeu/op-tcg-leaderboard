@@ -50,6 +50,7 @@ def update_user_login(user_info: dict):
         'name': user_info.get('name'),
         'picture': user_info.get('picture'),
         'email': user_info.get('email'),
+        'provider': user_info.get('provider'),
         'last_login': firestore.SERVER_TIMESTAMP
     }
 

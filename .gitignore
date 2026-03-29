@@ -12,3 +12,4 @@ __pycache__
 public/sitemap.xml
 data
 dist
+tests/.sesskey
