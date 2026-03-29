@@ -44,7 +44,13 @@ def setup_auth_routes(rt):
             redirect_uri = redirect_uri.replace("0.0.0.0", "localhost")
 
         client = getattr(oauth, provider)
-        return await client.authorize_redirect(request, redirect_uri)
+        extra = {}
+        if provider == 'discord':
+            # skip re-authorization for users who already approved the app;
+            # interaction_required error means first-time user → handled in callback
+            force = request.query_params.get('force_consent')
+            extra['prompt'] = 'consent' if force else 'none'
+        return await client.authorize_redirect(request, redirect_uri, **extra)
 
     @rt("/auth/{provider}", name="auth_callback")
     async def auth_callback(request: Request, provider: str):
@@ -57,6 +63,10 @@ def setup_auth_routes(rt):
             error_description = request.query_params.get("error_description", "")
             if error == "access_denied":
                 msg = "Login was cancelled."
+            elif provider == 'discord':
+                # prompt=none failed (e.g. first-time user) — retry with full consent screen
+                logger.info(f"Discord prompt=none returned '{error}', retrying with consent")
+                return RedirectResponse(url='/login/discord?force_consent=1', status_code=302)
             else:
                 msg = f"Login failed: {error_description or error}"
             logger.warning(f"OAuth provider error [{provider}]: {error} – {error_description}")

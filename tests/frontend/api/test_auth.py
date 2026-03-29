@@ -69,6 +69,35 @@ class TestLoginRoute:
         assert response.status_code == 302
         assert response.headers["location"] == "/login"
 
+    def test_discord_login_uses_prompt_none_by_default(self, client):
+        mock_response = RedirectResponse("https://discord.com/oauth2/authorize?prompt=none")
+        with patch("op_tcg.frontend.api.routes.auth.oauth") as mock_oauth:
+            mock_oauth.discord.authorize_redirect = AsyncMock(return_value=mock_response)
+            client.get("/login/discord")
+        _, kwargs = mock_oauth.discord.authorize_redirect.call_args
+        assert kwargs.get("prompt") == "none"
+
+    def test_discord_login_uses_prompt_consent_when_forced(self, client):
+        mock_response = RedirectResponse("https://discord.com/oauth2/authorize?prompt=consent")
+        with patch("op_tcg.frontend.api.routes.auth.oauth") as mock_oauth:
+            mock_oauth.discord.authorize_redirect = AsyncMock(return_value=mock_response)
+            client.get("/login/discord?force_consent=1")
+        _, kwargs = mock_oauth.discord.authorize_redirect.call_args
+        assert kwargs.get("prompt") == "consent"
+
+    def test_discord_any_non_denied_error_retries_with_consent(self, client):
+        for error_code in ("interaction_required", "temporarily_unavailable", "server_error"):
+            response = client.get(f"/auth/discord?error={error_code}")
+            assert response.status_code == 302
+            assert response.headers["location"] == "/login/discord?force_consent=1"
+
+    def test_discord_access_denied_sets_error_flash(self, client):
+        response = client.get("/auth/discord?error=access_denied")
+        assert response.status_code == 302
+        assert response.headers["location"] == "/"
+        session = client.get("/test/session").json()
+        assert "cancelled" in session["flash"]["message"].lower()
+
 
 class TestAuthCallbackRoute:
     def test_returning_user_logs_in_directly(self, client):
