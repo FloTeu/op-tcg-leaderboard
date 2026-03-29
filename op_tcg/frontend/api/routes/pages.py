@@ -362,7 +362,7 @@ def setup_api_routes(rt):
         # but is no longer used for prev/next navigation
 
         # Create and return modal using the component
-        return create_card_modal(base_card, card_versions, popularity, currency, selected_aa_version=selected_aa_version, watched_versions=watched_versions)
+        return create_card_modal(base_card, card_versions, popularity, currency, selected_aa_version=selected_aa_version, watched_versions=watched_versions, is_logged_in=bool(user))
 
     @rt("/api/info-modal")
     def get_info_modal(request: Request):

@@ -7,7 +7,8 @@ from op_tcg.frontend.utils.card_price import get_marketplace_link
 
 
 def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardData], popularity: float,
-                      currency: CardCurrency, selected_aa_version: int = 0, watched_versions: set = None) -> ft.Div:
+                      currency: CardCurrency, selected_aa_version: int = 0, watched_versions: set = None,
+                      is_logged_in: bool = False) -> ft.Div:
     """Create a modal dialog for displaying card details.
 
     Args:
@@ -193,18 +194,16 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     onclick="event.stopPropagation(); window.closeCardModal();"
                 ),
 
-                # Watchlist button (Heart icon) - Reusable component
-                # create_watchlist_toggle(
-                #     card_id=selected_card.id,
-                #     card_version=selected_card.aa_version,
-                #     language="en", # Default for now
-                #     is_in_watchlist=initial_in_watchlist,
-                #     # Position it exactly where the old one was
-                #     extra_cls="absolute top-4 right-16 md:top-4 md:right-16 z-30",
-                #     # Style the button to match modal overlay style
-                #     btn_cls="w-9 h-9 bg-gray-700/60 hover:bg-gray-700 shadow-sm",
-                #     include_script=True
-                # ),
+                # Watchlist button (Heart icon) - only shown when logged in
+                create_watchlist_toggle(
+                    card_id=selected_card.id,
+                    card_version=selected_card.aa_version,
+                    language="en",
+                    is_in_watchlist=initial_in_watchlist,
+                    extra_cls="absolute top-4 right-16 md:top-4 md:right-16 z-30",
+                    btn_cls="w-9 h-9 bg-gray-700/60 hover:bg-gray-700 shadow-sm",
+                    include_script=True
+                ) if is_logged_in else None,
 
                 # Card navigation areas (only for top section, not charts) - positioned at modal edges
                 # Navigation is handled via JavaScript that dynamically collects all loaded cards
