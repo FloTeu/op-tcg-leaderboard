@@ -7,22 +7,51 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+VALID_PROVIDERS = ('google', 'discord')
+
+
+def _normalize_discord_user(discord_user: dict) -> dict:
+    user_id = discord_user.get('id', '')
+    avatar_hash = discord_user.get('avatar')
+    picture = f"https://cdn.discordapp.com/avatars/{user_id}/{avatar_hash}.png" if avatar_hash else None
+    return {
+        'sub': f'discord_{user_id}',
+        'name': discord_user.get('global_name') or discord_user.get('username', ''),
+        'email': discord_user.get('email', ''),
+        'picture': picture,
+        'provider': 'discord',
+    }
+
+
 def setup_auth_routes(rt):
 
     @rt("/login", name="login")
-    async def login(request: Request):
-        # request.url_for uses the server's bind address if not proxied correctly
-        redirect_uri = str(request.url_for('auth'))
+    async def login_page(request: Request):
+        from op_tcg.frontend.components.layout import layout
+        from op_tcg.frontend.pages.login import login_provider_select_content
+        flash = request.session.pop('flash', None)
+        user = request.session.get('user')
+        return layout(login_provider_select_content(), current_path="/login", user=user, flash=flash)
 
-        # Replace 0.0.0.0 with localhost for local development
+    @rt("/login/{provider}", name="login_provider")
+    async def login_provider(request: Request, provider: str):
+        if provider not in VALID_PROVIDERS:
+            request.session['flash'] = {"message": "Unknown login provider.", "type": "error"}
+            return RedirectResponse(url='/login', status_code=302)
+
+        redirect_uri = str(request.url_for('auth_callback', provider=provider))
         if "0.0.0.0" in redirect_uri:
             redirect_uri = redirect_uri.replace("0.0.0.0", "localhost")
 
-        return await oauth.google.authorize_redirect(request, redirect_uri)
+        client = getattr(oauth, provider)
+        return await client.authorize_redirect(request, redirect_uri)
 
-    @rt("/auth", name="auth")
-    async def auth(request: Request):
-        # Handle errors returned directly by the OAuth provider (e.g. user denied access)
+    @rt("/auth/{provider}", name="auth_callback")
+    async def auth_callback(request: Request, provider: str):
+        if provider not in VALID_PROVIDERS:
+            request.session['flash'] = {"message": "Unknown login provider.", "type": "error"}
+            return RedirectResponse(url='/', status_code=302)
+
         error = request.query_params.get("error")
         if error:
             error_description = request.query_params.get("error_description", "")
@@ -30,35 +59,47 @@ def setup_auth_routes(rt):
                 msg = "Login was cancelled."
             else:
                 msg = f"Login failed: {error_description or error}"
-            logger.warning(f"OAuth provider error: {error} – {error_description}")
+            logger.warning(f"OAuth provider error [{provider}]: {error} – {error_description}")
             request.session['flash'] = {"message": msg, "type": "error"}
             return RedirectResponse(url='/', status_code=302)
 
+        client = getattr(oauth, provider)
+
         try:
-            token = await oauth.google.authorize_access_token(request)
+            token = await client.authorize_access_token(request)
         except Exception as e:
-            logger.error(f"Error authorizing access token: {e}")
+            logger.error(f"Error authorizing access token [{provider}]: {e}")
             request.session['flash'] = {"message": "Login failed. Please try again.", "type": "error"}
             return RedirectResponse(url='/', status_code=302)
 
-        user = token.get('userinfo')
-        if not user:
-            logger.error("No userinfo in token response")
-            request.session['flash'] = {"message": "Login failed: could not retrieve account info.", "type": "error"}
-            return RedirectResponse(url='/', status_code=302)
+        if provider == 'google':
+            raw_user = token.get('userinfo')
+            if not raw_user:
+                logger.error("No userinfo in Google token response")
+                request.session['flash'] = {"message": "Login failed: could not retrieve account info.", "type": "error"}
+                return RedirectResponse(url='/', status_code=302)
+            user = dict(raw_user)
+            user['provider'] = 'google'
+        else:  # discord
+            try:
+                resp = await client.get('users/@me', token=token)
+                resp.raise_for_status()
+                user = _normalize_discord_user(resp.json())
+            except Exception as e:
+                logger.error(f"Error fetching Discord userinfo: {e}")
+                request.session['flash'] = {"message": "Login failed: could not retrieve account info.", "type": "error"}
+                return RedirectResponse(url='/', status_code=302)
 
-        # New users must confirm registration before being logged in
         try:
             existing = get_user(user['sub'])
         except Exception as e:
             logger.error(f"Error checking user existence, skipping registration gate: {e}")
-            existing = True  # fail safe: don't block login if Firestore is unavailable
+            existing = True
 
         if not existing:
-            request.session['pending_registration'] = dict(user)
+            request.session['pending_registration'] = user
             return RedirectResponse(url='/register', status_code=302)
 
-        # Returning user — update last_login (non-blocking)
         try:
             update_user_login(user)
         except Exception as e:
@@ -98,5 +139,3 @@ def setup_auth_routes(rt):
     async def logout(request: Request):
         request.session.pop('user', None)
         return RedirectResponse(url='/', status_code=302)
-
-

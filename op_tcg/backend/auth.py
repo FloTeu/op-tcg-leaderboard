@@ -16,3 +16,11 @@ oauth.register(
     }
 )
 
+oauth.register(
+    name='discord',
+    authorize_url='https://discord.com/oauth2/authorize',
+    access_token_url='https://discord.com/api/oauth2/token',
+    api_base_url='https://discord.com/api/',
+    client_kwargs={'scope': 'identify email'},
+)
+

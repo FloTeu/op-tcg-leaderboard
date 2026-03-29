@@ -61,22 +61,12 @@ def layout(content, filter_component=None, current_path="/", persist_query=None,
     if user:
         user_control = get_user_control_view(user)
     else:
-        # Improved stylish login button using a gradient and icon
-        # user_control = ft.A(
-        #     ft.Div(
-        #         # Simple SVG user icon
-        #         ft.Svg(
-        #             ft.Safe('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>'),
-        #             viewBox="0 0 24 24", fill="none", stroke="currentColor", stroke_width="2", stroke_linecap="round", stroke_linejoin="round",
-        #             cls="w-4 h-4 mr-2"
-        #         ),
-        #         "Login / Register",
-        #         cls="flex items-center"
-        #     ),
-        #     href="/login",
-        #     cls="text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 font-semibold rounded-full text-sm px-5 py-2 shadow-lg hover:shadow-xl transition-all duration-200 border border-blue-400/20"
-        # )
-        user_control = None
+        user_control = ft.A(
+            ft.I(cls="fas fa-sign-in-alt mr-2"),
+            "Sign In",
+            href="/login",
+            cls="text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 font-semibold rounded-full text-sm px-5 py-2 shadow-lg hover:shadow-xl transition-all duration-200 border border-blue-400/20 flex items-center"
+        )
 
     return ft.Div(
         # Include external CSS files
