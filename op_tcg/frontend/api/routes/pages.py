@@ -1,6 +1,8 @@
 from collections import defaultdict
 from fasthtml import ft
 from starlette.requests import Request
+
+from op_tcg.backend.db import get_watchlist
 from op_tcg.backend.models.leader import LeaderExtended, LeaderboardSortBy
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.cards import CardCurrency
@@ -19,6 +21,7 @@ from op_tcg.frontend.pages.tournaments import create_tournament_content
 from op_tcg.frontend.pages.card_popularity import create_card_popularity_content
 from op_tcg.frontend.api.models import LeaderboardFilter, LeaderboardSort, LeaderDataParams, TournamentPageParams, CardPopularityParams
 from op_tcg.frontend.components.card_modal import create_card_modal
+from op_tcg.frontend.components.info_modal import create_info_modal
 
 def filter_cards(cards_data: list, params: CardPopularityParams) -> list:
     """Filter cards based on the provided parameters.
@@ -147,10 +150,11 @@ def setup_api_routes(rt):
         }
 
         # Sort leaders by the specified sort criteria
+        reverse = not sort_params.ascending
         if sort_params.sort_by == LeaderboardSortBy.TOURNAMENT_WINS:
-            filtered_leaders.sort(key=lambda x: (x.tournament_wins > 0, x.tournament_wins, x.elo or 0), reverse=True)
+            filtered_leaders.sort(key=lambda x: (x.tournament_wins > 0, x.tournament_wins, x.elo or 0), reverse=reverse)
         elif sort_params.sort_by == LeaderboardSortBy.PRICE:
-            filtered_leaders.sort(key=lambda x: leader_prices.get(x.id, 0), reverse=True)
+            filtered_leaders.sort(key=lambda x: leader_prices.get(x.id, 0), reverse=reverse)
         else:
             # Handle None values in sorting by providing default values
             def get_sort_key(leader):
@@ -158,8 +162,8 @@ def setup_api_routes(rt):
                 value = getattr(leader, attr_name)
                 # Return 0 for None values to sort them to the end
                 return value if value is not None else 0
-            
-            filtered_leaders.sort(key=get_sort_key, reverse=True)
+
+            filtered_leaders.sort(key=get_sort_key, reverse=reverse)
 
         # Create the leaderboard table
         table_content = create_leaderboard_table(
@@ -167,7 +171,9 @@ def setup_api_routes(rt):
             leader_extended_data,
             sort_params.meta_format,
             region=filter_params.region,
-            leader_prices=leader_prices
+            leader_prices=leader_prices,
+            sort_by=sort_params.sort_by,
+            ascending=sort_params.ascending,
         )
         
         # Check if leaders exist but have no match data
@@ -334,9 +340,45 @@ def setup_api_routes(rt):
             if cp.card_id == card_id and cp.meta_format == meta_format:
                 popularity = max(popularity, cp.popularity)
 
+        # Check watchlist status
+        user = request.session.get('user')
+        watched_versions = set()
+        if user:
+            user_id = user.get('sub')
+            watchlist = get_watchlist(user_id)
+            for item in watchlist:
+                if item.get('card_id') == card_id:
+                    # Ensure we handle both string and int cases for legacy data
+                    version = item.get('card_version')
+                    if version == 'Base':
+                        version = 0
+                    try:
+                        watched_versions.add(int(version) if version is not None else 0)
+                    except (ValueError, TypeError):
+                        pass
+
         # Note: Navigation between cards is now handled by JavaScript dynamically
         # The card_elements query parameter is still accepted for backward compatibility
         # but is no longer used for prev/next navigation
 
         # Create and return modal using the component
-        return create_card_modal(base_card, card_versions, popularity, currency, selected_aa_version=selected_aa_version)
+        return create_card_modal(base_card, card_versions, popularity, currency, selected_aa_version=selected_aa_version, watched_versions=watched_versions)
+
+    @rt("/api/info-modal")
+    def get_info_modal(request: Request):
+        """Return a generic info modal."""
+        title = request.query_params.get("title", "Info")
+        message = request.query_params.get("message", "")
+        type_ = request.query_params.get("type", "info")
+
+        # Add support for login button specific behavior
+        login = request.query_params.get("login", "false")
+
+        primary_text = None
+        primary_url = None
+
+        if login == "true":
+            primary_text = "Login"
+            primary_url = "/login"
+
+        return create_info_modal(title, message, primary_button_text=primary_text, primary_button_url=primary_url, icon_type=type_)

@@ -8,6 +8,31 @@ from op_tcg.frontend.components.loading import create_loading_overlay, create_lo
 from op_tcg.frontend.components.layout import create_mobile_filter_button
 
 
+def _sort_header(label, column: LeaderboardSortBy, sort_by: LeaderboardSortBy, ascending: bool, hx_include: str, extra_content=None):
+    """Render a clickable sort header that triggers an HTMX leaderboard refresh."""
+    is_active = sort_by == column
+    if is_active:
+        icon = "fa-sort-up" if ascending else "fa-sort-down"
+        new_ascending = not ascending
+    else:
+        icon = "fa-sort opacity-50"
+        new_ascending = False
+    hx_vals = f'{{"sort_by": "{column}", "ascending": "{str(new_ascending).lower()}"}}'
+    cls = "flex items-center gap-1 cursor-pointer transition-colors " + (
+        "text-white" if is_active else "text-gray-400 hover:text-white"
+    )
+    children = (extra_content or ft.Span(label), ft.I(cls=f"fas {icon} ml-1"))
+    return ft.Div(
+        *children,
+        hx_get="/api/leaderboard",
+        hx_target="#leaderboard-table",
+        hx_include=hx_include,
+        hx_vals=hx_vals,
+        hx_indicator="#loading-indicator",
+        cls=cls,
+    )
+
+
 # Common HTMX attributes for filter components
 HX_INCLUDE = "[name='meta_format'],[name='region'],[name='sort_by'],[name='release_meta_formats'],[name='min_matches'],[name='max_matches'],[name='min_price'],[name='max_price']"
 FILTER_HX_ATTRS = {
@@ -196,7 +221,7 @@ def create_chart_data_for_leader(leader: LeaderExtended, all_leaders: list[Leade
     
     return chart_data
 
-def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders: list[LeaderExtended], meta_format: MetaFormat, region: MetaFormatRegion | None = None, leader_prices: dict[str, float] | None = None):
+def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders: list[LeaderExtended], meta_format: MetaFormat, region: MetaFormatRegion | None = None, leader_prices: dict[str, float] | None = None, sort_by: LeaderboardSortBy = LeaderboardSortBy.WIN_RATE, ascending: bool = False):
     # Filter leaders for the selected meta format
     relevant_meta_formats = MetaFormat.to_list()[:MetaFormat.to_list().index(meta_format) + 1]
     
@@ -209,32 +234,42 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
     if not selected_meta_leaders:
         return ft.Div("No leader data available for the selected meta", cls="text-red-400")
     
+    # Helper to build sort <th> cells
+    th_cls = "px-4 py-2 bg-gray-800 text-white font-semibold"
+    th_static_cls = th_cls + " text-left"
+
+    def sh(label, column, extra_content=None):
+        return ft.Th(
+            _sort_header(label, column, sort_by, ascending, HX_INCLUDE, extra_content=extra_content),
+            cls=th_cls,
+        )
+
+    # D-Score tooltip label (kept inside the sort header)
+    dscore_label = ft.Div(
+        ft.Div(
+            "D-Score",
+            ft.Span(
+                "D-Score represents the dominance score of a leader. It takes into account win rate, match count, and tournament performance to provide a comprehensive measure of a leader's strength.",
+                cls="tooltip-text"
+            ),
+            cls="tooltip",
+        ),
+        cls="inline-block"
+    )
+
     # Create table header
     header = ft.Thead(
         ft.Tr(
-            ft.Th("Image", cls="px-4 py-2 bg-gray-800 text-white font-semibold w-[200px]"),
-            ft.Th("Leader", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
-            ft.Th("Set", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
-            ft.Th("Tournament Wins", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
-            ft.Th("Match Count", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
-            ft.Th("Win Rate", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
-            ft.Th(
-                ft.Div(
-                    ft.Div(
-                        "D-Score",
-                        ft.Span(
-                            "D-Score represents the dominance score of a leader. It takes into account win rate, match count, and tournament performance to provide a comprehensive measure of a leader's strength.",
-                            cls="tooltip-text"
-                        ),
-                        cls="tooltip"
-                    ),
-                    cls="inline-block"
-                ),
-                cls="px-4 py-2 bg-gray-800 text-white font-semibold"
-            ),
-            ft.Th("Avg Price", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
-            ft.Th("Elo", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
-            ft.Th("Win Rate History", cls="px-4 py-2 bg-gray-800 text-white font-semibold"),
+            ft.Th("", cls=th_static_cls + " w-[200px]"),
+            ft.Th("Leader", cls=th_static_cls),
+            ft.Th("Set", cls=th_static_cls),
+            sh("Tournament Wins", LeaderboardSortBy.TOURNAMENT_WINS),
+            sh("Match Count", LeaderboardSortBy.MATCH_COUNT),
+            sh("Win Rate", LeaderboardSortBy.WIN_RATE),
+            sh("D-Score", LeaderboardSortBy.DOMINANCE_SCORE, extra_content=dscore_label),
+            sh("Avg Price", LeaderboardSortBy.PRICE),
+            sh("Elo", LeaderboardSortBy.ELO),
+            ft.Th("Win Rate History", cls=th_static_cls),
             cls=""
         )
     )

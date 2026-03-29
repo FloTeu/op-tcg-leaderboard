@@ -1,3 +1,12 @@
+/* Sidebar: applied before first paint via head script to avoid open animation on page load */
+.sidebar-initially-open #sidebar                                    { transform: translateX(0); }
+.sidebar-initially-open #main-content                               { margin-left: 320px; }
+.sidebar-initially-open #top-bar                                    { left: 320px; }
+.sidebar-initially-open #burger-menu                                { visibility: hidden; }
+.sidebar-initially-open #sidebar-burger-menu > div > div:nth-child(1) { transform: translateY(8px) rotate(45deg); }
+.sidebar-initially-open #sidebar-burger-menu > div > div:nth-child(2) { opacity: 0; }
+.sidebar-initially-open #sidebar-burger-menu > div > div:nth-child(3) { transform: translateY(-8px) rotate(-45deg); }
+
 .leaderboard-image-cell {
     position: relative;
     width: 200px;

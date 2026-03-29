@@ -2,11 +2,12 @@ from fasthtml import ft
 from op_tcg.backend.models.cards import CardCurrency, ExtendedCardData
 from op_tcg.frontend.components.loading import create_loading_spinner
 from op_tcg.frontend.components.effect_text import render_effect_text
+from op_tcg.frontend.components.watchlist_toggle import create_watchlist_toggle
 from op_tcg.frontend.utils.card_price import get_marketplace_link
 
 
 def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardData], popularity: float,
-                      currency: CardCurrency, selected_aa_version: int = 0) -> ft.Div:
+                      currency: CardCurrency, selected_aa_version: int = 0, watched_versions: set = None) -> ft.Div:
     """Create a modal dialog for displaying card details.
 
     Args:
@@ -23,6 +24,8 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
         Card navigation (prev/next) is handled dynamically via JavaScript,
         which scans the DOM for all loaded cards at navigation time.
     """
+    if watched_versions is None:
+        watched_versions = set()
 
     # Helper function to create a key fact row
     def create_key_fact(label: str, value: str | None, icon: str = None) -> ft.Div:
@@ -52,6 +55,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
 
     is_base_active = (card.aa_version == selected_aa_version)
     base_cls = "carousel-item active relative" if is_base_active else "carousel-item relative"
+    base_in_watchlist = card.aa_version in watched_versions
 
     carousel_items = [
         ft.Div(
@@ -76,6 +80,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
             id="carousel-item-base",
             data_card_id=card.id,
             data_aa_version=card.aa_version,
+            data_in_watchlist="true" if base_in_watchlist else "false",
             data_price=f"{card.latest_eur_price:.2f}" if currency == CardCurrency.EURO and card.latest_eur_price else
             f"{card.latest_usd_price:.2f}" if currency == CardCurrency.US_DOLLAR and card.latest_usd_price else "N/A",
             data_currency=CardCurrency.EURO if currency == CardCurrency.EURO else CardCurrency.US_DOLLAR,
@@ -94,6 +99,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
 
         is_active = (version.aa_version == selected_aa_version)
         item_cls = "carousel-item active relative" if is_active else "carousel-item relative"
+        version_in_watchlist = version.aa_version in watched_versions
 
         carousel_items.append(
             ft.Div(
@@ -118,6 +124,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 id=f"carousel-item-{i}",
                 data_card_id=version.id,
                 data_aa_version=version.aa_version,
+                data_in_watchlist="true" if version_in_watchlist else "false",
                 data_price=f"{version.latest_eur_price:.2f}" if currency == CardCurrency.EURO and version.latest_eur_price else
                 f"{version.latest_usd_price:.2f}" if currency == CardCurrency.US_DOLLAR and version.latest_usd_price else "N/A",
                 data_currency=CardCurrency.EURO if currency == CardCurrency.EURO else CardCurrency.US_DOLLAR,
@@ -150,8 +157,6 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
     price_symbol = "€" if currency == CardCurrency.EURO else "$"
     price_label = "Price (EUR)" if currency == CardCurrency.EURO else "Price (USD)"
 
-    # Determine button color based on marketplace
-    button_color_cls = "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
 
     # Build external marketplace link using selected card
     cm_url, _ = get_marketplace_link(selected_card, CardCurrency.EURO)
@@ -172,6 +177,9 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
     elif selected_card.latest_usd_price:
         initial_price = f"${selected_card.latest_usd_price:.2f}"
 
+    # Determine initial watchlist state
+    initial_in_watchlist = selected_card.aa_version in watched_versions
+
     return ft.Div(
         # Modal backdrop
         ft.Div(
@@ -184,6 +192,19 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     cls="absolute top-4 right-4 md:top-4 md:right-4 inline-flex items-center justify-center w-9 h-9 rounded-full bg-gray-700/60 hover:bg-gray-700 text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 transition z-30 mobile-close-btn",
                     onclick="event.stopPropagation(); window.closeCardModal();"
                 ),
+
+                # Watchlist button (Heart icon) - Reusable component
+                # create_watchlist_toggle(
+                #     card_id=selected_card.id,
+                #     card_version=selected_card.aa_version,
+                #     language="en", # Default for now
+                #     is_in_watchlist=initial_in_watchlist,
+                #     # Position it exactly where the old one was
+                #     extra_cls="absolute top-4 right-16 md:top-4 md:right-16 z-30",
+                #     # Style the button to match modal overlay style
+                #     btn_cls="w-9 h-9 bg-gray-700/60 hover:bg-gray-700 shadow-sm",
+                #     include_script=True
+                # ),
 
                 # Card navigation areas (only for top section, not charts) - positioned at modal edges
                 # Navigation is handled via JavaScript that dynamically collects all loaded cards
@@ -217,6 +238,112 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                         *carousel_nav,
                         cls="md:w-1/2 relative"
                     ),
+                    # Script to handle carousel updates linking to watchlist
+                    ft.Script("""
+                        (function() {
+                            // Find our button - relying on its unique position class
+                            function getWatchlistBtn() {
+                                const container = document.querySelector('.modal-backdrop .absolute.top-4.right-16');
+                                return container ? container.querySelector('button') : null;
+                            }
+
+                            function updateWatchlistButtonState(isInWatchlist) {
+                                const btn = getWatchlistBtn();
+                                if (!btn) return;
+                                const svg = btn.querySelector('svg');
+                                
+                                // Update dataset so the generic toggle function reads correct state
+                                btn.dataset.inWatchlist = isInWatchlist.toString();
+                                
+                                if (isInWatchlist) {
+                                    svg.setAttribute('fill', 'currentColor');
+                                    btn.classList.remove('text-gray-400', 'hover:text-red-400');
+                                    btn.classList.add('text-red-500');
+                                    btn.title = "Remove from Watchlist";
+                                } else {
+                                    svg.setAttribute('fill', 'none');
+                                    btn.classList.add('text-gray-400', 'hover:text-red-400');
+                                    btn.classList.remove('text-red-500');
+                                    btn.title = "Add to Watchlist";
+                                }
+                            }
+
+                            // Hook into existing global showCarouselItem
+                            const originalShowCarouselItem = window.showCarouselItem;
+                            window.showCarouselItem = function(element, index) {
+                                if (originalShowCarouselItem) {
+                                    originalShowCarouselItem(element, index);
+                                }
+                                
+                                // Update watchlist button based on new active item
+                                setTimeout(() => {
+                                    // Logic to match the active item
+                                    const items = document.querySelectorAll('.carousel-item');
+                                    if (items[index]) {
+                                         const activeItem = items[index];
+                                         const isIn = activeItem.dataset.inWatchlist === 'true';
+                                         const cardId = activeItem.dataset.cardId;
+                                         const cardVersion = activeItem.dataset.aaVersion;
+                                         
+                                         // Update global button attributes so generic toggle actions the correct card
+                                         const btn = getWatchlistBtn();
+                                         if (btn) {
+                                             btn.dataset.cardId = cardId;
+                                             btn.dataset.cardVersion = cardVersion;
+                                             // Update visual state
+                                             updateWatchlistButtonState(isIn);
+                                         }
+                                    }
+                                }, 50);
+                            };
+                            
+                            // Observe carousel changes for robustness (e.g. if updated by other means)
+                             const observer = new MutationObserver((mutations) => {
+                                mutations.forEach((mutation) => {
+                                    if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                                        if (mutation.target.classList.contains('active')) {
+                                            const activeItem = mutation.target;
+                                            const isIn = activeItem.dataset.inWatchlist === 'true';
+                                            const cardId = activeItem.dataset.cardId;
+                                            const cardVersion = activeItem.dataset.aaVersion;
+                                            
+                                            const btn = getWatchlistBtn();
+                                            if (btn) {
+                                                 btn.dataset.cardId = cardId;
+                                                 btn.dataset.cardVersion = cardVersion;
+                                                 updateWatchlistButtonState(isIn);
+                                            }
+                                        }
+                                    }
+                                });
+                            });
+                            
+                            document.querySelectorAll('.carousel-item').forEach(item => {
+                                observer.observe(item, { attributes: true });
+                            });
+                            
+                            // Listen for the custom event or handle the case where the generic toggle 
+                            // updates the button state but we need to sync back to the carousel item data
+                            // The generic toggle updates `btn.dataset.inWatchlist`.
+                            // We should sync that back to `activeCarouselItem.dataset.inWatchlist`
+                            // so if we swipe away and back, it remembers.
+                            // We can monkeypatch `toggleWatchlistItem` or just listen to clicks on our button?
+                            const btn = getWatchlistBtn();
+                            if (btn) {
+                                btn.addEventListener('click', function() {
+                                    setTimeout(() => {
+                                        // Read back state from button and save to active carousel item
+                                        const newState = btn.dataset.inWatchlist;
+                                        const activeItem = document.querySelector('.carousel-item.active');
+                                        if (activeItem) {
+                                            activeItem.dataset.inWatchlist = newState;
+                                        }
+                                    }, 200); // Small delay to allow async fetch to likely complete/optimistic update
+                                });
+                            }
+                            
+                        })();
+                    """),
                     # Card details
                     ft.Div(
                         # Card name and ID
@@ -268,7 +395,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                                         href=cm_url,
                                         target="_blank",
                                         rel="noopener",
-                                        cls="flex-1 text-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-l-lg transition-colors border-r border-blue-800",
+                                        cls="flex-1 text-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-l-lg transition-colors border-r border-green-800",
                                         id="marketplace-link-cm"
                                     ),
                                     ft.A(
@@ -276,7 +403,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                                         href=tcg_url,
                                         target="_blank",
                                         rel="noopener",
-                                        cls="flex-1 text-center px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-r-lg transition-colors",
+                                        cls="flex-1 text-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-r-lg transition-colors",
                                         id="marketplace-link-tcg"
                                     ),
                                     cls="flex w-full max-w-xs"
@@ -384,7 +511,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                                 hx_get=f"/api/card-price-development-chart",
                                 hx_target=f"#price-chart-container-{card.id}",
                                 hx_indicator=f"#price-chart-loading-{card.id}",
-                                hx_vals=f'js:{{"card_id": "{card.id}", "days": document.getElementById("price-period-selector-{card.id}").value, "include_alt_art": "false", "aa_version": "{selected_aa_version}"}}',
+                                hx_vals=f'js:{{"card_id": "{card.id}", "days": document.getElementById("price-period-selector-{card.id}").value, "include_alt_art": "false", "aa_version": "{selected_aa_version}", "location": "modal"}}',
                                 **{
                                     "hx-on::before-request": f"document.getElementById('price-chart-container-{card.id}').innerHTML = ''; document.getElementById('price-chart-loading-{card.id}').style.display = 'flex';"}
                             ),
@@ -394,7 +521,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     ),
                     ft.Div(
                         id=f"price-chart-container-{card.id}",
-                        hx_get=f"/api/card-price-development-chart?card_id={card.id}&days=90&aa_version={selected_aa_version}",
+                        hx_get=f"/api/card-price-development-chart?card_id={card.id}&days=90&aa_version={selected_aa_version}&location=modal",
                         hx_trigger="load",
                         hx_indicator=f"#price-chart-loading-{card.id}",
                         cls="min-h-[300px]"
