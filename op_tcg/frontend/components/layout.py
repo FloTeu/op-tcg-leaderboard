@@ -61,12 +61,13 @@ def layout(content, filter_component=None, current_path="/", persist_query=None,
     if user:
         user_control = get_user_control_view(user)
     else:
-        user_control = ft.A(
-            ft.I(cls="fas fa-sign-in-alt mr-2"),
-            "Sign In",
-            href="/login",
-            cls="text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 font-semibold rounded-full text-sm px-5 py-2 shadow-lg hover:shadow-xl transition-all duration-200 border border-blue-400/20 flex items-center"
-        )
+        user_control = None
+        # user_control = ft.A(
+        #     ft.I(cls="fas fa-sign-in-alt mr-2"),
+        #     "Sign In",
+        #     href="/login",
+        #     cls="text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 font-semibold rounded-full text-sm px-5 py-2 shadow-lg hover:shadow-xl transition-all duration-200 border border-blue-400/20 flex items-center"
+        # )
 
     return ft.Div(
         # Include external CSS files
