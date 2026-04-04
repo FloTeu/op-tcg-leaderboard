@@ -243,20 +243,20 @@ def watchlist_page(request):
                             ),
                             cls="flex items-center"
                         ),
-                        cls="px-4 py-3 align-top"
+                        cls="px-5 py-4 align-top"
                     ),
                     # Latest Price
                     ft.Td(
                         ft.Div(
                             ft.A(
-                                ft.Span(f"€{item['latest_eur']:.2f}", cls="font-bold text-gray-200 group-hover:text-green-400 transition-colors mr-2 text-sm"),
+                                ft.Span(f"€{item['latest_eur']:.2f}", cls="font-bold text-white group-hover:text-green-400 transition-colors mr-2 text-sm font-mono tabular-nums"),
                                 ft.Span("CM", cls="text-[10px] bg-green-600/20 text-green-300 group-hover:bg-green-600 group-hover:text-white px-1.5 py-0.5 rounded transition-colors"),
                                 href=cm_url,
                                 target="_blank",
                                 cls="flex items-center justify-end group cursor-pointer hover:bg-gray-700/50 rounded px-2 py-1 transition-colors mb-1 w-full"
                             ),
                             ft.A(
-                                ft.Span(f"${item['latest_usd']:.2f}", cls="font-bold text-gray-200 group-hover:text-blue-400 transition-colors mr-2 text-sm"),
+                                ft.Span(f"${item['latest_usd']:.2f}", cls="font-bold text-gray-400 group-hover:text-blue-400 transition-colors mr-2 text-sm font-mono tabular-nums"),
                                 ft.Span("TCG", cls="text-[10px] bg-blue-600/20 text-blue-300 group-hover:bg-blue-600 group-hover:text-white px-1.5 py-0.5 rounded transition-colors"),
                                 href=tcg_url,
                                 target="_blank",
@@ -264,7 +264,7 @@ def watchlist_page(request):
                             ),
                             cls="flex flex-col items-end min-w-[100px]"
                         ),
-                        cls="px-4 py-3 whitespace-nowrap align-middle"
+                        cls="px-5 py-4 whitespace-nowrap align-middle"
                     ),
                     # Details
                     ft.Td(
@@ -273,7 +273,7 @@ def watchlist_page(request):
                             ft.Div(language, cls="text-xs text-gray-500 uppercase"),
                             cls="flex flex-col"
                         ),
-                        cls="px-4 py-3 whitespace-nowrap align-middle"
+                        cls="px-5 py-4 whitespace-nowrap align-middle"
                     ),
                     # Actions
                     ft.Td(
@@ -281,7 +281,7 @@ def watchlist_page(request):
                             toggle_btn,
                             cls="flex items-center justify-center pl-2"
                         ),
-                        cls="px-4 py-3 whitespace-nowrap align-middle"
+                        cls="px-5 py-4 whitespace-nowrap align-middle"
                     ),
                     # Price Chart
                     ft.Td(
@@ -307,18 +307,18 @@ def watchlist_page(request):
                                 hx_get=f"/api/card-price-development-chart?card_id={card_id}&days=90&aa_version={aa_version}&compact=true&location=watchlist",
                                 hx_trigger="revealed",
                                 hx_indicator=f"#{chart_id}-loading",
-                                cls="w-full h-32"
+                                cls="w-full h-36"
                             ),
                             create_loading_spinner(
                                 id=f"{chart_id}-loading",
                                 size="w-6 h-6",
-                                container_classes="absolute inset-0 flex items-center justify-center h-32 pointer-events-none hidden"
+                                container_classes="absolute inset-0 flex items-center justify-center pointer-events-none hidden"
                             ),
-                            cls="w-full min-w-[200px] h-32 bg-gray-900/30 rounded relative overflow-hidden group"
+                            cls="w-full min-w-[200px] h-36 relative overflow-hidden"
                         ),
-                        cls="px-4 py-2 w-full align-middle"
+                        cls="px-5 py-4 w-full align-middle"
                     ),
-                    cls="bg-gray-800 border-b border-gray-700 hover:bg-gray-750 transition-colors watchlist-card-item"
+                    cls="bg-transparent hover:bg-gray-700/20 transition-colors watchlist-card-item"
                 )
             )
 
@@ -326,21 +326,21 @@ def watchlist_page(request):
             ft.Table(
                 ft.Thead(
                     ft.Tr(
-                        ft.Th(sort_link("Card", "name"), cls="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider w-1/3 min-w-[250px]"),
-                        ft.Th(sort_link("Latest Price", "price"), cls="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap w-28"),
-                        ft.Th("Version", cls="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap w-24"),
-                        ft.Th("Actions", cls="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider w-24"),
-                        ft.Th("Price Trend (90d)", cls="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider min-w-[300px]"),
+                        ft.Th(sort_link("Card", "name"), cls="px-5 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-widest w-1/3 min-w-[250px]"),
+                        ft.Th(sort_link("Latest Price", "price"), cls="px-5 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-widest whitespace-nowrap w-28"),
+                        ft.Th("Version", cls="px-5 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-widest whitespace-nowrap w-24"),
+                        ft.Th("Actions", cls="px-5 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-widest w-24"),
+                        ft.Th("Price Trend", cls="px-5 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-widest min-w-[300px]"),
                     ),
-                    cls="bg-gray-900"
+                    cls="bg-gray-800/60 border-b border-gray-700/60"
                 ),
                 ft.Tbody(
                     *rows,
-                    cls="divide-y divide-gray-700"
+                    cls="divide-y divide-gray-700/60"
                 ),
-                cls="min-w-full divide-y divide-gray-700"
+                cls="min-w-full"
             ),
-            cls="overflow-x-auto rounded-lg shadow-lg border border-gray-700"
+            cls="overflow-x-auto rounded-xl border border-gray-700 overflow-hidden"
         )
 
     else:
@@ -397,104 +397,89 @@ def watchlist_page(request):
 
             items.append(
                 ft.Div(
+                    # Header section: Image + Details + Toggle
                     ft.Div(
-                        # Header: Image + Details + Toggle (Flex Row)
                         ft.Div(
-                             # Image
-                            ft.Div(
-                                 ft.Img(src=image_url, cls="w-16 sm:w-20 h-auto rounded shadow-sm hover:opacity-100 transition-opacity",
-                                        alt=card_name),
-                                 cls="flex-shrink-0 mr-4 cursor-pointer",
-                                 hx_get=f"/api/card-modal?card_id={card_id}&meta_format=latest&aa_version={aa_version}",
-                                 hx_target="body",
-                                 hx_swap="beforeend"
-                            ),
-                            # Title + Meta
-                            ft.Div(
-                                ft.H3(card_name, cls="text-xl font-bold text-white hover:text-blue-400 transition-colors"),
-                                ft.P(f"{card_id} • {version_label} • {language}", cls="text-sm text-gray-400 mt-1"),
-                                # Check if prices exist and display them
-                                ft.Div(
-                                    ft.Span(f"€{item['latest_eur']:.2f}", cls="text-sm font-bold text-green-400 mr-3"),
-                                    ft.Span(f"${item['latest_usd']:.2f}", cls="text-sm font-bold text-blue-400"),
-                                    cls="mt-1"
-                                ),
-                                tag_chips,
-                                cls="flex-1 min-w-0 pr-4 cursor-pointer", # min-w-0 for truncate text if needed
-                                hx_get=f"/api/card-modal?card_id={card_id}&meta_format=latest&aa_version={aa_version}",
-                                hx_target="body",
-                                hx_swap="beforeend"
-                            ),
-                            # Toggle
-                            ft.Div(
-                                toggle_btn,
-                                cls="flex-shrink-0"
-                            ),
-                            cls="flex items-start mb-0"
+                            ft.Img(src=image_url, cls="w-16 sm:w-20 h-auto rounded shadow-sm hover:opacity-90 transition-opacity",
+                                   alt=card_name),
+                            cls="flex-shrink-0 mr-4 cursor-pointer",
+                            hx_get=f"/api/card-modal?card_id={card_id}&meta_format=latest&aa_version={aa_version}",
+                            hx_target="body",
+                            hx_swap="beforeend"
                         ),
-
-                        # Content Area: Chart Only (Full Width)
                         ft.Div(
-                            # Control Bar (Time Range Selector)
+                            ft.H3(card_name, cls="text-base font-bold text-white hover:text-blue-400 transition-colors leading-snug"),
+                            ft.P(f"{card_id} · {version_label} · {language.upper()}", cls="text-xs text-gray-500 mt-0.5 uppercase tracking-wide"),
                             ft.Div(
-                                ft.Select(
-                                    ft.Option("30 Days", value="30"),
-                                    ft.Option("90 Days", value="90", selected=True),
-                                    ft.Option("180 Days", value="180"),
-                                    ft.Option("1 Year", value="365"),
-                                    ft.Option("All Time", value="1000"),
-                                    name="days", # Send value as 'days' parameter
-                                    id=f"price-period-selector-{chart_id}",
-                                    cls="bg-gray-700 text-white border border-gray-600 rounded px-2 py-0.5 text-xs focus:ring-blue-500 focus:border-blue-500 block cursor-pointer hover:bg-gray-600 transition-colors",
-                                    hx_get="/api/card-price-development-chart",
-                                    hx_target=f"#{chart_id}",
-                                    hx_indicator=f"#{chart_id}-loading",
-                                    hx_vals=f'{{"card_id": "{card_id}", "aa_version": "{aa_version}", "include_alt_art": "false", "location": "watchlist"}}',
-                                    hx_on__before_request=f"document.getElementById('{chart_id}').innerHTML = ''; document.getElementById('{chart_id}-loading').classList.remove('hidden');"
-                                ),
-                                cls="flex justify-end pr-1 pt-1"
+                                ft.Span(f"€{item['latest_eur']:.2f}", cls="text-sm font-bold text-white font-mono tabular-nums mr-3"),
+                                ft.Span(f"${item['latest_usd']:.2f}", cls="text-sm font-bold text-gray-400 font-mono tabular-nums"),
+                                cls="mt-1.5"
                             ),
-                            ft.Div(
-                                ft.Div(
-                                    id=chart_id,
-                                    hx_get=f"/api/card-price-development-chart?card_id={card_id}&days=90&aa_version={aa_version}&location=watchlist",
-                                    hx_trigger="revealed", # Load when scrolled into view
-                                    hx_indicator=f"#{chart_id}-loading",
-                                    cls="w-full h-48 sm:h-64"
-                                ),
-                                create_loading_spinner(
-                                    id=f"{chart_id}-loading",
-                                    size="w-8 h-8",
-                                    container_classes="absolute inset-0 flex items-center justify-center h-48 sm:h-64 pointer-events-none hidden"
-                                ),
-                                cls="w-full min-w-0 bg-gray-900/50 rounded p-0 mt-0 relative"
-                            ),
-
-                            # Marketplace Buttons
-                            ft.Div(
-                                ft.Div(
-                                    ft.A(
-                                        "Cardmarket",
-                                        href=cm_url,
-                                        target="_blank",
-                                        rel="noopener",
-                                        cls="flex-1 text-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-l-lg transition-colors border-r border-green-800",
-                                    ),
-                                    ft.A(
-                                        "TCGPlayer",
-                                        href=tcg_url,
-                                        target="_blank",
-                                        rel="noopener",
-                                        cls="flex-1 text-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-r-lg transition-colors",
-                                    ),
-                                    cls="flex w-full"
-                                ),
-                                cls="mt-3"
-                            ),
-                            cls="w-full mt-2"
+                            tag_chips,
+                            cls="flex-1 min-w-0 cursor-pointer",
+                            hx_get=f"/api/card-modal?card_id={card_id}&meta_format=latest&aa_version={aa_version}",
+                            hx_target="body",
+                            hx_swap="beforeend"
                         ),
-                        cls="watchlist-card-item bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg border border-gray-700 hover:border-gray-600 transition-colors"
-                    )
+                        ft.Div(toggle_btn, cls="flex-shrink-0 ml-2"),
+                        cls="flex items-start px-5 py-4 border-b border-gray-700/60"
+                    ),
+                    # Chart section
+                    ft.Div(
+                        ft.Div(
+                            ft.Span("Price Trend", cls="text-xs text-gray-500 uppercase tracking-widest font-medium"),
+                            ft.Select(
+                                ft.Option("30 Days", value="30"),
+                                ft.Option("90 Days", value="90", selected=True),
+                                ft.Option("180 Days", value="180"),
+                                ft.Option("1 Year", value="365"),
+                                ft.Option("All Time", value="1000"),
+                                name="days",
+                                id=f"price-period-selector-{chart_id}",
+                                cls="bg-gray-800 text-white border border-gray-600 rounded px-2 py-0.5 text-xs focus:outline-none focus:border-blue-500 cursor-pointer hover:bg-gray-700 transition-colors",
+                                hx_get="/api/card-price-development-chart",
+                                hx_target=f"#{chart_id}",
+                                hx_indicator=f"#{chart_id}-loading",
+                                hx_vals=f'{{"card_id": "{card_id}", "aa_version": "{aa_version}", "include_alt_art": "false", "location": "watchlist"}}',
+                                hx_on__before_request=f"document.getElementById('{chart_id}').innerHTML = ''; document.getElementById('{chart_id}-loading').classList.remove('hidden');"
+                            ),
+                            cls="flex items-center justify-between mb-3"
+                        ),
+                        ft.Div(
+                            ft.Div(
+                                id=chart_id,
+                                hx_get=f"/api/card-price-development-chart?card_id={card_id}&days=90&aa_version={aa_version}&location=watchlist",
+                                hx_trigger="revealed",
+                                hx_indicator=f"#{chart_id}-loading",
+                                cls="w-full h-48 sm:h-56"
+                            ),
+                            create_loading_spinner(
+                                id=f"{chart_id}-loading",
+                                size="w-8 h-8",
+                                container_classes="absolute inset-0 flex items-center justify-center pointer-events-none hidden"
+                            ),
+                            cls="relative w-full"
+                        ),
+                        ft.Div(
+                            ft.A(
+                                "Cardmarket",
+                                href=cm_url,
+                                target="_blank",
+                                rel="noopener",
+                                cls="flex-1 text-center px-4 py-2 bg-gray-700/50 hover:bg-green-600/80 text-gray-300 hover:text-white text-xs font-medium rounded-l-lg transition-colors border-r border-gray-600/60",
+                            ),
+                            ft.A(
+                                "TCGPlayer",
+                                href=tcg_url,
+                                target="_blank",
+                                rel="noopener",
+                                cls="flex-1 text-center px-4 py-2 bg-gray-700/50 hover:bg-blue-600/80 text-gray-300 hover:text-white text-xs font-medium rounded-r-lg transition-colors",
+                            ),
+                            cls="flex w-full mt-3"
+                        ),
+                        cls="px-5 py-4"
+                    ),
+                    cls="watchlist-card-item bg-gray-800/60 border border-gray-700 rounded-xl overflow-hidden"
                 )
             )
 

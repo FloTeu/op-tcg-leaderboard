@@ -54,6 +54,7 @@ optcg          # main CLI entrypoint
 - **HTMX-first:** Use HTMX for data-intensive interactive views before adding custom JavaScript.
 - **Styling:** Use existing styled components from `/public/css`. Select components need an `id` for JS to work.
 - **Mobile-first:** Design new frontend components for mobile first.
+- **Frontend design skill:** When building new frontend components, pages, or UI sections, use the `frontend-design` skill (`/frontend-design`) to ensure production-grade, visually distinctive output.
 - **No final reports:** Do not write a markdown summary at the end of a task.
 - **No re-reads:** Do not read a file you have already read in the same session.
 - **Refactor check:** When adding new code, check if nearby existing code should be refactored for consistency.
