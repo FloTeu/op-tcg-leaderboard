@@ -249,18 +249,18 @@ def watchlist_page(request):
                     ft.Td(
                         ft.Div(
                             ft.A(
-                                ft.Span(f"€{item['latest_eur']:.2f}", cls="font-bold text-white group-hover:text-green-400 transition-colors mr-2 text-sm font-mono tabular-nums"),
-                                ft.Span("CM", cls="text-[10px] bg-green-600/20 text-green-300 group-hover:bg-green-600 group-hover:text-white px-1.5 py-0.5 rounded transition-colors"),
+                                ft.Span(f"€{item['latest_eur']:.2f}", cls="font-bold text-white group-hover:text-green-300 transition-colors mr-2 text-sm font-mono tabular-nums"),
+                                ft.Span("CM", cls="text-[10px] bg-green-700/40 text-green-300 group-hover:bg-green-600 group-hover:text-white px-1.5 py-0.5 rounded transition-colors"),
                                 href=cm_url,
                                 target="_blank",
-                                cls="flex items-center justify-end group cursor-pointer hover:bg-gray-700/50 rounded px-2 py-1 transition-colors mb-1 w-full"
+                                cls="flex items-center justify-end group cursor-pointer hover:bg-green-900/20 rounded px-2 py-1 transition-colors mb-1 w-full"
                             ),
                             ft.A(
-                                ft.Span(f"${item['latest_usd']:.2f}", cls="font-bold text-gray-400 group-hover:text-blue-400 transition-colors mr-2 text-sm font-mono tabular-nums"),
-                                ft.Span("TCG", cls="text-[10px] bg-blue-600/20 text-blue-300 group-hover:bg-blue-600 group-hover:text-white px-1.5 py-0.5 rounded transition-colors"),
+                                ft.Span(f"${item['latest_usd']:.2f}", cls="font-bold text-white group-hover:text-blue-300 transition-colors mr-2 text-sm font-mono tabular-nums"),
+                                ft.Span("TCG", cls="text-[10px] bg-blue-700/40 text-blue-300 group-hover:bg-blue-600 group-hover:text-white px-1.5 py-0.5 rounded transition-colors"),
                                 href=tcg_url,
                                 target="_blank",
-                                cls="flex items-center justify-end group cursor-pointer hover:bg-gray-700/50 rounded px-2 py-1 transition-colors w-full"
+                                cls="flex items-center justify-end group cursor-pointer hover:bg-blue-900/20 rounded px-2 py-1 transition-colors w-full"
                             ),
                             cls="flex flex-col items-end min-w-[100px]"
                         ),
@@ -466,14 +466,14 @@ def watchlist_page(request):
                                 href=cm_url,
                                 target="_blank",
                                 rel="noopener",
-                                cls="flex-1 text-center px-4 py-2 bg-gray-700/50 hover:bg-green-600/80 text-gray-300 hover:text-white text-xs font-medium rounded-l-lg transition-colors border-r border-gray-600/60",
+                                cls="flex-1 text-center px-4 py-2 bg-green-700/30 hover:bg-green-600 text-green-300 hover:text-white text-xs font-medium rounded-l-lg transition-colors border-r border-green-900/40",
                             ),
                             ft.A(
                                 "TCGPlayer",
                                 href=tcg_url,
                                 target="_blank",
                                 rel="noopener",
-                                cls="flex-1 text-center px-4 py-2 bg-gray-700/50 hover:bg-blue-600/80 text-gray-300 hover:text-white text-xs font-medium rounded-r-lg transition-colors",
+                                cls="flex-1 text-center px-4 py-2 bg-blue-700/30 hover:bg-blue-600 text-blue-300 hover:text-white text-xs font-medium rounded-r-lg transition-colors",
                             ),
                             cls="flex w-full mt-3"
                         ),
