@@ -1,7 +1,7 @@
 from fasthtml import ft
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from op_tcg.backend.db import add_to_watchlist, remove_from_watchlist, update_watchlist_tags, get_watchlist, DEFAULT_WATCHLIST_TAG
+from op_tcg.backend.db import add_to_watchlist, remove_from_watchlist, update_watchlist_tags, update_watchlist_quantity, get_watchlist, DEFAULT_WATCHLIST_TAG
 from op_tcg.frontend.utils.extract import get_watchlist_aggregate_price_data, get_card_id_card_data_lookup
 from op_tcg.frontend.utils.charts import create_price_development_chart
 
@@ -130,6 +130,34 @@ def setup_watchlist_routes(rt):
 
         return JSONResponse({"status": "success", "message": "Card removed from watchlist"})
 
+    @rt("/api/watchlist/quantity", methods=["POST"])
+    async def update_quantity(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
+        try:
+            data = await request.json()
+        except Exception:
+            return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+
+        card_id = data.get('card_id')
+        card_version = 0 if data.get('card_version') in (None, 'Base', 0) else int(data.get('card_version', 0))
+        language = data.get('language', 'en')
+
+        if not card_id:
+            return JSONResponse({"error": "Missing card_id"}, status_code=400)
+
+        try:
+            quantity = max(1, int(data.get('quantity', 1)))
+        except (ValueError, TypeError):
+            quantity = 1
+
+        user_id = user.get('sub')
+        update_watchlist_quantity(user_id, card_id, card_version, language, quantity)
+
+        return JSONResponse({"status": "success", "quantity": quantity})
+
     @rt("/api/watchlist/tags", methods=["POST"])
     async def update_tags(request: Request):
         user = request.session.get('user')
@@ -203,8 +231,9 @@ def setup_watchlist_routes(rt):
                 aa_version = int(version_val) if version_val not in (None, 'Base') else 0
             except (ValueError, TypeError):
                 aa_version = 0
+            quantity = max(1, int(item.get('quantity', 1)))
             if card_id:
-                card_versions.append((card_id, aa_version))
+                card_versions.append((card_id, aa_version, quantity))
 
         if not card_versions:
             return ft.Div(

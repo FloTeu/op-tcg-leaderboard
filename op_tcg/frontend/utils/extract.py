@@ -463,13 +463,14 @@ def get_card_price_development_data(card_id: str, days: int = 90, include_alt_ar
     return result
 
 
-def get_watchlist_aggregate_price_data(card_versions: list[tuple[str, int]], days: int = 90) -> dict[str, list[dict]]:
+def get_watchlist_aggregate_price_data(card_versions: list[tuple[str, int, int]], days: int = 90) -> dict[str, list[dict]]:
     """
     Get aggregated daily portfolio value and per-card release dates for a set of
-    (card_id, aa_version) pairs in a single query.
+    (card_id, aa_version, quantity) tuples in a single query.
 
-    The date filter for totals is applied inside the query; release dates are derived
-    from the full unfiltered history so they are always accurate.
+    Prices are weighted by quantity so the portfolio total reflects how many copies
+    the user owns.  The date filter for totals is applied inside the query; release
+    dates are derived from the full unfiltered history so they are always accurate.
 
     Returns:
         {
@@ -485,32 +486,52 @@ def get_watchlist_aggregate_price_data(card_versions: list[tuple[str, int]], day
 
     pair_filters = " OR ".join(
         f"(card_id = '{card_id}' AND aa_version = {aa_version})"
-        for card_id, aa_version in card_versions
+        for card_id, aa_version, *_ in card_versions
+    )
+
+    # Inline quantities as a VALUES CTE so we can weight the SUM
+    qty_rows = " UNION ALL ".join(
+        f"SELECT '{card_id}' AS card_id, {aa_version} AS aa_version, {max(1, int(qty))} AS quantity"
+        for card_id, aa_version, *rest in card_versions
+        for qty in [rest[0] if rest else 1]
     )
 
     query = f"""
-    WITH all_prices AS (
+    WITH quantities AS (
+      {qty_rows}
+    ),
+    all_prices AS (
       SELECT
-        card_id,
-        aa_version,
-        currency,
-        DATE(create_timestamp) AS price_date,
-        AVG(price) AS avg_price
-      FROM `{history_tbl}`
+        p.card_id,
+        p.aa_version,
+        p.currency,
+        DATE(p.create_timestamp) AS price_date,
+        AVG(p.price) AS avg_price
+      FROM `{history_tbl}` p
       WHERE ({pair_filters})
         AND language = 'en'
         AND currency IN ('eur', 'usd')
-      GROUP BY card_id, aa_version, currency, price_date
+      GROUP BY p.card_id, p.aa_version, p.currency, price_date
+    ),
+    weighted AS (
+      SELECT
+        ap.currency,
+        ap.price_date,
+        ap.card_id,
+        ap.aa_version,
+        ap.avg_price * q.quantity AS weighted_price
+      FROM all_prices ap
+      JOIN quantities q ON ap.card_id = q.card_id AND ap.aa_version = q.aa_version
     ),
     daily_totals AS (
       SELECT
         'price'    AS record_type,
         currency,
         price_date AS date,
-        SUM(avg_price) AS value,
+        SUM(weighted_price) AS value,
         CAST(NULL AS STRING)  AS card_id,
         CAST(NULL AS INT64)   AS aa_version
-      FROM all_prices
+      FROM weighted
       WHERE price_date >= DATE_SUB(CURRENT_DATE(), INTERVAL {days} DAY)
       GROUP BY currency, price_date
     ),

@@ -6,6 +6,52 @@ from op_tcg.frontend.utils.extract import get_card_lookup_by_id_and_aa
 from op_tcg.frontend.components.loading import create_loading_spinner
 from op_tcg.backend.models.cards import CardCurrency
 
+
+def _qty_stepper(card_id: str, aa_version: int, language: str, quantity: int) -> ft.Div:
+    """−/count/+ quantity stepper. JS in _qty_script() handles clicks."""
+    return ft.Div(
+        ft.Button("−", type="button", cls="qty-btn w-7 h-7 flex items-center justify-center rounded-l bg-gray-700 hover:bg-gray-600 text-white text-base font-bold leading-none transition-colors", data_delta="-1"),
+        ft.Span(str(quantity), cls="qty-value w-8 text-center text-white text-sm font-semibold bg-gray-800 h-7 flex items-center justify-center select-none"),
+        ft.Button("+", type="button", cls="qty-btn w-7 h-7 flex items-center justify-center rounded-r bg-gray-700 hover:bg-gray-600 text-white text-base font-bold leading-none transition-colors", data_delta="1"),
+        cls="qty-stepper flex items-center",
+        data_card_id=card_id,
+        data_card_version=str(aa_version),
+        data_language=language,
+    )
+
+
+def _qty_script() -> ft.Script:
+    return ft.Script("""
+(function(){
+  function init(){
+    document.querySelectorAll('.qty-btn').forEach(function(btn){
+      if(btn._qi) return; btn._qi=true;
+      btn.addEventListener('click', async function(){
+        var s=btn.closest('.qty-stepper');
+        var d=s.querySelector('.qty-value');
+        var cur=parseInt(d.textContent,10);
+        var next=Math.max(1,cur+parseInt(btn.dataset.delta,10));
+        if(next===cur) return;
+        d.textContent=next;
+        // update nearest price spans
+        var card=s.closest('[data-eur-price]');
+        if(card){
+          var eur=parseFloat(card.dataset.eurPrice);
+          var usd=parseFloat(card.dataset.usdPrice);
+          card.querySelectorAll('[data-price-eur]').forEach(function(el){el.textContent='€'+(eur*next).toFixed(2);});
+          card.querySelectorAll('[data-price-usd]').forEach(function(el){el.textContent='$'+(usd*next).toFixed(2);});
+        }
+        await fetch('/api/watchlist/quantity',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({card_id:s.dataset.cardId,card_version:parseInt(s.dataset.cardVersion,10),language:s.dataset.language,quantity:next})});
+      });
+    });
+  }
+  document.addEventListener('DOMContentLoaded',init);
+  document.addEventListener('htmx:afterSwap',init);
+})();
+""")
+
+
 def watchlist_page(request):
     user = request.session.get('user')
     if not user:
@@ -85,11 +131,13 @@ def watchlist_page(request):
         tags = item.get('tags', ['my collection'])
         if not tags:
             tags = ['my collection']
+        quantity = max(1, int(item.get('quantity', 1)))
 
         item_data = {
             'card_id': card_id,
             'aa_version': aa_version,
             'language': language,
+            'quantity': quantity,
             'card_details': card_details,
             'card_name': card_name,
             'image_url': image_url,
@@ -99,9 +147,10 @@ def watchlist_page(request):
         }
         prepared_items.append(item_data)
 
-    # Totals for portfolio summary (over filtered items)
-    total_eur = sum(item['latest_eur'] for item in prepared_items)
-    total_usd = sum(item['latest_usd'] for item in prepared_items)
+    # Totals for portfolio summary — weighted by quantity
+    total_eur = sum(item['latest_eur'] * item['quantity'] for item in prepared_items)
+    total_usd = sum(item['latest_usd'] * item['quantity'] for item in prepared_items)
+    total_copies = sum(item['quantity'] for item in prepared_items)
     card_count = len(prepared_items)
 
     # Sort items
@@ -179,6 +228,7 @@ def watchlist_page(request):
             card_id = item['card_id']
             aa_version = item['aa_version']
             language = item['language']
+            quantity = item['quantity']
             card_details = item['card_details']
             card_name = item['card_name']
             image_url = item['image_url']
@@ -245,18 +295,18 @@ def watchlist_page(request):
                         ),
                         cls="px-5 py-4 align-top"
                     ),
-                    # Latest Price
+                    # Latest Price (× quantity)
                     ft.Td(
                         ft.Div(
                             ft.A(
-                                ft.Span(f"€{item['latest_eur']:.2f}", cls="font-bold text-white group-hover:text-green-300 transition-colors mr-2 text-sm font-mono tabular-nums"),
+                                ft.Span(f"€{item['latest_eur'] * quantity:.2f}", cls="font-bold text-white group-hover:text-green-300 transition-colors mr-2 text-sm font-mono tabular-nums", data_price_eur=True),
                                 ft.Span("CM", cls="text-[10px] bg-green-700/40 text-green-300 group-hover:bg-green-600 group-hover:text-white px-1.5 py-0.5 rounded transition-colors"),
                                 href=cm_url,
                                 target="_blank",
                                 cls="flex items-center justify-end group cursor-pointer hover:bg-green-900/20 rounded px-2 py-1 transition-colors mb-1 w-full"
                             ),
                             ft.A(
-                                ft.Span(f"${item['latest_usd']:.2f}", cls="font-bold text-white group-hover:text-blue-300 transition-colors mr-2 text-sm font-mono tabular-nums"),
+                                ft.Span(f"${item['latest_usd'] * quantity:.2f}", cls="font-bold text-white group-hover:text-blue-300 transition-colors mr-2 text-sm font-mono tabular-nums", data_price_usd=True),
                                 ft.Span("TCG", cls="text-[10px] bg-blue-700/40 text-blue-300 group-hover:bg-blue-600 group-hover:text-white px-1.5 py-0.5 rounded transition-colors"),
                                 href=tcg_url,
                                 target="_blank",
@@ -274,6 +324,13 @@ def watchlist_page(request):
                             cls="flex flex-col"
                         ),
                         cls="px-5 py-4 whitespace-nowrap align-middle"
+                    ),
+                    # Quantity
+                    ft.Td(
+                        _qty_stepper(card_id, aa_version, language, quantity),
+                        cls="px-5 py-4 whitespace-nowrap align-middle",
+                        data_eur_price=str(item['latest_eur']),
+                        data_usd_price=str(item['latest_usd']),
                     ),
                     # Actions
                     ft.Td(
@@ -327,8 +384,9 @@ def watchlist_page(request):
                 ft.Thead(
                     ft.Tr(
                         ft.Th(sort_link("Card", "name"), cls="px-5 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-widest w-1/3 min-w-[250px]"),
-                        ft.Th(sort_link("Latest Price", "price"), cls="px-5 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-widest whitespace-nowrap w-28"),
+                        ft.Th(sort_link("Price", "price"), cls="px-5 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-widest whitespace-nowrap w-28"),
                         ft.Th("Version", cls="px-5 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-widest whitespace-nowrap w-24"),
+                        ft.Th("Qty", cls="px-5 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-widest w-24"),
                         ft.Th("Actions", cls="px-5 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-widest w-24"),
                         ft.Th("Price Trend", cls="px-5 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-widest min-w-[300px]"),
                     ),
@@ -350,6 +408,7 @@ def watchlist_page(request):
             card_id = item['card_id']
             aa_version = item['aa_version']
             language = item['language']
+            quantity = item['quantity']
             card_details = item['card_details']
             card_name = item['card_name']
             image_url = item['image_url']
@@ -411,8 +470,8 @@ def watchlist_page(request):
                             ft.H3(card_name, cls="text-base font-bold text-white hover:text-blue-400 transition-colors leading-snug"),
                             ft.P(f"{card_id} · {version_label} · {language.upper()}", cls="text-xs text-gray-500 mt-0.5 uppercase tracking-wide"),
                             ft.Div(
-                                ft.Span(f"€{item['latest_eur']:.2f}", cls="text-sm font-bold text-white font-mono tabular-nums mr-3"),
-                                ft.Span(f"${item['latest_usd']:.2f}", cls="text-sm font-bold text-gray-400 font-mono tabular-nums"),
+                                ft.Span(f"€{item['latest_eur'] * quantity:.2f}", cls="text-sm font-bold text-white font-mono tabular-nums mr-3", data_price_eur=True),
+                                ft.Span(f"${item['latest_usd'] * quantity:.2f}", cls="text-sm font-bold text-gray-400 font-mono tabular-nums", data_price_usd=True),
                                 cls="mt-1.5"
                             ),
                             tag_chips,
@@ -422,7 +481,15 @@ def watchlist_page(request):
                             hx_swap="beforeend"
                         ),
                         ft.Div(toggle_btn, cls="flex-shrink-0 ml-2"),
-                        cls="flex items-start px-5 py-4 border-b border-gray-700/60"
+                        cls="flex items-start px-5 py-4 border-b border-gray-700/60",
+                        data_eur_price=str(item['latest_eur']),
+                        data_usd_price=str(item['latest_usd']),
+                    ),
+                    # Quantity row
+                    ft.Div(
+                        ft.Span("Qty:", cls="text-xs text-gray-500 mr-2"),
+                        _qty_stepper(card_id, aa_version, language, quantity),
+                        cls="flex items-center px-5 py-2 border-b border-gray-700/60"
                     ),
                     # Chart section
                     ft.Div(
@@ -533,6 +600,12 @@ def watchlist_page(request):
                 ft.Span(str(card_count), cls="text-2xl font-bold text-white font-mono tabular-nums"),
                 cls="flex flex-col"
             ),
+            ft.Div(cls="w-px bg-gray-700 self-stretch mx-2"),
+            ft.Div(
+                ft.Span("Copies", cls="text-xs text-gray-500 uppercase tracking-widest block mb-1"),
+                ft.Span(str(total_copies), cls="text-2xl font-bold text-white font-mono tabular-nums"),
+                cls="flex flex-col"
+            ),
             ft.Div(
                 ft.Span("Collection", cls="text-xs text-gray-500 uppercase tracking-widest block mb-1"),
                 ft.Span(collection_label, cls="text-sm font-medium text-blue-400 truncate max-w-[140px]"),
@@ -585,6 +658,7 @@ def watchlist_page(request):
     )
 
     return ft.Div(
+        _qty_script(),
         ft.Div(
             ft.H1("My Watchlist", cls="text-2xl font-bold text-white"),
             view_switcher,
