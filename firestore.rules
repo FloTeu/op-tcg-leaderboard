@@ -1,0 +1,23 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users may read and write only their own document and subcollections.
+    // In practice all writes go through the server-side Admin SDK (which
+    // bypasses these rules), so this acts as a hard deny for any direct
+    // client-side access attempt.
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      match /watchlist/{item} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Deny all direct access to every other path.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
