@@ -522,7 +522,7 @@ def privacy(request: Request):
 def watchlist_route(request: Request):
     user = request.session.get('user')
     if not user:
-        return ft.RedirectResponse(url="/login")
+        return RedirectResponse(url="/login")
 
     # Add canonical link to head based on incoming host
     canonical_url = f"{canonical_base(request)}/watchlist"
