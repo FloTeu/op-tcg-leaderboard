@@ -153,20 +153,51 @@ class CardImageUpdateToGCPEtlJob(AbstractETLJob[list[Card], list[Card]]):
         return cards
 
 
+    @staticmethod
+    def _download_with_retry(url: str, max_retries: int = 3) -> bytes:
+        """Download image with exponential backoff on connection errors."""
+        delay = 5
+        last_exc: Exception = RuntimeError(f"max_retries must be >= 1, got {max_retries}")
+        for attempt in range(max_retries):
+            try:
+                response = requests.get(url, timeout=30)
+                response.raise_for_status()
+                return response.content
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+                last_exc = e
+                if attempt == max_retries - 1:
+                    break
+                _logger.warning(f"Connection error on attempt {attempt + 1}/{max_retries} for {url}: {e}. Retrying in {delay}s...")
+                time.sleep(delay)
+                delay *= 2
+        raise last_exc
+
     def transform(self, cards: list[Card]) -> list[Card]:
+        successful: list[Card] = []
+        failed_count = 0
         for i, card in enumerate(cards):
-            with tempfile.NamedTemporaryFile() as tmp:
-                img_data = requests.get(card.image_url).content
-                tmp.write(img_data)
-                file_type = card.image_url.split('.')[-1]
-                image_url_path = f"card/images/{card.language.upper()}/{card.aa_version}/{card.id}.{file_type}"
-                upload2gcp_storage(path_to_file=tmp.name,
-                                   bucket=self.bucket,
-                                   blob_name=image_url_path,
-                                   content_type=f"image/{file_type}",
-                                   client=self.storage_client)
-                card.image_url = f"https://storage.googleapis.com/{self.bucket}/{image_url_path}"
-        return cards
+            try:
+                with tempfile.NamedTemporaryFile() as tmp:
+                    img_data = self._download_with_retry(card.image_url)
+                    tmp.write(img_data)
+                    file_type = card.image_url.split('.')[-1]
+                    image_url_path = f"card/images/{card.language.upper()}/{card.aa_version}/{card.id}.{file_type}"
+                    upload2gcp_storage(path_to_file=tmp.name,
+                                       bucket=self.bucket,
+                                       blob_name=image_url_path,
+                                       content_type=f"image/{file_type}",
+                                       client=self.storage_client)
+                    card.image_url = f"https://storage.googleapis.com/{self.bucket}/{image_url_path}"
+                    successful.append(card)
+                # Brief pause to avoid rate limiting
+                time.sleep(0.5)
+            except Exception as e:
+                failed_count += 1
+                _logger.error(f"Failed to process card {card.id} ({card.language}, aa_version={card.aa_version}): {e}")
+
+        if failed_count:
+            _logger.warning(f"transform: {len(successful)} cards succeeded, {failed_count} failed. Partial results will be loaded to BQ.")
+        return successful
 
     def load(self, cards: list[Card]) -> None:
         if len(cards) > 0:
