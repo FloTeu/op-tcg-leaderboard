@@ -2,7 +2,7 @@ from fasthtml import ft
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from op_tcg.backend.db import add_to_watchlist, remove_from_watchlist, update_watchlist_tags, get_watchlist, DEFAULT_WATCHLIST_TAG
-from op_tcg.frontend.utils.extract import get_watchlist_aggregate_price_data
+from op_tcg.frontend.utils.extract import get_watchlist_aggregate_price_data, get_card_id_card_data_lookup
 from op_tcg.frontend.utils.charts import create_price_development_chart
 
 def _parse_tags(raw) -> list:
@@ -226,6 +226,20 @@ def setup_watchlist_routes(rt):
                 cls="h-full flex items-center justify-center"
             )
 
+        # Build release event markers from data already returned by the aggregate query
+        release_events = []
+        try:
+            raw_releases = price_data.get('releases', [])
+            if raw_releases:
+                card_lookup = get_card_id_card_data_lookup()
+                for r in raw_releases:
+                    card = card_lookup.get(r['card_id'])
+                    name = card.name if card else r['card_id']
+                    aa_label = f" (Alt Art {r['aa_version']})" if r['aa_version'] else ""
+                    release_events.append({'date': r['date'], 'label': f"{name}{aa_label}"})
+        except Exception:
+            pass  # Release markers are non-critical
+
         label = f'"{tag_filter}"' if tag_filter else "All Cards"
         chart_id = f"portfolio-aggregate-chart-{days}-{tag_filter.replace(' ', '-') or 'all'}"
 
@@ -235,4 +249,5 @@ def setup_watchlist_routes(rt):
             card_name=f"Portfolio · {label}",
             show_x_axis=True,
             show_legend=True,
+            release_events=release_events,
         )

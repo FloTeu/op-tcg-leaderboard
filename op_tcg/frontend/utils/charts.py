@@ -911,7 +911,7 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
     )
 
 
-def create_price_development_chart(container_id: str, price_data: dict[str, list[dict]], card_name: str = "", show_x_axis: bool = True, show_legend: bool = True) -> ft.Div:
+def create_price_development_chart(container_id: str, price_data: dict[str, list[dict]], card_name: str = "", show_x_axis: bool = True, show_legend: bool = True, release_events: list[dict] = None) -> ft.Div:
     """
     Creates a price development chart showing EUR and USD prices over time using Chart.js
 
@@ -954,7 +954,8 @@ def create_price_development_chart(container_id: str, price_data: dict[str, list
         'data': chart_data,
         'cardName': card_name,
         'showXAxis': show_x_axis,
-        'showLegend': show_legend
+        'showLegend': show_legend,
+        'releaseEvents': release_events or [],
     }
 
     return ft.Div(

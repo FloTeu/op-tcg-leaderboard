@@ -465,14 +465,21 @@ def get_card_price_development_data(card_id: str, days: int = 90, include_alt_ar
 
 def get_watchlist_aggregate_price_data(card_versions: list[tuple[str, int]], days: int = 90) -> dict[str, list[dict]]:
     """
-    Get aggregated daily portfolio value for a set of (card_id, aa_version) pairs.
-    Sums per-card daily average prices to produce total portfolio value over time.
+    Get aggregated daily portfolio value and per-card release dates for a set of
+    (card_id, aa_version) pairs in a single query.
+
+    The date filter for totals is applied inside the query; release dates are derived
+    from the full unfiltered history so they are always accurate.
 
     Returns:
-        Dictionary with 'eur' and 'usd' keys containing total value per day.
+        {
+          'eur': [{'date': ..., 'price': ...}, ...],
+          'usd': [...],
+          'releases': [{'card_id': ..., 'aa_version': ..., 'date': ...}, ...],
+        }
     """
     if not card_versions:
-        return {'eur': [], 'usd': []}
+        return {'eur': [], 'usd': [], 'releases': []}
 
     history_tbl = get_bq_table_id(CardPrice).replace(":", ".")
 
@@ -482,7 +489,7 @@ def get_watchlist_aggregate_price_data(card_versions: list[tuple[str, int]], day
     )
 
     query = f"""
-    WITH price_history AS (
+    WITH all_prices AS (
       SELECT
         card_id,
         aa_version,
@@ -491,30 +498,57 @@ def get_watchlist_aggregate_price_data(card_versions: list[tuple[str, int]], day
         AVG(price) AS avg_price
       FROM `{history_tbl}`
       WHERE ({pair_filters})
-        AND create_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)
         AND language = 'en'
         AND currency IN ('eur', 'usd')
       GROUP BY card_id, aa_version, currency, price_date
+    ),
+    daily_totals AS (
+      SELECT
+        'price'    AS record_type,
+        currency,
+        price_date AS date,
+        SUM(avg_price) AS value,
+        CAST(NULL AS STRING)  AS card_id,
+        CAST(NULL AS INT64)   AS aa_version
+      FROM all_prices
+      WHERE price_date >= DATE_SUB(CURRENT_DATE(), INTERVAL {days} DAY)
+      GROUP BY currency, price_date
+    ),
+    first_dates AS (
+      SELECT
+        'release'  AS record_type,
+        'eur'      AS currency,
+        MIN(price_date) AS date,
+        0.0        AS value,
+        card_id,
+        aa_version
+      FROM all_prices
+      WHERE currency = 'eur'
+      GROUP BY card_id, aa_version
     )
-    SELECT
-      currency,
-      price_date,
-      SUM(avg_price) AS total_price
-    FROM price_history
-    GROUP BY currency, price_date
-    ORDER BY currency, price_date ASC
+    SELECT * FROM daily_totals
+    UNION ALL
+    SELECT * FROM first_dates
+    ORDER BY date ASC
     """
 
     rows = run_bq_query(query, ttl_hours=1.0)
 
-    result: dict[str, list[dict]] = {'eur': [], 'usd': []}
+    result: dict = {'eur': [], 'usd': [], 'releases': []}
     for row in rows:
-        currency = row['currency']
-        price_date = row['price_date'].isoformat() if hasattr(row['price_date'], 'isoformat') else str(row['price_date'])
-        result[currency].append({
-            'date': price_date,
-            'price': float(row['total_price']) if row['total_price'] is not None else None
-        })
+        record_type = row['record_type']
+        date_val = row['date'].isoformat() if hasattr(row['date'], 'isoformat') else str(row['date'])
+        if record_type == 'price':
+            result[row['currency']].append({
+                'date': date_val,
+                'price': float(row['value']) if row['value'] is not None else None,
+            })
+        else:
+            result['releases'].append({
+                'card_id': row['card_id'],
+                'aa_version': int(row['aa_version']),
+                'date': date_val,
+            })
 
     return result
 

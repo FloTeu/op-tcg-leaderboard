@@ -876,8 +876,17 @@ class ChartManager {
             data,
             cardName,
             showXAxis = true,
-            showLegend = true
+            showLegend = true,
+            releaseEvents = []
         } = config;
+
+        // Group release events by date for efficient lookup
+        const releasesByDate = {};
+        releaseEvents.forEach(r => {
+            if (!releasesByDate[r.date]) releasesByDate[r.date] = [];
+            releasesByDate[r.date].push(r.label);
+        });
+        const hasReleases = Object.keys(releasesByDate).length > 0;
 
         this.destroyChart(containerId);
 
@@ -946,12 +955,52 @@ class ChartManager {
                 });
             }
 
+            // Inline plugin: draw vertical dashed bars for card release dates
+            const releaseLinesPlugin = {
+                id: 'releaseLines',
+                afterDraw: function(chart) {
+                    if (!hasReleases) return;
+                    const labels = chart.data.labels;
+                    if (!labels || !labels.length) return;
+                    const ctx = chart.ctx;
+                    const xScale = chart.scales.x;
+                    const yScale = chart.scales.y;
+                    ctx.save();
+                    Object.keys(releasesByDate).forEach(date => {
+                        const idx = labels.indexOf(date);
+                        if (idx === -1) return;
+                        const x = xScale.getPixelForValue(idx);
+                        // Dashed amber line
+                        ctx.beginPath();
+                        ctx.strokeStyle = 'rgba(251, 191, 36, 0.55)';
+                        ctx.lineWidth = 1.5;
+                        ctx.setLineDash([3, 4]);
+                        ctx.moveTo(x, yScale.top);
+                        ctx.lineTo(x, yScale.bottom);
+                        ctx.stroke();
+                        // Filled diamond at the bottom of the line
+                        ctx.setLineDash([]);
+                        ctx.fillStyle = 'rgba(251, 191, 36, 0.85)';
+                        ctx.beginPath();
+                        const s = 4;
+                        ctx.moveTo(x, yScale.bottom - s * 2);
+                        ctx.lineTo(x + s, yScale.bottom - s);
+                        ctx.lineTo(x, yScale.bottom);
+                        ctx.lineTo(x - s, yScale.bottom - s);
+                        ctx.closePath();
+                        ctx.fill();
+                    });
+                    ctx.restore();
+                }
+            };
+
             const chart = new Chart(canvas, {
                 type: 'line',
                 data: {
                     labels: data.map(d => d.date),
                     datasets: datasets
                 },
+                plugins: hasReleases ? [releaseLinesPlugin] : [],
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
@@ -997,6 +1046,13 @@ class ChartManager {
                                     }
                                     const currency = context.dataset.label.toLowerCase().includes('eur') ? '€' : '$';
                                     return context.dataset.label + ': ' + currency + value.toFixed(2);
+                                },
+                                afterBody: function(context) {
+                                    if (!hasReleases || !context.length) return [];
+                                    const date = context[0].label;
+                                    const cards = releasesByDate[date];
+                                    if (!cards || !cards.length) return [];
+                                    return ['', '◆ Released:', ...cards.map(c => '  ' + c)];
                                 }
                             }
                         }
