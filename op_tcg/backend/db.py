@@ -2,6 +2,8 @@ from google.cloud import firestore
 from op_tcg.backend.models.cards import OPTcgLanguage, CardCurrency
 from op_tcg.backend.models.input import MetaFormatRegion
 
+DEFAULT_WATCHLIST_TAG = "my collection"
+
 # Initialize Firestore
 # Using a singleton pattern to avoid re-initializing the client
 _db = None
@@ -57,7 +59,7 @@ def update_user_login(user_info: dict):
     # Use merge=True to update fields without overwriting the entire document
     db.collection('users').document(user_id).set(data, merge=True)
 
-def add_to_watchlist(user_id: str, card_id: str, card_version: int = 0, language: OPTcgLanguage = OPTcgLanguage.EN):
+def add_to_watchlist(user_id: str, card_id: str, card_version: int = 0, language: OPTcgLanguage = OPTcgLanguage.EN, tags: list = None):
     """
     Adds a card to the user's watchlist efficiently.
     """
@@ -75,8 +77,19 @@ def add_to_watchlist(user_id: str, card_id: str, card_version: int = 0, language
         'card_id': card_id,
         'card_version': card_version,
         'language': language,
+        'tags': tags if tags is not None else [DEFAULT_WATCHLIST_TAG],
         'added_at': firestore.SERVER_TIMESTAMP
     })
+
+def update_watchlist_tags(user_id: str, card_id: str, card_version: int = 0, language: OPTcgLanguage = OPTcgLanguage.EN, tags: list = None):
+    """Updates the tags of an existing watchlist item."""
+    db = get_db()
+    if not db:
+        return
+    doc_id = f"{card_id}_{card_version}_{language}"
+    db.collection('users').document(user_id).collection('watchlist').document(doc_id).update(
+        {'tags': tags or [DEFAULT_WATCHLIST_TAG]}
+    )
 
 def remove_from_watchlist(user_id: str, card_id: str, card_version: int  = 0, language: OPTcgLanguage = OPTcgLanguage.EN):
     """

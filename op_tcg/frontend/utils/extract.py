@@ -462,6 +462,97 @@ def get_card_price_development_data(card_id: str, days: int = 90, include_alt_ar
     
     return result
 
+
+def get_watchlist_aggregate_price_data(card_versions: list[tuple[str, int]], days: int = 90) -> dict[str, list[dict]]:
+    """
+    Get aggregated daily portfolio value and per-card release dates for a set of
+    (card_id, aa_version) pairs in a single query.
+
+    The date filter for totals is applied inside the query; release dates are derived
+    from the full unfiltered history so they are always accurate.
+
+    Returns:
+        {
+          'eur': [{'date': ..., 'price': ...}, ...],
+          'usd': [...],
+          'releases': [{'card_id': ..., 'aa_version': ..., 'date': ...}, ...],
+        }
+    """
+    if not card_versions:
+        return {'eur': [], 'usd': [], 'releases': []}
+
+    history_tbl = get_bq_table_id(CardPrice).replace(":", ".")
+
+    pair_filters = " OR ".join(
+        f"(card_id = '{card_id}' AND aa_version = {aa_version})"
+        for card_id, aa_version in card_versions
+    )
+
+    query = f"""
+    WITH all_prices AS (
+      SELECT
+        card_id,
+        aa_version,
+        currency,
+        DATE(create_timestamp) AS price_date,
+        AVG(price) AS avg_price
+      FROM `{history_tbl}`
+      WHERE ({pair_filters})
+        AND language = 'en'
+        AND currency IN ('eur', 'usd')
+      GROUP BY card_id, aa_version, currency, price_date
+    ),
+    daily_totals AS (
+      SELECT
+        'price'    AS record_type,
+        currency,
+        price_date AS date,
+        SUM(avg_price) AS value,
+        CAST(NULL AS STRING)  AS card_id,
+        CAST(NULL AS INT64)   AS aa_version
+      FROM all_prices
+      WHERE price_date >= DATE_SUB(CURRENT_DATE(), INTERVAL {days} DAY)
+      GROUP BY currency, price_date
+    ),
+    first_dates AS (
+      SELECT
+        'release'  AS record_type,
+        'eur'      AS currency,
+        MIN(price_date) AS date,
+        0.0        AS value,
+        card_id,
+        aa_version
+      FROM all_prices
+      WHERE currency = 'eur'
+      GROUP BY card_id, aa_version
+    )
+    SELECT * FROM daily_totals
+    UNION ALL
+    SELECT * FROM first_dates
+    ORDER BY date ASC
+    """
+
+    rows = run_bq_query(query, ttl_hours=1.0)
+
+    result: dict = {'eur': [], 'usd': [], 'releases': []}
+    for row in rows:
+        record_type = row['record_type']
+        date_val = row['date'].isoformat() if hasattr(row['date'], 'isoformat') else str(row['date'])
+        if record_type == 'price':
+            result[row['currency']].append({
+                'date': date_val,
+                'price': float(row['value']) if row['value'] is not None else None,
+            })
+        else:
+            result['releases'].append({
+                'card_id': row['card_id'],
+                'aa_version': int(row['aa_version']),
+                'date': date_val,
+            })
+
+    return result
+
+
 def get_leader_average_deck_prices(meta_format: MetaFormat, region: MetaFormatRegion) -> dict[str, float]:
     """Calculate average deck price in EUR for each leader in the given meta format and region."""
     decklists = get_tournament_decklist_data(meta_formats=[meta_format], meta_format_region=region)
