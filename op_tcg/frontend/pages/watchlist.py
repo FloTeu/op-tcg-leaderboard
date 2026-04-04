@@ -33,6 +33,24 @@ def watchlist_page(request):
     view_mode = request.query_params.get("view", "list")
     sort_by = request.query_params.get("sort", "name")
     sort_order = request.query_params.get("order", "asc")
+    tag_filter = request.query_params.get("tag", "")
+
+    # Collect all unique tags for filter bar (before filtering)
+    all_tags = sorted({tag for item in watchlist for tag in item.get('tags', ['my collection'])})
+
+    # Filter by tag if active
+    if tag_filter:
+        watchlist = [item for item in watchlist if tag_filter in item.get('tags', ['my collection'])]
+
+    def build_url(view=None, sort=None, order=None, tag=None):
+        v = view or view_mode
+        s = sort or sort_by
+        o = order or sort_order
+        t = tag if tag is not None else tag_filter
+        params = f"view={v}&sort={s}&order={o}"
+        if t:
+            params += f"&tag={t}"
+        return f"?{params}"
 
     # Prepare data for rendering (needed for both views to support sorting/prices)
     prepared_items = []
@@ -64,6 +82,10 @@ def watchlist_page(request):
         if latest_eur is None: latest_eur = 0.0
         if latest_usd is None: latest_usd = 0.0
 
+        tags = item.get('tags', ['my collection'])
+        if not tags:
+            tags = ['my collection']
+
         item_data = {
             'card_id': card_id,
             'aa_version': aa_version,
@@ -72,7 +94,8 @@ def watchlist_page(request):
             'card_name': card_name,
             'image_url': image_url,
             'latest_eur': latest_eur,
-            'latest_usd': latest_usd
+            'latest_usd': latest_usd,
+            'tags': tags,
         }
         prepared_items.append(item_data)
 
@@ -90,17 +113,35 @@ def watchlist_page(request):
         ft.A(
             ft.I(cls="fas fa-th-large mr-2"),
             "Grid",
-            href=f"?view=list&sort={sort_by}&order={sort_order}",
+            href=build_url(view="list"),
             cls=f"px-4 py-2 rounded-l-lg border border-gray-600 {'bg-blue-600 text-white' if view_mode == 'list' else 'bg-gray-800 text-gray-400 hover:bg-gray-700'} flex items-center transition-colors text-sm font-medium"
         ),
         ft.A(
             ft.I(cls="fas fa-table mr-2"),
             "Table",
-            href=f"?view=table&sort={sort_by}&order={sort_order}",
+            href=build_url(view="table"),
             cls=f"px-4 py-2 rounded-r-lg border border-gray-600 border-l-0 {'bg-blue-600 text-white' if view_mode == 'table' else 'bg-gray-800 text-gray-400 hover:bg-gray-700'} flex items-center transition-colors text-sm font-medium"
         ),
         cls="flex items-center"
     )
+
+    # Tag filter bar
+    tag_filter_bar = ft.Div(
+        ft.A(
+            "All",
+            href=build_url(tag=""),
+            cls=f"px-3 py-1 rounded-full text-xs font-medium transition-colors mr-1 mb-1 {'bg-blue-600 text-white' if not tag_filter else 'bg-gray-700 text-gray-300 hover:bg-gray-600'}"
+        ),
+        *[
+            ft.A(
+                tag,
+                href=build_url(tag=tag),
+                cls=f"px-3 py-1 rounded-full text-xs font-medium transition-colors mr-1 mb-1 {'bg-blue-600 text-white' if tag_filter == tag else 'bg-gray-700 text-gray-300 hover:bg-gray-600'}"
+            )
+            for tag in all_tags
+        ],
+        cls="flex flex-wrap items-center mb-4"
+    ) if all_tags else ft.Span()
 
     content = None
 
@@ -123,7 +164,7 @@ def watchlist_page(request):
             return ft.A(
                 ft.Span(label),
                 ft.I(cls=f"fas {icon} ml-1"),
-                href=f"?view=table&sort={column}&order={new_order}",
+                href=build_url(view="table", sort=column, order=new_order),
                 cls=link_cls
             )
 
@@ -136,6 +177,7 @@ def watchlist_page(request):
             card_details = item['card_details']
             card_name = item['card_name']
             image_url = item['image_url']
+            tags = item['tags']
 
             # Marketplace Links
             if card_details:
@@ -146,6 +188,23 @@ def watchlist_page(request):
                 tcg_url = f"https://www.tcgplayer.com/search/one-piece-card-game/product?q={card_id}"
 
             version_label = "Base" if aa_version == 0 else f"Alt Art {aa_version}"
+            tags_str = ",".join(tags)
+            tag_target_id = f"tags-{card_id}-{aa_version}-{language}"
+            tag_chips = ft.Div(
+                *[ft.Span(tag, cls="inline-block bg-blue-600/30 text-blue-300 text-xs px-2 py-0.5 rounded-full mr-1") for tag in tags],
+                ft.Button(
+                    ft.I(cls="fas fa-pen text-xs"),
+                    type="button",
+                    cls="text-gray-600 hover:text-gray-300 ml-1 transition-colors",
+                    title="Edit tags",
+                    hx_get=f"/api/watchlist/tag-editor?card_id={card_id}&card_version={aa_version}&language={language}&tags={tags_str}",
+                    hx_target=f"#{tag_target_id}",
+                    hx_swap="outerHTML",
+                ),
+                id=tag_target_id,
+                cls="flex flex-wrap items-center mt-1",
+                onclick="event.stopPropagation();"
+            )
 
             chart_id = f"chart-table-{card_id}-{aa_version}-{language}"
 
@@ -174,6 +233,7 @@ def watchlist_page(request):
                                        hx_target="body",
                                        hx_swap="beforeend"),
                                 ft.Div(f"{card_id}", cls="text-sm text-gray-400"),
+                                tag_chips,
                                 cls="flex flex-col min-w-0"
                             ),
                             cls="flex items-center"
@@ -288,6 +348,7 @@ def watchlist_page(request):
             card_details = item['card_details']
             card_name = item['card_name']
             image_url = item['image_url']
+            tags = item['tags']
 
             # Generate marketplace links
             if card_details:
@@ -302,6 +363,24 @@ def watchlist_page(request):
 
             # Create unique ID for chart container
             chart_id = f"chart-{card_id}-{aa_version}-{language}"
+
+            tags_str = ",".join(tags)
+            tag_target_id = f"tags-{card_id}-{aa_version}-{language}"
+            tag_chips = ft.Div(
+                *[ft.Span(tag, cls="inline-block bg-blue-600/30 text-blue-300 text-xs px-2 py-0.5 rounded-full mr-1") for tag in tags],
+                ft.Button(
+                    ft.I(cls="fas fa-pen text-xs"),
+                    type="button",
+                    cls="text-gray-600 hover:text-gray-300 ml-1 transition-colors",
+                    title="Edit tags",
+                    hx_get=f"/api/watchlist/tag-editor?card_id={card_id}&card_version={aa_version}&language={language}&tags={tags_str}",
+                    hx_target=f"#{tag_target_id}",
+                    hx_swap="outerHTML",
+                ),
+                id=tag_target_id,
+                cls="flex flex-wrap items-center mt-1",
+                onclick="event.stopPropagation();"
+            )
 
             toggle_btn = create_watchlist_toggle(
                 card_id=card_id,
@@ -335,6 +414,7 @@ def watchlist_page(request):
                                     ft.Span(f"${item['latest_usd']:.2f}", cls="text-sm font-bold text-blue-400"),
                                     cls="mt-1"
                                 ),
+                                tag_chips,
                                 cls="flex-1 min-w-0 pr-4 cursor-pointer", # min-w-0 for truncate text if needed
                                 hx_get=f"/api/card-modal?card_id={card_id}&meta_format=latest&aa_version={aa_version}",
                                 hx_target="body",
@@ -424,13 +504,13 @@ def watchlist_page(request):
             ft.A(
                 ft.Span("Name"),
                 ft.I(cls=f"fas fa-sort-{'up' if sort_order == 'asc' else 'down'} ml-1" if sort_by == 'name' else "fas fa-sort ml-1 opacity-50"),
-                href=f"?view=list&sort=name&order={'desc' if sort_by == 'name' and sort_order == 'asc' else 'asc'}",
+                href=build_url(view="list", sort="name", order="desc" if sort_by == "name" and sort_order == "asc" else "asc"),
                 cls=f"mr-4 text-sm font-medium transition-colors flex items-center {'text-blue-400' if sort_by == 'name' else 'text-gray-400 hover:text-white'}"
             ),
             ft.A(
                 ft.Span("Price"),
                 ft.I(cls=f"fas fa-sort-{'up' if sort_order == 'asc' else 'down'} ml-1" if sort_by == 'price' else "fas fa-sort ml-1 opacity-50"),
-                href=f"?view=list&sort=price&order={'desc' if sort_by == 'price' and sort_order == 'asc' else 'asc'}",
+                href=build_url(view="list", sort="price", order="desc" if sort_by == "price" and sort_order == "asc" else "asc"),
                 cls=f"text-sm font-medium transition-colors flex items-center {'text-blue-400' if sort_by == 'price' else 'text-gray-400 hover:text-white'}"
             ),
             cls="flex items-center mb-4 justify-end"
@@ -445,6 +525,7 @@ def watchlist_page(request):
             view_switcher,
             cls="flex justify-between items-center mb-6"
         ),
+        tag_filter_bar,
         content,
         cls="container mx-auto px-4 py-8"
     )

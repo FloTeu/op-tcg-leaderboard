@@ -1,6 +1,83 @@
+from fasthtml import ft
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from op_tcg.backend.db import add_to_watchlist, remove_from_watchlist
+from op_tcg.backend.db import add_to_watchlist, remove_from_watchlist, update_watchlist_tags, DEFAULT_WATCHLIST_TAG
+
+def _parse_tags(raw) -> list:
+    if isinstance(raw, list):
+        tags = [t.strip() for t in raw if str(t).strip()]
+    elif isinstance(raw, str):
+        tags = [t.strip() for t in raw.split(',') if t.strip()]
+    else:
+        tags = []
+    return tags or [DEFAULT_WATCHLIST_TAG]
+
+
+def _tag_chips_component(card_id: str, card_version: int, language: str, tags: list):
+    target_id = f"tags-{card_id}-{card_version}-{language}"
+    tags_str = ",".join(tags)
+    return ft.Div(
+        *[ft.Span(tag, cls="inline-block bg-blue-600/30 text-blue-300 text-xs px-2 py-0.5 rounded-full mr-1 mb-1") for tag in tags],
+        ft.Button(
+            ft.I(cls="fas fa-pen text-xs"),
+            type="button",
+            cls="text-gray-500 hover:text-gray-300 ml-1 transition-colors",
+            title="Edit tags",
+            hx_get=f"/api/watchlist/tag-editor?card_id={card_id}&card_version={card_version}&language={language}&tags={tags_str}",
+            hx_target=f"#{target_id}",
+            hx_swap="outerHTML",
+        ),
+        id=target_id,
+        cls="flex flex-wrap items-center mt-1",
+        onclick="event.stopPropagation();"
+    )
+
+
+def _tag_editor_component(card_id: str, card_version: int, language: str, tags: list):
+    target_id = f"tags-{card_id}-{card_version}-{language}"
+    tags_str = ",".join(tags)
+    return ft.Form(
+        ft.Input(type="hidden", name="card_id", value=card_id),
+        ft.Input(type="hidden", name="card_version", value=str(card_version)),
+        ft.Input(type="hidden", name="language", value=language),
+        ft.Div(
+            ft.Input(
+                type="text",
+                name="tags",
+                value=tags_str,
+                placeholder="my collection",
+                cls="bg-gray-700 text-white border border-gray-600 rounded px-2 py-1 text-xs w-full focus:outline-none focus:border-blue-500",
+                autofocus=True,
+                onkeydown="event.stopPropagation();",
+                onkeyup="event.stopPropagation();",
+                onkeypress="event.stopPropagation();",
+            ),
+            ft.Div(
+                ft.Button(
+                    "Save",
+                    type="submit",
+                    cls="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded transition-colors"
+                ),
+                ft.Button(
+                    "Cancel",
+                    type="button",
+                    cls="text-gray-400 hover:text-white text-xs px-2 py-1 ml-1 transition-colors",
+                    hx_get=f"/api/watchlist/tag-chips?card_id={card_id}&card_version={card_version}&language={language}&tags={tags_str}",
+                    hx_target=f"#{target_id}",
+                    hx_swap="outerHTML",
+                ),
+                cls="flex items-center mt-1"
+            ),
+            cls="flex flex-col w-full max-w-xs"
+        ),
+        id=target_id,
+        hx_post="/api/watchlist/tags",
+        hx_target=f"#{target_id}",
+        hx_swap="outerHTML",
+        cls="flex items-start mt-1",
+        onclick="event.stopPropagation();"
+    )
+
 
 def setup_watchlist_routes(rt):
 
@@ -18,12 +95,13 @@ def setup_watchlist_routes(rt):
         card_id = data.get('card_id')
         card_version = 0 if data.get('card_version') in (None, 'Base', 0) else int(data.get('card_version', 0))
         language = data.get('language', 'English')
+        tags = _parse_tags(data.get('tags', [DEFAULT_WATCHLIST_TAG]))
 
         if not card_id:
             return JSONResponse({"error": "Missing card_id"}, status_code=400)
 
         user_id = user.get('sub')
-        add_to_watchlist(user_id, card_id, card_version, language)
+        add_to_watchlist(user_id, card_id, card_version, language, tags)
 
         return JSONResponse({"status": "success", "message": "Card added to watchlist"})
 
@@ -50,3 +128,49 @@ def setup_watchlist_routes(rt):
 
         return JSONResponse({"status": "success", "message": "Card removed from watchlist"})
 
+    @rt("/api/watchlist/tags", methods=["POST"])
+    async def update_tags(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
+        form = await request.form()
+        card_id = form.get('card_id')
+        card_version_raw = form.get('card_version', '0')
+        card_version = 0 if card_version_raw in (None, 'Base', '0', '') else int(card_version_raw)
+        language = form.get('language', 'en')
+        tags = _parse_tags(form.get('tags', DEFAULT_WATCHLIST_TAG))
+
+        if not card_id:
+            return JSONResponse({"error": "Missing card_id"}, status_code=400)
+
+        user_id = user.get('sub')
+        update_watchlist_tags(user_id, card_id, card_version, language, tags)
+
+        return _tag_chips_component(card_id, card_version, language, tags)
+
+    @rt("/api/watchlist/tag-editor", methods=["GET"])
+    async def tag_editor(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
+        card_id = request.query_params.get('card_id', '')
+        card_version = int(request.query_params.get('card_version', 0))
+        language = request.query_params.get('language', 'en')
+        tags = _parse_tags(request.query_params.get('tags', DEFAULT_WATCHLIST_TAG))
+
+        return _tag_editor_component(card_id, card_version, language, tags)
+
+    @rt("/api/watchlist/tag-chips", methods=["GET"])
+    async def tag_chips_view(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
+        card_id = request.query_params.get('card_id', '')
+        card_version = int(request.query_params.get('card_version', 0))
+        language = request.query_params.get('language', 'en')
+        tags = _parse_tags(request.query_params.get('tags', DEFAULT_WATCHLIST_TAG))
+
+        return _tag_chips_component(card_id, card_version, language, tags)
