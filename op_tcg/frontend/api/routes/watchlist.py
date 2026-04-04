@@ -1,7 +1,9 @@
 from fasthtml import ft
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from op_tcg.backend.db import add_to_watchlist, remove_from_watchlist, update_watchlist_tags, DEFAULT_WATCHLIST_TAG
+from op_tcg.backend.db import add_to_watchlist, remove_from_watchlist, update_watchlist_tags, get_watchlist, DEFAULT_WATCHLIST_TAG
+from op_tcg.frontend.utils.extract import get_watchlist_aggregate_price_data
+from op_tcg.frontend.utils.charts import create_price_development_chart
 
 def _parse_tags(raw) -> list:
     if isinstance(raw, list):
@@ -174,3 +176,63 @@ def setup_watchlist_routes(rt):
         tags = _parse_tags(request.query_params.get('tags', DEFAULT_WATCHLIST_TAG))
 
         return _tag_chips_component(card_id, card_version, language, tags)
+
+    @rt("/api/watchlist/aggregate-chart", methods=["GET"])
+    async def aggregate_chart(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
+        tag_filter = request.query_params.get('tag', '')
+        try:
+            days = int(request.query_params.get('days', 90))
+        except (ValueError, TypeError):
+            days = 90
+
+        user_id = user.get('sub')
+        watchlist = get_watchlist(user_id)
+
+        if tag_filter:
+            watchlist = [item for item in watchlist if tag_filter in item.get('tags', [DEFAULT_WATCHLIST_TAG])]
+
+        card_versions = []
+        for item in watchlist:
+            card_id = item.get('card_id')
+            version_val = item.get('card_version', 0)
+            try:
+                aa_version = int(version_val) if version_val not in (None, 'Base') else 0
+            except (ValueError, TypeError):
+                aa_version = 0
+            if card_id:
+                card_versions.append((card_id, aa_version))
+
+        if not card_versions:
+            return ft.Div(
+                ft.P("No cards in this collection.", cls="text-gray-500 text-sm text-center py-6"),
+                cls="h-full flex items-center justify-center"
+            )
+
+        try:
+            price_data = get_watchlist_aggregate_price_data(card_versions, days=days)
+        except Exception:
+            return ft.Div(
+                ft.P("Could not load price data.", cls="text-gray-500 text-sm text-center py-6"),
+                cls="h-full flex items-center justify-center"
+            )
+
+        if not price_data.get('eur') and not price_data.get('usd'):
+            return ft.Div(
+                ft.P("No price history available for the selected period.", cls="text-gray-500 text-sm text-center py-6"),
+                cls="h-full flex items-center justify-center"
+            )
+
+        label = f'"{tag_filter}"' if tag_filter else "All Cards"
+        chart_id = f"portfolio-aggregate-chart-{days}-{tag_filter.replace(' ', '-') or 'all'}"
+
+        return create_price_development_chart(
+            container_id=chart_id,
+            price_data=price_data,
+            card_name=f"Portfolio · {label}",
+            show_x_axis=True,
+            show_legend=True,
+        )

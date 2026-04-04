@@ -462,6 +462,63 @@ def get_card_price_development_data(card_id: str, days: int = 90, include_alt_ar
     
     return result
 
+
+def get_watchlist_aggregate_price_data(card_versions: list[tuple[str, int]], days: int = 90) -> dict[str, list[dict]]:
+    """
+    Get aggregated daily portfolio value for a set of (card_id, aa_version) pairs.
+    Sums per-card daily average prices to produce total portfolio value over time.
+
+    Returns:
+        Dictionary with 'eur' and 'usd' keys containing total value per day.
+    """
+    if not card_versions:
+        return {'eur': [], 'usd': []}
+
+    history_tbl = get_bq_table_id(CardPrice).replace(":", ".")
+
+    pair_filters = " OR ".join(
+        f"(card_id = '{card_id}' AND aa_version = {aa_version})"
+        for card_id, aa_version in card_versions
+    )
+
+    query = f"""
+    WITH price_history AS (
+      SELECT
+        card_id,
+        aa_version,
+        currency,
+        DATE(create_timestamp) AS price_date,
+        AVG(price) AS avg_price
+      FROM `{history_tbl}`
+      WHERE ({pair_filters})
+        AND create_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)
+        AND language = 'en'
+        AND currency IN ('eur', 'usd')
+      GROUP BY card_id, aa_version, currency, price_date
+    )
+    SELECT
+      currency,
+      price_date,
+      SUM(avg_price) AS total_price
+    FROM price_history
+    GROUP BY currency, price_date
+    ORDER BY currency, price_date ASC
+    """
+
+    rows = run_bq_query(query, ttl_hours=1.0)
+
+    result: dict[str, list[dict]] = {'eur': [], 'usd': []}
+    for row in rows:
+        currency = row['currency']
+        price_date = row['price_date'].isoformat() if hasattr(row['price_date'], 'isoformat') else str(row['price_date'])
+        result[currency].append({
+            'date': price_date,
+            'price': float(row['total_price']) if row['total_price'] is not None else None
+        })
+
+    return result
+
+
 def get_leader_average_deck_prices(meta_format: MetaFormat, region: MetaFormatRegion) -> dict[str, float]:
     """Calculate average deck price in EUR for each leader in the given meta format and region."""
     decklists = get_tournament_decklist_data(meta_formats=[meta_format], meta_format_region=region)

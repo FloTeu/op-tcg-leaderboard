@@ -99,6 +99,11 @@ def watchlist_page(request):
         }
         prepared_items.append(item_data)
 
+    # Totals for portfolio summary (over filtered items)
+    total_eur = sum(item['latest_eur'] for item in prepared_items)
+    total_usd = sum(item['latest_usd'] for item in prepared_items)
+    card_count = len(prepared_items)
+
     # Sort items
     reverse = (sort_order == 'desc')
     if sort_by == 'price':
@@ -519,6 +524,81 @@ def watchlist_page(request):
         # Prepend sort options to content
         content = ft.Div(sort_options, content)
 
+    # Portfolio summary section
+    tag_param = f"&tag={tag_filter}" if tag_filter else ""
+    collection_label = f'"{tag_filter}"' if tag_filter else "All Cards"
+
+    portfolio_section = ft.Div(
+        # Stats row
+        ft.Div(
+            ft.Div(
+                ft.Span("Total EUR", cls="text-xs text-gray-500 uppercase tracking-widest block mb-1"),
+                ft.Span(f"€{total_eur:.2f}", cls="text-2xl font-bold text-white font-mono tabular-nums"),
+                cls="flex flex-col"
+            ),
+            ft.Div(cls="w-px bg-gray-700 self-stretch mx-2"),
+            ft.Div(
+                ft.Span("Total USD", cls="text-xs text-gray-500 uppercase tracking-widest block mb-1"),
+                ft.Span(f"${total_usd:.2f}", cls="text-2xl font-bold text-white font-mono tabular-nums"),
+                cls="flex flex-col"
+            ),
+            ft.Div(cls="w-px bg-gray-700 self-stretch mx-2"),
+            ft.Div(
+                ft.Span("Cards", cls="text-xs text-gray-500 uppercase tracking-widest block mb-1"),
+                ft.Span(str(card_count), cls="text-2xl font-bold text-white font-mono tabular-nums"),
+                cls="flex flex-col"
+            ),
+            ft.Div(
+                ft.Span("Collection", cls="text-xs text-gray-500 uppercase tracking-widest block mb-1"),
+                ft.Span(collection_label, cls="text-sm font-medium text-blue-400 truncate max-w-[140px]"),
+                cls="flex flex-col ml-auto"
+            ),
+            cls="flex items-center gap-4 sm:gap-6 px-5 py-4 border-b border-gray-700/60"
+        ),
+        # Chart area
+        ft.Div(
+            # Time selector
+            ft.Div(
+                ft.Span("Portfolio Value Over Time", cls="text-xs text-gray-400 uppercase tracking-wider font-medium"),
+                ft.Select(
+                    ft.Option("30 days", value="30"),
+                    ft.Option("90 days", value="90", selected=True),
+                    ft.Option("180 days", value="180"),
+                    ft.Option("1 year", value="365"),
+                    ft.Option("All time", value="1000"),
+                    name="days",
+                    cls="bg-gray-800 text-white border border-gray-600 rounded px-2 py-0.5 text-xs focus:outline-none focus:border-blue-500 cursor-pointer hover:bg-gray-700 transition-colors",
+                    hx_get="/api/watchlist/aggregate-chart",
+                    hx_target="#portfolio-aggregate-chart-container",
+                    hx_swap="innerHTML",
+                    hx_indicator="#portfolio-chart-loading",
+                    hx_vals=f'{{"tag": "{tag_filter}"}}',
+                    hx_on__before_request="document.getElementById('portfolio-aggregate-chart-container').innerHTML=''; document.getElementById('portfolio-chart-loading').classList.remove('hidden');"
+                ),
+                cls="flex items-center justify-between mb-3"
+            ),
+            # Chart container
+            ft.Div(
+                ft.Div(
+                    id="portfolio-aggregate-chart-container",
+                    hx_get=f"/api/watchlist/aggregate-chart?days=90{tag_param}",
+                    hx_trigger="load",
+                    hx_indicator="#portfolio-chart-loading",
+                    hx_on__after_request="document.getElementById('portfolio-chart-loading').classList.add('hidden');",
+                    cls="w-full h-full"
+                ),
+                create_loading_spinner(
+                    id="portfolio-chart-loading",
+                    size="w-6 h-6",
+                    container_classes="absolute inset-0 flex items-center justify-center pointer-events-none hidden"
+                ),
+                cls="relative h-52 sm:h-64 w-full"
+            ),
+            cls="px-5 py-4"
+        ),
+        cls="bg-gray-800/60 border border-gray-700 rounded-xl mb-6 overflow-hidden"
+    )
+
     return ft.Div(
         ft.Div(
             ft.H1("My Watchlist", cls="text-2xl font-bold text-white"),
@@ -526,6 +606,7 @@ def watchlist_page(request):
             cls="flex justify-between items-center mb-6"
         ),
         tag_filter_bar,
+        portfolio_section,
         content,
         cls="container mx-auto px-4 py-8"
     )
