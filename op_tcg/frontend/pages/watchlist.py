@@ -329,8 +329,6 @@ def watchlist_page(request):
                     ft.Td(
                         _qty_stepper(card_id, aa_version, language, quantity),
                         cls="px-5 py-4 whitespace-nowrap align-middle",
-                        data_eur_price=str(item['latest_eur']),
-                        data_usd_price=str(item['latest_usd']),
                     ),
                     # Actions
                     ft.Td(
@@ -375,7 +373,9 @@ def watchlist_page(request):
                         ),
                         cls="px-5 py-4 w-full align-middle"
                     ),
-                    cls="bg-transparent hover:bg-gray-700/20 transition-colors watchlist-card-item"
+                    cls="bg-transparent hover:bg-gray-700/20 transition-colors watchlist-card-item",
+                    data_eur_price=str(item['latest_eur']),
+                    data_usd_price=str(item['latest_usd']),
                 )
             )
 
@@ -482,8 +482,6 @@ def watchlist_page(request):
                         ),
                         ft.Div(toggle_btn, cls="flex-shrink-0 ml-2"),
                         cls="flex items-start px-5 py-4 border-b border-gray-700/60",
-                        data_eur_price=str(item['latest_eur']),
-                        data_usd_price=str(item['latest_usd']),
                     ),
                     # Quantity row
                     ft.Div(
@@ -546,7 +544,9 @@ def watchlist_page(request):
                         ),
                         cls="px-5 py-4"
                     ),
-                    cls="watchlist-card-item bg-gray-800/60 border border-gray-700 rounded-xl overflow-hidden"
+                    cls="watchlist-card-item bg-gray-800/60 border border-gray-700 rounded-xl overflow-hidden",
+                    data_eur_price=str(item['latest_eur']),
+                    data_usd_price=str(item['latest_usd']),
                 )
             )
 
