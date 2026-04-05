@@ -1,6 +1,8 @@
 name: Deploy PR to Dev
 
 on:
+  pull_request:
+    branches: [main]
   issue_comment:
     types: [created]
 
@@ -9,17 +11,19 @@ jobs:
     name: Prepare PR deployment
     runs-on: ubuntu-latest
     if: |
-      github.event.issue.pull_request != null &&
-      github.event.comment.body == '/deploy dev'
+      github.event_name == 'pull_request' ||
+      (github.event.issue.pull_request != null && github.event.comment.body == '/deploy dev')
     permissions:
       pull-requests: write
       issues: write
     outputs:
       branch: ${{ steps.pr.outputs.branch }}
       sha: ${{ steps.pr.outputs.sha }}
+      pr_number: ${{ steps.pr.outputs.pr_number }}
 
     steps:
       - name: React to comment
+        if: github.event_name == 'issue_comment'
         uses: actions/github-script@v7
         with:
           script: |
@@ -35,13 +39,20 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const pr = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.issue.number,
-            });
-            core.setOutput('branch', pr.data.head.ref);
-            core.setOutput('sha', pr.data.head.sha);
+            if (context.eventName === 'pull_request') {
+              core.setOutput('branch', context.payload.pull_request.head.ref);
+              core.setOutput('sha', context.payload.pull_request.head.sha);
+              core.setOutput('pr_number', context.payload.pull_request.number);
+            } else {
+              const pr = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+              });
+              core.setOutput('branch', pr.data.head.ref);
+              core.setOutput('sha', pr.data.head.sha);
+              core.setOutput('pr_number', context.issue.number);
+            }
 
   deploy:
     needs: prepare
@@ -60,6 +71,7 @@ jobs:
     if: always() && needs.prepare.result == 'success'
     permissions:
       issues: write
+      pull-requests: write
     steps:
       - uses: actions/github-script@v7
         with:
@@ -71,6 +83,6 @@ jobs:
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: ${{ github.event.issue.number }},
+              issue_number: ${{ needs.prepare.outputs.pr_number }},
               body,
             });
