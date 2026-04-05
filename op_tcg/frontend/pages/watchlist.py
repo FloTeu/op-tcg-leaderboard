@@ -20,6 +20,37 @@ def _qty_stepper(card_id: str, aa_version: int, language: str, quantity: int) ->
     )
 
 
+def _table_time_range_script() -> ft.Script:
+    return ft.Script("""
+(function(){
+  function updateAllTableCharts(days){
+    document.querySelectorAll('.table-chart-container').forEach(function(container){
+      var chartId=container.id;
+      var loadingEl=document.getElementById(chartId+'-loading');
+      var cardId=container.dataset.cardId;
+      var aaVersion=container.dataset.aaVersion;
+      container.innerHTML='';
+      if(loadingEl) loadingEl.classList.remove('hidden');
+      fetch('/api/card-price-development-chart?card_id='+cardId+'&days='+days+'&aa_version='+aaVersion+'&compact=true&location=watchlist')
+        .then(function(r){return r.text();})
+        .then(function(html){
+          container.innerHTML=html;
+          // innerHTML does not execute scripts — re-run each one manually
+          container.querySelectorAll('script').forEach(function(old){
+            var s=document.createElement('script');
+            s.textContent=old.textContent;
+            old.parentNode.replaceChild(s,old);
+          });
+          if(loadingEl) loadingEl.classList.add('hidden');
+        })
+        .catch(function(){if(loadingEl) loadingEl.classList.add('hidden');});
+    });
+  }
+  window.updateAllTableCharts=updateAllTableCharts;
+})();
+""")
+
+
 def _qty_script() -> ft.Script:
     return ft.Script("""
 (function(){
@@ -341,28 +372,14 @@ def watchlist_page(request):
                     # Price Chart
                     ft.Td(
                         ft.Div(
-                            # Absolute positioned time selector
-                            ft.Select(
-                                ft.Option("30d", value="30"),
-                                ft.Option("90d", value="90", selected=True),
-                                ft.Option("180d", value="180"),
-                                ft.Option("1y", value="365"),
-                                ft.Option("All", value="1000"),
-                                name="days",
-                                id=f"price-period-selector-table-{chart_id}",
-                                cls="absolute top-1 right-1 z-10 bg-gray-800 text-white border border-gray-600 rounded px-1 py-0 text-[10px] focus:ring-blue-500 focus:border-blue-500 block cursor-pointer hover:bg-gray-700 transition-colors opacity-100 placeholder-transparent appearance-none text-center min-w-[34px]",
-                                hx_get="/api/card-price-development-chart",
-                                hx_target=f"#{chart_id}",
-                                hx_indicator=f"#{chart_id}-loading",
-                                hx_vals=f'{{"card_id": "{card_id}", "aa_version": "{aa_version}", "include_alt_art": "false", "compact": "true", "location": "watchlist"}}', # Ensure compact stays true
-                                hx_on__before_request=f"document.getElementById('{chart_id}').innerHTML = ''; document.getElementById('{chart_id}-loading').classList.remove('hidden');"
-                            ),
                             ft.Div(
                                 id=chart_id,
                                 hx_get=f"/api/card-price-development-chart?card_id={card_id}&days=90&aa_version={aa_version}&compact=true&location=watchlist",
                                 hx_trigger="revealed",
                                 hx_indicator=f"#{chart_id}-loading",
-                                cls="w-full h-36"
+                                cls="w-full h-36 table-chart-container",
+                                data_card_id=card_id,
+                                data_aa_version=str(aa_version),
                             ),
                             create_loading_spinner(
                                 id=f"{chart_id}-loading",
@@ -388,7 +405,23 @@ def watchlist_page(request):
                         ft.Th("Version", cls="px-5 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-widest whitespace-nowrap w-24"),
                         ft.Th("Qty", cls="px-5 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-widest w-24"),
                         ft.Th("Actions", cls="px-5 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-widest w-24"),
-                        ft.Th("Price Trend", cls="px-5 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-widest min-w-[300px]"),
+                        ft.Th(
+                            ft.Div(
+                                ft.Span("Price Trend", cls="text-xs font-medium text-gray-500 uppercase tracking-widest"),
+                                ft.Select(
+                                    ft.Option("30d", value="30"),
+                                    ft.Option("90d", value="90", selected=True),
+                                    ft.Option("180d", value="180"),
+                                    ft.Option("1y", value="365"),
+                                    ft.Option("All", value="1000"),
+                                    id="table-global-time-range",
+                                    cls="bg-gray-800 text-white border border-gray-600 rounded px-2 py-0.5 text-xs focus:outline-none focus:border-blue-500 cursor-pointer hover:bg-gray-700 transition-colors",
+                                    onchange="updateAllTableCharts(this.value)"
+                                ),
+                                cls="flex items-center gap-3"
+                            ),
+                            cls="px-5 py-4 text-left min-w-[300px]"
+                        ),
                     ),
                     cls="bg-gray-800/60 border-b border-gray-700/60"
                 ),
@@ -659,6 +692,7 @@ def watchlist_page(request):
 
     return ft.Div(
         _qty_script(),
+        _table_time_range_script() if view_mode == 'table' else ft.Span(),
         ft.Div(
             ft.H1("My Watchlist", cls="text-2xl font-bold text-white"),
             view_switcher,
