@@ -1,0 +1,63 @@
+name: Deploy to Cloud Run
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - production
+
+  # To enable automatic deployment to prod on main merge, uncomment:
+  # push:
+  #   branches: [main]
+
+env:
+  REGION: europe-west3  # adjust if different
+
+jobs:
+  deploy:
+    name: Deploy (${{ inputs.environment || 'prod' }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || 'prod' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Build and push Docker image
+        id: build
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.PROJECT }}/${{ vars.ARTIFACT_REGISTRY_REPO }}/op-tcg:${{ github.sha }}"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ vars.CLOUD_RUN_SERVICE }}
+          image: ${{ steps.build.outputs.image }}
+          region: ${{ env.REGION }}
+          project_id: ${{ secrets.PROJECT }}
+
+      - name: Show deployed URL
+        run: |
+          gcloud run services describe ${{ vars.CLOUD_RUN_SERVICE }} \
+            --region ${{ env.REGION }} \
+            --project ${{ secrets.PROJECT }} \
+            --format 'value(status.url)'
