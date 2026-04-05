@@ -1,0 +1,77 @@
+name: _Deploy (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+      ref:
+        type: string
+        required: true
+      sha:
+        type: string
+        required: true
+      min_instances:
+        type: number
+        default: 0
+    outputs:
+      url:
+        description: Deployed Cloud Run URL
+        value: ${{ jobs.deploy.outputs.url }}
+
+env:
+  REGION: europe-west3
+
+jobs:
+  deploy:
+    name: Deploy (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Build and push Docker image
+        id: build
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.PROJECT }}/${{ vars.ARTIFACT_REGISTRY_REPO }}/op-tcg:${{ inputs.sha }}"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ vars.CLOUD_RUN_SERVICE }}
+          image: ${{ steps.build.outputs.image }}
+          region: ${{ env.REGION }}
+          project_id: ${{ secrets.PROJECT }}
+          flags: >-
+            --memory=1Gi
+            --min-instances=${{ inputs.min_instances }}
+          env_vars: |
+            CANONICAL_HOST=${{ vars.CANONICAL_HOST }}
+            GOOGLE_CLOUD_PROJECT=${{ secrets.PROJECT }}
+            GOOGLE_FORM_FEEDBACK_URL=${{ secrets.GOOGLE_FORM_FEEDBACK_URL }}
+            SESSION_MIDDLEWARE_SECRET_KEY=${{ secrets.SESSION_MIDDLEWARE_SECRET_KEY }}
+            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+            DISCORD_CLIENT_ID=${{ secrets.DISCORD_CLIENT_ID }}
+            DISCORD_CLIENT_SECRET=${{ secrets.DISCORD_CLIENT_SECRET }}
