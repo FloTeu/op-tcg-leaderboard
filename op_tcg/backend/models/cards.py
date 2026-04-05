@@ -183,6 +183,16 @@ class LimitlessCardData(BaseModel):
     cards: list[Card]
     card_prices: list[CardPrice]
 
+    def remove_dupes(self) -> None:
+        seen: set[tuple] = set()
+        deduped: list[Card] = []
+        for card in self.cards:
+            key = (card.id, card.language, card.aa_version)
+            if key not in seen:
+                seen.add(key)
+                deduped.append(card)
+        self.cards = deduped
+
 
 class CardPopularity(BQTableBaseModel):
     _dataset_id: str = BQDataset.CARDS

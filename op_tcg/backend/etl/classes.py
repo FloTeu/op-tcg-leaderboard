@@ -6,6 +6,7 @@ import time
 
 import pandas as pd
 import requests
+from google.api_core.exceptions import NotFound
 
 from op_tcg.backend.elo import EloCreator
 from op_tcg.backend.etl.base import AbstractETLJob, E, T
@@ -173,6 +174,8 @@ class CardImageUpdateToGCPEtlJob(AbstractETLJob[list[Card], list[Card]]):
         raise last_exc
 
     def transform(self, cards: list[Card]) -> list[Card]:
+        total = len(cards)
+        _logger.info(f"transform: starting image upload for {total} card(s)")
         successful: list[Card] = []
         failed_count = 0
         for i, card in enumerate(cards):
@@ -189,40 +192,71 @@ class CardImageUpdateToGCPEtlJob(AbstractETLJob[list[Card], list[Card]]):
                                        client=self.storage_client)
                     card.image_url = f"https://storage.googleapis.com/{self.bucket}/{image_url_path}"
                     successful.append(card)
+                processed = i + 1
+                if processed % 100 == 0:
+                    _logger.info(f"transform: processed {processed}/{total} images ({failed_count} failed so far)")
                 # Brief pause to avoid rate limiting
                 time.sleep(0.5)
             except Exception as e:
                 failed_count += 1
                 _logger.error(f"Failed to process card {card.id} ({card.language}, aa_version={card.aa_version}): {e}")
 
-        if failed_count:
-            _logger.warning(f"transform: {len(successful)} cards succeeded, {failed_count} failed. Partial results will be loaded to BQ.")
+        _logger.info(f"transform: finished — {len(successful)}/{total} succeeded, {failed_count} failed")
         return successful
 
     def load(self, cards: list[Card]) -> None:
         if len(cards) > 0:
+            _logger.info(f"load: inserting {len(cards)} card(s) into BigQuery")
             # create tmp table
             card_table = get_or_create_table(Card, table_id=Card.__tablename__)
             # ensure table is new
             self.bq_client.delete_table(f"{Card.get_dataset_id()}.{Card.__tablename__}_tmp", not_found_ok=True)  # Make an API request.
             card_tmp_table = get_or_create_table(Card, table_id=f"{Card.__tablename__}_tmp")
-            time.sleep(2) # ensure table exist
+            seen_keys: set[tuple] = set()
             rows_to_insert = []
             for card in cards:
+                key = (card.id, card.language, card.aa_version)
+                if key in seen_keys:
+                    _logger.warning(f"load: skipping duplicate card {key}")
+                    continue
+                seen_keys.add(key)
                 rows_to_insert.append(json.loads(card.model_dump_json()))
-            bq_insert_rows(rows_to_insert, table=card_tmp_table, client=self.bq_client)
+
+            # Retry insert until the freshly-created table is reachable by the
+            # streaming API (propagation can take several seconds after create_table).
+            max_wait = 60
+            poll_interval = 5
+            elapsed = 0
+            while True:
+                try:
+                    bq_insert_rows(rows_to_insert, table=card_tmp_table, client=self.bq_client)
+                    _logger.info(f"load: successfully inserted {len(rows_to_insert)} rows into {card_tmp_table.table_id}")
+                    break
+                except NotFound:
+                    if elapsed >= max_wait:
+                        raise
+                    _logger.warning(
+                        f"load: table {card_tmp_table.table_id} not yet available "
+                        f"(elapsed {elapsed}s), retrying in {poll_interval}s..."
+                    )
+                    time.sleep(poll_interval)
+                    elapsed += poll_interval
 
             # update rows
-            self.bq_client.query(f"""
-            MERGE `{card_table.full_table_id.replace(':', '.')}` AS target
-            USING `{card_tmp_table.full_table_id.replace(':', '.')}` AS source
-            ON target.id = source.id 
-            AND target.language = source.language 
-            AND target.aa_version = source.aa_version
-            WHEN MATCHED THEN
-              UPDATE SET
-                target.image_url = source.image_url
-            """)
+            try:
+                self.bq_client.query(f"""
+                MERGE `{card_table.full_table_id.replace(':', '.')}` AS target
+                USING `{card_tmp_table.full_table_id.replace(':', '.')}` AS source
+                ON target.id = source.id
+                AND target.language = source.language
+                AND target.aa_version = source.aa_version
+                WHEN MATCHED THEN
+                  UPDATE SET
+                    target.image_url = source.image_url
+                """).result()
+                _logger.info(f"load: MERGE updated image_url for {len(cards)} card(s) in {card_table.table_id}")
+            except Exception as e:
+                _logger.error(f"load: MERGE query failed: {e}")
 
             # delete tmp table
             self.bq_client.delete_table(f"{card_tmp_table.full_table_id.replace(':', '.')}", not_found_ok=True)

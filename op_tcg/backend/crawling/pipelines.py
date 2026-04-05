@@ -92,6 +92,7 @@ class CardPipeline:
                 logging.warning("Card data could not be extracted", str(e))
                 continue
             # Upload to big query
+            card_data.remove_dupes()
             bq_insert_rows([json.loads(bq_card.model_dump_json()) for bq_card in card_data.cards],
                            table=spider.card_table, client=spider.bq_client)
             bq_insert_rows([json.loads(bq_card_price.model_dump_json()) for bq_card_price in card_data.card_prices],
