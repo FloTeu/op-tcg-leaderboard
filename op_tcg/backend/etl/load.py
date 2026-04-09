@@ -17,7 +17,7 @@ from op_tcg.backend.utils.annotations import pydantic_model_to_bq_types, pydanti
 
 _logger = logging.getLogger("load")
 
-def get_or_create_bq_dataset(dataset_id, client: bigquery.Client | None = None, location='europe-west3',
+def get_or_create_bq_dataset(dataset_id, client: bigquery.Client | None = None, location='europe-west1',
                              project_id: str | None = None) -> bigquery.Dataset:
     """
     Get a BigQuery dataset, creating it if it does not exist.
@@ -70,7 +70,7 @@ def table_exists(bq_table_model: Any, client: bigquery.Client | None = None) -> 
 
 # Function to get or create a BigQuery table
 def get_or_create_table(model: type[SQLTableBaseModel], dataset_id: str | None = None, table_id: str | None = None,
-                        client: bigquery.Client | None = None, location: str = 'europe-west3',
+                        client: bigquery.Client | None = None, location: str = 'europe-west1',
                         project_id: str | None = None) -> bigquery.Table:
     """
     Get a BigQuery table, creating it if it does not exist. Create dataset as well if it does not exist.
@@ -79,7 +79,7 @@ def get_or_create_table(model: type[SQLTableBaseModel], dataset_id: str | None =
     :param model: type[BaseModel] - A pydantic class defining the bigquery schema
     :param table_id: str - The BigQuery table ID. If not provided its extracted from model
     :param client: str - The bigquery client containing project as well.
-    :param location: str - The location for the dataset (default is 'europe-west3').
+    :param location: str - The location for the dataset (default is 'europe-west1').
     :param project_id: str - The GCP project ID (default is taken from environment).
     :return: google.cloud.bigquery.dataset.Dataset - The BigQuery dataset reference.
     """

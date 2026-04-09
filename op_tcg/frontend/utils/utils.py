@@ -36,7 +36,7 @@ firestore_client = firestore.Client(credentials=credentials, database="op-leader
 
 
 
-def run_bq_query(query: str, ttl_hours: float | None = None, location: str = "europe-west3") -> list[dict[str, Any]]:
+def run_bq_query(query: str, ttl_hours: float | None = None, location: str = "europe-west1") -> list[dict[str, Any]]:
     """
     Runs a bigquery query with configurable TTL caching
     
@@ -48,7 +48,7 @@ def run_bq_query(query: str, ttl_hours: float | None = None, location: str = "eu
                    - 1.0: Frequently changing data 
                    - 0.5: Real-time data
                    - None: No caching
-        location: BigQuery location (default: europe-west3)
+        location: BigQuery location (default: europe-west1)
     
     Returns:
         List of dictionaries representing query results

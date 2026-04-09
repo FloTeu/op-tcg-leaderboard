@@ -72,7 +72,7 @@ class LocalMatchesToBigQueryEtlJob(AbstractETLJob[AllLeaderMetaDocs, BQMatches])
 
 class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, list[LeaderElo]]):
     def __init__(self, meta_formats: list[MetaFormat], matches_csv_file_path: Path | str | None = None):
-        self.bq_client = bigquery.Client(location="europe-west3")
+        self.bq_client = bigquery.Client(location="europe-west1")
         self.meta_formats = meta_formats
         self.in_meta_format = "('" + "','".join(self.meta_formats) + "')"
         self.matches_csv_file_path = matches_csv_file_path
@@ -132,7 +132,7 @@ class EloUpdateToBigQueryEtlJob(AbstractETLJob[BQMatches, list[LeaderElo]]):
 
 class CardImageUpdateToGCPEtlJob(AbstractETLJob[list[Card], list[Card]]):
     def __init__(self, meta_formats: list[MetaFormat] | None = None):
-        self.bq_client = bigquery.Client(location="europe-west3")
+        self.bq_client = bigquery.Client(location="europe-west1")
         self.storage_client = storage.Client()
         self.bucket = f"{self.bq_client.project}-public"
         self.meta_formats = meta_formats or []

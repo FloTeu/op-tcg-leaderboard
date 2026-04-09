@@ -171,7 +171,7 @@ def crawl_decklist_cards(
     Crawls all card in existing decklists and pushes result to BQ.
     """
 
-    bq_client = bigquery.Client(location="europe-west3")
+    bq_client = bigquery.Client(location="europe-west1")
     tournament_standing_table = get_or_create_table(TournamentStanding, client=bq_client)
     card_table = get_or_create_table(Card, client=bq_client)
     card_price_table = get_or_create_table(CardPrice, client=bq_client)

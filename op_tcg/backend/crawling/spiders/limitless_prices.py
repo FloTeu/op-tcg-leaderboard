@@ -86,7 +86,7 @@ class LimitlessPricesSpider(scrapy.Spider):
         return card_ids_to_aa_version
 
     def start_requests(self):
-        self.bq_client = bigquery.Client(location="europe-west3")
+        self.bq_client = bigquery.Client(location="europe-west1")
         self.card_table = get_or_create_table(Card, client=self.bq_client)
         self.price_table = get_or_create_table(CardPrice, client=self.bq_client)
         self.release_set_table = get_or_create_table(CardReleaseSet, client=self.bq_client)

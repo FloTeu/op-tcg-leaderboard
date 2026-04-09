@@ -71,7 +71,7 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
         return f"{ts.tournament_id}_{ts.decklist_id}_{ts.player_id}"
 
     def start_requests(self):
-        self.bq_client = bigquery.Client(location="europe-west3")
+        self.bq_client = bigquery.Client(location="europe-west1")
         self.decklist_table = get_or_create_table(Decklist, client=self.bq_client)
         self.op_top_deck_table = get_or_create_table(OpTopDeckDecklist, client=self.bq_client)
         self.tournament_table = get_or_create_table(Tournament, client=self.bq_client)
