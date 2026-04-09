@@ -67,6 +67,7 @@ jobs:
             --memory=1Gi
             --min-instances=${{ inputs.min_instances }}
             --service-account=${{ vars.CLOUD_RUN_SERVICE_ACCOUNT }}
+            --execution-environment=gen2
           env_vars: |
             CANONICAL_HOST=${{ vars.CANONICAL_HOST }}
             GOOGLE_CLOUD_PROJECT=${{ secrets.PROJECT }}
