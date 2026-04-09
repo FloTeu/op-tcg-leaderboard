@@ -50,7 +50,8 @@ jobs:
       - name: Build and push Docker image
         id: build
         run: |
-          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.PROJECT }}/${{ vars.ARTIFACT_REGISTRY_REPO }}/op-tcg:${{ inputs.sha }}"
+          VERSION=$(grep '^version' pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.PROJECT }}/${{ vars.ARTIFACT_REGISTRY_REPO }}/op-tcg:v${VERSION}-${{ inputs.sha }}"
           docker build -t "$IMAGE" .
           docker push "$IMAGE"
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
