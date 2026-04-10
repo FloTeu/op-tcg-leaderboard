@@ -330,7 +330,7 @@ resource "google_cloudfunctions2_function" "card_image_update" {
   service_config {
     max_instance_count    = 10
     available_memory      = "512M"
-    timeout_seconds       = 1800
+    timeout_seconds       = 540
     service_account_email = google_service_account.cloud_function_sa.email
   }
 }
