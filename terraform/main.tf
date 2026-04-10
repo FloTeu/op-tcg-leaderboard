@@ -105,7 +105,7 @@ resource "google_pubsub_topic_iam_binding" "all_elo_update_pubsub_invoker" {
 
 resource "google_storage_bucket" "default" {
   name                        = "${var.project}-gcf-source" # Every bucket name must be globally unique
-  location                    = var.region
+  location                    = "europe-west3"
   uniform_bucket_level_access = true
 }
 
@@ -119,7 +119,7 @@ resource "google_storage_bucket_object" "object" {
 # storage
 resource "google_storage_bucket" "public" {
   name                        = "${var.project}-public"
-  location                    = var.region
+  location                    = "europe-west3"
   uniform_bucket_level_access = true
 
   website {
