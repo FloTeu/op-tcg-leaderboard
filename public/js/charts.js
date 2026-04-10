@@ -1236,6 +1236,32 @@ class ChartManager {
                                 padding: 15,
                                 boxWidth: 8,
                                 boxHeight: 8
+                            },
+                            onClick: function(e, legendItem, legend) {
+                                const chart = legend.chart;
+                                const clickedIndex = legendItem.datasetIndex;
+                                const total = chart.data.datasets.length;
+                                const visibleIndices = chart.data.datasets.map((_, i) => i).filter(i => chart.isDatasetVisible(i));
+                                const allVisible = visibleIndices.length === total;
+                                const clickedVisible = chart.isDatasetVisible(clickedIndex);
+                                if (allVisible) {
+                                    // Isolate clicked dataset
+                                    chart.data.datasets.forEach((_, i) => {
+                                        if (i === clickedIndex) chart.show(i);
+                                        else chart.hide(i);
+                                    });
+                                } else if (clickedVisible) {
+                                    // Remove clicked from selection; if it was the last, restore all
+                                    const remaining = visibleIndices.filter(i => i !== clickedIndex);
+                                    if (remaining.length === 0) {
+                                        chart.data.datasets.forEach((_, i) => chart.show(i));
+                                    } else {
+                                        chart.hide(clickedIndex);
+                                    }
+                                } else {
+                                    // Add clicked to current selection
+                                    chart.show(clickedIndex);
+                                }
                             }
                         },
                         tooltip: {
