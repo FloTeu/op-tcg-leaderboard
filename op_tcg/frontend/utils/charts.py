@@ -882,15 +882,26 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
         "#06B6D4", "#F97316", "#84CC16", "#EC4899", "#6366F1"
     ]
 
+    def _build_colors(n: int) -> list[str]:
+        import colorsys
+        if n <= len(color_palette):
+            return color_palette[:n]
+        colors = list(color_palette)
+        extra = n - len(color_palette)
+        for i in range(extra):
+            r, g, b = colorsys.hls_to_rgb(i / extra, 0.52, 0.65)
+            colors.append(f"#{int(r * 255):02X}{int(g * 255):02X}{int(b * 255):02X}")
+        return colors
+
     # Create a unique container ID to avoid conflicts
     unique_container_id = f"{container_id}-{int(time.time() * 1000)}"
-    
+
     # Prepare config for JavaScript ChartManager
     config = {
         'data': normalized_data,
         'metaFormats': meta_formats,
         'leaders': filtered_leaders,
-        'colors': color_palette[:len(filtered_leaders)],
+        'colors': _build_colors(len(filtered_leaders)),
         'isNormalized': normalized,
         'cardName': card_name
     }

@@ -16,6 +16,7 @@ from op_tcg.frontend.pages.matchups import matchups_page, create_filter_componen
 from op_tcg.frontend.pages.card_popularity import card_popularity_page, create_filter_components as card_popularity_filters
 from op_tcg.frontend.pages.prices import prices_page, create_filter_components as prices_filters
 from op_tcg.frontend.pages.watchlist import watchlist_page
+from op_tcg.frontend.pages.meta import meta_page, create_filter_components as meta_filters
 from op_tcg.frontend.pages.settings import settings_content
 from op_tcg.frontend.pages.register import register_content
 from op_tcg.frontend.utils.csrf import get_csrf_token
@@ -394,6 +395,33 @@ def matchups(request: Request):
         ft.Link(rel="canonical", href=canonical_url),
         layout(matchups_page(), filter_component=matchups_filters(selected_meta_formats=selected_meta_formats, selected_leader_ids=selected_leader_ids, only_official=only_official), current_path="/matchups", persist_query=persist_query, user=user)
     )
+
+@rt("/meta")
+def meta(request: Request):
+    canonical_url = f"{canonical_base(request)}/meta"
+    title = "Meta Analysis – Leader Play Rates – OP TCG Leaderboard"
+    description = "Track leader play rates and meta share trends across all One Piece TCG formats."
+
+    selected_region = request.query_params.get("region")
+    selected_region_enum = MetaFormatRegion(selected_region) if selected_region else None
+
+    user_defaults = _user_setting_defaults(request)
+    persist_query = {
+        "region": _region_for_url(request.query_params.get("region") or user_defaults.get("region")),
+    }
+
+    user = request.session.get('user')
+
+    return (
+        ft.Title(title),
+        ft.Meta(name="description", content=description),
+        ft.Meta(property="og:title", content=title),
+        ft.Meta(property="og:description", content=description),
+        ft.Meta(property="og:url", content=canonical_url),
+        ft.Link(rel="canonical", href=canonical_url),
+        layout(meta_page(), filter_component=meta_filters(selected_region=selected_region_enum), current_path="/meta", persist_query=persist_query, user=user)
+    )
+
 
 # Card pages
 @rt("/card-popularity")

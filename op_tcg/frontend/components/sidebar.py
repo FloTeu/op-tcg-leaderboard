@@ -45,6 +45,7 @@ def sidebar_content(filter_component=None, current_path="/", persist_query: dict
         (build_href("/tournaments"), "Tournaments", "🏅", current_path == "/tournaments"),
         (build_href("/card-movement"), "Card Movement", "📈", current_path == "/card-movement"),
         (build_href("/matchups"), "Matchups", "🥊", current_path == "/matchups"),
+        (build_href("/meta"), "Meta Analysis", "📊", current_path == "/meta"),
     ]
     
     card_links = [

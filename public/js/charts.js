@@ -1246,6 +1246,9 @@ class ChartManager {
                             borderWidth: 1,
                             padding: 12,
                             displayColors: true,
+                            filter: function(item) {
+                                return item.parsed.y > 0;
+                            },
                             callbacks: {
                                 title: function(context) {
                                     return 'Meta Format: ' + context[0].label;
