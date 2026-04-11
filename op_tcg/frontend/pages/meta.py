@@ -96,7 +96,7 @@ def meta_page(selected_meta_format: str | None = None):
         ft.Div(
             ft.H1("Meta Analysis", cls="text-3xl font-bold text-white"),
             ft.P(
-                "Leader play rates across meta formats. Only leaders with more than 5% tournament win share are shown.",
+                "Leader play rates across meta formats. ",
                 cls="text-gray-300 mt-2",
             ),
             cls="mb-8",

@@ -826,7 +826,7 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
 
 def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[str, Any]],
                                         meta_formats: List[str], card_name: str, normalized: bool = False, title: str | None = None,
-                                        colors: List[str] | None = None) -> ft.Div:
+                                        colors: List[str] | None = None, title_tooltip: str | None = None) -> ft.Div:
     """
     Creates a streaming chart showing card occurrences across meta formats and leaders using Chart.js.
 
@@ -908,11 +908,18 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
     }
     title = title or f"Leader Occurrence for {card_name} ({'Normalized' if normalized else 'Absolute'})",
 
-    return ft.Div(
+    title_content = (
         ft.H3(
             title,
+            ft.Span("ⓘ", cls="ml-2 cursor-help text-gray-400 text-base", data_tooltip=title_tooltip),
             cls="text-lg font-semibold text-white mb-4 text-center"
-        ),
+        )
+        if title_tooltip else
+        ft.H3(title, cls="text-lg font-semibold text-white mb-4 text-center")
+    )
+
+    return ft.Div(
+        title_content,
         # Chart container with canvas
         ft.Div(
             ft.Canvas(id=unique_container_id),
