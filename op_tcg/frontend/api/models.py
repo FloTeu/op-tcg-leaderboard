@@ -176,6 +176,13 @@ class TournamentPageParams(BaseModel):
     region: MetaFormatRegion = MetaFormatRegion.ALL
     min_matches: int = 0
     max_matches: int | None = None
+    slider_id: str = "tournament-match-slider"
+
+    @field_validator('slider_id', mode='before')
+    def validate_slider_id(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        return value or "tournament-match-slider"
     
     @field_validator('meta_format', mode='before')
     def validate_meta_formats(cls, value):

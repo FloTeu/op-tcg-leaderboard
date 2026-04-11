@@ -228,7 +228,7 @@ def setup_api_routes(rt):
         slider_update_script = ft.Script(f"""
             (function(){{
                 const newMax = {max_matches};
-                const slider = document.getElementById('tournament-match-slider');
+                const slider = document.getElementById('{params.slider_id}');
                 if (!slider) return;
                 const minInput = slider.querySelector('.min-range');
                 const maxInput = slider.querySelector('.max-range');

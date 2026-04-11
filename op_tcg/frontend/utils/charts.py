@@ -824,8 +824,9 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
 #         style="height: 340px; width: 100%;"
 #     )
 
-def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[str, Any]], 
-                                        meta_formats: List[str], card_name: str, normalized: bool = False) -> ft.Div:
+def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[str, Any]],
+                                        meta_formats: List[str], card_name: str, normalized: bool = False, title: str | None = None,
+                                        colors: List[str] | None = None, title_tooltip: str | None = None) -> ft.Div:
     """
     Creates a streaming chart showing card occurrences across meta formats and leaders using Chart.js.
 
@@ -882,24 +883,43 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
         "#06B6D4", "#F97316", "#84CC16", "#EC4899", "#6366F1"
     ]
 
+    def _build_colors(n: int) -> list[str]:
+        import colorsys
+        if n <= len(color_palette):
+            return color_palette[:n]
+        colors = list(color_palette)
+        extra = n - len(color_palette)
+        for i in range(extra):
+            r, g, b = colorsys.hls_to_rgb(i / extra, 0.52, 0.65)
+            colors.append(f"#{int(r * 255):02X}{int(g * 255):02X}{int(b * 255):02X}")
+        return colors
+
     # Create a unique container ID to avoid conflicts
     unique_container_id = f"{container_id}-{int(time.time() * 1000)}"
-    
+
     # Prepare config for JavaScript ChartManager
     config = {
         'data': normalized_data,
         'metaFormats': meta_formats,
         'leaders': filtered_leaders,
-        'colors': color_palette[:len(filtered_leaders)],
+        'colors': colors if colors and len(colors) == len(filtered_leaders) else _build_colors(len(filtered_leaders)),
         'isNormalized': normalized,
         'cardName': card_name
     }
+    title = title or f"Leader Occurrence for {card_name} ({'Normalized' if normalized else 'Absolute'})",
+
+    title_content = (
+        ft.H3(
+            title,
+            ft.Span("ⓘ", cls="ml-2 cursor-help text-gray-400 text-base", data_tooltip=title_tooltip),
+            cls="text-lg font-semibold text-white mb-4 text-center"
+        )
+        if title_tooltip else
+        ft.H3(title, cls="text-lg font-semibold text-white mb-4 text-center")
+    )
 
     return ft.Div(
-        ft.H3(
-            f"Leader Occurrence for {card_name} ({'Normalized' if normalized else 'Absolute'})",
-            cls="text-lg font-semibold text-white mb-4 text-center"
-        ),
+        title_content,
         # Chart container with canvas
         ft.Div(
             ft.Canvas(id=unique_container_id),

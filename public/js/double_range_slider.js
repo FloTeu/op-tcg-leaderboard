@@ -29,6 +29,10 @@ class DoubleRangeSlider {
         if (this.container.dataset.type === 'date') {
             this.minValue.textContent = new Date(min * 1000).toLocaleDateString();
             this.maxValue.textContent = new Date(max * 1000).toLocaleDateString();
+        } else if (this.container.dataset.type === 'labels') {
+            const labels = JSON.parse(this.container.dataset.labels || '[]');
+            this.minValue.textContent = labels[min] !== undefined ? labels[min] : min;
+            this.maxValue.textContent = labels[max] !== undefined ? labels[max] : max;
         } else {
             this.minValue.textContent = min.toLocaleString();
             this.maxValue.textContent = max.toLocaleString();

@@ -499,6 +499,16 @@ class ChartManager {
         }
 
         try {
+            // Compute tight x-axis bounds from data for the logarithmic scale
+            const xValues = data.map(d => d.x).filter(v => v > 0);
+            const rawMinX = xValues.length ? Math.min(...xValues) : 1;
+            const rawMaxX = xValues.length ? Math.max(...xValues) : 1000;
+            // Add ~30% margin in log-space so bubbles at the edges aren't clipped
+            const xMin = Math.max(1, Math.floor(rawMinX * 0.7));
+            const xMax = Math.ceil(rawMaxX * 1.7);
+            // Largest bubble radius (pixels) — used to pad canvas edges so no bubble is clipped
+            const maxR = data.length ? Math.max(...data.map(d => d.r || 0)) : 20;
+
             // Clean up old tooltip if it exists
             const oldTooltip = document.getElementById('chartjs-tooltip');
             if (oldTooltip) {
@@ -665,10 +675,10 @@ class ChartManager {
                     animation: false, // Disabled for HTMX compatibility
                     layout: {
                         padding: {
-                            top: 20,
-                            right: 20,
-                            bottom: 50,  // Increased bottom padding to show x-axis properly
-                            left: window.innerWidth > 768 ? 50 : 30
+                            top: maxR,
+                            right: maxR,
+                            bottom: 30,
+                            left: 10
                         }
                     },
                     plugins: {
@@ -805,6 +815,8 @@ class ChartManager {
                     scales: {
                         x: {
                             type: 'logarithmic',
+                            min: xMin,
+                            max: xMax,
                             display: true,  // Always show x-axis
                             title: {
                                 display: window.innerWidth > 768,  // Hide title on mobile, but show axis
@@ -1236,6 +1248,32 @@ class ChartManager {
                                 padding: 15,
                                 boxWidth: 8,
                                 boxHeight: 8
+                            },
+                            onClick: function(e, legendItem, legend) {
+                                const chart = legend.chart;
+                                const clickedIndex = legendItem.datasetIndex;
+                                const total = chart.data.datasets.length;
+                                const visibleIndices = chart.data.datasets.map((_, i) => i).filter(i => chart.isDatasetVisible(i));
+                                const allVisible = visibleIndices.length === total;
+                                const clickedVisible = chart.isDatasetVisible(clickedIndex);
+                                if (allVisible) {
+                                    // Isolate clicked dataset
+                                    chart.data.datasets.forEach((_, i) => {
+                                        if (i === clickedIndex) chart.show(i);
+                                        else chart.hide(i);
+                                    });
+                                } else if (clickedVisible) {
+                                    // Remove clicked from selection; if it was the last, restore all
+                                    const remaining = visibleIndices.filter(i => i !== clickedIndex);
+                                    if (remaining.length === 0) {
+                                        chart.data.datasets.forEach((_, i) => chart.show(i));
+                                    } else {
+                                        chart.hide(clickedIndex);
+                                    }
+                                } else {
+                                    // Add clicked to current selection
+                                    chart.show(clickedIndex);
+                                }
                             }
                         },
                         tooltip: {
@@ -1246,6 +1284,9 @@ class ChartManager {
                             borderWidth: 1,
                             padding: 12,
                             displayColors: true,
+                            filter: function(item) {
+                                return item.parsed.y > 0;
+                            },
                             callbacks: {
                                 title: function(context) {
                                     return 'Meta Format: ' + context[0].label;
