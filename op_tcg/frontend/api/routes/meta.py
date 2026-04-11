@@ -61,7 +61,7 @@ def _compute_meta_share(region: MetaFormatRegion, from_meta_idx: int | None = No
 
     active_metas = [mf for mf in meta_formats if total_wins.get(mf, 0) > 0]
     if not active_metas:
-        return [], [], []
+        return [], [], [], []
 
     # Per-meta proportions; leaders below threshold are zeroed out for that meta only
     per_meta_proportions: dict[str, dict[str, float]] = {}
@@ -78,7 +78,7 @@ def _compute_meta_share(region: MetaFormatRegion, from_meta_idx: int | None = No
         per_meta_proportions[meta] = meta_props
 
     if not all_included_leaders:
-        return [], [], []
+        return [], [], [], []
 
     # Sort by total wins across all metas for consistent series ordering
     leader_totals = {
@@ -87,14 +87,23 @@ def _compute_meta_share(region: MetaFormatRegion, from_meta_idx: int | None = No
     }
     sorted_leaders = sorted(all_included_leaders, key=lambda l: leader_totals[l], reverse=True)
 
-    # Use leader name from the extended data itself
+    # Use leader name and color from the extended data itself
     lid2name: dict[str, str] = {l.id: l.name for l in leaders if l.name}
+    # Use the most-recent entry per leader for the color (they share the same colors across metas)
+    lid2color: dict[str, str] = {}
+    for l in leaders:
+        if l.id and l.id not in lid2color:
+            try:
+                lid2color[l.id] = l.to_hex_color()
+            except Exception:
+                pass
 
     def _display_name(lid: str) -> str:
         name = lid2name.get(lid)
         return f"{name} ({lid})" if name else lid
 
     display_names = [_display_name(lid) for lid in sorted_leaders]
+    colors = [lid2color.get(lid, "#6B7280") for lid in sorted_leaders]
 
     # Build chart data: per-meta proportions, zero for leaders below threshold in that meta.
     # normalized=True causes the chart to re-normalize included leaders to 100% per meta.
@@ -106,14 +115,14 @@ def _compute_meta_share(region: MetaFormatRegion, from_meta_idx: int | None = No
         for meta in active_metas
     ]
 
-    return chart_data, active_metas, display_names
+    return chart_data, active_metas, display_names, colors
 
 
 def setup_api_routes(rt):
     @rt("/api/meta-share-chart")
     def get_meta_share_chart(request: Request):
         params = MetaParams(**get_query_params_as_dict(request))
-        chart_data, meta_formats, leaders = _compute_meta_share(params.region, params.from_meta_idx, params.to_meta_idx)
+        chart_data, meta_formats, leaders, colors = _compute_meta_share(params.region, params.from_meta_idx, params.to_meta_idx)
 
         if not chart_data:
             return ft.Div(
@@ -130,5 +139,6 @@ def setup_api_routes(rt):
             meta_formats=meta_formats,
             card_name="Meta Share",
             normalized=True,
-            title="Meta Index (Leader Tournament Win Share)"
+            title="Meta Index (Leader Tournament Win Share)",
+            colors=colors,
         )

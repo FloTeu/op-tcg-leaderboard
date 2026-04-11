@@ -824,8 +824,9 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
 #         style="height: 340px; width: 100%;"
 #     )
 
-def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[str, Any]], 
-                                        meta_formats: List[str], card_name: str, normalized: bool = False, title: str | None = None) -> ft.Div:
+def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[str, Any]],
+                                        meta_formats: List[str], card_name: str, normalized: bool = False, title: str | None = None,
+                                        colors: List[str] | None = None) -> ft.Div:
     """
     Creates a streaming chart showing card occurrences across meta formats and leaders using Chart.js.
 
@@ -901,7 +902,7 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
         'data': normalized_data,
         'metaFormats': meta_formats,
         'leaders': filtered_leaders,
-        'colors': _build_colors(len(filtered_leaders)),
+        'colors': colors if colors and len(colors) == len(filtered_leaders) else _build_colors(len(filtered_leaders)),
         'isNormalized': normalized,
         'cardName': card_name
     }
