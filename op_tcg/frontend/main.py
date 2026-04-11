@@ -32,7 +32,10 @@ from op_tcg.backend.db import get_user_settings
 from starlette.requests import Request
 from op_tcg.frontend.utils.cache_warmer import start_cache_warming, stop_cache_warming, warm_cache_now
 from op_tcg.frontend.utils.seo import canonical_base, write_static_sitemap, page_head
-from op_tcg.frontend.utils.og_images import get_meta_og_image_bytes, warm_meta_og_image
+from op_tcg.frontend.utils.og_images import (
+    get_meta_og_image_bytes, warm_meta_og_image,
+    get_leader_og_image_bytes, warm_leader_og_image,
+)
 from op_tcg.frontend.utils.middleware import canonical_redirect_middleware
 from starlette.middleware.sessions import SessionMiddleware
 import os
@@ -59,8 +62,9 @@ async def lifespan(app):
         # Generate static sitemap on startup so /sitemap.xml is always available
         write_static_sitemap()
         logger.info("Static sitemap.xml generated successfully")
-        # Pre-generate meta OG image so social previews are ready immediately
+        # Pre-generate OG images so social previews are ready immediately
         warm_meta_og_image()
+        warm_leader_og_image()
     except Exception as e:
         logger.error(f"Failed to start cache warming: {e}")
     
@@ -156,6 +160,12 @@ async def serve_file_routes(request: Request, call_next):
         return FileResponse("public/sitemap.xml", media_type="application/xml")
     if path == "/og/meta.png":
         png = get_meta_og_image_bytes()
+        if png:
+            return StarletteResponse(content=png, media_type="image/png",
+                                     headers={"Cache-Control": "public, max-age=14400"})
+        return FileResponse("public/favicon32x23.png", media_type="image/png")
+    if path == "/og/leader.png":
+        png = get_leader_og_image_bytes()
         if png:
             return StarletteResponse(content=png, media_type="image/png",
                                      headers={"Cache-Control": "public, max-age=14400"})
@@ -286,6 +296,7 @@ def leader_default(request: Request):
         "One Piece TCG leaders, OP TCG leader tier list, OPTCG leader win rate, "
         "One Piece card game decks, OP TCG best leaders, One Piece TCG decklists by leader"
     )
+    og_image_url = f"{base}/og/leader.png"
 
     persist_query = {
         "meta_format": request.query_params.get("meta_format"),
@@ -295,7 +306,7 @@ def leader_default(request: Request):
     user = request.session.get('user')
 
     return (
-        *page_head(title, description, canonical_url, keywords, base, "One Piece TCG Leader Performance"),
+        *page_head(title, description, canonical_url, keywords, base, "One Piece TCG Leader Performance", og_image_url=og_image_url),
         # Shared deep-linking functionality for decklist modals
         create_decklist_deep_link_script(),
         layout(
