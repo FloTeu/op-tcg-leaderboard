@@ -31,7 +31,7 @@ from op_tcg.backend.models.cards import CardCurrency
 from op_tcg.backend.db import get_user_settings
 from starlette.requests import Request
 from op_tcg.frontend.utils.cache_warmer import start_cache_warming, stop_cache_warming, warm_cache_now
-from op_tcg.frontend.utils.seo import canonical_base, write_static_sitemap
+from op_tcg.frontend.utils.seo import canonical_base, write_static_sitemap, page_head
 from op_tcg.frontend.utils.middleware import canonical_redirect_middleware
 from starlette.middleware.sessions import SessionMiddleware
 import os
@@ -209,32 +209,30 @@ def _region_for_url(region: str | None) -> str | None:
 
 @rt("/")
 def home(request: Request):
-    # Add canonical link to head for home page using incoming host
-    canonical_url = canonical_base(request)
-    title = "OP TCG Leaderboard – Meta, Decklists, Prices & Matchups"
-    description = "Track One Piece TCG leaders, meta trends, decklists, prices, and matchups. Updated regularly with official and community results."
-    # Determine selected values for filters (query param > user setting > code default)
+    base = canonical_base(request)
+    canonical_url = base
+    title = "OP TCG Leaderboard – One Piece TCG Meta, Leaders, Decklists & Prices"
+    description = (
+        "The #1 source for One Piece TCG competitive data. Live leaderboards, leader win rates, "
+        "meta analysis, top decklists, card prices, and matchup stats – updated from official tournament results."
+    )
+    keywords = (
+        "One Piece TCG leaderboard, OP TCG competitive, One Piece card game rankings, "
+        "OPTCG tournament results, One Piece TCG win rates, OP TCG meta game, One Piece TCG decklists"
+    )
     user_defaults = _user_setting_defaults(request)
     selected_meta_format = request.query_params.get("meta_format")
     selected_region = request.query_params.get("region") or user_defaults.get("region")
-
     persist_query = {
         "meta_format": selected_meta_format,
         "region": _region_for_url(selected_region),
     }
     selected_meta_format_enum = MetaFormat(selected_meta_format) if selected_meta_format else None
     selected_region_enum = MetaFormatRegion(selected_region) if selected_region else None
-
     user = request.session.get('user')
     flash = request.session.pop('flash', None)
-
     return (
-        ft.Title(title),
-        ft.Meta(name="description", content=description),
-        ft.Meta(property="og:title", content=title),
-        ft.Meta(property="og:description", content=description),
-        ft.Meta(property="og:url", content=canonical_url),
-        ft.Link(rel="canonical", href=canonical_url),
+        *page_head(title, description, canonical_url, keywords, base, "One Piece TCG Competitive Leaderboard"),
         layout(
             home_page(),
             filter_component=home_filters(selected_meta_format=selected_meta_format_enum, selected_region=selected_region_enum),
@@ -262,10 +260,17 @@ def leader_default(request: Request):
     # Convert to MetaFormatRegion enum if present
     selected_meta_format_region = MetaFormatRegion(selected_region_str) if selected_region_str else None
 
-    # Add canonical link to head based on incoming host
-    canonical_url = f"{canonical_base(request)}/leader"
+    base = canonical_base(request)
+    canonical_url = f"{base}/leader"
     title = "Leader Meta & Performance – OP TCG Leaderboard"
-    description = "Explore leader performance across formats, with meta share, win rates, and top decklists."
+    description = (
+        "Deep-dive into every One Piece TCG leader: meta share, tournament win rates, top decklists, "
+        "and head-to-head matchup data across all formats and regions."
+    )
+    keywords = (
+        "One Piece TCG leaders, OP TCG leader tier list, OPTCG leader win rate, "
+        "One Piece card game decks, OP TCG best leaders, One Piece TCG decklists by leader"
+    )
 
     persist_query = {
         "meta_format": request.query_params.get("meta_format"),
@@ -275,18 +280,13 @@ def leader_default(request: Request):
     user = request.session.get('user')
 
     return (
-        ft.Title(title),
-        ft.Meta(name="description", content=description),
-        ft.Meta(property="og:title", content=title),
-        ft.Meta(property="og:description", content=description),
-        ft.Meta(property="og:url", content=canonical_url),
-        ft.Link(rel="canonical", href=canonical_url),
+        *page_head(title, description, canonical_url, keywords, base, "One Piece TCG Leader Performance"),
         # Shared deep-linking functionality for decklist modals
         create_decklist_deep_link_script(),
         layout(
             leader_page(leader_id, selected_meta_format=selected_meta_format),
             filter_component=leader_filters(
-                selected_meta_formats=selected_meta_format, 
+                selected_meta_formats=selected_meta_format,
                 selected_leader_id=leader_id,
                 selected_region=selected_meta_format_region
             ),
@@ -298,11 +298,18 @@ def leader_default(request: Request):
 
 @rt("/tournaments")
 def tournaments(request: Request):
-    # Add canonical link to head based on incoming host
-    canonical_url = f"{canonical_base(request)}/tournaments"
+    base = canonical_base(request)
+    canonical_url = f"{base}/tournaments"
     title = "Tournaments – Results & Decklists – OP TCG Leaderboard"
-    description = "Browse tournament results, standings, and decklists across regions and formats."
-    
+    description = (
+        "Browse One Piece TCG tournament results, final standings, and top decklists from official events "
+        "worldwide. Filter by format, region, and placing to find winning strategies."
+    )
+    keywords = (
+        "One Piece TCG tournaments, OPTCG tournament results, One Piece card game event standings, "
+        "OP TCG top decklists, One Piece TCG official tournaments, OPTCG regional results"
+    )
+
     # Parse selections (query param > user setting > code default)
     user_defaults = _user_setting_defaults(request)
     selected_meta_formats = request.query_params.getlist("meta_format")
@@ -318,12 +325,7 @@ def tournaments(request: Request):
     user = request.session.get('user')
 
     return (
-        ft.Title(title),
-        ft.Meta(name="description", content=description),
-        ft.Meta(property="og:title", content=title),
-        ft.Meta(property="og:description", content=description),
-        ft.Meta(property="og:url", content=canonical_url),
-        ft.Link(rel="canonical", href=canonical_url),
+        *page_head(title, description, canonical_url, keywords, base, "One Piece TCG Tournament Results"),
         # Shared deep-linking functionality for decklist modals
         create_decklist_deep_link_script(),
         layout(tournaments_page(), filter_component=tournament_filters(selected_meta_formats=selected_meta_formats, selected_region=selected_region_enum), current_path="/tournaments", persist_query=persist_query, user=user)
@@ -334,16 +336,23 @@ def card_movement(request: Request):
     # Get selected meta format and leader ID from query params
     selected_meta_format = request.query_params.get("meta_format")
     selected_leader_id = request.query_params.get("leader_id")
-    
+
     # Convert to MetaFormat enum if present
     if selected_meta_format:
         selected_meta_format = MetaFormat(selected_meta_format)
-    
-    # Add canonical link to head based on incoming host
-    canonical_url = f"{canonical_base(request)}/card-movement"
+
+    base = canonical_base(request)
+    canonical_url = f"{base}/card-movement"
     title = "Card Movement – Prices & Popularity – OP TCG Leaderboard"
-    description = "Track card price trends and popularity changes to spot rising staples and value."
-    
+    description = (
+        "Track One Piece TCG card price trends and tournament popularity shifts between formats. "
+        "Spot rising staples, value movers, and cards gaining or losing competitive traction."
+    )
+    keywords = (
+        "One Piece TCG card prices, OP TCG card value, OPTCG price trends, "
+        "One Piece card game staples, OP TCG card movement, One Piece TCG market trends"
+    )
+
     user_defaults = _user_setting_defaults(request)
     persist_query = {
         "meta_format": request.query_params.get("meta_format"),
@@ -353,12 +362,7 @@ def card_movement(request: Request):
     user = request.session.get('user')
 
     return (
-        ft.Title(title),
-        ft.Meta(name="description", content=description),
-        ft.Meta(property="og:title", content=title),
-        ft.Meta(property="og:description", content=description),
-        ft.Meta(property="og:url", content=canonical_url),
-        ft.Link(rel="canonical", href=canonical_url),
+        *page_head(title, description, canonical_url, keywords, base, "One Piece TCG Card Price and Popularity Trends"),
         layout(card_movement_page(), filter_component=card_movement_filters(selected_meta_format=selected_meta_format, selected_leader_id=selected_leader_id), current_path="/card-movement", persist_query=persist_query, user=user)
     )
 
@@ -368,16 +372,23 @@ def matchups(request: Request):
     selected_meta_formats = request.query_params.getlist("meta_format")
     selected_leader_ids = request.query_params.getlist("leader_ids")
     only_official = request.query_params.get("only_official", "true").lower() in ("true", "on", "1", "yes")
-    
+
     # Convert to MetaFormat enum if present
     if selected_meta_formats:
         selected_meta_formats = [MetaFormat(mf) for mf in selected_meta_formats]
-    
-    # Add canonical link to head based on incoming host
-    canonical_url = f"{canonical_base(request)}/matchups"
+
+    base = canonical_base(request)
+    canonical_url = f"{base}/matchups"
     title = "Leader Matchups – Win Rates & Counters – OP TCG Leaderboard"
-    description = "Analyze leader vs leader matchups, win rates, and counter picks across formats."
-    
+    description = (
+        "Full One Piece TCG leader vs leader matchup matrix with win rates sourced from official tournament data. "
+        "Find the best counters, favourable matchups, and blind spots for every leader."
+    )
+    keywords = (
+        "One Piece TCG matchups, OP TCG leader counters, OPTCG win rate matrix, "
+        "One Piece card game matchup data, OP TCG head-to-head, One Piece TCG counter picks"
+    )
+
     user_defaults = _user_setting_defaults(request)
     persist_query = {
         "meta_format": request.query_params.get("meta_format"),
@@ -387,20 +398,25 @@ def matchups(request: Request):
     user = request.session.get('user')
 
     return (
-        ft.Title(title),
-        ft.Meta(name="description", content=description),
-        ft.Meta(property="og:title", content=title),
-        ft.Meta(property="og:description", content=description),
-        ft.Meta(property="og:url", content=canonical_url),
-        ft.Link(rel="canonical", href=canonical_url),
+        *page_head(title, description, canonical_url, keywords, base, "One Piece TCG Leader Matchup Win Rates"),
         layout(matchups_page(), filter_component=matchups_filters(selected_meta_formats=selected_meta_formats, selected_leader_ids=selected_leader_ids, only_official=only_official), current_path="/matchups", persist_query=persist_query, user=user)
     )
 
 @rt("/meta")
 def meta(request: Request):
-    canonical_url = f"{canonical_base(request)}/meta"
-    title = "Meta Analysis – Leader Play Rates – OP TCG Leaderboard"
-    description = "Track leader play rates and meta share trends across all One Piece TCG formats."
+    base = canonical_base(request)
+    canonical_url = f"{base}/meta"
+    title = "One Piece TCG Meta Analysis – Leader Win Rates & Tournament Trends | OP TCG Leaderboard"
+    description = (
+        "Explore One Piece TCG meta game analysis: leader tournament win rates, decklist popularity, "
+        "and format trends across all meta formats. Find the strongest leaders and track "
+        "how the competitive meta evolves each set."
+    )
+    keywords = (
+        "One Piece TCG meta, OP TCG tier list, One Piece card game leader win rates, "
+        "OPTCG tournament meta, One Piece TCG deck popularity, OP TCG meta analysis, "
+        "One Piece TCG competitive meta, OPTCG format trends"
+    )
 
     selected_region = request.query_params.get("region")
     selected_region_enum = MetaFormatRegion(selected_region) if selected_region else None
@@ -415,12 +431,7 @@ def meta(request: Request):
     user = request.session.get('user')
 
     return (
-        ft.Title(title),
-        ft.Meta(name="description", content=description),
-        ft.Meta(property="og:title", content=title),
-        ft.Meta(property="og:description", content=description),
-        ft.Meta(property="og:url", content=canonical_url),
-        ft.Link(rel="canonical", href=canonical_url),
+        *page_head(title, description, canonical_url, keywords, base, "One Piece TCG Competitive Meta"),
         layout(meta_page(selected_meta_format=str(selected_meta_format)), filter_component=meta_filters(selected_region=selected_region_enum), current_path="/meta", persist_query=persist_query, user=user)
     )
 
@@ -428,11 +439,18 @@ def meta(request: Request):
 # Card pages
 @rt("/card-popularity")
 def card_popularity(request: Request):
-    # Add canonical link to head based on incoming host
-    canonical_url = f"{canonical_base(request)}/card-popularity"
+    base = canonical_base(request)
+    canonical_url = f"{base}/card-popularity"
     title = "Card Popularity – Usage & Trends – OP TCG Leaderboard"
-    description = "Discover the most played cards and shifting usage trends across formats and leaders."
-    
+    description = (
+        "Discover the most-played One Piece TCG cards in competitive tournaments. "
+        "See usage rates by leader, format, and region to identify the essential staples and tech choices."
+    )
+    keywords = (
+        "One Piece TCG card usage, OP TCG most played cards, OPTCG card popularity, "
+        "One Piece card game staples, OP TCG tech cards, One Piece TCG competitive cards"
+    )
+
     # Parse selections (query param > user setting > code default)
     user_defaults = _user_setting_defaults(request)
     persist_query = {
@@ -447,21 +465,24 @@ def card_popularity(request: Request):
     user = request.session.get('user')
 
     return (
-        ft.Title(title),
-        ft.Meta(name="description", content=description),
-        ft.Meta(property="og:title", content=title),
-        ft.Meta(property="og:description", content=description),
-        ft.Meta(property="og:url", content=canonical_url),
-        ft.Link(rel="canonical", href=canonical_url),
+        *page_head(title, description, canonical_url, keywords, base, "One Piece TCG Card Usage Statistics"),
         layout(card_popularity_page(), filter_component=card_popularity_filters(selected_meta_format=selected_meta_format_enum, currency=selected_currency_enum), current_path="/card-popularity", persist_query=persist_query, user=user)
     )
 
 # Prices page
 @rt("/card-prices")
 def prices(request: Request):
-    canonical_url = f"{canonical_base(request)}/prices"
+    base = canonical_base(request)
+    canonical_url = f"{base}/prices"
     title = "Card Prices – Market Trends – OP TCG Leaderboard"
-    description = "See current OP TCG card prices and market movement with historical trends."
+    description = (
+        "Current One Piece TCG card prices with historical market trends in EUR and USD. "
+        "Track price movements for every card across all sets to time your buys and sells."
+    )
+    keywords = (
+        "One Piece TCG card prices, OP TCG price list, OPTCG market prices, "
+        "One Piece card game EUR USD prices, OP TCG card values, One Piece TCG price history"
+    )
 
     user_defaults = _user_setting_defaults(request)
     selected_currency = request.query_params.get("currency") or user_defaults.get("currency")
@@ -470,23 +491,19 @@ def prices(request: Request):
     user = request.session.get('user')
 
     return (
-        ft.Title(title),
-        ft.Meta(name="description", content=description),
-        ft.Meta(property="og:title", content=title),
-        ft.Meta(property="og:description", content=description),
-        ft.Meta(property="og:url", content=canonical_url),
-        ft.Link(rel="canonical", href=canonical_url),
+        *page_head(title, description, canonical_url, keywords, base, "One Piece TCG Card Prices"),
         layout(prices_page(), filter_component=prices_filters(selected_currency=selected_currency_enum), current_path="/prices", user=user)
     )
 
 # Support pages
 @rt("/bug-report")
 def bug_report(request: Request):
-    # Add canonical link to head based on incoming host
-    canonical_url = f"{canonical_base(request)}/bug-report"
+    base = canonical_base(request)
+    canonical_url = f"{base}/bug-report"
     title = "Report a Bug – OP TCG Leaderboard"
-    description = "Spotted an issue? Report bugs and help us improve OP TCG Leaderboard."
-    
+    description = "Spotted an issue with OP TCG Leaderboard? Submit a bug report and help us keep the data accurate and the site running smoothly."
+    keywords = "OP TCG Leaderboard bug report, One Piece TCG data issue, OPTCG feedback"
+
     user_defaults = _user_setting_defaults(request)
     persist_query = {
         "meta_format": request.query_params.get("meta_format"),
@@ -496,21 +513,20 @@ def bug_report(request: Request):
     user = request.session.get('user')
 
     return (
-        ft.Title(title),
-        ft.Meta(name="description", content=description),
-        ft.Meta(property="og:title", content=title),
-        ft.Meta(property="og:description", content=description),
-        ft.Meta(property="og:url", content=canonical_url),
-        ft.Link(rel="canonical", href=canonical_url),
+        *page_head(title, description, canonical_url, keywords, base),
         layout(bug_report_page(), filter_component=None, current_path="/bug-report", persist_query=persist_query, user=user)
     )
 
 @rt("/about")
 def about(request: Request):
-    # Add canonical link to head based on incoming host
-    canonical_url = f"{canonical_base(request)}/about"
+    base = canonical_base(request)
+    canonical_url = f"{base}/about"
     title = "About – OP TCG Leaderboard"
-    description = "About the OP TCG Leaderboard project."
+    description = (
+        "Learn about OP TCG Leaderboard: an independent analytics platform for One Piece TCG "
+        "competitive data, crawled from official tournament results and presented free of charge."
+    )
+    keywords = "about OP TCG Leaderboard, One Piece TCG analytics project, OPTCG data source"
 
     user_defaults = _user_setting_defaults(request)
     persist_query = {
@@ -521,30 +537,22 @@ def about(request: Request):
     user = request.session.get('user')
 
     return (
-        ft.Title(title),
-        ft.Meta(name="description", content=description),
-        ft.Meta(property="og:title", content=title),
-        ft.Meta(property="og:description", content=description),
-        ft.Meta(property="og:url", content=canonical_url),
-        ft.Link(rel="canonical", href=canonical_url),
+        *page_head(title, description, canonical_url, keywords, base),
         layout(about_page(), filter_component=None, current_path="/about", persist_query=persist_query, user=user)
     )
 
 @rt("/privacy")
 def privacy(request: Request):
-    canonical_url = f"{canonical_base(request)}/privacy"
+    base = canonical_base(request)
+    canonical_url = f"{base}/privacy"
     title = "Privacy Policy – OP TCG Leaderboard"
     description = "Privacy policy for OP TCG Leaderboard, covering data collection, Google OAuth, and your rights."
+    keywords = "OP TCG Leaderboard privacy policy, One Piece TCG data privacy, OPTCG Google OAuth"
 
     user = request.session.get('user')
 
     return (
-        ft.Title(title),
-        ft.Meta(name="description", content=description),
-        ft.Meta(property="og:title", content=title),
-        ft.Meta(property="og:description", content=description),
-        ft.Meta(property="og:url", content=canonical_url),
-        ft.Link(rel="canonical", href=canonical_url),
+        *page_head(title, description, canonical_url, keywords, base),
         layout(privacy_page(), filter_component=None, current_path="/privacy", user=user)
     )
 
