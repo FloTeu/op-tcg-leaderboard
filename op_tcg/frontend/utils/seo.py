@@ -41,13 +41,14 @@ def page_head(
     keywords: str,
     base_url: str,
     json_ld_about: str = "One Piece TCG Competitive Data",
+    og_image_url: Optional[str] = None,
 ) -> tuple:
     """Return a tuple of <head> elements shared by every page route.
 
     Covers: title, description, keywords, Open Graph, Twitter Card,
     canonical link, and JSON-LD WebPage structured data.
     """
-    og_image = f"{base_url}{_OG_IMAGE_PATH}"
+    og_image = og_image_url or f"{base_url}{_OG_IMAGE_PATH}"
     json_ld = {
         "@context": "https://schema.org",
         "@type": "WebPage",

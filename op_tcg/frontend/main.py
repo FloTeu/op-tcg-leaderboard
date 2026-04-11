@@ -32,6 +32,7 @@ from op_tcg.backend.db import get_user_settings
 from starlette.requests import Request
 from op_tcg.frontend.utils.cache_warmer import start_cache_warming, stop_cache_warming, warm_cache_now
 from op_tcg.frontend.utils.seo import canonical_base, write_static_sitemap, page_head
+from op_tcg.frontend.utils.og_images import get_meta_og_image_bytes, warm_meta_og_image
 from op_tcg.frontend.utils.middleware import canonical_redirect_middleware
 from starlette.middleware.sessions import SessionMiddleware
 import os
@@ -58,6 +59,8 @@ async def lifespan(app):
         # Generate static sitemap on startup so /sitemap.xml is always available
         write_static_sitemap()
         logger.info("Static sitemap.xml generated successfully")
+        # Pre-generate meta OG image so social previews are ready immediately
+        warm_meta_og_image()
     except Exception as e:
         logger.error(f"Failed to start cache warming: {e}")
     
@@ -136,17 +139,29 @@ app, rt = fast_app(
 # Add session middleware for authentication
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 
-# Sitemap works reliably 
-@rt("/sitemap.xml")
-async def serve_sitemap():
-    return FileResponse("public/sitemap.xml", media_type="application/xml")
-
-
 
 # Setup API routes
 setup_api_routes(rt)
 setup_auth_routes(rt)
 setup_settings_routes(rt)
+
+from starlette.responses import Response as StarletteResponse
+
+
+@app.middleware("http")
+async def serve_file_routes(request: Request, call_next):
+    """Serve paths with file extensions before FastHTML routing (which doesn't match dots)."""
+    path = request.url.path
+    if path == "/sitemap.xml":
+        return FileResponse("public/sitemap.xml", media_type="application/xml")
+    if path == "/og/meta.png":
+        png = get_meta_og_image_bytes()
+        if png:
+            return StarletteResponse(content=png, media_type="image/png",
+                                     headers={"Cache-Control": "public, max-age=14400"})
+        return FileResponse("public/favicon32x23.png", media_type="image/png")
+    return await call_next(request)
+
 
 @rt("/api/cache/status")
 def cache_status():
@@ -430,8 +445,9 @@ def meta(request: Request):
 
     user = request.session.get('user')
 
+    og_image_url = f"{base}/og/meta.png"
     return (
-        *page_head(title, description, canonical_url, keywords, base, "One Piece TCG Competitive Meta"),
+        *page_head(title, description, canonical_url, keywords, base, "One Piece TCG Competitive Meta", og_image_url=og_image_url),
         layout(meta_page(selected_meta_format=str(selected_meta_format)), filter_component=meta_filters(selected_region=selected_region_enum), current_path="/meta", persist_query=persist_query, user=user)
     )
 
