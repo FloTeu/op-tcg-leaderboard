@@ -404,9 +404,11 @@ def meta(request: Request):
 
     selected_region = request.query_params.get("region")
     selected_region_enum = MetaFormatRegion(selected_region) if selected_region else None
+    selected_meta_format = request.query_params.get("meta_format") or MetaFormat.latest_meta_format()
 
     user_defaults = _user_setting_defaults(request)
     persist_query = {
+        "meta_format": str(selected_meta_format),
         "region": _region_for_url(request.query_params.get("region") or user_defaults.get("region")),
     }
 
@@ -419,7 +421,7 @@ def meta(request: Request):
         ft.Meta(property="og:description", content=description),
         ft.Meta(property="og:url", content=canonical_url),
         ft.Link(rel="canonical", href=canonical_url),
-        layout(meta_page(), filter_component=meta_filters(selected_region=selected_region_enum), current_path="/meta", persist_query=persist_query, user=user)
+        layout(meta_page(selected_meta_format=str(selected_meta_format)), filter_component=meta_filters(selected_region=selected_region_enum), current_path="/meta", persist_query=persist_query, user=user)
     )
 
 

@@ -130,5 +130,5 @@ def setup_api_routes(rt):
             meta_formats=meta_formats,
             card_name="Meta Share",
             normalized=True,
-            title="Leader Tournament Win Share"
+            title="Meta Index (Leader Tournament Win Share)"
         )
