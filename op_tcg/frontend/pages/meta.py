@@ -11,7 +11,7 @@ from op_tcg.frontend.components.tournament_charts import (
 
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
-HX_INCLUDE = "[name='region'],[name='from_meta_idx'],[name='to_meta_idx']"
+HX_INCLUDE = "[name='region'],[name='from_meta_idx'],[name='to_meta_idx'],[name='meta_view_mode']"
 
 FILTER_HX_ATTRS = {
     "hx_get": "/api/meta-share-chart",
@@ -106,6 +106,77 @@ def meta_page(selected_meta_format: str | None = None):
             size="w-8 h-8",
             container_classes="min-h-[100px]",
         ),
+        # View-mode toggle (persists across HTMX chart reloads)
+        ft.Input(type="hidden", name="meta_view_mode", value="leaders", id="meta-view-mode-input"),
+        ft.Div(
+            ft.Div(
+                ft.Button(
+                    ft.Span("Leaders", cls="px-3"),
+                    id="meta-toggle-leaders",
+                    cls=(
+                        "inline-flex items-center justify-center text-sm font-medium transition-colors "
+                        "px-3 py-1 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 "
+                        "bg-blue-600 text-white shadow-sm"
+                    ),
+                    aria_pressed="true",
+                    hx_get="/api/meta-share-chart",
+                    hx_trigger="click",
+                    hx_target="#meta-share-chart",
+                    hx_swap="innerHTML",
+                    hx_include=HX_INCLUDE,
+                    hx_indicator="#meta-loading-indicator",
+                ),
+                ft.Button(
+                    ft.Span("Colors", cls="px-3"),
+                    id="meta-toggle-colors",
+                    cls=(
+                        "inline-flex items-center justify-center text-sm font-medium transition-colors "
+                        "px-3 py-1 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 "
+                        "bg-gray-700 text-gray-200 hover:bg-gray-600"
+                    ),
+                    aria_pressed="false",
+                    hx_get="/api/meta-share-chart",
+                    hx_trigger="click",
+                    hx_target="#meta-share-chart",
+                    hx_swap="innerHTML",
+                    hx_include=HX_INCLUDE,
+                    hx_indicator="#meta-loading-indicator",
+                    style="margin-left:6px;",
+                ),
+                cls=(
+                    "inline-flex items-center p-1 rounded-full bg-gray-700/60 ring-1 ring-white/10 "
+                    "backdrop-blur supports-[backdrop-filter]:bg-gray-700/40"
+                ),
+                role="group",
+                aria_label="Meta chart view mode",
+            ),
+            cls="mb-3",
+        ),
+        ft.Script("""
+            (function(){
+              var leadersBtn = document.getElementById('meta-toggle-leaders');
+              var colorsBtn = document.getElementById('meta-toggle-colors');
+              var viewInput = document.getElementById('meta-view-mode-input');
+              if (!leadersBtn || !colorsBtn || !viewInput) return;
+              function activate(isLeaders){
+                viewInput.value = isLeaders ? 'leaders' : 'colors';
+                if (isLeaders){
+                  leadersBtn.className = 'inline-flex items-center justify-center text-sm font-medium transition-colors px-3 py-1 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-600 text-white shadow-sm';
+                  leadersBtn.setAttribute('aria-pressed','true');
+                  colorsBtn.className = 'inline-flex items-center justify-center text-sm font-medium transition-colors px-3 py-1 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-700 text-gray-200 hover:bg-gray-600';
+                  colorsBtn.setAttribute('aria-pressed','false');
+                } else {
+                  colorsBtn.className = 'inline-flex items-center justify-center text-sm font-medium transition-colors px-3 py-1 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-600 text-white shadow-sm';
+                  colorsBtn.setAttribute('aria-pressed','true');
+                  leadersBtn.className = 'inline-flex items-center justify-center text-sm font-medium transition-colors px-3 py-1 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-700 text-gray-200 hover:bg-gray-600';
+                  leadersBtn.setAttribute('aria-pressed','false');
+                }
+              }
+              activate(true);
+              leadersBtn.addEventListener('click', function(){ activate(true); });
+              colorsBtn.addEventListener('click', function(){ activate(false); });
+            })();
+        """),
         ft.Div(
             hx_get="/api/meta-share-chart",
             hx_trigger="load",

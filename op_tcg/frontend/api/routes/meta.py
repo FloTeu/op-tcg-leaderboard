@@ -4,6 +4,7 @@ from fasthtml import ft
 from pydantic import BaseModel, field_validator
 from starlette.requests import Request
 
+from op_tcg.backend.models.cards import OPTcgColor
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.frontend.utils.api import get_query_params_as_dict
 from op_tcg.frontend.utils.extract import get_leader_extended
@@ -16,6 +17,7 @@ class MetaParams(BaseModel):
     region: MetaFormatRegion = MetaFormatRegion.ALL
     from_meta_idx: int | None = None
     to_meta_idx: int | None = None
+    meta_view_mode: str = "leaders"
 
     @field_validator("region", mode="before")
     def validate_region(cls, v):
@@ -33,8 +35,51 @@ class MetaParams(BaseModel):
             return int(v)
         return v
 
+    @field_validator("meta_view_mode", mode="before")
+    def validate_view_mode(cls, v):
+        if isinstance(v, list) and v:
+            v = v[0]
+        return v if v in ("leaders", "colors") else "leaders"
 
-def _compute_meta_share(region: MetaFormatRegion, from_meta_idx: int | None = None, to_meta_idx: int | None = None):
+
+def _compute_color_share(wins: dict, active_metas: list, leaders) -> tuple:
+    """Aggregate tournament wins by OPTcgColor across active metas."""
+    lid2colors: dict[str, list] = {}
+    for l in leaders:
+        if l.id and l.id not in lid2colors:
+            lid2colors[l.id] = l.colors  # list[OPTcgColor]
+
+    color_wins: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
+    for meta in active_metas:
+        for lid, count in wins[meta].items():
+            lcolors = lid2colors.get(lid, [])
+            if not lcolors:
+                continue
+            weight = 1.0 / len(lcolors)
+            for color in lcolors:
+                color_wins[meta][str(color)] += count * weight
+
+    all_colors_present: set[str] = set()
+    for meta in active_metas:
+        all_colors_present.update(color_wins[meta].keys())
+
+    if not all_colors_present:
+        return [], [], [], []
+
+    # Preserve canonical OP TCG color order
+    color_order = [str(c) for c in OPTcgColor]
+    color_names = [c for c in color_order if c in all_colors_present]
+
+    chart_data = [
+        {color: color_wins[meta].get(color, 0.0) for color in color_names}
+        for meta in active_metas
+    ]
+    color_hexes = [OPTcgColor(c).to_hex_color() for c in color_names]
+
+    return chart_data, active_metas, color_names, color_hexes
+
+
+def _compute_meta_share(region: MetaFormatRegion, from_meta_idx: int | None = None, to_meta_idx: int | None = None, view_mode: str = "leaders"):
     all_meta_formats = MetaFormat.to_list()
     n = len(all_meta_formats)
     # Apply range defaults: last 4 if not specified
@@ -62,6 +107,9 @@ def _compute_meta_share(region: MetaFormatRegion, from_meta_idx: int | None = No
     active_metas = [mf for mf in meta_formats if total_wins.get(mf, 0) > 0]
     if not active_metas:
         return [], [], [], []
+
+    if view_mode == "colors":
+        return _compute_color_share(wins, active_metas, leaders)
 
     # Per-meta proportions; leaders below threshold are zeroed out for that meta only
     per_meta_proportions: dict[str, dict[str, float]] = {}
@@ -122,7 +170,9 @@ def setup_api_routes(rt):
     @rt("/api/meta-share-chart")
     def get_meta_share_chart(request: Request):
         params = MetaParams(**get_query_params_as_dict(request))
-        chart_data, meta_formats, leaders, colors = _compute_meta_share(params.region, params.from_meta_idx, params.to_meta_idx)
+        chart_data, meta_formats, series_names, colors = _compute_meta_share(
+            params.region, params.from_meta_idx, params.to_meta_idx, params.meta_view_mode
+        )
 
         if not chart_data:
             return ft.Div(
@@ -133,12 +183,17 @@ def setup_api_routes(rt):
                 cls="w-full",
             )
 
+        title = (
+            "Meta Index (Color Tournament Win Share)"
+            if params.meta_view_mode == "colors"
+            else "Meta Index (Leader Tournament Win Share)"
+        )
         return create_card_occurrence_streaming_chart(
             container_id="meta-share-stream",
             data=chart_data,
             meta_formats=meta_formats,
             card_name="Meta Share",
             normalized=True,
-            title="Meta Index (Leader Tournament Win Share)",
+            title=title,
             colors=colors,
         )
