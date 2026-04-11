@@ -90,12 +90,13 @@ def meta_page(selected_meta_format: str | None = None):
     default_meta_format_inputs = [
         ft.Input(type="hidden", name="meta_format", value=initial_meta_format, data_auto="1")
     ]
+    data_tooltip_bubble_chart = f"Meta Format: {initial_meta_format}. Size of the bubbles increases with the tournament wins"
 
     return ft.Div(
         ft.Div(
             ft.H1("Meta Analysis", cls="text-3xl font-bold text-white"),
             ft.P(
-                "Leader play rates across meta formats. Only leaders with more than 5% tournament  share are shown.",
+                "Leader play rates across meta formats. Only leaders with more than 5% tournament win share are shown.",
                 cls="text-gray-300 mt-2",
             ),
             cls="mb-8",
@@ -134,12 +135,15 @@ def meta_page(selected_meta_format: str | None = None):
                     var toInput = document.querySelector("[name='to_meta_idx']");
                     if (!toInput) return;
                     var toIdx = parseInt(toInput.value);
+                    var meta = allMetas[toIdx];
                     container.innerHTML = '';
                     var inp = document.createElement('input');
                     inp.type = 'hidden';
                     inp.name = 'meta_format';
-                    inp.value = allMetas[toIdx];
+                    inp.value = meta;
                     container.appendChild(inp);
+                    var tooltipEl = document.getElementById('meta-bubble-chart-tooltip');
+                    if (tooltipEl) tooltipEl.setAttribute('data-tooltip', 'Meta Format: ' + meta + '. Size of the bubbles increases with the tournament wins');
                     document.body.dispatchEvent(new Event('metaRangeChanged'));
                 }
 
@@ -154,7 +158,7 @@ def meta_page(selected_meta_format: str | None = None):
             ft.H2("Decklist & Leader Popularity", cls="text-2xl font-bold text-white mb-6 text-center"),
             ft.Div(
                 ft.Div(create_decklist_popularity_section(id_prefix="meta-", extra_triggers="metaRangeChanged from:body, change from:#region-select"), cls="w-full"),
-                ft.Div(create_leader_popularity_section(id_prefix="meta-", extra_triggers="metaRangeChanged from:body, change from:#region-select"), cls="w-full"),
+                ft.Div(create_leader_popularity_section(id_prefix="meta-", extra_triggers="metaRangeChanged from:body, change from:#region-select", data_tooltip=data_tooltip_bubble_chart), cls="w-full"),
                 cls="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 lg:gap-8 w-full",
             ),
             cls="mt-8 w-full",

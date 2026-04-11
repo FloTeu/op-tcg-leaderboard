@@ -147,7 +147,7 @@ def create_decklist_popularity_section(id_prefix: str = "", extra_triggers: str 
     )
 
 
-def create_leader_popularity_section(id_prefix: str = "", extra_triggers: str = "") -> ft.Div:
+def create_leader_popularity_section(id_prefix: str = "", extra_triggers: str = "", data_tooltip: str | None = None) -> ft.Div:
     """Tournament leader popularity bubble chart card with match count range slider.
 
     Args:
@@ -155,11 +155,13 @@ def create_leader_popularity_section(id_prefix: str = "", extra_triggers: str = 
         extra_triggers: Additional HTMX trigger clauses appended to the chart container's
             hx-trigger (e.g. "metaRangeChanged from:body, change from:#region-select").
     """
+    data_tooltip = data_tooltip or "Size of the bubbles increases with the tournament wins"
     p = id_prefix
     chart_container_id = f"{p}tournament-chart-container"
     loading_id = f"{p}tournament-chart-loading"
     slider_id = f"{p}match-slider"
-    hx_include = _HX_INCLUDE_BASE + ",[name='min_matches'],[name='max_matches']"
+    slider_id_input_id = f"{p}slider-id-input"
+    hx_include = _HX_INCLUDE_BASE + f",[name='min_matches'],[name='max_matches'],[id='{slider_id_input_id}']"
     trigger = "load" + (f", {extra_triggers}" if extra_triggers else "")
 
     return ft.Div(
@@ -167,11 +169,14 @@ def create_leader_popularity_section(id_prefix: str = "", extra_triggers: str = 
             "Tournament Leader Popularity",
             ft.Span(
                 "ⓘ",
+                id=f"{p}bubble-chart-tooltip",
                 cls="ml-2 cursor-help",
-                data_tooltip="Size of the bubbles increases with the tournament wins",
+                data_tooltip=data_tooltip,
             ),
             cls="text-lg md:text-xl font-semibold text-white mb-3 md:mb-6",
         ),
+        # Hidden input so every request carries the page-specific slider ID
+        ft.Input(type="hidden", name="slider_id", value=slider_id, id=slider_id_input_id),
         ft.Div(
             create_loading_overlay(id=loading_id, size="w-8 h-8"),
             ft.Div(
@@ -199,7 +204,7 @@ def create_leader_popularity_section(id_prefix: str = "", extra_triggers: str = 
                         cls="slider-range min-range",
                         hx_get="/api/tournaments/chart",
                         hx_trigger="change",
-                        hx_sync=f"closest .double-range-slider:queue last",
+                        hx_sync="closest .double-range-slider:queue last",
                         hx_target=f"#{chart_container_id}",
                         hx_include=hx_include,
                         hx_indicator=f"#{loading_id}",
@@ -213,7 +218,7 @@ def create_leader_popularity_section(id_prefix: str = "", extra_triggers: str = 
                         cls="slider-range max-range",
                         hx_get="/api/tournaments/chart",
                         hx_trigger="change",
-                        hx_sync=f"closest .double-range-slider:queue last",
+                        hx_sync="closest .double-range-slider:queue last",
                         hx_target=f"#{chart_container_id}",
                         hx_include=hx_include,
                         hx_indicator=f"#{loading_id}",
