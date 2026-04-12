@@ -33,7 +33,7 @@ def _render_meta_chart() -> bytes:
     from op_tcg.backend.models.input import MetaFormatRegion
     from op_tcg.frontend.api.routes.meta import _compute_meta_share
 
-    chart_data, meta_formats, display_names, colors = _compute_meta_share(
+    chart_data, meta_formats, display_names, colors, _ = _compute_meta_share(
         region=MetaFormatRegion.ALL,
         view_mode="leaders",
     )

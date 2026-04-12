@@ -1134,6 +1134,7 @@ class ChartManager {
             metaFormats,
             leaders,
             colors,
+            colorPairs,
             isNormalized,
             cardName
         } = config;
@@ -1155,15 +1156,37 @@ class ChartManager {
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+            // Build a horizontal stripe pattern for duo-color leaders.
+            // Repeating stripes ensure both colors are always visible in every area band
+            // regardless of its vertical position in the stacked chart.
+            function makeDualColorPattern(pair, opacitySuffix) {
+                const stripeH = 10;
+                const offscreen = document.createElement('canvas');
+                offscreen.width = 2;
+                offscreen.height = stripeH * 2;
+                const pCtx = offscreen.getContext('2d');
+                pCtx.fillStyle = pair[0] + opacitySuffix;
+                pCtx.fillRect(0, 0, 2, stripeH);
+                pCtx.fillStyle = pair[1] + opacitySuffix;
+                pCtx.fillRect(0, stripeH, 2, stripeH);
+                return ctx.createPattern(offscreen, 'repeat');
+            }
+
             // Create datasets for each leader
             const datasets = leaders.map((leader, index) => {
                 const leaderData = data.map(meta => meta[leader] || 0);
+                const pair = colorPairs && colorPairs[index];
+                const opacitySuffix = isNormalized ? '60' : '40';
+
+                const bgColor = pair
+                    ? makeDualColorPattern(pair, opacitySuffix)
+                    : colors[index] + opacitySuffix;
 
                 return {
                     label: leader,
                     data: leaderData,
                     borderColor: colors[index],
-                    backgroundColor: colors[index] + (isNormalized ? '60' : '40'), // More opacity for stacked areas
+                    backgroundColor: bgColor,
                     fill: isNormalized ? (index === 0 ? 'origin' : '-1') : true, // Proper stacking: fill to previous dataset
                     tension: isNormalized ? 0.2 : 0.4, // Less curve for normalized to avoid overlap appearance
                     pointRadius: isNormalized ? 2 : 3,

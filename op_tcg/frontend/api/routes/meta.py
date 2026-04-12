@@ -109,7 +109,8 @@ def _compute_meta_share(region: MetaFormatRegion, from_meta_idx: int | None = No
         return [], [], [], []
 
     if view_mode == "colors":
-        return _compute_color_share(wins, active_metas, leaders)
+        chart_data, active_metas, color_names, color_hexes = _compute_color_share(wins, active_metas, leaders)
+        return chart_data, active_metas, color_names, color_hexes, [None] * len(color_names)
 
     # Per-meta proportions; leaders below threshold are zeroed out for that meta only
     per_meta_proportions: dict[str, dict[str, float]] = {}
@@ -139,10 +140,12 @@ def _compute_meta_share(region: MetaFormatRegion, from_meta_idx: int | None = No
     lid2name: dict[str, str] = {l.id: l.name for l in leaders if l.name}
     # Use the most-recent entry per leader for the color (they share the same colors across metas)
     lid2color: dict[str, str] = {}
+    lid2color_pair: dict[str, list[str]] = {}
     for l in leaders:
         if l.id and l.id not in lid2color:
             try:
                 lid2color[l.id] = l.to_hex_color()
+                lid2color_pair[l.id] = [c.to_hex_color() for c in l.colors]
             except Exception:
                 pass
 
@@ -152,6 +155,11 @@ def _compute_meta_share(region: MetaFormatRegion, from_meta_idx: int | None = No
 
     display_names = [_display_name(lid) for lid in sorted_leaders]
     colors = [lid2color.get(lid, "#6B7280") for lid in sorted_leaders]
+    # None for mono-color leaders, [hex1, hex2] for duo-color leaders
+    color_pairs = [
+        pair if (pair := lid2color_pair.get(lid)) and len(pair) == 2 else None
+        for lid in sorted_leaders
+    ]
 
     # Build chart data: per-meta proportions, zero for leaders below threshold in that meta.
     # normalized=True causes the chart to re-normalize included leaders to 100% per meta.
@@ -163,14 +171,14 @@ def _compute_meta_share(region: MetaFormatRegion, from_meta_idx: int | None = No
         for meta in active_metas
     ]
 
-    return chart_data, active_metas, display_names, colors
+    return chart_data, active_metas, display_names, colors, color_pairs
 
 
 def setup_api_routes(rt):
     @rt("/api/meta-share-chart")
     def get_meta_share_chart(request: Request):
         params = MetaParams(**get_query_params_as_dict(request))
-        chart_data, meta_formats, series_names, colors = _compute_meta_share(
+        chart_data, meta_formats, series_names, colors, color_pairs = _compute_meta_share(
             params.region, params.from_meta_idx, params.to_meta_idx, params.meta_view_mode
         )
 
@@ -199,4 +207,5 @@ def setup_api_routes(rt):
             title=title,
             colors=colors,
             title_tooltip=title_tooltip,
+            color_pairs=color_pairs,
         )
