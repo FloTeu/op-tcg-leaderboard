@@ -923,14 +923,19 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
 
     return ft.Div(
         title_content,
-        # Chart container with canvas
+        # Canvas gets an explicit height; legend sits below it inside the same card
         ft.Div(
             ft.Canvas(id=unique_container_id),
-            cls="h-full w-full"
+            cls="w-full",
+            style="height: 250px;",
+        ),
+        # Scrollable legend placeholder — populated by JS
+        ft.Div(
+            id=unique_container_id + "-legend",
+            style="overflow-y: auto; max-height: 72px; margin-top: 8px;",
         ),
         _create_chart_script('createCardOccurrenceChart', unique_container_id, config),
-        style="height: 400px; width: 100%;",
-        cls="bg-gray-800/30 rounded-lg py-2"
+        cls="bg-gray-800/30 rounded-lg py-2", # ensure plot gets more width
     )
 
 

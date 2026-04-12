@@ -1259,45 +1259,7 @@ class ChartManager {
                     },
                     plugins: {
                         legend: {
-                            display: true,
-                            position: 'bottom',
-                            labels: {
-                                color: '#E5E7EB',
-                                font: {
-                                    size: 10
-                                },
-                                usePointStyle: true,
-                                pointStyle: 'circle',
-                                padding: 15,
-                                boxWidth: 8,
-                                boxHeight: 8
-                            },
-                            onClick: function(e, legendItem, legend) {
-                                const chart = legend.chart;
-                                const clickedIndex = legendItem.datasetIndex;
-                                const total = chart.data.datasets.length;
-                                const visibleIndices = chart.data.datasets.map((_, i) => i).filter(i => chart.isDatasetVisible(i));
-                                const allVisible = visibleIndices.length === total;
-                                const clickedVisible = chart.isDatasetVisible(clickedIndex);
-                                if (allVisible) {
-                                    // Isolate clicked dataset
-                                    chart.data.datasets.forEach((_, i) => {
-                                        if (i === clickedIndex) chart.show(i);
-                                        else chart.hide(i);
-                                    });
-                                } else if (clickedVisible) {
-                                    // Remove clicked from selection; if it was the last, restore all
-                                    const remaining = visibleIndices.filter(i => i !== clickedIndex);
-                                    if (remaining.length === 0) {
-                                        chart.data.datasets.forEach((_, i) => chart.show(i));
-                                    } else {
-                                        chart.hide(clickedIndex);
-                                    }
-                                } else {
-                                    // Add clicked to current selection
-                                    chart.show(clickedIndex);
-                                }
-                            }
+                            display: false,
                         },
                         tooltip: {
                             backgroundColor: 'rgba(17, 24, 39, 0.95)',
@@ -1326,15 +1288,48 @@ class ChartManager {
                         }
                     },
                     layout: {
-                        padding: {
-                            top: 10,
-                            right: 0,
-                            bottom: 60, // Increased bottom padding for legend
-                            left: 0
-                        }
+                        padding: { top: 10, right: 0, bottom: 0, left: 0 }
                     }
                 }
             });
+
+            // Populate the pre-rendered scrollable legend placeholder
+            const legendEl = document.getElementById(containerId + '-legend');
+            if (legendEl) {
+                legendEl.innerHTML = '';
+                const row = document.createElement('div');
+                row.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px 12px;padding:4px 2px;';
+                chart.data.datasets.forEach((ds, i) => {
+                    const item = document.createElement('div');
+                    item.style.cssText = 'display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;';
+                    item.dataset.index = i;
+                    const swatch = document.createElement('span');
+                    swatch.style.cssText = 'display:inline-block;width:10px;height:10px;border-radius:50%;flex-shrink:0;background:' + (typeof ds.borderColor === 'string' ? ds.borderColor : '#9CA3AF') + ';';
+                    const label = document.createElement('span');
+                    label.textContent = ds.label;
+                    label.style.cssText = 'color:#E5E7EB;font-size:11px;white-space:nowrap;';
+                    item.appendChild(swatch);
+                    item.appendChild(label);
+                    item.addEventListener('click', function() {
+                        const idx = parseInt(this.dataset.index);
+                        const total = chart.data.datasets.length;
+                        const visible = chart.data.datasets.map((_, j) => j).filter(j => chart.isDatasetVisible(j));
+                        if (visible.length === total) {
+                            chart.data.datasets.forEach((_, j) => { j === idx ? chart.show(j) : chart.hide(j); });
+                        } else if (chart.isDatasetVisible(idx)) {
+                            const rest = visible.filter(j => j !== idx);
+                            rest.length === 0 ? chart.data.datasets.forEach((_, j) => chart.show(j)) : chart.hide(idx);
+                        } else {
+                            chart.show(idx);
+                        }
+                        legendEl.querySelectorAll('[data-index]').forEach(el => {
+                            el.style.opacity = chart.isDatasetVisible(parseInt(el.dataset.index)) ? '1' : '0.35';
+                        });
+                    });
+                    row.appendChild(item);
+                });
+                legendEl.appendChild(row);
+            }
 
             this.charts.set(containerId, chart);
             return chart;
