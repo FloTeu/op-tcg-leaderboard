@@ -1328,9 +1328,9 @@ class ChartManager {
                     layout: {
                         padding: {
                             top: 10,
-                            right: 10,
+                            right: 0,
                             bottom: 60, // Increased bottom padding for legend
-                            left: 10
+                            left: 0
                         }
                     }
                 }

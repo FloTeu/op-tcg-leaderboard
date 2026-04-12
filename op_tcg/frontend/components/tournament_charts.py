@@ -141,7 +141,7 @@ def create_decklist_popularity_section(id_prefix: str = "", extra_triggers: str 
                 }})();
             """),
             cls="relative bg-gray-900/50 rounded-lg p-2 md:p-4 overflow-hidden",
-            style="min-height: 320px; height: 400px; width: 100%;",
+            style="min-height: 200px; height: auto; width: 100%;",
         ),
         cls="bg-gray-800 rounded-lg p-3 md:p-6 shadow-xl",
     )
@@ -188,7 +188,7 @@ def create_leader_popularity_section(id_prefix: str = "", extra_triggers: str = 
                 cls="w-full h-full",
             ),
             cls="relative bg-gray-900/50 rounded-lg p-2 md:p-4 overflow-hidden",
-            style="min-height: 400px; height: auto; width: 100%;",
+            style="height: auto; width: 100%;",
         ),
         ft.Div(
             ft.Label("Tournament Match Count Range", cls="text-white font-medium block mb-2"),
