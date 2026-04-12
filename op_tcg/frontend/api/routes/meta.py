@@ -193,9 +193,9 @@ def setup_api_routes(rt):
 
         is_colors = params.meta_view_mode == "colors"
         title = (
-            "Meta Index (Color Tournament Win Share)"
+            "Meta Index"
             if is_colors
-            else "Meta Index (Leader Tournament Win Share)"
+            else "Meta Index"
         )
         title_tooltip = None if is_colors else "Only leaders with more than 5% tournament win share are shown."
         return create_card_occurrence_streaming_chart(

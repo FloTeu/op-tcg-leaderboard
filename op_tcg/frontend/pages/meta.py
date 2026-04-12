@@ -93,65 +93,90 @@ def meta_page(selected_meta_format: str | None = None):
     data_tooltip_bubble_chart = f"Meta Format: {initial_meta_format}. Size of the bubbles increases with the tournament wins"
 
     return ft.Div(
+        # Page header
         ft.Div(
             ft.H1("Meta Analysis", cls="text-3xl font-bold text-white"),
             ft.P(
-                "Leader play rates across meta formats. ",
-                cls="text-gray-300 mt-2",
+                "Track how tournament win share evolves across meta formats. "
+                "Use the range slider to zoom in on a period and switch between "
+                "Leaders and Colors to explore the data from different angles.",
+                cls="text-gray-400 mt-2 max-w-2xl",
             ),
-            cls="mb-8",
+            cls="mb-6",
         ),
-        # View-mode toggle (persists across HTMX chart reloads)
-        ft.Input(type="hidden", name="meta_view_mode", value="leaders", id="meta-view-mode-input"),
+
+        # Meta Index card
         ft.Div(
+            # Card header row: title left, toggle right
             ft.Div(
-                ft.Button(
-                    ft.Span("Leaders", cls="px-3"),
-                    id="meta-toggle-leaders",
-                    cls=(
-                        "inline-flex items-center justify-center text-sm font-medium transition-colors "
-                        "px-3 py-1 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 "
-                        "bg-blue-600 text-white shadow-sm"
+                ft.Div(
+                    ft.H2("Meta Index", cls="text-lg font-semibold text-white"),
+                    ft.P("Tournament win share by leader or color", cls="text-xs text-gray-400 mt-0.5"),
+                    cls="flex flex-col",
+                ),
+                # View-mode toggle (persists across HTMX chart reloads)
+                ft.Input(type="hidden", name="meta_view_mode", value="leaders", id="meta-view-mode-input"),
+                ft.Div(
+                    ft.Button(
+                        ft.Span("Leaders", cls="px-3"),
+                        id="meta-toggle-leaders",
+                        cls=(
+                            "inline-flex items-center justify-center text-sm font-medium transition-colors "
+                            "px-3 py-1 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 "
+                            "bg-blue-600 text-white shadow-sm"
+                        ),
+                        aria_pressed="true",
+                        hx_get="/api/meta-share-chart",
+                        hx_trigger="click",
+                        hx_target="#meta-share-chart",
+                        hx_swap="innerHTML",
+                        hx_include=HX_INCLUDE,
+                        hx_indicator="#meta-loading-indicator",
                     ),
-                    aria_pressed="true",
-                    hx_get="/api/meta-share-chart",
-                    hx_trigger="click",
-                    hx_target="#meta-share-chart",
-                    hx_swap="innerHTML",
-                    hx_include=HX_INCLUDE,
-                    hx_indicator="#meta-loading-indicator",
-                ),
-                ft.Button(
-                    ft.Span("Colors", cls="px-3"),
-                    id="meta-toggle-colors",
-                    cls=(
-                        "inline-flex items-center justify-center text-sm font-medium transition-colors "
-                        "px-3 py-1 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 "
-                        "bg-gray-700 text-gray-200 hover:bg-gray-600"
+                    ft.Button(
+                        ft.Span("Colors", cls="px-3"),
+                        id="meta-toggle-colors",
+                        cls=(
+                            "inline-flex items-center justify-center text-sm font-medium transition-colors "
+                            "px-3 py-1 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 "
+                            "bg-gray-700 text-gray-200 hover:bg-gray-600"
+                        ),
+                        aria_pressed="false",
+                        hx_get="/api/meta-share-chart",
+                        hx_trigger="click",
+                        hx_target="#meta-share-chart",
+                        hx_swap="innerHTML",
+                        hx_include=HX_INCLUDE,
+                        hx_indicator="#meta-loading-indicator",
+                        style="margin-left:6px;",
                     ),
-                    aria_pressed="false",
-                    hx_get="/api/meta-share-chart",
-                    hx_trigger="click",
-                    hx_target="#meta-share-chart",
-                    hx_swap="innerHTML",
-                    hx_include=HX_INCLUDE,
-                    hx_indicator="#meta-loading-indicator",
-                    style="margin-left:6px;",
+                    cls=(
+                        "inline-flex items-center p-1 rounded-full bg-gray-700/60 ring-1 ring-white/10 "
+                        "backdrop-blur supports-[backdrop-filter]:bg-gray-700/40"
+                    ),
+                    role="group",
+                    aria_label="Meta chart view mode",
                 ),
-                cls=(
-                    "inline-flex items-center p-1 rounded-full bg-gray-700/60 ring-1 ring-white/10 "
-                    "backdrop-blur supports-[backdrop-filter]:bg-gray-700/40"
-                ),
-                role="group",
-                aria_label="Meta chart view mode",
+                cls="flex items-start justify-between mb-4",
             ),
-            cls="mb-3",
+            create_loading_spinner(
+                id="meta-loading-indicator",
+                size="w-8 h-8",
+                container_classes="min-h-[100px]",
+            ),
+            ft.Div(
+                hx_get="/api/meta-share-chart",
+                hx_trigger="load",
+                hx_target="this",
+                hx_swap="innerHTML",
+                hx_include=HX_INCLUDE,
+                hx_indicator="#meta-loading-indicator",
+                id="meta-share-chart",
+                cls="w-full",
+            ),
+            cls="bg-gray-800 rounded-lg p-3 md:p-6 shadow-xl",
         ),
-        create_loading_spinner(
-            id="meta-loading-indicator",
-            size="w-8 h-8",
-            container_classes="min-h-[100px]",
-        ),
+
         ft.Script("""
             (function(){
               var leadersBtn = document.getElementById('meta-toggle-leaders');
@@ -177,16 +202,7 @@ def meta_page(selected_meta_format: str | None = None):
               colorsBtn.addEventListener('click', function(){ activate(false); });
             })();
         """),
-        ft.Div(
-            hx_get="/api/meta-share-chart",
-            hx_trigger="load",
-            hx_target="this",
-            hx_swap="innerHTML",
-            hx_include=HX_INCLUDE,
-            hx_indicator="#meta-loading-indicator",
-            id="meta-share-chart",
-            cls="w-full",
-        ),
+
         # Hidden container: synced meta_format inputs derived from the range slider
         ft.Div(
             *default_meta_format_inputs,
@@ -224,15 +240,26 @@ def meta_page(selected_meta_format: str | None = None):
                 if (toInput) toInput.addEventListener('change', updateMetaFormats);
             })();
         """),
+
+        # Divider
+        ft.Br(),
+
         # Tournament charts section
         ft.Div(
-            ft.H2("Decklist & Leader Popularity", cls="text-2xl font-bold text-white mb-6 text-center"),
+            ft.Div(
+                ft.H2("Decklist & Leader Popularity", cls="text-2xl font-bold text-white"),
+                ft.P(
+                    "Popularity charts for the most recent meta format in the selected range.",
+                    cls="text-gray-400 text-sm mt-1",
+                ),
+                cls="mb-6",
+            ),
             ft.Div(
                 ft.Div(create_decklist_popularity_section(id_prefix="meta-", extra_triggers="metaRangeChanged from:body, change from:#region-select"), cls="w-full"),
                 ft.Div(create_leader_popularity_section(id_prefix="meta-", extra_triggers="metaRangeChanged from:body, change from:#region-select", data_tooltip=data_tooltip_bubble_chart), cls="w-full"),
                 cls="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 lg:gap-8 w-full",
             ),
-            cls="mt-8 w-full",
+            cls="w-full",
         ),
-        cls="min-h-screen p-4 md:p-6 w-full",
+        cls="min-h-screen p-4 md:p-6 max-w-7xl mx-auto w-full",
     )
