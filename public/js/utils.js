@@ -36,7 +36,7 @@ function initializeTooltips() {
 
         tooltipEl.textContent = tooltipText;
         tooltipEl.style.display = 'block';
-        moveTooltip.call(this, e);
+        positionTooltip.call(this);
     }
 
     function hideTooltip() {
@@ -44,21 +44,27 @@ function initializeTooltips() {
     }
 
     function moveTooltip(e) {
-        const padding = 10;
+        // Keep tooltip in place while hovering — no cursor tracking needed
+    }
+
+    function positionTooltip() {
+        const padding = 8;
         const tooltipWidth = tooltipEl.offsetWidth;
         const tooltipHeight = tooltipEl.offsetHeight;
-        
-        // Calculate position
-        let x = e.clientX + padding;
-        let y = e.clientY + padding;
+        const rect = this.getBoundingClientRect();
 
-        // Check if tooltip would go off screen
-        if (x + tooltipWidth > window.innerWidth) {
-            x = e.clientX - tooltipWidth - padding;
-        }
+        // Center the tooltip horizontally below the trigger element
+        let x = rect.left + rect.width / 2 - tooltipWidth / 2;
+        let y = rect.bottom + padding;
+
+        // Flip above if it would overflow the bottom
         if (y + tooltipHeight > window.innerHeight) {
-            y = e.clientY - tooltipHeight - padding;
+            y = rect.top - tooltipHeight - padding;
         }
+
+        // Clamp to viewport on all sides
+        x = Math.max(padding, Math.min(x, window.innerWidth - tooltipWidth - padding));
+        y = Math.max(padding, y);
 
         tooltipEl.style.left = x + 'px';
         tooltipEl.style.top = y + 'px';
