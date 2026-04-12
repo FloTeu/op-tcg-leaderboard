@@ -10,7 +10,8 @@ from op_tcg.frontend.api.routes import (
     similar,
     card_movement,
     prices,
-    watchlist
+    watchlist,
+    meta,
 )
 
 DATA_IS_LOADED = False
@@ -29,3 +30,4 @@ def setup_api_routes(rt):
     card_movement.setup_api_routes(rt)
     prices.setup_api_routes(rt)
     watchlist.setup_watchlist_routes(rt)
+    meta.setup_api_routes(rt)

@@ -42,6 +42,7 @@ def sidebar_content(filter_component=None, current_path="/", persist_query: dict
     leader_links = [
         (build_href("/"), "Leaderboard", "🏆", current_path == "/"),
         (build_href("/leader"), "Leader", "👤", current_path == "/leader"),
+        (build_href("/meta"), "Meta Analysis", "📊", current_path == "/meta"),
         (build_href("/tournaments"), "Tournaments", "🏅", current_path == "/tournaments"),
         (build_href("/card-movement"), "Card Movement", "📈", current_path == "/card-movement"),
         (build_href("/matchups"), "Matchups", "🥊", current_path == "/matchups"),

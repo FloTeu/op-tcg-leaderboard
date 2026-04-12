@@ -221,7 +221,7 @@ def create_decklist_modal(
     selected_currency: str = CardCurrency.EURO,
     days: str | None = None,
     placing: str | None = None,
-    view_mode: str = DecklistViewMode.LIST
+    view_mode: str = DecklistViewMode.GRID
 ) -> ft.Div:
     """Create a modal dialog for displaying tournament decklists.
     
