@@ -101,11 +101,6 @@ def meta_page(selected_meta_format: str | None = None):
             ),
             cls="mb-8",
         ),
-        create_loading_spinner(
-            id="meta-loading-indicator",
-            size="w-8 h-8",
-            container_classes="min-h-[100px]",
-        ),
         # View-mode toggle (persists across HTMX chart reloads)
         ft.Input(type="hidden", name="meta_view_mode", value="leaders", id="meta-view-mode-input"),
         ft.Div(
@@ -151,6 +146,11 @@ def meta_page(selected_meta_format: str | None = None):
                 aria_label="Meta chart view mode",
             ),
             cls="mb-3",
+        ),
+        create_loading_spinner(
+            id="meta-loading-indicator",
+            size="w-8 h-8",
+            container_classes="min-h-[100px]",
         ),
         ft.Script("""
             (function(){
