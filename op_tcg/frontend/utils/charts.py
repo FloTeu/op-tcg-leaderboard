@@ -827,7 +827,8 @@ def create_donut_chart(container_id: str, labels: List[str], values: List[int], 
 def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[str, Any]],
                                         meta_formats: List[str], card_name: str, normalized: bool = False, title: str | None = None,
                                         colors: List[str] | None = None, title_tooltip: str | None = None,
-                                        color_pairs: List[List[str] | None] | None = None) -> ft.Div:
+                                        color_pairs: List[List[str] | None] | None = None,
+                                        show_title: bool = True) -> ft.Div:
     """
     Creates a streaming chart showing card occurrences across meta formats and leaders using Chart.js.
 
@@ -911,18 +912,20 @@ def create_card_occurrence_streaming_chart(container_id: str, data: List[dict[st
     }
     title = title or f"Leader Occurrence for {card_name} ({'Normalized' if normalized else 'Absolute'})",
 
-    title_content = (
-        ft.H3(
-            title,
-            ft.Span("ⓘ", cls="ml-2 cursor-help text-gray-400 text-base", data_tooltip=title_tooltip),
-            cls="text-lg font-semibold text-white mb-4 text-center"
+    title_content = None
+    if show_title:
+        title_content = (
+            ft.H3(
+                title,
+                ft.Span("ⓘ", cls="ml-2 cursor-help text-gray-400 text-base", data_tooltip=title_tooltip),
+                cls="text-lg font-semibold text-white mb-4 text-center"
+            )
+            if title_tooltip else
+            ft.H3(title, cls="text-lg font-semibold text-white mb-4 text-center")
         )
-        if title_tooltip else
-        ft.H3(title, cls="text-lg font-semibold text-white mb-4 text-center")
-    )
 
     return ft.Div(
-        title_content,
+        *([title_content] if title_content else []),
         # Canvas gets an explicit height; legend sits below it inside the same card
         ft.Div(
             ft.Canvas(id=unique_container_id),
