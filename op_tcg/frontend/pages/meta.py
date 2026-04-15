@@ -21,7 +21,7 @@ FILTER_HX_ATTRS = {
     "hx_indicator": "#meta-loading-indicator",
 }
 
-HX_INCLUDE_DETAIL = "[name='region'],[name='detail_meta_format'],[name='detail_view_mode']"
+HX_INCLUDE_DETAIL = "[name='region'],[name='meta_format'],[name='detail_view_mode']"
 
 FILTER_HX_ATTRS_DETAIL = {
     "hx_get": "/api/meta-detail-chart",
@@ -36,9 +36,6 @@ FILTER_HX_ATTRS_DETAIL = {
 def create_filter_components(selected_region: MetaFormatRegion | None = None):
     selected_region = selected_region or MetaFormatRegion.ALL
     meta_formats = MetaFormat.to_list()
-    n = len(meta_formats)
-    default_from = max(0, n - 4)
-    default_to = n - 1
 
     region_select = ft.Select(
         label="Region",
@@ -49,44 +46,17 @@ def create_filter_components(selected_region: MetaFormatRegion | None = None):
         **FILTER_HX_ATTRS,
     )
 
-    meta_slider = ft.Div(
-        ft.Label("Meta Format Range", cls="text-white font-medium block mb-2"),
-        ft.Div(
-            ft.Div(cls="slider-track"),
-            ft.Input(
-                type="range",
-                min="0",
-                max=str(n - 1),
-                value=str(default_from),
-                name="from_meta_idx",
-                cls="slider-range min-range",
-                **FILTER_HX_ATTRS,
-            ),
-            ft.Input(
-                type="range",
-                min="0",
-                max=str(n - 1),
-                value=str(default_to),
-                name="to_meta_idx",
-                cls="slider-range max-range",
-                **FILTER_HX_ATTRS,
-            ),
-            ft.Div(
-                ft.Span(meta_formats[default_from], cls="min-value text-white"),
-                ft.Span(" - ", cls="text-white mx-2"),
-                ft.Span(meta_formats[default_to], cls="max-value text-white"),
-                cls="slider-values",
-            ),
-            cls="double-range-slider",
-            id="meta-format-slider",
-            data_double_range_slider="true",
-            data_type="labels",
-            data_labels=json.dumps(meta_formats),
+    meta_format_select = ft.Div(
+        ft.Label("Meta Format", cls="text-white font-medium block mb-2"),
+        ft.Select(
+            *[ft.Option(mf, value=mf, selected=(mf == meta_formats[-1])) for mf in reversed(meta_formats)],
+            name="meta_format",
+            id="meta-format-select",
+            cls=SELECT_CLS + " styled-select",
         ),
-        cls="mb-6",
     )
 
-    return ft.Div(region_select, meta_slider, cls="space-y-4")
+    return ft.Div(region_select, meta_format_select, cls="space-y-4")
 
 
 def meta_page(selected_meta_format: str | None = None):
@@ -94,14 +64,7 @@ def meta_page(selected_meta_format: str | None = None):
     n = len(meta_formats)
     default_from = max(0, n - 4)
     default_to = n - 1
-
-    # Default tournament charts to the latest (last) meta format so the URL
-    # param reflects the most recent meta, not the first in the slider range.
-    initial_meta_format = selected_meta_format or meta_formats[-1]
-    default_meta_format_inputs = [
-        ft.Input(type="hidden", name="meta_format", value=initial_meta_format, data_auto="1")
-    ]
-    data_tooltip_bubble_chart = f"Meta Format: {initial_meta_format}. Size of the bubbles increases with the tournament wins"
+    data_tooltip_bubble_chart = f"Meta Format: {meta_formats[-1]}. Size of the bubbles increases with the tournament wins"
 
     return ft.Div(
         # Page header
@@ -173,13 +136,6 @@ def meta_page(selected_meta_format: str | None = None):
                 ),
                 cls="flex items-start justify-between mb-4",
             ),
-            ft.Select(
-                *[ft.Option(mf, value=mf, selected=(mf == meta_formats[-1])) for mf in reversed(meta_formats)],
-                name="detail_meta_format",
-                id="detail-meta-format-select",
-                cls=SELECT_CLS + " styled-select mb-4",
-                **FILTER_HX_ATTRS_DETAIL,
-            ),
             create_loading_spinner(
                 id="meta-detail-loading-indicator",
                 size="w-8 h-8",
@@ -187,7 +143,7 @@ def meta_page(selected_meta_format: str | None = None):
             ),
             ft.Div(
                 hx_get="/api/meta-detail-chart",
-                hx_trigger="load, change from:#region-select",
+                hx_trigger="load, change from:#region-select, change from:#meta-format-select",
                 hx_target="this",
                 hx_swap="innerHTML",
                 hx_include=HX_INCLUDE_DETAIL,
@@ -256,6 +212,43 @@ def meta_page(selected_meta_format: str | None = None):
                     aria_label="Meta chart view mode",
                 ),
                 cls="flex items-start justify-between mb-4",
+            ),
+            # Range slider — scoped to Meta Index only
+            ft.Div(
+                ft.Label("Meta Format Range", cls="text-white font-medium block mb-2 text-sm"),
+                ft.Div(
+                    ft.Div(cls="slider-track"),
+                    ft.Input(
+                        type="range",
+                        min="0",
+                        max=str(n - 1),
+                        value=str(default_from),
+                        name="from_meta_idx",
+                        cls="slider-range min-range",
+                        **FILTER_HX_ATTRS,
+                    ),
+                    ft.Input(
+                        type="range",
+                        min="0",
+                        max=str(n - 1),
+                        value=str(default_to),
+                        name="to_meta_idx",
+                        cls="slider-range max-range",
+                        **FILTER_HX_ATTRS,
+                    ),
+                    ft.Div(
+                        ft.Span(meta_formats[default_from], cls="min-value text-white"),
+                        ft.Span(" - ", cls="text-white mx-2"),
+                        ft.Span(meta_formats[default_to], cls="max-value text-white"),
+                        cls="slider-values",
+                    ),
+                    cls="double-range-slider",
+                    id="meta-format-slider",
+                    data_double_range_slider="true",
+                    data_type="labels",
+                    data_labels=json.dumps(meta_formats),
+                ),
+                cls="mb-4",
             ),
             create_loading_spinner(
                 id="meta-loading-indicator",
@@ -328,44 +321,6 @@ def meta_page(selected_meta_format: str | None = None):
             })();
         """),
 
-        # Hidden container: synced meta_format inputs derived from the range slider
-        ft.Div(
-            *default_meta_format_inputs,
-            id="meta-format-hidden-container",
-            style="display:none;",
-        ),
-        # JS: keep hidden meta_format inputs in sync with the range slider and notify charts
-        ft.Script("""
-            (function(){
-                var sliderEl = document.getElementById('meta-format-slider');
-                if (!sliderEl) return;
-                var allMetas = JSON.parse(sliderEl.dataset.labels || '[]');
-                var container = document.getElementById('meta-format-hidden-container');
-                if (!container) return;
-
-                function updateMetaFormats() {
-                    var toInput = document.querySelector("[name='to_meta_idx']");
-                    if (!toInput) return;
-                    var toIdx = parseInt(toInput.value);
-                    var meta = allMetas[toIdx];
-                    container.innerHTML = '';
-                    var inp = document.createElement('input');
-                    inp.type = 'hidden';
-                    inp.name = 'meta_format';
-                    inp.value = meta;
-                    container.appendChild(inp);
-                    var tooltipEl = document.getElementById('meta-bubble-chart-tooltip');
-                    if (tooltipEl) tooltipEl.setAttribute('data-tooltip', 'Meta Format: ' + meta + '. Size of the bubbles increases with the tournament wins');
-                    document.body.dispatchEvent(new Event('metaRangeChanged'));
-                }
-
-                var fromInput = document.querySelector("[name='from_meta_idx']");
-                var toInput = document.querySelector("[name='to_meta_idx']");
-                if (fromInput) fromInput.addEventListener('change', updateMetaFormats);
-                if (toInput) toInput.addEventListener('change', updateMetaFormats);
-            })();
-        """),
-
         # Divider
         ft.Br(),
 
@@ -374,14 +329,14 @@ def meta_page(selected_meta_format: str | None = None):
             ft.Div(
                 ft.H2("Decklist & Leader Popularity", cls="text-2xl font-bold text-white"),
                 ft.P(
-                    "Popularity charts for the most recent meta format in the selected range.",
+                    "Popularity charts for the selected meta format.",
                     cls="text-gray-400 text-sm mt-1",
                 ),
                 cls="mb-6",
             ),
             ft.Div(
-                ft.Div(create_decklist_popularity_section(id_prefix="meta-", extra_triggers="metaRangeChanged from:body, change from:#region-select"), cls="w-full"),
-                ft.Div(create_leader_popularity_section(id_prefix="meta-", extra_triggers="metaRangeChanged from:body, change from:#region-select", data_tooltip=data_tooltip_bubble_chart), cls="w-full"),
+                ft.Div(create_decklist_popularity_section(id_prefix="meta-", extra_triggers="change from:#meta-format-select, change from:#region-select"), cls="w-full"),
+                ft.Div(create_leader_popularity_section(id_prefix="meta-", extra_triggers="change from:#meta-format-select, change from:#region-select", data_tooltip=data_tooltip_bubble_chart), cls="w-full"),
                 cls="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 lg:gap-8 w-full",
             ),
             cls="w-full",

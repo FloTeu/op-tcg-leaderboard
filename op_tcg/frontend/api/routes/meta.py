@@ -178,7 +178,7 @@ def _compute_meta_share(region: MetaFormatRegion, from_meta_idx: int | None = No
 
 class MetaDetailParams(BaseModel):
     region: MetaFormatRegion = MetaFormatRegion.ALL
-    detail_meta_format: MetaFormat | None = None
+    meta_format: MetaFormat | None = None
     detail_view_mode: str = "leaders"
 
     @field_validator("region", mode="before")
@@ -189,7 +189,7 @@ class MetaDetailParams(BaseModel):
             return MetaFormatRegion(v)
         return v
 
-    @field_validator("detail_meta_format", mode="before")
+    @field_validator("meta_format", mode="before")
     def validate_meta_format(cls, v):
         if isinstance(v, list) and v:
             v = v[0]
@@ -350,7 +350,7 @@ def setup_api_routes(rt):
     def get_meta_detail_chart(request: Request):
         params = MetaDetailParams(**get_query_params_as_dict(request))
         chart_data, weeks, series_names, colors, color_pairs = _compute_meta_detail_share(
-            params.region, params.detail_meta_format, params.detail_view_mode
+            params.region, params.meta_format, params.detail_view_mode
         )
 
         if not chart_data:
