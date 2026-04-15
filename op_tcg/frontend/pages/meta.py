@@ -21,6 +21,17 @@ FILTER_HX_ATTRS = {
     "hx_indicator": "#meta-loading-indicator",
 }
 
+HX_INCLUDE_DETAIL = "[name='region'],[name='detail_meta_format'],[name='detail_view_mode']"
+
+FILTER_HX_ATTRS_DETAIL = {
+    "hx_get": "/api/meta-detail-chart",
+    "hx_trigger": "change",
+    "hx_target": "#meta-detail-chart",
+    "hx_swap": "innerHTML",
+    "hx_include": HX_INCLUDE_DETAIL,
+    "hx_indicator": "#meta-detail-loading-indicator",
+}
+
 
 def create_filter_components(selected_region: MetaFormatRegion | None = None):
     selected_region = selected_region or MetaFormatRegion.ALL
@@ -105,6 +116,83 @@ def meta_page(selected_meta_format: str | None = None):
             cls="mb-6",
         ),
 
+        # Meta Detail card — date-based view within a single meta
+        ft.Div(
+            ft.Div(
+                ft.Div(
+                    ft.H2("Meta Detail", cls="text-lg font-semibold text-white"),
+                    ft.P("Weekly tournament win share within a single meta format", cls="text-xs text-gray-400 mt-0.5"),
+                    cls="flex flex-col",
+                ),
+                ft.Input(type="hidden", name="detail_view_mode", value="leaders", id="detail-view-mode-input"),
+                ft.Div(
+                    ft.Button(
+                        ft.Span("Leaders", cls="px-3"),
+                        id="detail-toggle-leaders",
+                        cls=(
+                            "inline-flex items-center justify-center text-sm font-medium transition-colors "
+                            "px-3 py-1 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 "
+                            "bg-blue-600 text-white shadow-sm"
+                        ),
+                        aria_pressed="true",
+                        hx_get="/api/meta-detail-chart",
+                        hx_trigger="click",
+                        hx_target="#meta-detail-chart",
+                        hx_swap="innerHTML",
+                        hx_include=HX_INCLUDE_DETAIL,
+                        hx_indicator="#meta-detail-loading-indicator",
+                    ),
+                    ft.Button(
+                        ft.Span("Colors", cls="px-3"),
+                        id="detail-toggle-colors",
+                        cls=(
+                            "inline-flex items-center justify-center text-sm font-medium transition-colors "
+                            "px-3 py-1 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 "
+                            "bg-gray-700 text-gray-200 hover:bg-gray-600"
+                        ),
+                        aria_pressed="false",
+                        hx_get="/api/meta-detail-chart",
+                        hx_trigger="click",
+                        hx_target="#meta-detail-chart",
+                        hx_swap="innerHTML",
+                        hx_include=HX_INCLUDE_DETAIL,
+                        hx_indicator="#meta-detail-loading-indicator",
+                        style="margin-left:6px;",
+                    ),
+                    cls=(
+                        "inline-flex items-center p-1 rounded-full bg-gray-700/60 ring-1 ring-white/10 "
+                        "backdrop-blur supports-[backdrop-filter]:bg-gray-700/40"
+                    ),
+                    role="group",
+                    aria_label="Meta detail chart view mode",
+                ),
+                cls="flex items-start justify-between mb-4",
+            ),
+            ft.Select(
+                *[ft.Option(mf, value=mf, selected=(mf == meta_formats[-1])) for mf in meta_formats],
+                name="detail_meta_format",
+                id="detail-meta-format-select",
+                cls=SELECT_CLS + " styled-select mb-4",
+                **FILTER_HX_ATTRS_DETAIL,
+            ),
+            create_loading_spinner(
+                id="meta-detail-loading-indicator",
+                size="w-8 h-8",
+                container_classes="min-h-[100px]",
+            ),
+            ft.Div(
+                hx_get="/api/meta-detail-chart",
+                hx_trigger="load, change from:#region-select",
+                hx_target="this",
+                hx_swap="innerHTML",
+                hx_include=HX_INCLUDE_DETAIL,
+                hx_indicator="#meta-detail-loading-indicator",
+                id="meta-detail-chart",
+                cls="w-full",
+            ),
+            cls="bg-gray-800 rounded-lg p-3 md:p-6 shadow-xl mt-4 md:mt-6",
+        ),
+
         # Meta Index card
         ft.Div(
             # Card header row: title left, toggle right
@@ -176,6 +264,33 @@ def meta_page(selected_meta_format: str | None = None):
             ),
             cls="bg-gray-800 rounded-lg p-3 md:p-6 shadow-xl",
         ),
+
+
+        ft.Script("""
+            (function(){
+              var leadersBtn = document.getElementById('detail-toggle-leaders');
+              var colorsBtn = document.getElementById('detail-toggle-colors');
+              var viewInput = document.getElementById('detail-view-mode-input');
+              if (!leadersBtn || !colorsBtn || !viewInput) return;
+              function activate(isLeaders){
+                viewInput.value = isLeaders ? 'leaders' : 'colors';
+                if (isLeaders){
+                  leadersBtn.className = 'inline-flex items-center justify-center text-sm font-medium transition-colors px-3 py-1 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-600 text-white shadow-sm';
+                  leadersBtn.setAttribute('aria-pressed','true');
+                  colorsBtn.className = 'inline-flex items-center justify-center text-sm font-medium transition-colors px-3 py-1 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-700 text-gray-200 hover:bg-gray-600';
+                  colorsBtn.setAttribute('aria-pressed','false');
+                } else {
+                  colorsBtn.className = 'inline-flex items-center justify-center text-sm font-medium transition-colors px-3 py-1 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-600 text-white shadow-sm';
+                  colorsBtn.setAttribute('aria-pressed','true');
+                  leadersBtn.className = 'inline-flex items-center justify-center text-sm font-medium transition-colors px-3 py-1 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-700 text-gray-200 hover:bg-gray-600';
+                  leadersBtn.setAttribute('aria-pressed','false');
+                }
+              }
+              activate(true);
+              leadersBtn.addEventListener('click', function(){ activate(true); });
+              colorsBtn.addEventListener('click', function(){ activate(false); });
+            })();
+        """),
 
         ft.Script("""
             (function(){
