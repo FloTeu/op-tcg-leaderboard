@@ -120,7 +120,12 @@ def meta_page(selected_meta_format: str | None = None):
         ft.Div(
             ft.Div(
                 ft.Div(
-                    ft.H2("Meta Detail", cls="text-lg font-semibold text-white"),
+                    ft.H2(
+                        "Meta Detail",
+                        ft.Span("ⓘ", cls="ml-2 cursor-help text-gray-400 text-sm font-normal",
+                                data_tooltip="Weekly tournament win share. Only leaders with more than 2% overall wins in the selected meta are shown."),
+                        cls="text-lg font-semibold text-white",
+                    ),
                     ft.P("Weekly tournament win share within a single meta format", cls="text-xs text-gray-400 mt-0.5"),
                     cls="flex flex-col",
                 ),
@@ -169,7 +174,7 @@ def meta_page(selected_meta_format: str | None = None):
                 cls="flex items-start justify-between mb-4",
             ),
             ft.Select(
-                *[ft.Option(mf, value=mf, selected=(mf == meta_formats[-1])) for mf in meta_formats],
+                *[ft.Option(mf, value=mf, selected=(mf == meta_formats[-1])) for mf in reversed(meta_formats)],
                 name="detail_meta_format",
                 id="detail-meta-format-select",
                 cls=SELECT_CLS + " styled-select mb-4",
@@ -190,15 +195,20 @@ def meta_page(selected_meta_format: str | None = None):
                 id="meta-detail-chart",
                 cls="w-full",
             ),
-            cls="bg-gray-800 rounded-lg p-3 md:p-6 shadow-xl mt-4 md:mt-6",
+            cls="bg-gray-800 rounded-lg p-3 md:p-6 shadow-xl mt-8 md:mt-10",
         ),
+        ft.Br(),
 
         # Meta Index card
         ft.Div(
             # Card header row: title left, toggle right
             ft.Div(
                 ft.Div(
-                    ft.H2("Meta Index", cls="text-lg font-semibold text-white"),
+                    ft.H2(
+                        "Meta Index",
+                        ft.Span("ⓘ", cls="ml-2 cursor-help text-gray-400 text-sm font-normal", data_tooltip="Only leaders with more than 5% tournament win share are shown."),
+                        cls="text-lg font-semibold text-white",
+                    ),
                     ft.P("Tournament win share by leader or color", cls="text-xs text-gray-400 mt-0.5"),
                     cls="flex flex-col",
                 ),

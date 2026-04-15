@@ -12,7 +12,7 @@ from op_tcg.frontend.utils.extract import get_leader_extended, get_all_tournamen
 from op_tcg.frontend.utils.charts import create_card_occurrence_streaming_chart
 
 META_SHARE_THRESHOLD = 0.05  # leaders below 5% in a given meta are excluded for that meta
-META_DETAIL_THRESHOLD = 0.03  # leaders below 3% total wins in the selected meta are excluded
+META_DETAIL_THRESHOLD = 0.02  # leaders below 3% total wins in the selected meta are excluded
 
 
 class MetaParams(BaseModel):
@@ -335,22 +335,15 @@ def setup_api_routes(rt):
             )
 
         is_colors = params.meta_view_mode == "colors"
-        title = (
-            "Meta Index"
-            if is_colors
-            else "Meta Index"
-        )
-        title_tooltip = None if is_colors else "Only leaders with more than 5% tournament win share are shown."
         return create_card_occurrence_streaming_chart(
             container_id="meta-share-stream",
             data=chart_data,
             meta_formats=meta_formats,
             card_name="Meta Share",
             normalized=True,
-            title=title,
             colors=colors,
-            title_tooltip=title_tooltip,
             color_pairs=color_pairs,
+            show_title=False,
         )
 
     @rt("/api/meta-detail-chart")
@@ -369,19 +362,13 @@ def setup_api_routes(rt):
                 cls="w-full",
             )
 
-        title_tooltip = (
-            None
-            if params.detail_view_mode == "colors"
-            else "Weekly tournament win share. Only leaders with more than 3% overall wins in the meta are shown."
-        )
         return create_card_occurrence_streaming_chart(
             container_id="meta-detail-stream",
             data=chart_data,
             meta_formats=weeks,
             card_name="Meta Detail",
             normalized=True,
-            title="Meta Detail",
             colors=colors,
-            title_tooltip=title_tooltip,
             color_pairs=color_pairs,
+            show_title=False,
         )
