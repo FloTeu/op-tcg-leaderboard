@@ -235,7 +235,60 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     ft.Div(
                         *carousel_items,
                         *carousel_nav,
-                        cls="md:w-1/2 relative"
+                        # One-time alt-art hint overlay — only rendered when versions exist
+                        *(
+                            [
+                                # Left pulse arrow hint
+                                ft.Div(
+                                    ft.Div("◀", cls="aa-hint-arrow"),
+                                    id="aa-hint-left",
+                                    cls="aa-hint-side aa-hint-left-side",
+                                    style="opacity:0; transition: opacity 0.4s ease;"
+                                ),
+                                # Right pulse arrow hint
+                                ft.Div(
+                                    ft.Div("▶", cls="aa-hint-arrow"),
+                                    id="aa-hint-right",
+                                    cls="aa-hint-side aa-hint-right-side",
+                                    style="opacity:0; transition: opacity 0.4s ease;"
+                                ),
+                                # Center label
+                                ft.Div(
+                                    ft.Div("✦ Alt art versions available", cls="font-bold text-sm mb-0.5"),
+                                    ft.Div("tap ◀ left  or  right ▶ to browse", cls="text-xs text-white/80"),
+                                    id="aa-version-hint",
+                                    cls="absolute left-1/2 -translate-x-1/2 z-30 pointer-events-none text-center text-white aa-hint-label",
+                                    style="top:55%; opacity:0; transition: opacity 0.4s ease;"
+                                ),
+                                ft.Script("""
+(function() {
+    var KEY = 'card-aa-hint-seen';
+    //if (localStorage.getItem(KEY)) return;
+    var hintL = document.getElementById('aa-hint-left');
+    var hintR = document.getElementById('aa-hint-right');
+    var label = document.getElementById('aa-version-hint');
+    if (!hintL || !hintR || !label) return;
+    var dismissed = false;
+    function dismiss() {
+        if (dismissed) return;
+        dismissed = true;
+        [hintL, hintR, label].forEach(function(el) { el.style.opacity = '0'; });
+        localStorage.setItem(KEY, '1');
+    }
+    setTimeout(function() {
+        [hintL, hintR, label].forEach(function(el) { el.style.opacity = '1'; });
+        setTimeout(dismiss, 1500);
+    }, 600);
+    var carousel = hintL.closest('.relative');
+    if (carousel) {
+        carousel.addEventListener('click', dismiss, { once: true });
+    }
+})();
+"""),
+                            ]
+                            if len(card_versions) > 0 else []
+                        ),
+                        cls="md:w-1/2 relative md:self-start"
                     ),
                     # Script to handle carousel updates linking to watchlist
                     ft.Script("""
@@ -744,6 +797,44 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     max-height: 90vh;
                     overflow-y: auto;
                 }
+            }
+
+            /* Alt-art one-time hint arrows */
+            .aa-hint-side {
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                width: 36%;
+                z-index: 29;
+                pointer-events: none;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .aa-hint-left-side  { left: 0;  background: linear-gradient(to right, rgba(0,0,0,0.45), transparent); }
+            .aa-hint-right-side { right: 0; background: linear-gradient(to left,  rgba(0,0,0,0.45), transparent); }
+            .aa-hint-arrow {
+                font-size: 2.5rem;
+                color: white;
+                text-shadow: 0 0 16px rgba(0,0,0,1), 0 0 32px rgba(255,255,255,0.3);
+                animation: aa-pulse 0.65s ease-in-out infinite alternate;
+            }
+            .aa-hint-label {
+                padding: 10px 18px;
+                border-radius: 10px;
+                background: rgba(0,0,0,0.88);
+                border: 1px solid rgba(255,255,255,0.25);
+                box-shadow: 0 4px 24px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
+                animation: aa-label-pulse 1.1s ease-in-out infinite alternate;
+                white-space: nowrap;
+            }
+            @keyframes aa-pulse {
+                from { transform: scale(1);    opacity: 0.75; }
+                to   { transform: scale(1.3);  opacity: 1;    }
+            }
+            @keyframes aa-label-pulse {
+                from { box-shadow: 0 4px 24px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06); }
+                to   { box-shadow: 0 4px 24px rgba(0,0,0,0.7), 0 0 12px 2px rgba(255,255,255,0.18); }
             }
 
             /* Chart container overflow prevention */
