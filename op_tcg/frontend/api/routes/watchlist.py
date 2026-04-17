@@ -1,3 +1,4 @@
+import re
 from fasthtml import ft
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -6,8 +7,13 @@ from op_tcg.backend.db import (
     add_decklist_to_watchlist, remove_decklist_from_watchlist, update_decklist_watchlist_tags, get_decklist_watchlist,
     DEFAULT_WATCHLIST_TAG,
 )
-from op_tcg.frontend.utils.extract import get_watchlist_aggregate_price_data, get_card_id_card_data_lookup
+from op_tcg.frontend.utils.extract import (
+    get_watchlist_aggregate_price_data, get_card_id_card_data_lookup,
+    get_all_tournament_decklist_data,
+)
 from op_tcg.frontend.utils.charts import create_price_development_chart
+from op_tcg.frontend.utils.decklist import DecklistViewMode
+from op_tcg.frontend.components.decklist_modal import display_decklist_modal
 
 def _parse_tags(raw) -> list:
     if isinstance(raw, list):
@@ -288,8 +294,8 @@ def setup_watchlist_routes(rt):
     # ── Decklist watchlist routes ───────────────────────────────────────────
 
     def _dl_tag_chips(leader_id: str, tournament_id: str, player_id: str, tags: list):
-        safe_tid = tournament_id.replace(':', '_').replace('/', '_')[:20]
-        safe_pid = player_id.replace(':', '_').replace('/', '_')[:20]
+        safe_tid = re.sub(r'[^a-zA-Z0-9_\-]', '_', tournament_id)[:20]
+        safe_pid = re.sub(r'[^a-zA-Z0-9_\-]', '_', player_id)[:20]
         target_id = f"tags-dl-{leader_id}-{safe_tid}-{safe_pid}"
         tags_str = ",".join(tags)
         return ft.Div(
@@ -309,8 +315,8 @@ def setup_watchlist_routes(rt):
         )
 
     def _dl_tag_editor(leader_id: str, tournament_id: str, player_id: str, tags: list):
-        safe_tid = tournament_id.replace(':', '_').replace('/', '_')[:20]
-        safe_pid = player_id.replace(':', '_').replace('/', '_')[:20]
+        safe_tid = re.sub(r'[^a-zA-Z0-9_\-]', '_', tournament_id)[:20]
+        safe_pid = re.sub(r'[^a-zA-Z0-9_\-]', '_', player_id)[:20]
         target_id = f"tags-dl-{leader_id}-{safe_tid}-{safe_pid}"
         tags_str = ",".join(tags)
         return ft.Form(
@@ -365,8 +371,9 @@ def setup_watchlist_routes(rt):
         player_id = data.get('player_id')
         if not all([leader_id, tournament_id, player_id]):
             return JSONResponse({"error": "Missing required fields"}, status_code=400)
+        meta_format = data.get('meta_format', '')
         tags = _parse_tags(data.get('tags', [DEFAULT_WATCHLIST_TAG]))
-        add_decklist_to_watchlist(user.get('sub'), leader_id, tournament_id, player_id, tags)
+        add_decklist_to_watchlist(user.get('sub'), leader_id, tournament_id, player_id, meta_format, tags)
         return JSONResponse({"status": "success"})
 
     @rt("/api/watchlist/decklist/remove", methods=["POST"])
@@ -424,3 +431,87 @@ def setup_watchlist_routes(rt):
         player_id = p.get('player_id', '')
         tags = _parse_tags(p.get('tags', DEFAULT_WATCHLIST_TAG))
         return _dl_tag_chips(leader_id, tournament_id, player_id, tags)
+
+    @rt("/api/watchlist/decklist/inline-cards", methods=["GET"])
+    async def decklist_inline_cards(request: Request):
+        """Return a compact inline decklist view for the watchlist page."""
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
+        p = request.query_params
+        leader_id = p.get('leader_id', '')
+        tournament_id = p.get('tournament_id', '')
+        player_id = p.get('player_id', '')
+        view_mode = p.get('view_mode', DecklistViewMode.GRID)
+
+        if not all([leader_id, tournament_id, player_id]):
+            return ft.P("Missing parameters.", cls="text-red-400 text-sm p-3")
+
+        # Cached lookup — fast after first call
+        all_decklists = get_all_tournament_decklist_data()
+        selected = next(
+            (td for td in all_decklists if td.tournament_id == tournament_id and td.player_id == player_id),
+            None
+        )
+
+        if not selected or not selected.decklist:
+            return ft.P("Decklist not found.", cls="text-gray-500 text-sm p-3")
+
+        card_id2card_data = get_card_id_card_data_lookup()
+        total_cards = sum(selected.decklist.values())
+
+        # Construct a stable container ID matching the one on the watchlist page
+        safe_tid = re.sub(r'[^a-zA-Z0-9_\-]', '_', tournament_id)[:20]
+        safe_pid = re.sub(r'[^a-zA-Z0-9_\-]', '_', player_id)[:20]
+        container_id = f"dl-cards-{leader_id}-{safe_tid}-{safe_pid}"
+        unique_id = f"{safe_tid}-{safe_pid}"
+
+        base_url = f"/api/watchlist/decklist/inline-cards?leader_id={leader_id}&tournament_id={tournament_id}&player_id={player_id}"
+
+        view_toggle = ft.Div(
+            ft.Button(
+                ft.I(cls="fas fa-th-large mr-1"), "Grid",
+                type="button",
+                cls=f"px-3 py-1 rounded-l-lg border border-gray-600 text-xs transition-colors {'bg-blue-600 text-white' if view_mode == DecklistViewMode.GRID else 'bg-gray-800 text-gray-400 hover:bg-gray-700'}",
+                hx_get=f"{base_url}&view_mode={DecklistViewMode.GRID}",
+                hx_target=f"#{container_id}",
+                hx_swap="innerHTML",
+            ),
+            ft.Button(
+                ft.I(cls="fas fa-list mr-1"), "List",
+                type="button",
+                cls=f"px-3 py-1 rounded-r-lg border border-gray-600 border-l-0 text-xs transition-colors {'bg-blue-600 text-white' if view_mode == DecklistViewMode.LIST else 'bg-gray-800 text-gray-400 hover:bg-gray-700'}",
+                hx_get=f"{base_url}&view_mode={DecklistViewMode.LIST}",
+                hx_target=f"#{container_id}",
+                hx_swap="innerHTML",
+            ),
+            cls="flex items-center"
+        )
+
+        decklist_view = display_decklist_modal(
+            decklist=selected.decklist,
+            card_id2card_data=card_id2card_data,
+            leader_id=leader_id,
+            view_mode=view_mode,
+            unique_id=unique_id,
+        )
+
+        return ft.Div(
+            ft.Div(
+                ft.Div(
+                    view_toggle,
+                    ft.Span(f"{total_cards} cards · {selected.meta_format}", cls="text-xs text-gray-500 ml-3"),
+                    cls="flex items-center"
+                ),
+                ft.A(
+                    ft.I(cls="fas fa-external-link-alt mr-1 text-xs"),
+                    "Full view",
+                    href=f"/leader?lid={leader_id}&modal=decklist&tournament_id={tournament_id}&player_id={player_id}",
+                    cls="text-xs text-blue-400 hover:text-blue-300 transition-colors inline-flex items-center",
+                ),
+                cls="flex items-center justify-between mb-3"
+            ),
+            decklist_view,
+            cls="pt-3 px-4 pb-4 border-t border-gray-700/60"
+        )

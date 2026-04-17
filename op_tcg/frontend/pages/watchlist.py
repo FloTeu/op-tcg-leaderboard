@@ -1,3 +1,4 @@
+import re
 from fasthtml import ft
 from op_tcg.backend.db import get_watchlist, get_user_settings, get_decklist_watchlist
 from op_tcg.frontend.components.watchlist_toggle import create_watchlist_toggle
@@ -129,14 +130,15 @@ def _decklist_watchlist_section(user_id: str, request) -> ft.Div:
         leader_id = item.get('leader_id', '')
         tournament_id = item.get('tournament_id', '')
         player_id = item.get('player_id', '')
+        meta_format = item.get('meta_format', '')
         tags = item.get('tags', ['my decklists']) or ['my decklists']
 
         leader_data = card_lookup.get(leader_id)
         image_url = getattr(leader_data, 'image_url', '') if leader_data else ''
         leader_name = getattr(leader_data, 'name', leader_id) if leader_data else leader_id
 
-        safe_tid = tournament_id.replace(':', '_').replace('/', '_')[:20]
-        safe_pid = player_id.replace(':', '_').replace('/', '_')[:20]
+        safe_tid = re.sub(r'[^a-zA-Z0-9_\-]', '_', tournament_id)[:20]
+        safe_pid = re.sub(r'[^a-zA-Z0-9_\-]', '_', player_id)[:20]
         tag_target_id = f"tags-dl-{leader_id}-{safe_tid}-{safe_pid}"
         tags_str = ",".join(tags)
 
@@ -160,27 +162,34 @@ def _decklist_watchlist_section(user_id: str, request) -> ft.Div:
             leader_id=leader_id,
             tournament_id=tournament_id,
             player_id=player_id,
+            meta_format=meta_format,
             is_in_watchlist=True,
             include_script=(i == 0),
         )
 
-        # Link to leader page with decklist modal open
-        view_link = f"/leader?lid={leader_id}&modal=decklist&tournament_id={tournament_id}&player_id={player_id}"
+        cards_container_id = f"dl-cards-{leader_id}-{safe_tid}-{safe_pid}"
+        expand_btn_id = f"dl-expand-btn-{leader_id}-{safe_tid}-{safe_pid}"
+        cards_url = f"/api/watchlist/decklist/inline-cards?leader_id={leader_id}&tournament_id={tournament_id}&player_id={player_id}&view_mode=grid"
 
         items.append(
             ft.Div(
+                # Header row
                 ft.Div(
                     # Leader card thumbnail
                     ft.Div(
-                        ft.Img(src=image_url, cls="w-16 sm:w-20 h-auto rounded shadow-sm", alt=leader_name) if image_url else ft.Div(cls="w-16 sm:w-20 h-24 bg-gray-700 rounded"),
+                        ft.Img(src=image_url, cls="w-14 sm:w-16 h-auto rounded shadow-sm", alt=leader_name) if image_url else ft.Div(cls="w-14 sm:w-16 h-20 bg-gray-700 rounded"),
                         cls="flex-shrink-0 mr-4"
                     ),
                     # Info
                     ft.Div(
                         ft.Div(
-                            ft.Span(leader_id, cls="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 mr-2"),
-                            ft.Span(leader_name, cls="text-white font-bold text-base"),
-                            cls="flex items-center flex-wrap gap-1 mb-1"
+                            ft.Span(leader_id, cls="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"),
+                            ft.Span(leader_name, cls="text-white font-bold text-sm sm:text-base"),
+                            *(
+                                [ft.Span(meta_format, cls="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-300 border border-blue-500/30")]
+                                if meta_format else []
+                            ),
+                            cls="flex items-center flex-wrap gap-2 mb-1"
                         ),
                         ft.P(f"Player: {player_id}", cls="text-xs text-gray-400 truncate"),
                         ft.P(f"Tournament: {tournament_id[:40]}{'...' if len(tournament_id) > 40 else ''}", cls="text-xs text-gray-500 truncate"),
@@ -189,22 +198,64 @@ def _decklist_watchlist_section(user_id: str, request) -> ft.Div:
                     ),
                     # Actions
                     ft.Div(
-                        ft.A(
-                            ft.I(cls="fas fa-eye mr-1"),
-                            "View",
-                            href=view_link,
-                            cls="inline-flex items-center text-xs text-blue-400 hover:text-blue-300 transition-colors mb-2"
-                        ),
                         toggle_btn,
                         cls="flex flex-col items-end flex-shrink-0 ml-2"
                     ),
-                    cls="flex items-start px-5 py-4",
+                    cls="flex items-start px-4 py-4",
+                ),
+                # Expand/collapse footer
+                ft.Button(
+                    ft.I(cls="fas fa-chevron-down mr-2 text-xs transition-transform", id=f"{expand_btn_id}-icon"),
+                    "Show cards",
+                    id=expand_btn_id,
+                    type="button",
+                    cls="w-full flex items-center justify-center text-xs text-gray-400 hover:text-white hover:bg-gray-700/40 transition-colors py-2 border-t border-gray-700/60",
+                    onclick=f"toggleDecklistCards('{expand_btn_id}', '{cards_container_id}')",
+                ),
+                # Lazy-loaded cards area (hidden until expanded)
+                ft.Div(
+                    create_loading_spinner(id=f"{cards_container_id}-loading", size="w-5 h-5", container_classes="flex items-center justify-center py-6 hidden"),
+                    id=cards_container_id,
+                    cls="hidden",
+                    hx_get=cards_url,
+                    hx_trigger="expand once",
+                    hx_swap="innerHTML",
+                    hx_indicator=f"#{cards_container_id}-loading",
                 ),
                 cls="decklist-watchlist-item bg-gray-800/60 border border-gray-700 rounded-xl overflow-hidden",
             )
         )
 
+    toggle_script = ft.Script("""
+(function() {
+    if (window.toggleDecklistCards) return;
+    window.toggleDecklistCards = function(btnId, containerId) {
+        const btn = document.getElementById(btnId);
+        const container = document.getElementById(containerId);
+        const icon = document.getElementById(btnId + '-icon');
+        if (!btn || !container) return;
+        const isHidden = container.classList.contains('hidden');
+        if (isHidden) {
+            container.classList.remove('hidden');
+            if (icon) icon.style.transform = 'rotate(180deg)';
+            btn.querySelector('span') && (btn.lastChild.textContent = ' Hide cards');
+            // Replace text node
+            btn.childNodes.forEach(function(n) { if (n.nodeType === 3 && n.textContent.trim()) n.textContent = ' Hide cards'; });
+            if (!container.dataset.loaded) {
+                container.dataset.loaded = '1';
+                htmx.trigger(container, 'expand');
+            }
+        } else {
+            container.classList.add('hidden');
+            if (icon) icon.style.transform = '';
+            btn.childNodes.forEach(function(n) { if (n.nodeType === 3 && n.textContent.trim()) n.textContent = ' Show cards'; });
+        }
+    };
+})();
+""")
+
     return ft.Div(
+        toggle_script,
         tag_filter_bar,
         ft.Div(*items, cls="grid grid-cols-1 gap-4"),
     )

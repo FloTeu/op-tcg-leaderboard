@@ -65,6 +65,7 @@ def display_decklist_list_view(decklist: dict[str, int], card_id2card_data: dict
             if is_expensive:
                 price_classes = "text-red-300 text-xs font-bold ml-auto"
 
+            preview_img_id = f"decklist-preview-image-{unique_id}"
             card_rows.append(
                 ft.Div(
                     ft.Div(
@@ -81,7 +82,7 @@ def display_decklist_list_view(decklist: dict[str, int], card_id2card_data: dict
                         cls=price_classes + " flex-shrink-0 ml-2"
                     ) if price_info else "",
                     cls="flex items-center p-1 hover:bg-gray-700 rounded transition-colors group",
-                    onmouseenter=f"document.getElementById('decklist-preview-image').src='{img_url}'"
+                    onmouseenter=f"document.getElementById('{preview_img_id}').src='{img_url}'"
                 )
             )
 
@@ -115,7 +116,7 @@ def display_decklist_list_view(decklist: dict[str, int], card_id2card_data: dict
         ft.Div(
             ft.Img(
                 src=preview_img_url,
-                id="decklist-preview-image",
+                id=f"decklist-preview-image-{unique_id}",
                 cls="w-full rounded-lg shadow-lg transition-all duration-300"
             ),
             ft.Div(
@@ -321,8 +322,11 @@ def create_decklist_modal(
                             ft.Option(
                                 text,
                                 value=value,
-                                selected=(value == selected_value)
-                            ) for text, value in decklist_options
+                                selected=(value == selected_value),
+                                data_meta_format=str(td_obj.meta_format) if td_obj.meta_format else "",
+                            ) for (text, value), td_obj in zip(decklist_options, [
+                                td for td in tournament_decklists if td.tournament_id and td.player_id
+                            ])
                         ],
                         id="tournament-decklist-select-modal",
                         cls=SELECT_CLS + " styled-select mb-4",
@@ -469,6 +473,7 @@ def create_decklist_modal(
                             leader_id=leader_id,
                             tournament_id=selected_td.tournament_id if selected_td else "",
                             player_id=selected_td.player_id if selected_td else "",
+                            meta_format=str(selected_td.meta_format) if selected_td and selected_td.meta_format else "",
                             is_in_watchlist=bool(selected_td and f"{selected_td.tournament_id}:{selected_td.player_id}" in watchlisted_keys),
                             include_script=True,
                         )]

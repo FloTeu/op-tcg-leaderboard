@@ -156,7 +156,7 @@ def _decklist_doc_id(leader_id: str, tournament_id: str, player_id: str) -> str:
     return re.sub(r'[^a-zA-Z0-9\-_]', '_', raw)[:400]
 
 
-def add_decklist_to_watchlist(user_id: str, leader_id: str, tournament_id: str, player_id: str, tags: list = None):
+def add_decklist_to_watchlist(user_id: str, leader_id: str, tournament_id: str, player_id: str, meta_format: str = "", tags: list = None):
     """Adds a decklist to the user's decklist watchlist."""
     db = get_db()
     if not db:
@@ -167,6 +167,7 @@ def add_decklist_to_watchlist(user_id: str, leader_id: str, tournament_id: str, 
         'leader_id': leader_id,
         'tournament_id': tournament_id,
         'player_id': player_id,
+        'meta_format': meta_format,
         'tags': tags if tags is not None else [DEFAULT_WATCHLIST_TAG],
         'added_at': firestore.SERVER_TIMESTAMP
     })

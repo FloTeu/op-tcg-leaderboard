@@ -5,6 +5,7 @@ def create_decklist_watchlist_toggle(
     leader_id: str,
     tournament_id: str,
     player_id: str,
+    meta_format: str = "",
     is_in_watchlist: bool = False,
     extra_cls: str = "",
     btn_cls: str = "",
@@ -16,6 +17,7 @@ def create_decklist_watchlist_toggle(
         leader_id: Leader card ID for this decklist
         tournament_id: Tournament identifier
         player_id: Player identifier
+        meta_format: Meta format the tournament took place in (e.g. "OP09")
         is_in_watchlist: Current watchlist state
         extra_cls: CSS classes for the outer wrapper div
         btn_cls: Additional CSS classes for the button itself
@@ -46,12 +48,13 @@ def create_decklist_watchlist_toggle(
         const leaderId = btn.dataset.leaderId;
         const tournamentId = btn.dataset.tournamentId;
         const playerId = btn.dataset.playerId;
+        const metaFormat = btn.dataset.metaFormat || '';
         const endpoint = isInWatchlist ? '/api/watchlist/decklist/remove' : '/api/watchlist/decklist/add';
 
         _updateDecklistBtnState(btn, !isInWatchlist);
 
         try {
-            const body = { leader_id: leaderId, tournament_id: tournamentId, player_id: playerId };
+            const body = { leader_id: leaderId, tournament_id: tournamentId, player_id: playerId, meta_format: metaFormat };
             if (tags && tags.length) body.tags = tags;
 
             const response = await fetch(endpoint, {
@@ -185,6 +188,7 @@ def create_decklist_watchlist_toggle(
         const parts = sel.value.split(':');
         const tournamentId = parts[0];
         const playerId = parts.slice(1).join(':');
+        const metaFormat = sel.options[sel.selectedIndex]?.dataset?.metaFormat || '';
         const btn = document.getElementById('decklist-modal-watchlist-btn-el');
         if (!btn) return;
         const backdrop = document.getElementById('decklist-modal-backdrop');
@@ -194,6 +198,7 @@ def create_decklist_watchlist_toggle(
         const inWatchlist = watchlisted.includes(key);
         btn.dataset.tournamentId = tournamentId;
         btn.dataset.playerId = playerId;
+        btn.dataset.metaFormat = metaFormat;
         _updateDecklistBtnState(btn, inWatchlist);
     });
 })();
@@ -218,6 +223,7 @@ def create_decklist_watchlist_toggle(
         data_leader_id=leader_id,
         data_tournament_id=tournament_id,
         data_player_id=player_id,
+        data_meta_format=meta_format,
         data_in_watchlist="true" if is_in_watchlist else "false",
     )
 
