@@ -147,6 +147,60 @@ def update_user_settings(user_id: str, settings: dict):
     db.collection('users').document(user_id).set({"settings": settings}, merge=True)
 
 
+def _decklist_doc_id(leader_id: str, tournament_id: str, player_id: str) -> str:
+    """Build a safe Firestore document ID for a decklist watchlist entry."""
+    import re
+    raw = f"{leader_id}__{tournament_id}__{player_id}"
+    # Firestore doc IDs must not contain '/' and must not be '..' or '.'.
+    # Replace any character that isn't alphanumeric, dash, or underscore.
+    return re.sub(r'[^a-zA-Z0-9\-_]', '_', raw)[:400]
+
+
+def add_decklist_to_watchlist(user_id: str, leader_id: str, tournament_id: str, player_id: str, tags: list = None):
+    """Adds a decklist to the user's decklist watchlist."""
+    db = get_db()
+    if not db:
+        return
+    ref = db.collection('users').document(user_id).collection('decklist_watchlist')
+    doc_id = _decklist_doc_id(leader_id, tournament_id, player_id)
+    ref.document(doc_id).set({
+        'leader_id': leader_id,
+        'tournament_id': tournament_id,
+        'player_id': player_id,
+        'tags': tags if tags is not None else [DEFAULT_WATCHLIST_TAG],
+        'added_at': firestore.SERVER_TIMESTAMP
+    })
+
+
+def remove_decklist_from_watchlist(user_id: str, leader_id: str, tournament_id: str, player_id: str):
+    """Removes a decklist from the user's decklist watchlist."""
+    db = get_db()
+    if not db:
+        return
+    doc_id = _decklist_doc_id(leader_id, tournament_id, player_id)
+    db.collection('users').document(user_id).collection('decklist_watchlist').document(doc_id).delete()
+
+
+def update_decklist_watchlist_tags(user_id: str, leader_id: str, tournament_id: str, player_id: str, tags: list = None):
+    """Updates the tags of a decklist watchlist entry."""
+    db = get_db()
+    if not db:
+        return
+    doc_id = _decklist_doc_id(leader_id, tournament_id, player_id)
+    db.collection('users').document(user_id).collection('decklist_watchlist').document(doc_id).update(
+        {'tags': tags or [DEFAULT_WATCHLIST_TAG]}
+    )
+
+
+def get_decklist_watchlist(user_id: str) -> list[dict]:
+    """Retrieves the user's decklist watchlist."""
+    db = get_db()
+    if not db:
+        return []
+    ref = db.collection('users').document(user_id).collection('decklist_watchlist')
+    return [doc.to_dict() for doc in ref.stream()]
+
+
 def delete_user(user_id: str):
     """Deletes a user's watchlist subcollection and user document."""
     db = get_db()

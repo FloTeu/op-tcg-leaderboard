@@ -1,7 +1,11 @@
 from fasthtml import ft
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from op_tcg.backend.db import add_to_watchlist, remove_from_watchlist, update_watchlist_tags, update_watchlist_quantity, get_watchlist, DEFAULT_WATCHLIST_TAG
+from op_tcg.backend.db import (
+    add_to_watchlist, remove_from_watchlist, update_watchlist_tags, update_watchlist_quantity, get_watchlist,
+    add_decklist_to_watchlist, remove_decklist_from_watchlist, update_decklist_watchlist_tags, get_decklist_watchlist,
+    DEFAULT_WATCHLIST_TAG,
+)
 from op_tcg.frontend.utils.extract import get_watchlist_aggregate_price_data, get_card_id_card_data_lookup
 from op_tcg.frontend.utils.charts import create_price_development_chart
 
@@ -280,3 +284,143 @@ def setup_watchlist_routes(rt):
             show_legend=True,
             release_events=release_events,
         )
+
+    # ── Decklist watchlist routes ───────────────────────────────────────────
+
+    def _dl_tag_chips(leader_id: str, tournament_id: str, player_id: str, tags: list):
+        safe_tid = tournament_id.replace(':', '_').replace('/', '_')[:20]
+        safe_pid = player_id.replace(':', '_').replace('/', '_')[:20]
+        target_id = f"tags-dl-{leader_id}-{safe_tid}-{safe_pid}"
+        tags_str = ",".join(tags)
+        return ft.Div(
+            *[ft.Span(tag, cls="inline-block bg-blue-600/30 text-blue-300 text-xs px-2 py-0.5 rounded-full mr-1 mb-1") for tag in tags],
+            ft.Button(
+                ft.I(cls="fas fa-pen text-xs"),
+                type="button",
+                cls="text-gray-500 hover:text-gray-300 ml-1 transition-colors",
+                title="Edit tags",
+                hx_get=f"/api/watchlist/decklist/tag-editor?leader_id={leader_id}&tournament_id={tournament_id}&player_id={player_id}&tags={tags_str}",
+                hx_target=f"#{target_id}",
+                hx_swap="outerHTML",
+            ),
+            id=target_id,
+            cls="flex flex-wrap items-center mt-1",
+            onclick="event.stopPropagation();"
+        )
+
+    def _dl_tag_editor(leader_id: str, tournament_id: str, player_id: str, tags: list):
+        safe_tid = tournament_id.replace(':', '_').replace('/', '_')[:20]
+        safe_pid = player_id.replace(':', '_').replace('/', '_')[:20]
+        target_id = f"tags-dl-{leader_id}-{safe_tid}-{safe_pid}"
+        tags_str = ",".join(tags)
+        return ft.Form(
+            ft.Input(type="hidden", name="leader_id", value=leader_id),
+            ft.Input(type="hidden", name="tournament_id", value=tournament_id),
+            ft.Input(type="hidden", name="player_id", value=player_id),
+            ft.Div(
+                ft.Input(
+                    type="text",
+                    name="tags",
+                    value=tags_str,
+                    placeholder="my decklists",
+                    cls="bg-gray-700 text-white border border-gray-600 rounded px-2 py-1 text-xs w-full focus:outline-none focus:border-blue-500",
+                    autofocus=True,
+                    onkeydown="event.stopPropagation();",
+                    onkeyup="event.stopPropagation();",
+                    onkeypress="event.stopPropagation();",
+                ),
+                ft.Div(
+                    ft.Button("Save", type="submit", cls="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded transition-colors"),
+                    ft.Button(
+                        "Cancel",
+                        type="button",
+                        cls="text-gray-400 hover:text-white text-xs px-2 py-1 ml-1 transition-colors",
+                        hx_get=f"/api/watchlist/decklist/tag-chips?leader_id={leader_id}&tournament_id={tournament_id}&player_id={player_id}&tags={tags_str}",
+                        hx_target=f"#{target_id}",
+                        hx_swap="outerHTML",
+                    ),
+                    cls="flex items-center mt-1"
+                ),
+                cls="flex flex-col w-full max-w-xs"
+            ),
+            id=target_id,
+            hx_post="/api/watchlist/decklist/tags",
+            hx_target=f"#{target_id}",
+            hx_swap="outerHTML",
+            cls="flex items-start mt-1",
+            onclick="event.stopPropagation();"
+        )
+
+    @rt("/api/watchlist/decklist/add", methods=["POST"])
+    async def decklist_add(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        try:
+            data = await request.json()
+        except Exception:
+            return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+        leader_id = data.get('leader_id')
+        tournament_id = data.get('tournament_id')
+        player_id = data.get('player_id')
+        if not all([leader_id, tournament_id, player_id]):
+            return JSONResponse({"error": "Missing required fields"}, status_code=400)
+        tags = _parse_tags(data.get('tags', [DEFAULT_WATCHLIST_TAG]))
+        add_decklist_to_watchlist(user.get('sub'), leader_id, tournament_id, player_id, tags)
+        return JSONResponse({"status": "success"})
+
+    @rt("/api/watchlist/decklist/remove", methods=["POST"])
+    async def decklist_remove(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        try:
+            data = await request.json()
+        except Exception:
+            return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+        leader_id = data.get('leader_id')
+        tournament_id = data.get('tournament_id')
+        player_id = data.get('player_id')
+        if not all([leader_id, tournament_id, player_id]):
+            return JSONResponse({"error": "Missing required fields"}, status_code=400)
+        remove_decklist_from_watchlist(user.get('sub'), leader_id, tournament_id, player_id)
+        return JSONResponse({"status": "success"})
+
+    @rt("/api/watchlist/decklist/tags", methods=["POST"])
+    async def decklist_update_tags(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        form = await request.form()
+        leader_id = form.get('leader_id', '')
+        tournament_id = form.get('tournament_id', '')
+        player_id = form.get('player_id', '')
+        tags = _parse_tags(form.get('tags', DEFAULT_WATCHLIST_TAG))
+        if not all([leader_id, tournament_id, player_id]):
+            return JSONResponse({"error": "Missing required fields"}, status_code=400)
+        update_decklist_watchlist_tags(user.get('sub'), leader_id, tournament_id, player_id, tags)
+        return _dl_tag_chips(leader_id, tournament_id, player_id, tags)
+
+    @rt("/api/watchlist/decklist/tag-editor", methods=["GET"])
+    async def decklist_tag_editor(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        p = request.query_params
+        leader_id = p.get('leader_id', '')
+        tournament_id = p.get('tournament_id', '')
+        player_id = p.get('player_id', '')
+        tags = _parse_tags(p.get('tags', DEFAULT_WATCHLIST_TAG))
+        return _dl_tag_editor(leader_id, tournament_id, player_id, tags)
+
+    @rt("/api/watchlist/decklist/tag-chips", methods=["GET"])
+    async def decklist_tag_chips_view(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        p = request.query_params
+        leader_id = p.get('leader_id', '')
+        tournament_id = p.get('tournament_id', '')
+        player_id = p.get('player_id', '')
+        tags = _parse_tags(p.get('tags', DEFAULT_WATCHLIST_TAG))
+        return _dl_tag_chips(leader_id, tournament_id, player_id, tags)

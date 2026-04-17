@@ -4,6 +4,7 @@ from op_tcg.backend.models.cards import ExtendedCardData, OPTcgLanguage, CardCur
 from op_tcg.frontend.utils.decklist import DecklistViewMode
 from op_tcg.frontend.components.loading import create_loading_spinner
 from op_tcg.frontend.components.decklist_export import create_decklist_export_component
+from op_tcg.frontend.components.decklist_watchlist_toggle import create_decklist_watchlist_toggle
 
 SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 
@@ -221,7 +222,9 @@ def create_decklist_modal(
     selected_currency: str = CardCurrency.EURO,
     days: str | None = None,
     placing: str | None = None,
-    view_mode: str = DecklistViewMode.GRID
+    view_mode: str = DecklistViewMode.GRID,
+    is_logged_in: bool = False,
+    watchlisted_decklists: list[tuple[str, str]] | None = None,
 ) -> ft.Div:
     """Create a modal dialog for displaying tournament decklists.
     
@@ -234,6 +237,12 @@ def create_decklist_modal(
         A FastHTML Div containing the modal dialog
     """
     
+    import json as _json
+    watchlisted_set = watchlisted_decklists or []
+    # Keys stored as "tournament_id:player_id" for fast JS lookup
+    watchlisted_keys = [f"{t}:{p}" for t, p in watchlisted_set]
+    watchlisted_json = _json.dumps(watchlisted_keys)
+
     # Sort tournament decklists by placing (None placings at the end, then by placing ascending)
     tournament_decklists.sort(key=lambda x: (x.placing is None, x.placing or float('inf')))
     
@@ -455,13 +464,23 @@ def create_decklist_modal(
                         cls="ml-2 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 px-4 py-2 text-white font-semibold shadow-sm hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 active:translate-y-px transition",
                         onclick='(function(evt){evt.preventDefault();var btn=evt.currentTarget; (async function(){ try{function buildShareURL(){const p=new URLSearchParams(window.location.search);const lidInput=document.querySelector("[name=lid]");if(lidInput&&lidInput.value){p.set("lid",lidInput.value);}const daysInput=document.querySelector("[name=days]");if(daysInput&&daysInput.value){p.set("days",daysInput.value);}const placingInput=document.querySelector("[name=placing]");if(placingInput&&placingInput.value){p.set("placing",placingInput.value);}const sel=document.getElementById("tournament-decklist-select-modal");if(sel&&sel.value){const v=sel.value.split(":");p.set("tournament_id",v[0]);p.set("player_id",v[1]);}const c=document.getElementById("currency-select-modal");if(c&&c.value){p.set("currency",c.value)}p.set("modal","decklist");return window.location.origin+window.location.pathname+"?"+p.toString();}const url=buildShareURL(); try{ if(navigator.clipboard&&navigator.clipboard.writeText){ await navigator.clipboard.writeText(url); } else { throw new Error("no-async-clipboard"); } } catch(e){ var ta=document.createElement("textarea"); ta.value=url; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); } if(!btn) return; var orig=btn.getAttribute("data-orig-html"); if(!orig){orig=btn.innerHTML; btn.setAttribute("data-orig-html", orig);} btn.innerHTML = "<span class=\"inline-flex items-center gap-2\">✅ <span class=\"hidden sm:inline\">Copied!</span></span>"; btn.classList.add("ring-2","ring-green-400"); setTimeout(function(){btn.innerHTML=orig; btn.classList.remove("ring-2","ring-green-400");}, 1500); } catch(e){} })(); })(event)'
                     ),
+                    *(
+                        [create_decklist_watchlist_toggle(
+                            leader_id=leader_id,
+                            tournament_id=selected_td.tournament_id if selected_td else "",
+                            player_id=selected_td.player_id if selected_td else "",
+                            is_in_watchlist=bool(selected_td and f"{selected_td.tournament_id}:{selected_td.player_id}" in watchlisted_keys),
+                            include_script=True,
+                        )]
+                        if is_logged_in and selected_td else []
+                    ),
                     ft.Button(
                         ft.Span("×", cls="text-lg"),
                         type="button",
                         cls="inline-flex items-center justify-center w-9 h-9 rounded-full bg-gray-700/60 hover:bg-gray-700 text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 transition",
                         onclick='event.stopPropagation();(function(){try{const p=new URLSearchParams(window.location.search);p.delete("tournament_id");p.delete("player_id");p.delete("currency");p.delete("modal");const u=window.location.pathname+(p.toString()?"?"+p.toString():"");window.history.replaceState({},"",u);}catch(e){};var el=document.getElementById("decklist-modal-backdrop");if(el)el.remove();})()'
                     ),
-                    cls="absolute top-4 right-4 flex items-center"
+                    cls="absolute top-4 right-4 flex items-center gap-1"
                 ),
                 
                 # Modal header with leader image - NOT in scrollable area
@@ -542,7 +561,8 @@ def create_decklist_modal(
             ),
             cls="decklist-modal-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-start justify-center overflow-y-auto py-4",
             onclick='if (event.target === this) { (function(){try{const p=new URLSearchParams(window.location.search);p.delete("tournament_id");p.delete("player_id");p.delete("currency");p.delete("modal");const u=window.location.pathname+(p.toString()?"?"+p.toString():"");window.history.replaceState({},"",u);}catch(e){};var el=document.getElementById("decklist-modal-backdrop");if(el)el.remove();})() }',
-            id="decklist-modal-backdrop"  # Add ID for specific targeting
+            id="decklist-modal-backdrop",
+            data_watchlisted_decklists=watchlisted_json,
         ),
         
         # Enhanced modal styles with proper z-index management and mobile overflow prevention

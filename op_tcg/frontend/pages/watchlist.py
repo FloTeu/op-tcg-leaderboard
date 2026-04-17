@@ -1,8 +1,9 @@
 from fasthtml import ft
-from op_tcg.backend.db import get_watchlist, get_user_settings
+from op_tcg.backend.db import get_watchlist, get_user_settings, get_decklist_watchlist
 from op_tcg.frontend.components.watchlist_toggle import create_watchlist_toggle
+from op_tcg.frontend.components.decklist_watchlist_toggle import create_decklist_watchlist_toggle
 from op_tcg.frontend.utils.card_price import get_marketplace_link
-from op_tcg.frontend.utils.extract import get_card_lookup_by_id_and_aa
+from op_tcg.frontend.utils.extract import get_card_lookup_by_id_and_aa, get_card_id_card_data_lookup
 from op_tcg.frontend.components.loading import create_loading_spinner
 from op_tcg.backend.models.cards import CardCurrency
 
@@ -83,6 +84,132 @@ def _qty_script() -> ft.Script:
 """)
 
 
+def _decklist_watchlist_section(user_id: str, request) -> ft.Div:
+    """Renders the saved decklists section of the watchlist page."""
+    dl_watchlist = get_decklist_watchlist(user_id)
+    card_lookup = get_card_id_card_data_lookup()  # flat: card_id -> ExtendedCardData (aa_version=0)
+
+    tag_filter = request.query_params.get("tag", "")
+    all_tags = sorted({tag for item in dl_watchlist for tag in item.get('tags', ['my decklists'])})
+
+    if tag_filter:
+        dl_watchlist = [item for item in dl_watchlist if tag_filter in item.get('tags', ['my decklists'])]
+
+    def build_url(tag=None):
+        t = tag if tag is not None else tag_filter
+        params = "section=decklists"
+        if t:
+            params += f"&tag={t}"
+        return f"?{params}"
+
+    tag_filter_bar = ft.Div(
+        ft.A("All", href=build_url(tag=""),
+             cls=f"px-3 py-1 rounded-full text-xs font-medium transition-colors mr-1 mb-1 {'bg-blue-600 text-white' if not tag_filter else 'bg-gray-700 text-gray-300 hover:bg-gray-600'}"),
+        *[
+            ft.A(tag, href=build_url(tag=tag),
+                 cls=f"px-3 py-1 rounded-full text-xs font-medium transition-colors mr-1 mb-1 {'bg-blue-600 text-white' if tag_filter == tag else 'bg-gray-700 text-gray-300 hover:bg-gray-600'}")
+            for tag in all_tags
+        ],
+        cls="flex flex-wrap items-center mb-4"
+    ) if all_tags else ft.Span()
+
+    if not dl_watchlist:
+        return ft.Div(
+            tag_filter_bar,
+            ft.Div(
+                ft.I(cls="fas fa-layer-group text-4xl text-gray-600 mb-3"),
+                ft.P("No saved decklists yet.", cls="text-gray-400 text-sm"),
+                ft.P("Open a tournament decklist and click the heart icon to save it.", cls="text-gray-500 text-xs mt-1"),
+                cls="flex flex-col items-center justify-center py-16 text-center"
+            ),
+        )
+
+    items = []
+    for i, item in enumerate(dl_watchlist):
+        leader_id = item.get('leader_id', '')
+        tournament_id = item.get('tournament_id', '')
+        player_id = item.get('player_id', '')
+        tags = item.get('tags', ['my decklists']) or ['my decklists']
+
+        leader_data = card_lookup.get(leader_id)
+        image_url = getattr(leader_data, 'image_url', '') if leader_data else ''
+        leader_name = getattr(leader_data, 'name', leader_id) if leader_data else leader_id
+
+        safe_tid = tournament_id.replace(':', '_').replace('/', '_')[:20]
+        safe_pid = player_id.replace(':', '_').replace('/', '_')[:20]
+        tag_target_id = f"tags-dl-{leader_id}-{safe_tid}-{safe_pid}"
+        tags_str = ",".join(tags)
+
+        tag_chips = ft.Div(
+            *[ft.Span(tag, cls="inline-block bg-blue-600/30 text-blue-300 text-xs px-2 py-0.5 rounded-full mr-1") for tag in tags],
+            ft.Button(
+                ft.I(cls="fas fa-pen text-xs"),
+                type="button",
+                cls="text-gray-600 hover:text-gray-300 ml-1 transition-colors",
+                title="Edit tags",
+                hx_get=f"/api/watchlist/decklist/tag-editor?leader_id={leader_id}&tournament_id={tournament_id}&player_id={player_id}&tags={tags_str}",
+                hx_target=f"#{tag_target_id}",
+                hx_swap="outerHTML",
+            ),
+            id=tag_target_id,
+            cls="flex flex-wrap items-center mt-1",
+            onclick="event.stopPropagation();"
+        )
+
+        toggle_btn = create_decklist_watchlist_toggle(
+            leader_id=leader_id,
+            tournament_id=tournament_id,
+            player_id=player_id,
+            is_in_watchlist=True,
+            include_script=(i == 0),
+        )
+
+        # Link to leader page with decklist modal open
+        view_link = f"/leader?lid={leader_id}&modal=decklist&tournament_id={tournament_id}&player_id={player_id}"
+
+        items.append(
+            ft.Div(
+                ft.Div(
+                    # Leader card thumbnail
+                    ft.Div(
+                        ft.Img(src=image_url, cls="w-16 sm:w-20 h-auto rounded shadow-sm", alt=leader_name) if image_url else ft.Div(cls="w-16 sm:w-20 h-24 bg-gray-700 rounded"),
+                        cls="flex-shrink-0 mr-4"
+                    ),
+                    # Info
+                    ft.Div(
+                        ft.Div(
+                            ft.Span(leader_id, cls="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 mr-2"),
+                            ft.Span(leader_name, cls="text-white font-bold text-base"),
+                            cls="flex items-center flex-wrap gap-1 mb-1"
+                        ),
+                        ft.P(f"Player: {player_id}", cls="text-xs text-gray-400 truncate"),
+                        ft.P(f"Tournament: {tournament_id[:40]}{'...' if len(tournament_id) > 40 else ''}", cls="text-xs text-gray-500 truncate"),
+                        tag_chips,
+                        cls="flex-1 min-w-0"
+                    ),
+                    # Actions
+                    ft.Div(
+                        ft.A(
+                            ft.I(cls="fas fa-eye mr-1"),
+                            "View",
+                            href=view_link,
+                            cls="inline-flex items-center text-xs text-blue-400 hover:text-blue-300 transition-colors mb-2"
+                        ),
+                        toggle_btn,
+                        cls="flex flex-col items-end flex-shrink-0 ml-2"
+                    ),
+                    cls="flex items-start px-5 py-4",
+                ),
+                cls="decklist-watchlist-item bg-gray-800/60 border border-gray-700 rounded-xl overflow-hidden",
+            )
+        )
+
+    return ft.Div(
+        tag_filter_bar,
+        ft.Div(*items, cls="grid grid-cols-1 gap-4"),
+    )
+
+
 def watchlist_page(request):
     user = request.session.get('user')
     if not user:
@@ -93,12 +220,46 @@ def watchlist_page(request):
          )
 
     user_id = user.get('sub')
+    section = request.query_params.get("section", "cards")
+
+    # Section switcher shown in all states
+    section_switcher = ft.Div(
+        ft.A(
+            ft.I(cls="fas fa-clone mr-2"),
+            "Cards",
+            href="?section=cards",
+            cls=f"px-4 py-2 rounded-l-lg border border-gray-600 {'bg-blue-600 text-white' if section == 'cards' else 'bg-gray-800 text-gray-400 hover:bg-gray-700'} flex items-center transition-colors text-sm font-medium"
+        ),
+        ft.A(
+            ft.I(cls="fas fa-layer-group mr-2"),
+            "Decklists",
+            href="?section=decklists",
+            cls=f"px-4 py-2 rounded-r-lg border border-gray-600 border-l-0 {'bg-blue-600 text-white' if section == 'decklists' else 'bg-gray-800 text-gray-400 hover:bg-gray-700'} flex items-center transition-colors text-sm font-medium"
+        ),
+        cls="flex items-center"
+    )
+
+    if section == 'decklists':
+        return ft.Div(
+            ft.Div(
+                ft.H1("My Watchlist", cls="text-2xl font-bold text-white"),
+                section_switcher,
+                cls="flex justify-between items-center mb-6"
+            ),
+            _decklist_watchlist_section(user_id, request),
+            cls="container mx-auto px-4 py-8"
+        )
+
     watchlist = get_watchlist(user_id)
 
     if not watchlist:
         return ft.Div(
-            ft.H1("My Watchlist", cls="text-2xl font-bold text-white mb-4"),
-            ft.P("Your watchlist is currently empty.", cls="text-gray-400"),
+            ft.Div(
+                ft.H1("My Watchlist", cls="text-2xl font-bold text-white"),
+                section_switcher,
+                cls="flex justify-between items-center mb-6"
+            ),
+            ft.P("Your card watchlist is currently empty.", cls="text-gray-400"),
             cls="container mx-auto px-4 py-8"
         )
 
@@ -695,7 +856,7 @@ def watchlist_page(request):
         _table_time_range_script() if view_mode == 'table' else ft.Span(),
         ft.Div(
             ft.H1("My Watchlist", cls="text-2xl font-bold text-white"),
-            view_switcher,
+            ft.Div(section_switcher, view_switcher, cls="flex items-center gap-3"),
             cls="flex justify-between items-center mb-6"
         ),
         tag_filter_bar,
