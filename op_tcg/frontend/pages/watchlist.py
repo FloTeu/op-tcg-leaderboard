@@ -1,6 +1,6 @@
 import re
 from fasthtml import ft
-from op_tcg.backend.db import get_watchlist, get_user_settings, get_decklist_watchlist
+from op_tcg.backend.db import get_watchlist, get_user_settings, get_decklist_watchlist, get_custom_decklists
 from op_tcg.frontend.components.watchlist_toggle import create_watchlist_toggle
 from op_tcg.frontend.components.decklist_watchlist_toggle import create_decklist_watchlist_toggle
 from op_tcg.frontend.utils.card_price import get_marketplace_link
@@ -254,9 +254,123 @@ def _decklist_watchlist_section(user_id: str, request) -> ft.Div:
 })();
 """)
 
+    # ── Custom decklists subsection ─────────────────────────────────────
+    custom_decklists = get_custom_decklists(user_id)
+    custom_items = []
+    for ci, custom in enumerate(custom_decklists):
+        custom_id = custom.get('id', '')
+        c_leader_id = custom.get('leader_id', '')
+        c_name = custom.get('name', 'Unnamed')
+        c_decklist = custom.get('decklist') or {}
+        c_card_count = sum(int(v) for v in c_decklist.values())
+
+        c_leader_data = card_lookup.get(c_leader_id)
+        c_image_url = getattr(c_leader_data, 'image_url', '') if c_leader_data else ''
+        c_leader_name = getattr(c_leader_data, 'name', c_leader_id) if c_leader_data else c_leader_id
+
+        safe_cid = re.sub(r'[^a-zA-Z0-9_\-]', '_', custom_id)[:20]
+        c_cards_id = f"cdl-cards-{safe_cid}"
+        c_expand_btn_id = f"cdl-expand-btn-{safe_cid}"
+        c_cards_url = f"/api/watchlist/custom-decklist/inline-cards?custom_id={custom_id}&view_mode=grid"
+
+        custom_items.append(
+            ft.Div(
+                ft.Div(
+                    ft.Div(
+                        ft.Img(src=c_image_url, cls="w-14 sm:w-16 h-auto rounded shadow-sm", alt=c_leader_name) if c_image_url else ft.Div(cls="w-14 sm:w-16 h-20 bg-gray-700 rounded"),
+                        cls="flex-shrink-0 mr-4"
+                    ),
+                    ft.Div(
+                        ft.Div(
+                            ft.Span("Custom", cls="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30"),
+                            ft.Span(c_name, cls="text-white font-bold text-sm sm:text-base"),
+                            cls="flex items-center flex-wrap gap-2 mb-1"
+                        ),
+                        ft.P(f"Leader: {c_leader_name}", cls="text-xs text-gray-400"),
+                        ft.P(f"{c_card_count} cards", cls="text-xs text-gray-500"),
+                        cls="flex-1 min-w-0"
+                    ),
+                    ft.Div(
+                        ft.Button(
+                            ft.I(cls="fas fa-pen text-xs"),
+                            type="button",
+                            cls="w-8 h-8 flex items-center justify-center rounded-full bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors",
+                            title="Edit",
+                            hx_get=f"/api/watchlist/custom-decklist/builder?custom_id={custom_id}",
+                            hx_target="#decklist-builder-wrapper",
+                            hx_swap="innerHTML",
+                            onclick="document.getElementById('decklist-builder-wrapper').classList.remove('hidden'); document.getElementById('decklist-builder-wrapper').scrollIntoView({behavior:'smooth'});",
+                        ),
+                        ft.Button(
+                            ft.I(cls="fas fa-trash text-xs"),
+                            type="button",
+                            cls="w-8 h-8 flex items-center justify-center rounded-full bg-gray-700 hover:bg-red-700 text-gray-300 hover:text-white transition-colors mt-1",
+                            title="Delete",
+                            onclick=f"if(confirm('Delete \"{c_name}\"?')) fetch('/api/watchlist/custom-decklist/delete',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{custom_id:'{custom_id}'}})}})" +
+                                    f".then(r=>r.ok && this.closest('.decklist-watchlist-item').remove());",
+                        ),
+                        cls="flex flex-col items-end flex-shrink-0 ml-2"
+                    ),
+                    cls="flex items-start px-4 py-4",
+                ),
+                ft.Button(
+                    ft.I(cls="fas fa-chevron-down mr-2 text-xs transition-transform", id=f"{c_expand_btn_id}-icon"),
+                    "Show cards",
+                    id=c_expand_btn_id,
+                    type="button",
+                    cls="w-full flex items-center justify-center text-xs text-gray-400 hover:text-white hover:bg-gray-700/40 transition-colors py-2 border-t border-gray-700/60",
+                    onclick=f"toggleDecklistCards('{c_expand_btn_id}', '{c_cards_id}')",
+                ),
+                ft.Div(
+                    create_loading_spinner(id=f"{c_cards_id}-loading", size="w-5 h-5", container_classes="flex items-center justify-center py-6 hidden"),
+                    id=c_cards_id,
+                    cls="hidden",
+                    hx_get=c_cards_url,
+                    hx_trigger="expand once",
+                    hx_swap="innerHTML",
+                    hx_indicator=f"#{c_cards_id}-loading",
+                ),
+                cls="decklist-watchlist-item bg-gray-800/60 border border-purple-900/40 rounded-xl overflow-hidden",
+            )
+        )
+
     return ft.Div(
         toggle_script,
-        tag_filter_bar,
+        # Builder wrapper (hidden until "Create" is clicked or edit is triggered)
+        ft.Div(
+            id="decklist-builder-wrapper",
+            cls="hidden",
+            hx_get="/api/watchlist/custom-decklist/builder",
+            hx_trigger="open-builder",
+            hx_swap="innerHTML",
+        ),
+        # Create button + tag filter bar
+        ft.Div(
+            tag_filter_bar,
+            ft.Button(
+                ft.I(cls="fas fa-plus mr-2"),
+                "Create Decklist",
+                type="button",
+                cls="px-3 py-1.5 text-xs font-medium bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors inline-flex items-center flex-shrink-0",
+                onclick="""
+                    var w = document.getElementById('decklist-builder-wrapper');
+                    if (!w.innerHTML.trim()) {
+                        htmx.trigger(w, 'open-builder');
+                    }
+                    w.classList.remove('hidden');
+                    w.scrollIntoView({behavior:'smooth'});
+                """,
+            ),
+            cls="flex items-start justify-between gap-3 mb-4"
+        ),
+        # Custom decklists (if any)
+        *(
+            [ft.Div(
+                ft.P("My Custom Decklists", cls="text-xs font-semibold text-purple-300 uppercase tracking-wider mb-2"),
+                ft.Div(*custom_items, cls="grid grid-cols-1 gap-4 mb-6"),
+            )] if custom_items else []
+        ),
+        # Tournament decklists
         ft.Div(*items, cls="grid grid-cols-1 gap-4"),
     )
 

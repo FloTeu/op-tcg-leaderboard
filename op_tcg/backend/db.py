@@ -202,6 +202,59 @@ def get_decklist_watchlist(user_id: str) -> list[dict]:
     return [doc.to_dict() for doc in ref.stream()]
 
 
+def create_custom_decklist(user_id: str, name: str, leader_id: str, decklist: dict,
+                           meta_format: str = "", tags: list = None) -> str:
+    """Creates a custom decklist. Returns the auto-generated Firestore doc ID."""
+    db = get_db()
+    if not db:
+        return ""
+    _, doc_ref = db.collection('users').document(user_id).collection('custom_decklists').add({
+        'name': name,
+        'leader_id': leader_id,
+        'decklist': decklist,
+        'meta_format': meta_format,
+        'tags': tags if tags is not None else [DEFAULT_WATCHLIST_TAG],
+        'created_at': firestore.SERVER_TIMESTAMP,
+        'updated_at': firestore.SERVER_TIMESTAMP,
+    })
+    return doc_ref.id
+
+
+def get_custom_decklists(user_id: str) -> list[dict]:
+    """Returns all custom decklists for a user; each dict includes 'id' (Firestore doc ID)."""
+    db = get_db()
+    if not db:
+        return []
+    result = []
+    for doc in db.collection('users').document(user_id).collection('custom_decklists').stream():
+        d = doc.to_dict()
+        d['id'] = doc.id
+        result.append(d)
+    return result
+
+
+def update_custom_decklist(user_id: str, custom_id: str, name: str = None, leader_id: str = None,
+                           decklist: dict = None, meta_format: str = None, tags: list = None):
+    """Updates fields of a custom decklist."""
+    db = get_db()
+    if not db:
+        return
+    data = {'updated_at': firestore.SERVER_TIMESTAMP}
+    for field, val in [('name', name), ('leader_id', leader_id), ('decklist', decklist),
+                       ('meta_format', meta_format), ('tags', tags)]:
+        if val is not None:
+            data[field] = val
+    db.collection('users').document(user_id).collection('custom_decklists').document(custom_id).set(data, merge=True)
+
+
+def delete_custom_decklist(user_id: str, custom_id: str):
+    """Deletes a custom decklist."""
+    db = get_db()
+    if not db:
+        return
+    db.collection('users').document(user_id).collection('custom_decklists').document(custom_id).delete()
+
+
 def delete_user(user_id: str):
     """Deletes a user's watchlist subcollection and user document."""
     db = get_db()
