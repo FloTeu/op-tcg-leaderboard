@@ -12,7 +12,7 @@ from op_tcg.frontend.utils.extract import (
     get_all_tournament_decklist_data,
 )
 from op_tcg.frontend.utils.charts import create_price_development_chart
-from op_tcg.frontend.utils.decklist import DecklistViewMode
+from op_tcg.frontend.utils.decklist import DecklistViewMode, decklist_to_export_str, ensure_leader_id
 from op_tcg.frontend.components.decklist_modal import display_decklist_modal
 
 def _parse_tags(raw) -> list:
@@ -467,6 +467,11 @@ def setup_watchlist_routes(rt):
         container_id = f"dl-cards-{leader_id}-{safe_tid}-{safe_pid}"
         unique_id = f"{safe_tid}-{safe_pid}"
 
+        # Build export string for copy-to-sim
+        export_str = decklist_to_export_str(ensure_leader_id(selected.decklist, leader_id))
+        copy_btn_id = f"decklist-copy-btn-{unique_id}"
+        export_pre_id = f"decklist-export-{unique_id}"
+
         base_url = f"/api/watchlist/decklist/inline-cards?leader_id={leader_id}&tournament_id={tournament_id}&player_id={player_id}"
 
         view_toggle = ft.Div(
@@ -498,20 +503,66 @@ def setup_watchlist_routes(rt):
         )
 
         return ft.Div(
+            ft.Pre(export_str, id=export_pre_id, style="display:none;"),
             ft.Div(
                 ft.Div(
                     view_toggle,
                     ft.Span(f"{total_cards} cards · {selected.meta_format}", cls="text-xs text-gray-500 ml-3"),
                     cls="flex items-center"
                 ),
-                ft.A(
-                    ft.I(cls="fas fa-external-link-alt mr-1 text-xs"),
-                    "Full view",
-                    href=f"/leader?lid={leader_id}&modal=decklist&tournament_id={tournament_id}&player_id={player_id}",
-                    cls="text-xs text-blue-400 hover:text-blue-300 transition-colors inline-flex items-center",
+                ft.Div(
+                    ft.Button(
+                        ft.I(cls="fas fa-copy mr-1"),
+                        "Copy for Sim",
+                        id=copy_btn_id,
+                        type="button",
+                        cls="text-xs px-3 py-1 rounded border border-gray-600 bg-gray-800 text-gray-300 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors inline-flex items-center mr-2",
+                        onclick=f"window._copyDecklistSim('{copy_btn_id}', '{export_pre_id}'); event.stopPropagation();",
+                    ),
+                    ft.A(
+                        ft.I(cls="fas fa-external-link-alt mr-1 text-xs"),
+                        "Full view",
+                        href=f"/leader?lid={leader_id}&modal=decklist&tournament_id={tournament_id}&player_id={player_id}",
+                        cls="text-xs text-blue-400 hover:text-blue-300 transition-colors inline-flex items-center",
+                    ),
+                    cls="flex items-center"
                 ),
                 cls="flex items-center justify-between mb-3"
             ),
             decklist_view,
+            ft.Script("""
+(function() {
+    if (window._copyDecklistSim) return;
+    window._copyDecklistSim = function(btnId, preId) {
+        var btn = document.getElementById(btnId);
+        var pre = document.getElementById(preId);
+        if (!btn || !pre) return;
+        var text = pre.textContent;
+        var done = function() {
+            var orig = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check mr-1"></i>Copied!';
+            btn.classList.add('bg-green-600', 'border-green-600', 'text-white');
+            btn.classList.remove('bg-gray-800', 'hover:bg-blue-600');
+            setTimeout(function() {
+                btn.innerHTML = orig;
+                btn.classList.remove('bg-green-600', 'border-green-600');
+                btn.classList.add('bg-gray-800', 'hover:bg-blue-600');
+            }, 2000);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done).catch(function() { _copyFallback(text, done); });
+        } else {
+            _copyFallback(text, done);
+        }
+    };
+    function _copyFallback(text, done) {
+        var ta = document.createElement('textarea');
+        ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        try { document.execCommand('copy'); done(); } catch(e) {}
+        document.body.removeChild(ta);
+    }
+})();
+"""),
             cls="pt-3 px-4 pb-4 border-t border-gray-700/60"
         )
