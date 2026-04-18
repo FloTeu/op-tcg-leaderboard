@@ -324,7 +324,7 @@ def create_card_popularity_content(cards_data: list[ExtendedCardData], card_popu
         ft.Input(
             type="text",
             name="search_term",
-            placeholder="Search by name, type, release meta etc. (use ';' to combine conditions)",
+            placeholder="Search by name, meta format, type etc. (e.g. 'OP09 Luffy')",
             cls="w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg",
             value=search_term,
             **FILTER_HX_ATTRS

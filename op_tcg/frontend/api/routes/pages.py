@@ -1,4 +1,4 @@
-from collections import defaultdict
+import re
 from fasthtml import ft
 from starlette.requests import Request
 
@@ -44,10 +44,11 @@ def filter_cards(cards_data: list, params: CardPopularityParams) -> list:
         if params.release_meta_format and card.meta_format != params.release_meta_format:
             continue
 
-        # Filter by search term
+        # Filter by search term — split on whitespace and ";" so "OP09 Luffy" works
         if params.search_term:
-            search_terms = [term.strip().lower() for term in params.search_term.split(";")]
-            if not all(term in card.get_searchable_string().lower() for term in search_terms):
+            searchable = card.get_searchable_string().lower()
+            search_terms = [t for t in re.split(r'[;\s]+', params.search_term.lower()) if t]
+            if not all(term in searchable for term in search_terms):
                 continue
             
         # Filter by colors
