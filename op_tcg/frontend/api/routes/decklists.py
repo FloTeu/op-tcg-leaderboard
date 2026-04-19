@@ -14,6 +14,7 @@ from op_tcg.backend.models.input import MetaFormatRegion
 from op_tcg.frontend.utils.decklist import DecklistViewMode
 from op_tcg.frontend.components.decklist_modal import create_decklist_modal, display_decklist_modal
 from op_tcg.frontend.components.decklist_export import create_decklist_export_component
+from op_tcg.backend.db import get_decklist_watchlist
 
 
 def setup_api_routes(rt):
@@ -106,6 +107,14 @@ def setup_api_routes(rt):
         selected_player_id = params_dict.get("player_id")
         selected_currency = params_dict.get("currency", CardCurrency.EURO)
 
+        # Watchlist state for the logged-in user
+        user = request.session.get('user')
+        is_logged_in = bool(user)
+        watchlisted_decklists = []
+        if user:
+            dl_watchlist = get_decklist_watchlist(user.get('sub'))
+            watchlisted_decklists = [(item['tournament_id'], item['player_id']) for item in dl_watchlist if 'tournament_id' in item and 'player_id' in item]
+
         # Create and return the modal - it will handle showing the best ranked decklist by default
         return create_decklist_modal(
             leader_id=params.lid,
@@ -115,7 +124,9 @@ def setup_api_routes(rt):
             selected_player_id=selected_player_id,
             selected_currency=selected_currency,
             days=days_param if days_param != "14" else None,  # Only pass if not default
-            placing=placing_param if placing_param != "all" else None  # Only pass if not default
+            placing=placing_param if placing_param != "all" else None,  # Only pass if not default
+            is_logged_in=is_logged_in,
+            watchlisted_decklists=watchlisted_decklists,
         )
     
     @rt("/api/decklist/tournament-decklist-modal")

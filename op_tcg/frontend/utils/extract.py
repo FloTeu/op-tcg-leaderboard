@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from collections import Counter, defaultdict
 
 from cachetools import TTLCache, cached
@@ -85,12 +86,12 @@ def get_all_tournament_decklist_data() -> list[TournamentDecklist]:
     card_id2card_data = get_card_id_card_data_lookup()
     # cached for each session
     tournament_standing_rows = run_bq_query(f"""
-SELECT COALESCE(t1.leader_id,t3.leader_id) as leader_id, t1.tournament_id, COALESCE(t3.decklist, t1.decklist) AS decklist, t1.placing, t1.player_id, t2.meta_format, COALESCE(t2.meta_format_region, 'west') AS meta_format_region , t2.tournament_timestamp 
+SELECT COALESCE(t1.leader_id,t3.leader_id) as leader_id, t1.tournament_id, COALESCE(t3.decklist, t1.decklist) AS decklist, t1.placing, t1.player_id, t2.meta_format, COALESCE(t2.meta_format_region, 'west') AS meta_format_region, t2.tournament_timestamp, t1.decklist_id
 FROM `{get_bq_table_id(TournamentStanding)}` t1
 left join `{get_bq_table_id(Tournament)}` t2 on t1.tournament_id = t2.id
 left join `{get_bq_table_id(Decklist)}` t3 on t1.decklist_id = t3.id
 where
-t1.decklist IS NOT NULL 
+t1.decklist IS NOT NULL
 OR t3.decklist IS NOT NULL""", ttl_hours=None)
     tournament_decklists: list[TournamentDecklist] = []
     leader_ids = [l.id for l in get_leader_data()]
@@ -250,9 +251,13 @@ def get_price_change_data(start_date: int, end_date: int, currency: CardCurrency
 
     query_filter = ""
     if query_text:
-        safe_query = query_text.replace("'", "\\'")
-        # Search match in name OR card id
-        query_filter = f"AND (LOWER(name) LIKE LOWER('%{safe_query}%') OR LOWER(id) LIKE LOWER('%{safe_query}%'))"
+        tokens = [t for t in re.split(r'[;\s]+', query_text) if t]
+        if tokens:
+            clauses = []
+            for token in tokens:
+                safe = token.replace("'", "\\'")
+                clauses.append(f"(LOWER(name) LIKE LOWER('%{safe}%') OR LOWER(id) LIKE LOWER('%{safe}%'))")
+            query_filter = "AND " + " AND ".join(clauses)
 
     # ORDER BY expression
     if sort_by == "price":
@@ -370,26 +375,6 @@ def get_leader_average_deck_prices(meta_format: MetaFormat, region: MetaFormatRe
             leader_prices[d.leader_id].append(d.price_eur)
 
     return {lid: sum(prices)/len(prices) for lid, prices in leader_prices.items()}
-
-
-    query_filter = ""
-    if query_text:
-        safe_query = query_text.replace("'", "\\'")
-        query_filter = f"AND LOWER(name) LIKE LOWER('%{safe_query}%')"
-
-    query = f"""
-    SELECT id AS card_id, language, aa_version, name, image_url, {currency_col} AS latest_price,
-           NULL AS window_price, NULL AS pct_change, NULL AS abs_change
-    FROM `{latest_tbl}`
-    WHERE language = '{language}' {aa_filter} AND {currency_col} IS NOT NULL
-      AND {currency_col} >= {min_latest_price}
-      {upper_bound}
-      {query_filter}
-    ORDER BY {currency_col} {direction}
-    LIMIT {fetch_count}
-    OFFSET {offset}
-    """
-    return run_bq_query(query, ttl_hours=24.0)
 
 
 def get_card_price_development_data(card_id: str, days: int = 90, include_alt_art: bool = False, aa_version: int | None = None) -> dict[str, list[dict]]:
@@ -572,14 +557,3 @@ def get_watchlist_aggregate_price_data(card_versions: list[tuple[str, int, int]]
             })
 
     return result
-
-
-def get_leader_average_deck_prices(meta_format: MetaFormat, region: MetaFormatRegion) -> dict[str, float]:
-    """Calculate average deck price in EUR for each leader in the given meta format and region."""
-    decklists = get_tournament_decklist_data(meta_formats=[meta_format], meta_format_region=region)
-    leader_prices = defaultdict(list)
-    for d in decklists:
-        if hasattr(d, 'price_eur') and d.price_eur and d.price_eur > 0:
-            leader_prices[d.leader_id].append(d.price_eur)
-
-    return {lid: sum(prices)/len(prices) for lid, prices in leader_prices.items()}

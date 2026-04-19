@@ -193,7 +193,7 @@ def prices_page():
             ft.Input(
                 type="search",
                 name="query",
-                placeholder="Search card name or ID...",
+                placeholder="Search by name, meta format, ID etc. (e.g. 'OP09 Luffy')",
                 cls=INPUT_CLS + " mb-4",
                 hx_get="/api/price-overview",
                 hx_trigger="keyup changed delay:500ms, search",

@@ -3,6 +3,7 @@ from op_tcg.backend.models.cards import OPTcgLanguage, CardCurrency
 from op_tcg.backend.models.input import MetaFormatRegion
 
 DEFAULT_WATCHLIST_TAG = "my collection"
+DEFAULT_DECKLIST_WATCHLIST_TAG = "my decklists"
 
 # Initialize Firestore
 # Using a singleton pattern to avoid re-initializing the client
@@ -145,6 +146,126 @@ def update_user_settings(user_id: str, settings: dict):
     if not db:
         return
     db.collection('users').document(user_id).set({"settings": settings}, merge=True)
+
+
+def _decklist_doc_id(leader_id: str, tournament_id: str, player_id: str) -> str:
+    """Build a safe Firestore document ID for a decklist watchlist entry."""
+    import re
+    raw = f"{leader_id}__{tournament_id}__{player_id}"
+    # Firestore doc IDs must not contain '/' and must not be '..' or '.'.
+    # Replace any character that isn't alphanumeric, dash, or underscore.
+    return re.sub(r'[^a-zA-Z0-9\-_]', '_', raw)[:400]
+
+
+def add_decklist_to_watchlist(user_id: str, leader_id: str, tournament_id: str, player_id: str,
+                              meta_format: str = "", tags: list = None, tournament_timestamp=None,
+                              decklist_id: str = None):
+    """Adds a decklist to the user's decklist watchlist."""
+    db = get_db()
+    if not db:
+        return
+    ref = db.collection('users').document(user_id).collection('decklist_watchlist')
+    doc_id = _decklist_doc_id(leader_id, tournament_id, player_id)
+    doc = {
+        'leader_id': leader_id,
+        'tournament_id': tournament_id,
+        'player_id': player_id,
+        'meta_format': meta_format,
+        'tags': tags if tags is not None else [DEFAULT_WATCHLIST_TAG],
+        'added_at': firestore.SERVER_TIMESTAMP,
+    }
+    if tournament_timestamp is not None:
+        doc['tournament_timestamp'] = tournament_timestamp
+    if decklist_id is not None:
+        doc['decklist_id'] = decklist_id
+    ref.document(doc_id).set(doc)
+
+
+def remove_decklist_from_watchlist(user_id: str, leader_id: str, tournament_id: str, player_id: str):
+    """Removes a decklist from the user's decklist watchlist."""
+    db = get_db()
+    if not db:
+        return
+    doc_id = _decklist_doc_id(leader_id, tournament_id, player_id)
+    db.collection('users').document(user_id).collection('decklist_watchlist').document(doc_id).delete()
+
+
+def update_decklist_watchlist_tags(user_id: str, leader_id: str, tournament_id: str, player_id: str, tags: list = None):
+    """Updates the tags of a decklist watchlist entry."""
+    db = get_db()
+    if not db:
+        return
+    doc_id = _decklist_doc_id(leader_id, tournament_id, player_id)
+    db.collection('users').document(user_id).collection('decklist_watchlist').document(doc_id).update(
+        {'tags': tags or [DEFAULT_WATCHLIST_TAG]}
+    )
+
+
+def get_decklist_watchlist(user_id: str) -> list[dict]:
+    """Retrieves the user's decklist watchlist."""
+    db = get_db()
+    if not db:
+        return []
+    ref = db.collection('users').document(user_id).collection('decklist_watchlist')
+    result = []
+    for doc in ref.stream():
+        d = doc.to_dict()
+        d['id'] = doc.id
+        result.append(d)
+    return result
+
+
+def create_custom_decklist(user_id: str, name: str, leader_id: str, decklist: dict,
+                           meta_format: str = "", tags: list = None) -> str:
+    """Creates a custom decklist. Returns the auto-generated Firestore doc ID."""
+    db = get_db()
+    if not db:
+        return ""
+    _, doc_ref = db.collection('users').document(user_id).collection('custom_decklists').add({
+        'name': name,
+        'leader_id': leader_id,
+        'decklist': decklist,
+        'meta_format': meta_format,
+        'tags': tags if tags is not None else [DEFAULT_DECKLIST_WATCHLIST_TAG],
+        'created_at': firestore.SERVER_TIMESTAMP,
+        'updated_at': firestore.SERVER_TIMESTAMP,
+    })
+    return doc_ref.id
+
+
+def get_custom_decklists(user_id: str) -> list[dict]:
+    """Returns all custom decklists for a user; each dict includes 'id' (Firestore doc ID)."""
+    db = get_db()
+    if not db:
+        return []
+    result = []
+    for doc in db.collection('users').document(user_id).collection('custom_decklists').stream():
+        d = doc.to_dict()
+        d['id'] = doc.id
+        result.append(d)
+    return result
+
+
+def update_custom_decklist(user_id: str, custom_id: str, name: str = None, leader_id: str = None,
+                           decklist: dict = None, meta_format: str = None, tags: list = None):
+    """Updates fields of a custom decklist."""
+    db = get_db()
+    if not db:
+        return
+    data = {'updated_at': firestore.SERVER_TIMESTAMP}
+    for field, val in [('name', name), ('leader_id', leader_id), ('decklist', decklist),
+                       ('meta_format', meta_format), ('tags', tags)]:
+        if val is not None:
+            data[field] = val
+    db.collection('users').document(user_id).collection('custom_decklists').document(custom_id).set(data, merge=True)
+
+
+def delete_custom_decklist(user_id: str, custom_id: str):
+    """Deletes a custom decklist."""
+    db = get_db()
+    if not db:
+        return
+    db.collection('users').document(user_id).collection('custom_decklists').document(custom_id).delete()
 
 
 def delete_user(user_id: str):

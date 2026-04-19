@@ -99,6 +99,7 @@ class TournamentDecklist(BQTableBaseModel):
     meta_format: MetaFormat | str = Field(description="Meta in which tournament happened, e.g. OP06")
     meta_format_region: MetaFormatRegion | None = Field(MetaFormatRegion.WEST, description="The country area, which defines which meta format is available")
     tournament_timestamp: datetime = Field(description="Scheduled tournament start set by the organizer.")
+    decklist_id: str | None = Field(None, description="ID of the Decklist record in BigQuery.")
     price_eur: float | None = Field(None, description="Sum of all card prices in decklist")
     price_usd: float | None = Field(None, description="Sum of all card prices in decklist")
 

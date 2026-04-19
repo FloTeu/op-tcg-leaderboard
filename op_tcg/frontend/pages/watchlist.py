@@ -1,8 +1,10 @@
+import re
 from fasthtml import ft
-from op_tcg.backend.db import get_watchlist, get_user_settings
+from op_tcg.backend.db import get_watchlist, get_user_settings, get_decklist_watchlist, get_custom_decklists
 from op_tcg.frontend.components.watchlist_toggle import create_watchlist_toggle
+from op_tcg.frontend.components.decklist_watchlist_toggle import create_decklist_watchlist_toggle
 from op_tcg.frontend.utils.card_price import get_marketplace_link
-from op_tcg.frontend.utils.extract import get_card_lookup_by_id_and_aa
+from op_tcg.frontend.utils.extract import get_card_lookup_by_id_and_aa, get_card_id_card_data_lookup
 from op_tcg.frontend.components.loading import create_loading_spinner
 from op_tcg.backend.models.cards import CardCurrency
 
@@ -83,6 +85,333 @@ def _qty_script() -> ft.Script:
 """)
 
 
+def _decklist_watchlist_section(user_id: str, request) -> ft.Div:
+    """Renders the saved decklists section of the watchlist page."""
+    dl_watchlist = get_decklist_watchlist(user_id)
+    card_lookup = get_card_id_card_data_lookup()  # flat: card_id -> ExtendedCardData (aa_version=0)
+
+    tag_filter = request.query_params.get("tag", "")
+    custom_decklists_all = get_custom_decklists(user_id)
+    all_tags = sorted({tag for item in dl_watchlist for tag in item.get('tags', ['my decklists'])} |
+                      {tag for item in custom_decklists_all for tag in item.get('tags', ['my decklists'])})
+
+    if tag_filter:
+        dl_watchlist = [item for item in dl_watchlist if tag_filter in item.get('tags', ['my decklists'])]
+        custom_decklists_all = [item for item in custom_decklists_all if tag_filter in item.get('tags', ['my decklists'])]
+
+    def build_url(tag=None):
+        t = tag if tag is not None else tag_filter
+        params = "section=decklists"
+        if t:
+            params += f"&tag={t}"
+        return f"?{params}"
+
+    tag_filter_bar = ft.Div(
+        ft.A("All", href=build_url(tag=""),
+             cls=f"px-3 py-1 rounded-full text-xs font-medium transition-colors mr-1 mb-1 {'bg-blue-600 text-white' if not tag_filter else 'bg-gray-700 text-gray-300 hover:bg-gray-600'}"),
+        *[
+            ft.A(tag, href=build_url(tag=tag),
+                 cls=f"px-3 py-1 rounded-full text-xs font-medium transition-colors mr-1 mb-1 {'bg-blue-600 text-white' if tag_filter == tag else 'bg-gray-700 text-gray-300 hover:bg-gray-600'}")
+            for tag in all_tags
+        ],
+        cls="flex flex-wrap items-center mb-4"
+    ) if all_tags else ft.Span()
+
+    if not dl_watchlist and not custom_decklists_all:
+        return ft.Div(
+            tag_filter_bar,
+            ft.Div(
+                ft.I(cls="fas fa-layer-group text-4xl text-gray-600 mb-3"),
+                ft.P("No saved decklists yet.", cls="text-gray-400 text-sm"),
+                ft.P("Open a tournament decklist and click the heart icon to save it.", cls="text-gray-500 text-xs mt-1"),
+                cls="flex flex-col items-center justify-center py-16 text-center"
+            ),
+        )
+
+    items = []
+    for i, item in enumerate(dl_watchlist):
+        leader_id = item.get('leader_id', '')
+        tournament_id = item.get('tournament_id', '')
+        player_id = item.get('player_id', '')
+        meta_format = item.get('meta_format', '')
+        tags = item.get('tags', ['my decklists']) or ['my decklists']
+
+        leader_data = card_lookup.get(leader_id)
+        image_url = getattr(leader_data, 'image_url', '') if leader_data else ''
+        leader_name = getattr(leader_data, 'name', leader_id) if leader_data else leader_id
+        tournament_ts = item.get('tournament_timestamp')
+        tournament_date_str = tournament_ts.strftime('%-d %b %Y') if tournament_ts else ''
+
+        safe_tid = re.sub(r'[^a-zA-Z0-9_\-]', '_', tournament_id)[:20]
+        safe_pid = re.sub(r'[^a-zA-Z0-9_\-]', '_', player_id)[:20]
+        tag_target_id = f"tags-dl-{leader_id}-{safe_tid}-{safe_pid}"
+        tags_str = ",".join(tags)
+
+        tag_chips = ft.Div(
+            *[ft.Span(tag, cls="inline-block bg-blue-600/30 text-blue-300 text-xs px-2 py-0.5 rounded-full mr-1") for tag in tags],
+            ft.Button(
+                ft.I(cls="fas fa-pen text-xs"),
+                type="button",
+                cls="text-gray-600 hover:text-gray-300 ml-1 transition-colors",
+                title="Edit tags",
+                hx_get=f"/api/watchlist/decklist/tag-editor?leader_id={leader_id}&tournament_id={tournament_id}&player_id={player_id}&tags={tags_str}",
+                hx_target=f"#{tag_target_id}",
+                hx_swap="outerHTML",
+            ),
+            id=tag_target_id,
+            cls="flex flex-wrap items-center mt-1",
+            onclick="event.stopPropagation();"
+        )
+
+        toggle_btn = create_decklist_watchlist_toggle(
+            leader_id=leader_id,
+            tournament_id=tournament_id,
+            player_id=player_id,
+            meta_format=meta_format,
+            is_in_watchlist=True,
+            include_script=(i == 0),
+        )
+
+        cards_container_id = f"dl-cards-{leader_id}-{safe_tid}-{safe_pid}"
+        expand_btn_id = f"dl-expand-btn-{leader_id}-{safe_tid}-{safe_pid}"
+        cards_url = f"/api/watchlist/decklist/inline-cards?leader_id={leader_id}&tournament_id={tournament_id}&player_id={player_id}&view_mode=grid"
+
+        items.append(
+            ft.Div(
+                # Header row
+                ft.Div(
+                    # Leader card thumbnail
+                    ft.Div(
+                        ft.Img(src=image_url, cls="w-14 sm:w-16 h-auto rounded shadow-sm", alt=leader_name) if image_url else ft.Div(cls="w-14 sm:w-16 h-20 bg-gray-700 rounded"),
+                        cls="flex-shrink-0 mr-4"
+                    ),
+                    # Info
+                    ft.Div(
+                        ft.Div(
+                            ft.Span(leader_id, cls="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"),
+                            ft.Span(leader_name, cls="text-white font-bold text-sm sm:text-base"),
+                            *(
+                                [ft.Span(meta_format, cls="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-300 border border-blue-500/30")]
+                                if meta_format else []
+                            ),
+                            cls="flex items-center flex-wrap gap-2 mb-1"
+                        ),
+                        ft.P(f"Player: {player_id}", cls="text-xs text-gray-400 truncate"),
+                        ft.P(f"Tournament: {tournament_id[:40]}{'...' if len(tournament_id) > 40 else ''}", cls="text-xs text-gray-500 truncate"),
+                        *(
+                            [ft.P(f"Played: {tournament_date_str}", cls="text-xs text-gray-500")]
+                            if tournament_date_str else []
+                        ),
+                        tag_chips,
+                        cls="flex-1 min-w-0"
+                    ),
+                    # Actions
+                    ft.Div(
+                        toggle_btn,
+                        cls="flex flex-col items-end flex-shrink-0 ml-2"
+                    ),
+                    cls="flex items-start px-4 py-4",
+                ),
+                # Expand/collapse footer
+                ft.Button(
+                    ft.I(cls="fas fa-chevron-down mr-2 text-xs transition-transform", id=f"{expand_btn_id}-icon"),
+                    "Show cards",
+                    id=expand_btn_id,
+                    type="button",
+                    cls="w-full flex items-center justify-center text-xs text-gray-400 hover:text-white hover:bg-gray-700/40 transition-colors py-2 border-t border-gray-700/60",
+                    onclick=f"toggleDecklistCards('{expand_btn_id}', '{cards_container_id}')",
+                ),
+                # Lazy-loaded cards area (hidden until expanded)
+                ft.Div(
+                    create_loading_spinner(id=f"{cards_container_id}-loading", size="w-5 h-5", container_classes="flex items-center justify-center py-6 hidden"),
+                    id=cards_container_id,
+                    cls="hidden",
+                    hx_get=cards_url,
+                    hx_trigger="expand once",
+                    hx_swap="innerHTML",
+                    hx_indicator=f"#{cards_container_id}-loading",
+                ),
+                cls="decklist-watchlist-item bg-gray-800/60 border border-gray-700 rounded-xl overflow-hidden",
+            )
+        )
+
+    toggle_script = ft.Script("""
+(function() {
+    if (window.toggleDecklistCards) return;
+    window.toggleDecklistCards = function(btnId, containerId) {
+        const btn = document.getElementById(btnId);
+        const container = document.getElementById(containerId);
+        const icon = document.getElementById(btnId + '-icon');
+        if (!btn || !container) return;
+        const isHidden = container.classList.contains('hidden');
+        if (isHidden) {
+            container.classList.remove('hidden');
+            if (icon) icon.style.transform = 'rotate(180deg)';
+            btn.querySelector('span') && (btn.lastChild.textContent = ' Hide cards');
+            // Replace text node
+            btn.childNodes.forEach(function(n) { if (n.nodeType === 3 && n.textContent.trim()) n.textContent = ' Hide cards'; });
+            if (!container.dataset.loaded) {
+                container.dataset.loaded = '1';
+                htmx.trigger(container, 'expand');
+            }
+        } else {
+            container.classList.add('hidden');
+            if (icon) icon.style.transform = '';
+            btn.childNodes.forEach(function(n) { if (n.nodeType === 3 && n.textContent.trim()) n.textContent = ' Show cards'; });
+        }
+    };
+})();
+""")
+
+    # ── Custom decklists subsection ─────────────────────────────────────
+    custom_items = []
+    for ci, custom in enumerate(custom_decklists_all):
+        custom_id = custom.get('id', '')
+        c_leader_id = custom.get('leader_id', '')
+        c_name = custom.get('name', 'Unnamed')
+        c_decklist = custom.get('decklist') or {}
+        c_card_count = sum(int(v) for v in c_decklist.values())
+        c_tags = custom.get('tags', ['my decklists']) or ['my decklists']
+
+        c_leader_data = card_lookup.get(c_leader_id)
+        c_image_url = getattr(c_leader_data, 'image_url', '') if c_leader_data else ''
+        c_leader_name = getattr(c_leader_data, 'name', c_leader_id) if c_leader_data else c_leader_id
+
+        safe_cid = re.sub(r'[^a-zA-Z0-9_\-]', '_', custom_id)[:20]
+        c_cards_id = f"cdl-cards-{safe_cid}"
+        c_expand_btn_id = f"cdl-expand-btn-{safe_cid}"
+        c_cards_url = f"/api/watchlist/custom-decklist/inline-cards?custom_id={custom_id}&view_mode=grid"
+        c_tag_target_id = f"tags-cdl-{safe_cid}"
+        c_tags_str = ",".join(c_tags)
+
+        c_tag_chips = ft.Div(
+            *[ft.Span(tag, cls="inline-block bg-purple-600/30 text-purple-300 text-xs px-2 py-0.5 rounded-full mr-1") for tag in c_tags],
+            ft.Button(
+                ft.I(cls="fas fa-pen text-xs"),
+                type="button",
+                cls="text-gray-600 hover:text-gray-300 ml-1 transition-colors",
+                title="Edit tags",
+                hx_get=f"/api/watchlist/custom-decklist/tag-editor?custom_id={custom_id}&tags={c_tags_str}",
+                hx_target=f"#{c_tag_target_id}",
+                hx_swap="outerHTML",
+            ),
+            id=c_tag_target_id,
+            cls="flex flex-wrap items-center mt-1",
+            onclick="event.stopPropagation();"
+        )
+
+        custom_items.append(
+            ft.Div(
+                ft.Div(
+                    ft.Div(
+                        ft.Img(src=c_image_url, cls="w-14 sm:w-16 h-auto rounded shadow-sm", alt=c_leader_name) if c_image_url else ft.Div(cls="w-14 sm:w-16 h-20 bg-gray-700 rounded"),
+                        cls="flex-shrink-0 mr-4"
+                    ),
+                    ft.Div(
+                        ft.Div(
+                            ft.Span("Custom", cls="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30"),
+                            ft.Span(c_name, cls="text-white font-bold text-sm sm:text-base"),
+                            cls="flex items-center flex-wrap gap-2 mb-1"
+                        ),
+                        ft.P(f"Leader: {c_leader_name}", cls="text-xs text-gray-400"),
+                        ft.P(f"{c_card_count} cards", cls="text-xs text-gray-500"),
+                        c_tag_chips,
+                        cls="flex-1 min-w-0"
+                    ),
+                    ft.Div(
+                        ft.Button(
+                            ft.I(cls="fas fa-pen text-xs"),
+                            type="button",
+                            cls="w-8 h-8 flex items-center justify-center rounded-full bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors",
+                            title="Edit decklist",
+                            hx_get=f"/api/watchlist/custom-decklist/builder?custom_id={custom_id}",
+                            hx_target="#decklist-builder-wrapper",
+                            hx_swap="innerHTML",
+                            onclick="document.getElementById('decklist-builder-wrapper').classList.remove('hidden'); document.getElementById('decklist-builder-wrapper').scrollIntoView({behavior:'smooth'});",
+                        ),
+                        ft.Button(
+                            ft.I(cls="fas fa-trash text-xs"),
+                            type="button",
+                            cls="w-8 h-8 flex items-center justify-center rounded-full bg-gray-700 hover:bg-red-700 text-gray-300 hover:text-white transition-colors mt-1",
+                            title="Delete",
+                            onclick=f"if(confirm('Delete \"{c_name}\"?')) fetch('/api/watchlist/custom-decklist/delete',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{custom_id:'{custom_id}'}})}})" +
+                                    f".then(r=>r.ok && this.closest('.decklist-watchlist-item').remove());",
+                        ),
+                        cls="flex flex-col items-end flex-shrink-0 ml-2"
+                    ),
+                    cls="flex items-start px-4 py-4",
+                ),
+                ft.Button(
+                    ft.I(cls="fas fa-chevron-down mr-2 text-xs transition-transform", id=f"{c_expand_btn_id}-icon"),
+                    "Show cards",
+                    id=c_expand_btn_id,
+                    type="button",
+                    cls="w-full flex items-center justify-center text-xs text-gray-400 hover:text-white hover:bg-gray-700/40 transition-colors py-2 border-t border-gray-700/60",
+                    onclick=f"toggleDecklistCards('{c_expand_btn_id}', '{c_cards_id}')",
+                ),
+                ft.Div(
+                    create_loading_spinner(id=f"{c_cards_id}-loading", size="w-5 h-5", container_classes="flex items-center justify-center py-6 hidden"),
+                    id=c_cards_id,
+                    cls="hidden",
+                    hx_get=c_cards_url,
+                    hx_trigger="expand once",
+                    hx_swap="innerHTML",
+                    hx_indicator=f"#{c_cards_id}-loading",
+                ),
+                cls="decklist-watchlist-item bg-gray-800/60 border border-purple-900/40 rounded-xl overflow-hidden",
+            )
+        )
+
+    return ft.Div(
+        toggle_script,
+        # Builder wrapper (hidden until "Create" is clicked or edit is triggered)
+        ft.Div(
+            id="decklist-builder-wrapper",
+            cls="hidden",
+            hx_get="/api/watchlist/custom-decklist/builder",
+            hx_trigger="open-builder",
+            hx_swap="innerHTML",
+        ),
+        # Create button + tag filter bar
+        ft.Div(
+            tag_filter_bar,
+            ft.Button(
+                ft.I(cls="fas fa-plus mr-2"),
+                "Create Decklist",
+                type="button",
+                cls="px-3 py-1.5 text-xs font-medium bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors inline-flex items-center flex-shrink-0",
+                onclick="""
+                    var w = document.getElementById('decklist-builder-wrapper');
+                    w.classList.remove('hidden');
+                    if (!w.innerHTML.trim()) {
+                        w.addEventListener('htmx:afterSwap', function() {
+                            w.scrollIntoView({behavior:'smooth'});
+                        }, {once: true});
+                        htmx.trigger(w, 'open-builder');
+                    } else {
+                        w.scrollIntoView({behavior:'smooth'});
+                    }
+                """,
+            ),
+            cls="flex items-start justify-between gap-3 mb-4"
+        ),
+        # Custom decklists (if any)
+        *(
+            [ft.Div(
+                ft.P("Custom Decklists", cls="text-xs font-semibold text-purple-300 uppercase tracking-wider mb-2"),
+                ft.Div(*custom_items, cls="grid grid-cols-1 gap-4 mb-6"),
+            )] if custom_items else []
+        ),
+        # Tournament decklists
+        *(
+            [ft.Div(
+                ft.P("Watchlist Decklists", cls="text-xs font-semibold text-purple-300 uppercase tracking-wider mb-2"),
+                ft.Div(*items, cls="grid grid-cols-1 gap-4"),
+            )] if items else []
+        ),
+    )
+
+
 def watchlist_page(request):
     user = request.session.get('user')
     if not user:
@@ -93,12 +422,46 @@ def watchlist_page(request):
          )
 
     user_id = user.get('sub')
+    section = request.query_params.get("section", "cards")
+
+    # Section switcher shown in all states
+    section_switcher = ft.Div(
+        ft.A(
+            ft.I(cls="fas fa-clone mr-2"),
+            "Cards",
+            href="?section=cards",
+            cls=f"px-4 py-2 rounded-l-lg border border-gray-600 {'bg-blue-600 text-white' if section == 'cards' else 'bg-gray-800 text-gray-400 hover:bg-gray-700'} flex items-center transition-colors text-sm font-medium"
+        ),
+        ft.A(
+            ft.I(cls="fas fa-layer-group mr-2"),
+            "Decklists",
+            href="?section=decklists",
+            cls=f"px-4 py-2 rounded-r-lg border border-gray-600 border-l-0 {'bg-blue-600 text-white' if section == 'decklists' else 'bg-gray-800 text-gray-400 hover:bg-gray-700'} flex items-center transition-colors text-sm font-medium"
+        ),
+        cls="flex items-center"
+    )
+
+    if section == 'decklists':
+        return ft.Div(
+            ft.Div(
+                ft.H1("My Watchlist", cls="text-2xl font-bold text-white"),
+                section_switcher,
+                cls="flex flex-wrap justify-between items-center gap-y-3 mb-6"
+            ),
+            _decklist_watchlist_section(user_id, request),
+            cls="container mx-auto px-4 py-8"
+        )
+
     watchlist = get_watchlist(user_id)
 
     if not watchlist:
         return ft.Div(
-            ft.H1("My Watchlist", cls="text-2xl font-bold text-white mb-4"),
-            ft.P("Your watchlist is currently empty.", cls="text-gray-400"),
+            ft.Div(
+                ft.H1("My Watchlist", cls="text-2xl font-bold text-white"),
+                section_switcher,
+                cls="flex flex-wrap justify-between items-center gap-y-3 mb-6"
+            ),
+            ft.P("Your card watchlist is currently empty.", cls="text-gray-400"),
             cls="container mx-auto px-4 py-8"
         )
 
@@ -695,8 +1058,8 @@ def watchlist_page(request):
         _table_time_range_script() if view_mode == 'table' else ft.Span(),
         ft.Div(
             ft.H1("My Watchlist", cls="text-2xl font-bold text-white"),
-            view_switcher,
-            cls="flex justify-between items-center mb-6"
+            ft.Div(section_switcher, view_switcher, cls="flex flex-wrap items-center gap-3"),
+            cls="flex flex-wrap justify-between gap-y-3 items-center mb-6"
         ),
         tag_filter_bar,
         portfolio_section,
