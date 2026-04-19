@@ -91,10 +91,13 @@ def _decklist_watchlist_section(user_id: str, request) -> ft.Div:
     card_lookup = get_card_id_card_data_lookup()  # flat: card_id -> ExtendedCardData (aa_version=0)
 
     tag_filter = request.query_params.get("tag", "")
-    all_tags = sorted({tag for item in dl_watchlist for tag in item.get('tags', ['my decklists'])})
+    custom_decklists_all = get_custom_decklists(user_id)
+    all_tags = sorted({tag for item in dl_watchlist for tag in item.get('tags', ['my decklists'])} |
+                      {tag for item in custom_decklists_all for tag in item.get('tags', ['my decklists'])})
 
     if tag_filter:
         dl_watchlist = [item for item in dl_watchlist if tag_filter in item.get('tags', ['my decklists'])]
+        custom_decklists_all = [item for item in custom_decklists_all if tag_filter in item.get('tags', ['my decklists'])]
 
     def build_url(tag=None):
         t = tag if tag is not None else tag_filter
@@ -255,14 +258,14 @@ def _decklist_watchlist_section(user_id: str, request) -> ft.Div:
 """)
 
     # ── Custom decklists subsection ─────────────────────────────────────
-    custom_decklists = get_custom_decklists(user_id)
     custom_items = []
-    for ci, custom in enumerate(custom_decklists):
+    for ci, custom in enumerate(custom_decklists_all):
         custom_id = custom.get('id', '')
         c_leader_id = custom.get('leader_id', '')
         c_name = custom.get('name', 'Unnamed')
         c_decklist = custom.get('decklist') or {}
         c_card_count = sum(int(v) for v in c_decklist.values())
+        c_tags = custom.get('tags', ['my decklists']) or ['my decklists']
 
         c_leader_data = card_lookup.get(c_leader_id)
         c_image_url = getattr(c_leader_data, 'image_url', '') if c_leader_data else ''
@@ -272,6 +275,24 @@ def _decklist_watchlist_section(user_id: str, request) -> ft.Div:
         c_cards_id = f"cdl-cards-{safe_cid}"
         c_expand_btn_id = f"cdl-expand-btn-{safe_cid}"
         c_cards_url = f"/api/watchlist/custom-decklist/inline-cards?custom_id={custom_id}&view_mode=grid"
+        c_tag_target_id = f"tags-cdl-{safe_cid}"
+        c_tags_str = ",".join(c_tags)
+
+        c_tag_chips = ft.Div(
+            *[ft.Span(tag, cls="inline-block bg-purple-600/30 text-purple-300 text-xs px-2 py-0.5 rounded-full mr-1") for tag in c_tags],
+            ft.Button(
+                ft.I(cls="fas fa-pen text-xs"),
+                type="button",
+                cls="text-gray-600 hover:text-gray-300 ml-1 transition-colors",
+                title="Edit tags",
+                hx_get=f"/api/watchlist/custom-decklist/tag-editor?custom_id={custom_id}&tags={c_tags_str}",
+                hx_target=f"#{c_tag_target_id}",
+                hx_swap="outerHTML",
+            ),
+            id=c_tag_target_id,
+            cls="flex flex-wrap items-center mt-1",
+            onclick="event.stopPropagation();"
+        )
 
         custom_items.append(
             ft.Div(
@@ -288,6 +309,7 @@ def _decklist_watchlist_section(user_id: str, request) -> ft.Div:
                         ),
                         ft.P(f"Leader: {c_leader_name}", cls="text-xs text-gray-400"),
                         ft.P(f"{c_card_count} cards", cls="text-xs text-gray-500"),
+                        c_tag_chips,
                         cls="flex-1 min-w-0"
                     ),
                     ft.Div(
@@ -295,7 +317,7 @@ def _decklist_watchlist_section(user_id: str, request) -> ft.Div:
                             ft.I(cls="fas fa-pen text-xs"),
                             type="button",
                             cls="w-8 h-8 flex items-center justify-center rounded-full bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors",
-                            title="Edit",
+                            title="Edit decklist",
                             hx_get=f"/api/watchlist/custom-decklist/builder?custom_id={custom_id}",
                             hx_target="#decklist-builder-wrapper",
                             hx_swap="innerHTML",
@@ -354,11 +376,15 @@ def _decklist_watchlist_section(user_id: str, request) -> ft.Div:
                 cls="px-3 py-1.5 text-xs font-medium bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors inline-flex items-center flex-shrink-0",
                 onclick="""
                     var w = document.getElementById('decklist-builder-wrapper');
-                    if (!w.innerHTML.trim()) {
-                        htmx.trigger(w, 'open-builder');
-                    }
                     w.classList.remove('hidden');
-                    w.scrollIntoView({behavior:'smooth'});
+                    if (!w.innerHTML.trim()) {
+                        w.addEventListener('htmx:afterSwap', function() {
+                            w.scrollIntoView({behavior:'smooth'});
+                        }, {once: true});
+                        htmx.trigger(w, 'open-builder');
+                    } else {
+                        w.scrollIntoView({behavior:'smooth'});
+                    }
                 """,
             ),
             cls="flex items-start justify-between gap-3 mb-4"

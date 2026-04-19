@@ -362,6 +362,64 @@ def setup_watchlist_routes(rt):
             onclick="event.stopPropagation();"
         )
 
+    def _custom_tag_chips(custom_id: str, tags: list):
+        target_id = f"tags-cdl-{re.sub(r'[^a-zA-Z0-9_-]', '_', custom_id)[:20]}"
+        tags_str = ",".join(tags)
+        return ft.Div(
+            *[ft.Span(tag, cls="inline-block bg-purple-600/30 text-purple-300 text-xs px-2 py-0.5 rounded-full mr-1 mb-1") for tag in tags],
+            ft.Button(
+                ft.I(cls="fas fa-pen text-xs"),
+                type="button",
+                cls="text-gray-500 hover:text-gray-300 ml-1 transition-colors",
+                title="Edit tags",
+                hx_get=f"/api/watchlist/custom-decklist/tag-editor?custom_id={custom_id}&tags={tags_str}",
+                hx_target=f"#{target_id}",
+                hx_swap="outerHTML",
+            ),
+            id=target_id,
+            cls="flex flex-wrap items-center mt-1",
+            onclick="event.stopPropagation();"
+        )
+
+    def _custom_tag_editor(custom_id: str, tags: list):
+        target_id = f"tags-cdl-{re.sub(r'[^a-zA-Z0-9_-]', '_', custom_id)[:20]}"
+        tags_str = ",".join(tags)
+        return ft.Form(
+            ft.Input(type="hidden", name="custom_id", value=custom_id),
+            ft.Div(
+                ft.Input(
+                    type="text",
+                    name="tags",
+                    value=tags_str,
+                    placeholder="my decklists",
+                    cls="bg-gray-700 text-white border border-gray-600 rounded px-2 py-1 text-xs w-full focus:outline-none focus:border-blue-500",
+                    autofocus=True,
+                    onkeydown="event.stopPropagation();",
+                    onkeyup="event.stopPropagation();",
+                    onkeypress="event.stopPropagation();",
+                ),
+                ft.Div(
+                    ft.Button("Save", type="submit", cls="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded transition-colors"),
+                    ft.Button(
+                        "Cancel",
+                        type="button",
+                        cls="text-gray-400 hover:text-white text-xs px-2 py-1 ml-1 transition-colors",
+                        hx_get=f"/api/watchlist/custom-decklist/tag-chips?custom_id={custom_id}&tags={tags_str}",
+                        hx_target=f"#{target_id}",
+                        hx_swap="outerHTML",
+                    ),
+                    cls="flex items-center mt-1"
+                ),
+                cls="flex flex-col w-full max-w-xs"
+            ),
+            id=target_id,
+            hx_post="/api/watchlist/custom-decklist/tags",
+            hx_target=f"#{target_id}",
+            hx_swap="outerHTML",
+            cls="flex items-start mt-1",
+            onclick="event.stopPropagation();"
+        )
+
     @rt("/api/watchlist/decklist/add", methods=["POST"])
     async def decklist_add(request: Request):
         user = request.session.get('user')
@@ -571,6 +629,73 @@ def setup_watchlist_routes(rt):
 """),
             cls="pt-3 px-4 pb-4 border-t border-gray-700/60"
         )
+
+    @rt("/api/watchlist/custom-decklist/tag-editor", methods=["GET"])
+    async def custom_decklist_tag_editor(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        p = request.query_params
+        custom_id = p.get('custom_id', '')
+        tags = _parse_tags(p.get('tags', DEFAULT_WATCHLIST_TAG))
+        return _custom_tag_editor(custom_id, tags)
+
+    @rt("/api/watchlist/custom-decklist/tag-chips", methods=["GET"])
+    async def custom_decklist_tag_chips(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        p = request.query_params
+        custom_id = p.get('custom_id', '')
+        tags = _parse_tags(p.get('tags', DEFAULT_WATCHLIST_TAG))
+        return _custom_tag_chips(custom_id, tags)
+
+    @rt("/api/watchlist/custom-decklist/tags", methods=["POST"])
+    async def custom_decklist_update_tags(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        form = await request.form()
+        custom_id = form.get('custom_id', '')
+        tags = _parse_tags(form.get('tags', DEFAULT_WATCHLIST_TAG))
+        if not custom_id:
+            return JSONResponse({"error": "custom_id required"}, status_code=400)
+        update_custom_decklist(user.get('sub'), custom_id, tags=tags)
+        return _custom_tag_chips(custom_id, tags)
+
+    @rt("/api/decklist-builder/import-text", methods=["POST"])
+    async def builder_import_text(request: Request):
+        """Parse pasted decklist text (format: '4xOP01-001') and return card data."""
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        try:
+            data = await request.json()
+        except Exception:
+            return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+        text = data.get('text', '')
+        card_lookup = get_card_id_card_data_lookup()
+        cards = []
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            m = re.match(r'^(\d+)[xX](.+)$', line)
+            if not m:
+                continue
+            count = min(int(m.group(1)), 4)
+            card_id = m.group(2).strip()
+            c = card_lookup.get(card_id)
+            if c:
+                cards.append({
+                    'id': card_id,
+                    'count': count,
+                    'name': c.name,
+                    'img': c.image_url,
+                    'is_leader': c.card_category == OPTcgCardCatagory.LEADER,
+                    'colors': [col.value for col in c.colors],
+                })
+        return JSONResponse(cards)
 
     # ── Custom decklist builder routes ─────────────────────────────────────
 

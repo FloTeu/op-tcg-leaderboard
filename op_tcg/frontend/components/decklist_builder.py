@@ -56,6 +56,7 @@ def create_decklist_builder(
             selected=(lc.id == prefill_leader_id),
             data_leader_name=lc.name,
             data_leader_img=lc.image_url,
+            data_leader_colors=json.dumps([c.value for c in lc.colors]),
         ))
 
     # ── Import-source dropdown options ─────────────────────────────────────
@@ -98,12 +99,18 @@ def create_decklist_builder(
                 data_import_url=import_url,
             ))
 
+    # ── Prefill leader colors (for initial color filter state) ─────────────
+    prefill_leader_colors: list[str] = []
+    if prefill_leader_id and prefill_leader_id in card_lookup:
+        prefill_leader_colors = [c.value for c in card_lookup[prefill_leader_id].colors]
+
     # ── Tiny prefill script (all logic is in decklist_builder.js) ──────────
     prefill_data = {
         'cards': prefill_cards,
         'leaderId': prefill_leader_id,
         'leaderName': prefill_leader_name,
         'leaderImg': prefill_leader_img,
+        'leaderColors': prefill_leader_colors,
         'customId': custom_id or None,
     }
     prefill_js = (
@@ -173,6 +180,44 @@ def create_decklist_builder(
             ),
             cls="mb-4",
         ),
+        # ── Paste from clipboard ──────────────────────────────────────────
+        ft.Div(
+            ft.Button(
+                ft.I(cls="fas fa-clipboard mr-1.5 text-xs"),
+                "Paste Decklist",
+                type="button",
+                cls="text-xs text-gray-400 hover:text-white transition-colors flex items-center",
+                onclick="var s=this.nextElementSibling; s.classList.toggle('hidden'); if(!s.classList.contains('hidden')){s.querySelector('textarea').focus();}",
+            ),
+            ft.Div(
+                ft.Textarea(
+                    id="cdb-paste-area",
+                    rows="6",
+                    cls="w-full bg-gray-700 text-white border border-gray-600 rounded px-3 py-2 text-xs font-mono focus:outline-none focus:border-blue-500 mt-2 resize-none",
+                    placeholder="1xST13-001\n4xOP13-016\n4xOP14-102\n...",
+                    onclick="event.stopPropagation();",
+                ),
+                ft.Div(
+                    ft.Button(
+                        ft.I(cls="fas fa-file-import mr-1.5 text-xs"),
+                        "Import Cards",
+                        type="button",
+                        cls="px-3 py-1.5 text-xs bg-green-700 hover:bg-green-600 text-white rounded transition-colors font-medium inline-flex items-center",
+                        onclick="window._cdbImportText(this.closest('[id=cdb-paste-section]').querySelector('textarea'))",
+                    ),
+                    ft.Button(
+                        "Clear",
+                        type="button",
+                        cls="px-3 py-1.5 text-xs text-gray-400 hover:text-white transition-colors",
+                        onclick="this.closest('[id=cdb-paste-section]').querySelector('textarea').value='';",
+                    ),
+                    cls="flex items-center gap-2 mt-2",
+                ),
+                id="cdb-paste-section",
+                cls="hidden",
+            ),
+            cls="mb-4",
+        ),
         # ── Card search ───────────────────────────────────────────────────
         ft.Div(
             ft.Label("Search Cards", cls="text-xs text-gray-400 block mb-1"),
@@ -185,8 +230,9 @@ def create_decklist_builder(
                 hx_trigger="keyup changed delay:400ms",
                 hx_target="#cdb-search-results",
                 hx_swap="innerHTML",
-                hx_include="#cdb-search",
+                hx_include="#cdb-search, #cdb-color-filters",
             ),
+            ft.Div(id="cdb-color-filters", cls="hidden"),
             ft.Div(
                 ft.P("Type to search for cards.", cls="text-gray-500 text-sm text-center py-4"),
                 id="cdb-search-results",
