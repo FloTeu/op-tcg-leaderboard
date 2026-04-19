@@ -117,7 +117,7 @@ def _decklist_watchlist_section(user_id: str, request) -> ft.Div:
         cls="flex flex-wrap items-center mb-4"
     ) if all_tags else ft.Span()
 
-    if not dl_watchlist:
+    if not dl_watchlist and not custom_decklists_all:
         return ft.Div(
             tag_filter_bar,
             ft.Div(
@@ -139,6 +139,8 @@ def _decklist_watchlist_section(user_id: str, request) -> ft.Div:
         leader_data = card_lookup.get(leader_id)
         image_url = getattr(leader_data, 'image_url', '') if leader_data else ''
         leader_name = getattr(leader_data, 'name', leader_id) if leader_data else leader_id
+        tournament_ts = item.get('tournament_timestamp')
+        tournament_date_str = tournament_ts.strftime('%-d %b %Y') if tournament_ts else ''
 
         safe_tid = re.sub(r'[^a-zA-Z0-9_\-]', '_', tournament_id)[:20]
         safe_pid = re.sub(r'[^a-zA-Z0-9_\-]', '_', player_id)[:20]
@@ -196,6 +198,10 @@ def _decklist_watchlist_section(user_id: str, request) -> ft.Div:
                         ),
                         ft.P(f"Player: {player_id}", cls="text-xs text-gray-400 truncate"),
                         ft.P(f"Tournament: {tournament_id[:40]}{'...' if len(tournament_id) > 40 else ''}", cls="text-xs text-gray-500 truncate"),
+                        *(
+                            [ft.P(f"Played: {tournament_date_str}", cls="text-xs text-gray-500")]
+                            if tournament_date_str else []
+                        ),
                         tag_chips,
                         cls="flex-1 min-w-0"
                     ),

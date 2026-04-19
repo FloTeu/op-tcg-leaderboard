@@ -3,6 +3,7 @@ from op_tcg.backend.models.cards import OPTcgLanguage, CardCurrency
 from op_tcg.backend.models.input import MetaFormatRegion
 
 DEFAULT_WATCHLIST_TAG = "my collection"
+DEFAULT_DECKLIST_WATCHLIST_TAG = "my decklists"
 
 # Initialize Firestore
 # Using a singleton pattern to avoid re-initializing the client
@@ -156,21 +157,28 @@ def _decklist_doc_id(leader_id: str, tournament_id: str, player_id: str) -> str:
     return re.sub(r'[^a-zA-Z0-9\-_]', '_', raw)[:400]
 
 
-def add_decklist_to_watchlist(user_id: str, leader_id: str, tournament_id: str, player_id: str, meta_format: str = "", tags: list = None):
+def add_decklist_to_watchlist(user_id: str, leader_id: str, tournament_id: str, player_id: str,
+                              meta_format: str = "", tags: list = None, tournament_timestamp=None,
+                              decklist_id: str = None):
     """Adds a decklist to the user's decklist watchlist."""
     db = get_db()
     if not db:
         return
     ref = db.collection('users').document(user_id).collection('decklist_watchlist')
     doc_id = _decklist_doc_id(leader_id, tournament_id, player_id)
-    ref.document(doc_id).set({
+    doc = {
         'leader_id': leader_id,
         'tournament_id': tournament_id,
         'player_id': player_id,
         'meta_format': meta_format,
         'tags': tags if tags is not None else [DEFAULT_WATCHLIST_TAG],
-        'added_at': firestore.SERVER_TIMESTAMP
-    })
+        'added_at': firestore.SERVER_TIMESTAMP,
+    }
+    if tournament_timestamp is not None:
+        doc['tournament_timestamp'] = tournament_timestamp
+    if decklist_id is not None:
+        doc['decklist_id'] = decklist_id
+    ref.document(doc_id).set(doc)
 
 
 def remove_decklist_from_watchlist(user_id: str, leader_id: str, tournament_id: str, player_id: str):
@@ -199,7 +207,12 @@ def get_decklist_watchlist(user_id: str) -> list[dict]:
     if not db:
         return []
     ref = db.collection('users').document(user_id).collection('decklist_watchlist')
-    return [doc.to_dict() for doc in ref.stream()]
+    result = []
+    for doc in ref.stream():
+        d = doc.to_dict()
+        d['id'] = doc.id
+        result.append(d)
+    return result
 
 
 def create_custom_decklist(user_id: str, name: str, leader_id: str, decklist: dict,
@@ -213,7 +226,7 @@ def create_custom_decklist(user_id: str, name: str, leader_id: str, decklist: di
         'leader_id': leader_id,
         'decklist': decklist,
         'meta_format': meta_format,
-        'tags': tags if tags is not None else [DEFAULT_WATCHLIST_TAG],
+        'tags': tags if tags is not None else [DEFAULT_DECKLIST_WATCHLIST_TAG],
         'created_at': firestore.SERVER_TIMESTAMP,
         'updated_at': firestore.SERVER_TIMESTAMP,
     })

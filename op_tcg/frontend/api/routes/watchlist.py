@@ -436,7 +436,14 @@ def setup_watchlist_routes(rt):
             return JSONResponse({"error": "Missing required fields"}, status_code=400)
         meta_format = data.get('meta_format', '')
         tags = _parse_tags(data.get('tags', [DEFAULT_WATCHLIST_TAG]))
-        add_decklist_to_watchlist(user.get('sub'), leader_id, tournament_id, player_id, meta_format, tags)
+        td = next(
+            (x for x in get_all_tournament_decklist_data()
+             if x.tournament_id == tournament_id and x.player_id == player_id),
+            None,
+        )
+        tournament_timestamp = td.tournament_timestamp if td else None
+        decklist_id = td.decklist_id if td else None
+        add_decklist_to_watchlist(user.get('sub'), leader_id, tournament_id, player_id, meta_format, tags, tournament_timestamp, decklist_id)
         return JSONResponse({"status": "success"})
 
     @rt("/api/watchlist/decklist/remove", methods=["POST"])
