@@ -181,42 +181,12 @@ def create_decklist_builder(
             cls="mb-4",
         ),
         # ── Paste from clipboard ──────────────────────────────────────────
-        ft.Div(
-            ft.Button(
-                ft.I(cls="fas fa-clipboard mr-1.5 text-xs"),
-                "Paste Decklist",
-                type="button",
-                cls="text-xs text-gray-400 hover:text-white transition-colors flex items-center",
-                onclick="var s=this.nextElementSibling; s.classList.toggle('hidden'); if(!s.classList.contains('hidden')){s.querySelector('textarea').focus();}",
-            ),
-            ft.Div(
-                ft.Textarea(
-                    id="cdb-paste-area",
-                    rows="6",
-                    cls="w-full bg-gray-700 text-white border border-gray-600 rounded px-3 py-2 text-xs font-mono focus:outline-none focus:border-blue-500 mt-2 resize-none",
-                    placeholder="1xST13-001\n4xOP13-016\n4xOP14-102\n...",
-                    onclick="event.stopPropagation();",
-                ),
-                ft.Div(
-                    ft.Button(
-                        ft.I(cls="fas fa-file-import mr-1.5 text-xs"),
-                        "Import Cards",
-                        type="button",
-                        cls="px-3 py-1.5 text-xs bg-green-700 hover:bg-green-600 text-white rounded transition-colors font-medium inline-flex items-center",
-                        onclick="window._cdbImportText(this.closest('[id=cdb-paste-section]').querySelector('textarea'))",
-                    ),
-                    ft.Button(
-                        "Clear",
-                        type="button",
-                        cls="px-3 py-1.5 text-xs text-gray-400 hover:text-white transition-colors",
-                        onclick="this.closest('[id=cdb-paste-section]').querySelector('textarea').value='';",
-                    ),
-                    cls="flex items-center gap-2 mt-2",
-                ),
-                id="cdb-paste-section",
-                cls="hidden",
-            ),
-            cls="mb-4",
+        ft.Button(
+            ft.I(cls="fas fa-clipboard mr-1.5 text-xs"),
+            "Paste Decklist from Clipboard",
+            type="button",
+            cls="text-xs text-gray-400 hover:text-white transition-colors flex items-center mb-4",
+            onclick="window._cdbPasteImport()",
         ),
         # ── Card search ───────────────────────────────────────────────────
         ft.Div(

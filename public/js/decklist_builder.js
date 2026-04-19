@@ -48,13 +48,8 @@
 
   /* ── Clipboard import handler ──────────────────────────────────────── */
 
-  window._cdbImportText = function (taArg) {
-    var ta = taArg ||
-             document.getElementById('cdb-paste-area') ||
-             document.querySelector('#cdb-paste-section textarea');
-    if (!ta || !window._cdb) return;
-    var text = ta.value.trim();
-    if (!text) return;
+  function _importCards(text) {
+    if (!window._cdb) return;
     fetch('/api/decklist-builder/import-text', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -66,7 +61,6 @@
         return;
       }
       var cdb = window._cdb;
-      /* Replace non-leader cards rather than merging */
       Object.keys(cdb.cards).forEach(function (k) {
         if (!cdb.cards[k].is_leader) delete cdb.cards[k];
       });
@@ -78,10 +72,19 @@
         }
       });
       cdb.render();
-      var section = document.getElementById('cdb-paste-section');
-      if (section) section.classList.add('hidden');
     }).catch(function () {
       alert('Failed to import decklist. Please check the format and try again.');
+    });
+  }
+
+  window._cdbPasteImport = function () {
+    if (!window._cdb) return;
+    navigator.clipboard.readText().then(function (text) {
+      text = text.trim();
+      if (!text) { alert('Clipboard is empty.'); return; }
+      _importCards(text);
+    }).catch(function () {
+      alert('Could not read clipboard. Please allow clipboard access and try again.');
     });
   };
 
