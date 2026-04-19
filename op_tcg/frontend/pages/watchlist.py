@@ -446,7 +446,7 @@ def watchlist_page(request):
             ft.Div(
                 ft.H1("My Watchlist", cls="text-2xl font-bold text-white"),
                 section_switcher,
-                cls="flex justify-between items-center mb-6"
+                cls="flex flex-wrap justify-between items-center gap-y-3 mb-6"
             ),
             _decklist_watchlist_section(user_id, request),
             cls="container mx-auto px-4 py-8"
@@ -459,7 +459,7 @@ def watchlist_page(request):
             ft.Div(
                 ft.H1("My Watchlist", cls="text-2xl font-bold text-white"),
                 section_switcher,
-                cls="flex justify-between items-center mb-6"
+                cls="flex flex-wrap justify-between items-center gap-y-3 mb-6"
             ),
             ft.P("Your card watchlist is currently empty.", cls="text-gray-400"),
             cls="container mx-auto px-4 py-8"
@@ -1058,8 +1058,8 @@ def watchlist_page(request):
         _table_time_range_script() if view_mode == 'table' else ft.Span(),
         ft.Div(
             ft.H1("My Watchlist", cls="text-2xl font-bold text-white"),
-            ft.Div(section_switcher, view_switcher, cls="flex items-center gap-3"),
-            cls="flex justify-between items-center mb-6"
+            ft.Div(section_switcher, view_switcher, cls="flex flex-wrap items-center gap-3"),
+            cls="flex flex-wrap justify-between gap-y-3 items-center mb-6"
         ),
         tag_filter_bar,
         portfolio_section,

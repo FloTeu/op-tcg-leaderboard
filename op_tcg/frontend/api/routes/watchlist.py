@@ -597,7 +597,7 @@ def setup_watchlist_routes(rt):
                     ),
                     cls="flex items-center"
                 ),
-                cls="flex items-center justify-between mb-3"
+                cls="flex flex-wrap items-center justify-between gap-y-2 mb-3"
             ),
             decklist_view,
             ft.Script("""
