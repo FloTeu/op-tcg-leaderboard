@@ -398,12 +398,17 @@ def _decklist_watchlist_section(user_id: str, request) -> ft.Div:
         # Custom decklists (if any)
         *(
             [ft.Div(
-                ft.P("My Custom Decklists", cls="text-xs font-semibold text-purple-300 uppercase tracking-wider mb-2"),
+                ft.P("Custom Decklists", cls="text-xs font-semibold text-purple-300 uppercase tracking-wider mb-2"),
                 ft.Div(*custom_items, cls="grid grid-cols-1 gap-4 mb-6"),
             )] if custom_items else []
         ),
         # Tournament decklists
-        ft.Div(*items, cls="grid grid-cols-1 gap-4"),
+        *(
+            [ft.Div(
+                ft.P("Watchlist Decklists", cls="text-xs font-semibold text-purple-300 uppercase tracking-wider mb-2"),
+                ft.Div(*items, cls="grid grid-cols-1 gap-4"),
+            )] if items else []
+        ),
     )
 
 
