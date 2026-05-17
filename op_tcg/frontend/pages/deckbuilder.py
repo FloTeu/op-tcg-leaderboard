@@ -231,14 +231,112 @@ def _styles() -> ft.Style:
 }
 
 .db-card-item {
-    background: #0d1424;
-    border: 1px solid #1a2540;
-    border-radius: 6px;
+    position: relative;
+    background: #070b14;
+    border: 1.5px solid #1a2540;
+    border-radius: 8px;
     overflow: hidden;
-    transition: border-color 0.12s, transform 0.12s;
     cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1),
+                border-color 0.15s ease,
+                box-shadow 0.15s ease;
 }
-.db-card-item:hover { border-color: #38bdf8; transform: translateY(-2px); }
+.db-card-item:hover {
+    transform: translateY(-5px) scale(1.03);
+    border-color: rgba(56,189,248,0.55);
+    box-shadow: 0 14px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(56,189,248,0.2), inset 0 0 24px rgba(56,189,248,0.04);
+}
+.db-card-item.is-leader:hover {
+    border-color: rgba(245,158,11,0.55);
+    box-shadow: 0 14px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(245,158,11,0.2), inset 0 0 24px rgba(245,158,11,0.04);
+}
+.db-card-item:active { transform: translateY(-1px) scale(0.97); transition-duration: 0.06s; }
+.db-card-item.is-maxed {
+    opacity: 0.28;
+    cursor: not-allowed;
+    pointer-events: none;
+    filter: saturate(0.2);
+}
+
+/* Count badge */
+.db-card-count {
+    position: absolute;
+    top: 5px; right: 5px;
+    min-width: 20px; height: 20px;
+    padding: 0 4px;
+    border-radius: 10px;
+    background: rgba(7,11,20,0.85);
+    border: 1.5px solid rgba(56,189,248,0.55);
+    color: #7dd3fc;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    opacity: 0;
+    transform: scale(0.4) rotate(12deg);
+    transition: opacity 0.2s ease, transform 0.28s cubic-bezier(0.34,1.56,0.64,1);
+    pointer-events: none;
+    line-height: 1;
+    z-index: 10;
+}
+.db-card-count.visible { opacity: 1; transform: scale(1) rotate(0deg); }
+.db-card-item.is-leader .db-card-count {
+    border-color: rgba(245,158,11,0.55);
+    color: #fcd34d;
+}
+
+/* Info strip on hover */
+.db-card-info-strip {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 18px 7px 6px;
+    background: linear-gradient(to bottom, transparent, rgba(4,7,16,0.96) 45%);
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+}
+.db-card-item:hover .db-card-info-strip { opacity: 1; transform: translateY(0); }
+.db-card-name-strip {
+    display: block;
+    font-family: 'Barlow', sans-serif;
+    font-size: 0.62rem; font-weight: 600;
+    color: #e2e8f0; line-height: 1.25;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.db-card-cost-strip {
+    display: block;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.52rem; color: #475569;
+    margin-top: 1px;
+}
+
+/* Leader crown badge */
+.db-card-leader-crown {
+    position: absolute; top: 5px; left: 6px;
+    font-size: 0.65rem;
+    color: rgba(245,158,11,0.75);
+    text-shadow: 0 0 10px rgba(245,158,11,0.4);
+    pointer-events: none;
+    z-index: 10;
+    line-height: 1;
+}
+
+/* Click flash animations */
+@keyframes db-flash-blue {
+    0%   { background: rgba(56,189,248,0); }
+    20%  { background: rgba(56,189,248,0.28); }
+    100% { background: rgba(56,189,248,0); }
+}
+@keyframes db-flash-gold {
+    0%   { background: rgba(245,158,11,0); }
+    20%  { background: rgba(245,158,11,0.28); }
+    100% { background: rgba(245,158,11,0); }
+}
+.db-card-flash-blue::after  { content:''; position:absolute; inset:0; animation: db-flash-blue 0.38s ease-out; pointer-events:none; border-radius:inherit; }
+.db-card-flash-gold::after  { content:''; position:absolute; inset:0; animation: db-flash-gold 0.38s ease-out; pointer-events:none; border-radius:inherit; }
 
 .db-scroll::-webkit-scrollbar { width: 3px; }
 .db-scroll::-webkit-scrollbar-track { background: transparent; }

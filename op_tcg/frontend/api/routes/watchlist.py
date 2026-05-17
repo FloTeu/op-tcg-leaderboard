@@ -739,30 +739,32 @@ def setup_watchlist_routes(rt):
         return ft.Div(
             *[
                 ft.Div(
-                    ft.Img(src=c.image_url, cls="w-full h-auto rounded-t", alt=c.name),
+                    ft.Img(src=c.image_url, cls="w-full h-auto block", alt=c.name),
                     ft.Div(
-                        ft.Span(c.name, cls="text-white text-xs font-medium truncate block leading-tight"),
-                        ft.Span(c.id, cls="text-gray-500 text-xs"),
-                        cls="px-1.5 pt-1"
+                        ft.Span(c.name, cls="db-card-name-strip"),
+                        *(
+                            [ft.Span(f"Cost {c.cost}", cls="db-card-cost-strip")]
+                            if c.cost and c.card_category != OPTcgCardCatagory.LEADER else []
+                        ),
+                        cls="db-card-info-strip",
                     ),
-                    ft.Button(
-                        ft.I(cls=f"fas {'fa-crown' if c.card_category == OPTcgCardCatagory.LEADER else 'fa-plus'} text-xs mr-1"),
-                        "Set Leader" if c.card_category == OPTcgCardCatagory.LEADER else "Add",
-                        type="button",
-                        cls=f"w-full text-xs py-1.5 mt-1 rounded-b transition-colors {'bg-yellow-600 hover:bg-yellow-500' if c.card_category == OPTcgCardCatagory.LEADER else 'bg-blue-600 hover:bg-blue-500'} text-white font-medium",
-                        data_card_id=c.id,
-                        data_card_name=c.name,
-                        data_card_img=c.image_url,
-                        data_is_leader="1" if c.card_category == OPTcgCardCatagory.LEADER else "0",
-                        data_card_cost=str(c.cost or 0),
-                        data_card_type=c.card_category.value,
-                        onclick="window._cdb.addFromBtn(this)",
+                    ft.Span("", cls="db-card-count"),
+                    *(
+                        [ft.Span("♛", cls="db-card-leader-crown")]
+                        if c.card_category == OPTcgCardCatagory.LEADER else []
                     ),
-                    cls="bg-gray-800/80 rounded overflow-hidden border border-gray-700/50"
+                    cls=f"db-card-item{' is-leader' if c.card_category == OPTcgCardCatagory.LEADER else ''}",
+                    data_card_id=c.id,
+                    data_card_name=c.name,
+                    data_card_img=c.image_url,
+                    data_is_leader="1" if c.card_category == OPTcgCardCatagory.LEADER else "0",
+                    data_card_cost=str(c.cost or 0),
+                    data_card_type=c.card_category.value,
+                    onclick="if(window._cdb){window._cdb.addFromBtn(this);window._dbCardFlash(this);}",
                 )
                 for c in filtered
             ],
-            cls="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"
+            cls="db-card-grid"
         )
 
     @rt("/api/watchlist/custom-decklist/save", methods=["POST"])

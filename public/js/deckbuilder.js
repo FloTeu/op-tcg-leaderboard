@@ -127,6 +127,42 @@
     }
   }
 
+  /* ── Card browser badge sync ─────────────────────────────────────────── */
+  function updateCardBadges(cdb) {
+    var results = document.getElementById('cdb-search-results');
+    if (!results) return;
+    results.querySelectorAll('.db-card-item').forEach(function (el) {
+      var id = el.dataset.cardId;
+      var badge = el.querySelector('.db-card-count');
+      if (!badge) return;
+      var card = cdb.cards[id];
+      var count = card ? card.count : 0;
+      var isLeader = el.dataset.isLeader === '1';
+      var maxCount = isLeader ? 1 : 4;
+      if (count > 0) {
+        badge.textContent = count;
+        badge.classList.add('visible');
+      } else {
+        badge.textContent = '';
+        badge.classList.remove('visible');
+      }
+      if (count >= maxCount) {
+        el.classList.add('is-maxed');
+      } else {
+        el.classList.remove('is-maxed');
+      }
+    });
+  }
+
+  /* ── Card flash on add ───────────────────────────────────────────────── */
+  window._dbCardFlash = function (el) {
+    var cls = el.dataset.isLeader === '1' ? 'db-card-flash-gold' : 'db-card-flash-blue';
+    el.classList.remove('db-card-flash-blue', 'db-card-flash-gold');
+    void el.offsetWidth; // force reflow
+    el.classList.add(cls);
+    setTimeout(function () { el.classList.remove(cls); }, 420);
+  };
+
   /* ── Color chip sync ─────────────────────────────────────────────────── */
   function syncColorChips(colors) {
     document.querySelectorAll('.db-chip-color').forEach(function (btn) {
@@ -224,6 +260,7 @@
       if (hidden) hidden.value = JSON.stringify(out);
       renderDeckPanel(this);
       updateStats(this);
+      updateCardBadges(this);
     };
 
     // Replace save to redirect to /watchlist
@@ -271,6 +308,7 @@
     // Initial state
     cdb.render();
     syncColorChips(cdb.leaderColors || []);
+    updateCardBadges(cdb);
   };
 
 })();
