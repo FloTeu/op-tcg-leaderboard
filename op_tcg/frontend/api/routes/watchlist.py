@@ -754,6 +754,8 @@ def setup_watchlist_routes(rt):
                         data_card_name=c.name,
                         data_card_img=c.image_url,
                         data_is_leader="1" if c.card_category == OPTcgCardCatagory.LEADER else "0",
+                        data_card_cost=str(c.cost or 0),
+                        data_card_type=c.card_category.value,
                         onclick="window._cdb.addFromBtn(this)",
                     ),
                     cls="bg-gray-800/80 rounded overflow-hidden border border-gray-700/50"
@@ -761,70 +763,6 @@ def setup_watchlist_routes(rt):
                 for c in filtered
             ],
             cls="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"
-        )
-
-    @rt("/api/watchlist/custom-decklist/builder", methods=["GET"])
-    async def custom_decklist_builder(request: Request):
-        """Returns the custom decklist builder UI as an HTMX fragment."""
-        from op_tcg.frontend.components.decklist_builder import create_decklist_builder
-        user = request.session.get('user')
-        if not user:
-            return JSONResponse({"error": "Unauthorized"}, status_code=401)
-
-        user_id = user.get('sub')
-        p = request.query_params
-        custom_id = p.get('custom_id', '')
-        import_tournament_id = p.get('import_tournament_id', '')
-        import_player_id = p.get('import_player_id', '')
-        import_custom_id = p.get('import_custom_id', '')
-
-        card_lookup = get_card_id_card_data_lookup()
-
-        # Resolve prefill data from edit / import sources
-        prefill_name = ''
-        prefill_leader_id = ''
-        prefill_leader_img = ''
-        prefill_leader_name = ''
-        prefill_decklist: dict[str, int] = {}
-
-        if custom_id:
-            for d in get_custom_decklists(user_id):
-                if d.get('id') == custom_id:
-                    prefill_name = d.get('name', '')
-                    prefill_leader_id = d.get('leader_id', '')
-                    prefill_decklist = {k: int(v) for k, v in (d.get('decklist') or {}).items()}
-                    break
-
-        if import_tournament_id and import_player_id:
-            td = next((x for x in get_all_tournament_decklist_data()
-                       if x.tournament_id == import_tournament_id and x.player_id == import_player_id), None)
-            if td:
-                prefill_decklist = {k: int(v) for k, v in (td.decklist or {}).items()}
-                if not prefill_leader_id:
-                    prefill_leader_id = td.leader_id
-
-        if import_custom_id:
-            for d in get_custom_decklists(user_id):
-                if d.get('id') == import_custom_id:
-                    prefill_decklist = {k: int(v) for k, v in (d.get('decklist') or {}).items()}
-                    if not prefill_leader_id:
-                        prefill_leader_id = d.get('leader_id', '')
-                    break
-
-        if prefill_leader_id and prefill_leader_id in card_lookup:
-            lc = card_lookup[prefill_leader_id]
-            prefill_leader_img = lc.image_url
-            prefill_leader_name = lc.name
-
-        return create_decklist_builder(
-            user_id=user_id,
-            card_lookup=card_lookup,
-            custom_id=custom_id,
-            prefill_name=prefill_name,
-            prefill_leader_id=prefill_leader_id,
-            prefill_leader_img=prefill_leader_img,
-            prefill_leader_name=prefill_leader_name,
-            prefill_decklist=prefill_decklist,
         )
 
     @rt("/api/watchlist/custom-decklist/save", methods=["POST"])

@@ -319,15 +319,11 @@ def _decklist_watchlist_section(user_id: str, request) -> ft.Div:
                         cls="flex-1 min-w-0"
                     ),
                     ft.Div(
-                        ft.Button(
+                        ft.A(
                             ft.I(cls="fas fa-pen text-xs"),
-                            type="button",
+                            href=f"/deckbuilder?custom_id={custom_id}",
                             cls="w-8 h-8 flex items-center justify-center rounded-full bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors",
                             title="Edit decklist",
-                            hx_get=f"/api/watchlist/custom-decklist/builder?custom_id={custom_id}",
-                            hx_target="#decklist-builder-wrapper",
-                            hx_swap="innerHTML",
-                            onclick="document.getElementById('decklist-builder-wrapper').classList.remove('hidden'); document.getElementById('decklist-builder-wrapper').scrollIntoView({behavior:'smooth'});",
                         ),
                         ft.Button(
                             ft.I(cls="fas fa-trash text-xs"),
@@ -364,34 +360,14 @@ def _decklist_watchlist_section(user_id: str, request) -> ft.Div:
 
     return ft.Div(
         toggle_script,
-        # Builder wrapper (hidden until "Create" is clicked or edit is triggered)
-        ft.Div(
-            id="decklist-builder-wrapper",
-            cls="hidden",
-            hx_get="/api/watchlist/custom-decklist/builder",
-            hx_trigger="open-builder",
-            hx_swap="innerHTML",
-        ),
         # Create button + tag filter bar
         ft.Div(
             tag_filter_bar,
-            ft.Button(
+            ft.A(
                 ft.I(cls="fas fa-plus mr-2"),
                 "Create Decklist",
-                type="button",
+                href="/deckbuilder",
                 cls="px-3 py-1.5 text-xs font-medium bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors inline-flex items-center flex-shrink-0",
-                onclick="""
-                    var w = document.getElementById('decklist-builder-wrapper');
-                    w.classList.remove('hidden');
-                    if (!w.innerHTML.trim()) {
-                        w.addEventListener('htmx:afterSwap', function() {
-                            w.scrollIntoView({behavior:'smooth'});
-                        }, {once: true});
-                        htmx.trigger(w, 'open-builder');
-                    } else {
-                        w.scrollIntoView({behavior:'smooth'});
-                    }
-                """,
             ),
             cls="flex items-start justify-between gap-3 mb-4"
         ),

@@ -16,6 +16,7 @@ from op_tcg.frontend.pages.matchups import matchups_page, create_filter_componen
 from op_tcg.frontend.pages.card_popularity import card_popularity_page, create_filter_components as card_popularity_filters
 from op_tcg.frontend.pages.prices import prices_page, create_filter_components as prices_filters
 from op_tcg.frontend.pages.watchlist import watchlist_page
+from op_tcg.frontend.pages.deckbuilder import deckbuilder_page
 from op_tcg.frontend.pages.meta import meta_page, create_filter_components as meta_filters
 from op_tcg.frontend.pages.settings import settings_content
 from op_tcg.frontend.pages.register import register_content
@@ -137,6 +138,7 @@ app, rt = fast_app(
         ft.Script(src="/public/js/card-modal.js"),
         ft.Script(src="/public/js/decklist-modal.js"),
         ft.Script(src="/public/js/decklist_builder.js"),
+        ft.Script(src="/public/js/deckbuilder.js"),
     ],
     #static_path='public'
 )
@@ -605,6 +607,22 @@ def watchlist_route(request: Request):
             user=user
         )
     )
+
+@rt("/deckbuilder")
+def deckbuilder_route(request: Request):
+    user = request.session.get('user')
+    if not user:
+        return RedirectResponse(url="/login")
+    return (
+        ft.Title("Deck Builder – OP TCG Leaderboard"),
+        ft.Meta(name="description", content="Build and save One Piece TCG decks."),
+        layout(
+            deckbuilder_page(request),
+            current_path="/deckbuilder",
+            user=user,
+        )
+    )
+
 
 @rt("/register")
 def register(request: Request):

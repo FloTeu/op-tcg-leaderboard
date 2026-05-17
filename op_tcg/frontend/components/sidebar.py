@@ -53,10 +53,16 @@ def sidebar_content(filter_component=None, current_path="/", persist_query: dict
         #(build_href("/card-prices"), "Card Prices", "💰", current_path == "/card-prices"),
     ]
 
+    tool_links = [
+        ("/deckbuilder", "Deck Builder", "🃏", current_path == "/deckbuilder"),
+        ("/watchlist", "Watchlist", "❤️", current_path == "/watchlist"),
+    ]
+
     return ft.Div(
         # Navigation sections
         create_nav_section("Leader", leader_links),
         create_nav_section("Card", card_links),
+        create_nav_section("Tools", tool_links),
         # Filter section
         ft.Div(
             ft.H2("Filters", cls="text-xl font-bold text-white mb-4") if filter_component else None,

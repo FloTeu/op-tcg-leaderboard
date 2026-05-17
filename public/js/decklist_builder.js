@@ -43,7 +43,7 @@
     var opt = sel.options[sel.selectedIndex];
     var url = opt ? opt.dataset.importUrl : null;
     if (!url) return;
-    htmx.ajax('GET', url, { target: '#decklist-builder-wrapper', swap: 'innerHTML' });
+    window.location.href = url;
   };
 
   /* ── Clipboard import handler ──────────────────────────────────────── */
@@ -109,13 +109,15 @@
         var name = btn.dataset.cardName;
         var img = btn.dataset.cardImg;
         var isLeader = btn.dataset.isLeader === '1';
+        var cost = parseInt(btn.dataset.cardCost || '0', 10);
+        var type = btn.dataset.cardType || '';
         if (isLeader) { this.setLeader(id, name, img, []); }
-        else { this.addCard(id, name, img); }
+        else { this.addCard(id, name, img, cost, type); }
       },
 
-      addCard: function (id, name, img) {
+      addCard: function (id, name, img, cost, type) {
         if (!(id in this.cards)) {
-          this.cards[id] = { count: 0, name: name, img: img, is_leader: false };
+          this.cards[id] = { count: 0, name: name, img: img, is_leader: false, cost: cost || 0, type: type || '' };
         }
         if (this.cards[id].count < 4) this.cards[id].count++;
         this.render();
