@@ -620,7 +620,6 @@ def deckbuilder_page(request):
 
     return ft.Div(
         _styles(),
-        _page_script(prefill_data),
         ft.Div(
             page_header,
             mobile_tabs,
@@ -697,5 +696,6 @@ def deckbuilder_page(request):
             ),
             cls="db-page px-4 py-4 md:px-6",
         ),
+        _page_script(prefill_data),
         cls="db-page",
     )
