@@ -405,6 +405,22 @@ def _styles() -> ft.Style:
 .db-card-flash-blue::after  { content:''; position:absolute; inset:0; animation: db-flash-blue 0.38s ease-out; pointer-events:none; border-radius:inherit; }
 .db-card-flash-gold::after  { content:''; position:absolute; inset:0; animation: db-flash-gold 0.38s ease-out; pointer-events:none; border-radius:inherit; }
 
+/* Search loading indicator */
+.htmx-indicator { opacity: 0; transition: opacity 150ms ease; pointer-events: none; }
+.htmx-request .htmx-indicator { opacity: 1; }
+.htmx-request.htmx-indicator { opacity: 1; }
+
+.db-spin {
+    width: 32px; height: 32px;
+    border: 3px solid #1a2540;
+    border-top-color: #38bdf8;
+    border-radius: 50%;
+    flex-shrink: 0;
+    animation: db-rotate 0.65s linear infinite;
+    box-shadow: 0 0 16px rgba(56,189,248,0.2);
+}
+@keyframes db-rotate { to { transform: rotate(360deg); } }
+
 .db-scroll::-webkit-scrollbar { width: 3px; }
 .db-scroll::-webkit-scrollbar-track { background: transparent; }
 .db-scroll::-webkit-scrollbar-thumb { background: #1a2540; border-radius: 2px; }
@@ -667,17 +683,27 @@ def deckbuilder_page(request):
             placeholder="Search by name, type, set… (e.g. OP09 Luffy)",
             cls="db-search mb-3",
             hx_get="/api/decklist-builder/card-search",
-            hx_trigger="keyup changed delay:350ms",
+            hx_trigger="keyup changed delay:350ms, db-search",
             hx_target="#cdb-search-results",
             hx_swap="innerHTML",
             hx_include=hx_include,
+            hx_indicator="#cdb-search-spinner",
         ),
         ft.Div(
-            ft.P("Type to search for cards.", cls="text-center db-body",
-                 style="color:#1e2d45;font-size:.8rem;padding:40px 0;"),
-            id="cdb-search-results",
-            cls="db-scroll overflow-y-auto",
-            style="max-height: calc(100vh - 230px);",
+            ft.Div(
+                ft.P("Type to search for cards.", cls="text-center db-body",
+                     style="color:#1e2d45;font-size:.8rem;padding:40px 0;"),
+                id="cdb-search-results",
+                cls="db-scroll overflow-y-auto",
+                style="max-height:calc(100vh - 230px); min-height:120px;",
+            ),
+            ft.Div(
+                ft.Div(cls="db-spin"),
+                id="cdb-search-spinner",
+                cls="htmx-indicator",
+                style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:20;",
+            ),
+            style="position:relative; min-height:120px;",
         ),
         cls="db-panel p-4 flex flex-col",
         style="min-height: 400px;",

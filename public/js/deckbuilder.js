@@ -36,7 +36,7 @@
 
   function _triggerSearch() {
     var inp = document.getElementById('cdb-search');
-    if (inp && typeof htmx !== 'undefined') htmx.trigger(inp, 'keyup');
+    if (inp && typeof htmx !== 'undefined') htmx.trigger(inp, 'db-search');
   }
 
   /* ── Color chip sync ─────────────────────────────────────────────────── */
