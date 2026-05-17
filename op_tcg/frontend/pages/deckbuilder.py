@@ -429,6 +429,42 @@ def _styles() -> ft.Style:
     margin: 0 4px;
 }
 
+/* Counter chips */
+.db-counter-chips { display: flex; gap: 6px; }
+.db-counter-chip {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 6px 4px 5px;
+    border-radius: 7px;
+    background: #080e1c;
+    border: 1.5px solid #1a2540;
+    cursor: pointer;
+    transition: border-color 0.14s, background 0.14s;
+    min-width: 0;
+}
+.db-counter-chip:hover { border-color: #2d3f5a; background: #0d1424; }
+.db-counter-chip.active {
+    border-color: rgba(56,189,248,0.5);
+    background: rgba(56,189,248,0.07);
+    box-shadow: 0 0 12px rgba(56,189,248,0.08);
+}
+.db-counter-chip-val {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.88rem;
+    color: #cbd5e1;
+    line-height: 1;
+    margin-bottom: 3px;
+}
+.db-counter-chip.active .db-counter-chip-val { color: #7dd3fc; }
+.db-counter-chip-label {
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 0.08em;
+    font-size: 0.52rem;
+    color: #334155;
+    line-height: 1;
+}
+.db-counter-chip.active .db-counter-chip-label { color: #38bdf8; }
+
 /* Sticky panels on desktop */
 @media (min-width: 1280px) {
     .db-panel-sticky { position: sticky; top: 16px; max-height: calc(100vh - 120px); overflow-y: auto; }
@@ -514,6 +550,7 @@ def deckbuilder_page(request):
             'is_leader': (c.card_category == OPTcgCardCatagory.LEADER) if c else False,
             'cost': int(c.cost or 0) if c and c.cost else 0,
             'type': c.card_category.value if c else '',
+            'counter': int(c.counter) if c and c.counter else 0,
         }
 
     prefill_leader_colors = []
@@ -685,6 +722,30 @@ def deckbuilder_page(request):
                 cls="flex gap-3 items-center",
             ),
             cls="flex items-center gap-4 mb-4",
+        ),
+        # ── Counter analytics ────────────────────────────────────────────
+        ft.Div(
+            ft.Div("Counter", cls="db-panel-label"),
+            ft.Div(
+                *[
+                    ft.Button(
+                        ft.Span("0", id=f"db-cn-{key}", cls="db-counter-chip-val"),
+                        ft.Span(label, cls="db-counter-chip-label"),
+                        type="button",
+                        cls="db-counter-chip",
+                        id=f"db-counter-{key}",
+                        onclick=f"window._dbToggleCounterFilter({val})",
+                        title=title,
+                    )
+                    for key, label, val, title in [
+                        ("none", "No Counter", "null", "No counter — click to filter"),
+                        ("1k",   "+1000",      "1000", "+1000 counter — click to filter"),
+                        ("2k",   "+2000",      "2000", "+2000 counter — click to filter"),
+                    ]
+                ],
+                cls="db-counter-chips",
+            ),
+            cls="mb-4",
         ),
         # ── Deck card grid ───────────────────────────────────────────────
         ft.Div(

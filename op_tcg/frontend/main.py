@@ -137,7 +137,6 @@ app, rt = fast_app(
         ft.Script(src="/public/js/sidebar.js"),
         ft.Script(src="/public/js/card-modal.js"),
         ft.Script(src="/public/js/decklist-modal.js"),
-        ft.Script(src="/public/js/decklist_builder.js"),
         ft.Script(src="/public/js/deckbuilder.js"),
     ],
     #static_path='public'
