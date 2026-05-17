@@ -280,7 +280,9 @@ def setup_watchlist_routes(rt):
                     card = card_lookup.get(r['card_id'])
                     name = card.name if card else r['card_id']
                     aa_label = f" (Alt Art {r['aa_version']})" if r['aa_version'] else ""
-                    release_events.append({'date': r['date'], 'label': f"{name}{aa_label}"})
+                    set_code = r['card_id'].split('-')[0] if '-' in r['card_id'] else ''
+                    set_label = f" ({set_code})" if set_code else ""
+                    release_events.append({'date': r['date'], 'label': f"{name}{aa_label}{set_label}"})
         except Exception:
             pass  # Release markers are non-critical
 
