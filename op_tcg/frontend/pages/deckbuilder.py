@@ -563,15 +563,13 @@ def deckbuilder_page(request):
         )
         if td:
             prefill_decklist = {k: int(v) for k, v in (td.decklist or {}).items()}
-            if not prefill_leader_id:
-                prefill_leader_id = td.leader_id
+            prefill_leader_id = td.leader_id  # always override — import brings its own leader
 
     if import_custom_id:
         for d in get_custom_decklists(user_id):
             if d.get('id') == import_custom_id:
                 prefill_decklist = {k: int(v) for k, v in (d.get('decklist') or {}).items()}
-                if not prefill_leader_id:
-                    prefill_leader_id = d.get('leader_id', '')
+                prefill_leader_id = d.get('leader_id', '')  # always override
                 break
 
     if prefill_leader_id in card_lookup:
@@ -592,6 +590,20 @@ def deckbuilder_page(request):
             'type': c.card_category.value if c else '',
             'counter': int(c.counter) if c and c.counter else 0,
         }
+
+    # Ensure leader card is always present in prefill_cards
+    if prefill_leader_id and prefill_leader_id not in prefill_cards:
+        lc = card_lookup.get(prefill_leader_id)
+        if lc:
+            prefill_cards[prefill_leader_id] = {
+                'count': 1,
+                'name': lc.name,
+                'img': lc.image_url,
+                'is_leader': True,
+                'cost': 0,
+                'type': lc.card_category.value,
+                'counter': 0,
+            }
 
     prefill_leader_colors = []
     if prefill_leader_id in card_lookup:

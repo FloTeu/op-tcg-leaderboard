@@ -392,9 +392,11 @@
         var heroBg   = document.getElementById('cdb-leader-hero-bg');
         var heroName = document.getElementById('cdb-leader-hero-name');
         var heroEl   = document.getElementById('cdb-leader-hero');
+        var sel      = document.getElementById('cdb-leader-select');
         if (heroBg)   heroBg.style.backgroundImage = this.leaderImg ? 'url(' + this.leaderImg + ')' : '';
         if (heroName) heroName.textContent = this.leaderId ? (this.leaderName || this.leaderId) : 'SELECT A LEADER';
         if (heroEl)   heroEl.classList.toggle('has-leader', !!this.leaderId);
+        if (sel && this.leaderId) sel.value = this.leaderId;
       },
 
       render: function () {
