@@ -606,7 +606,7 @@ def watchlist_page(request):
                 link_cls = "flex items-center cursor-pointer transition-colors text-white"
             else:
                 icon = "fa-sort opacity-50"
-                new_order = "asc"
+                new_order = "desc" if column == "price" else "asc"
                 link_cls = "flex items-center cursor-pointer transition-colors hover:text-white text-gray-400"
 
             return ft.A(
@@ -963,7 +963,7 @@ def watchlist_page(request):
             ft.A(
                 ft.Span("Price"),
                 ft.I(cls=f"fas fa-sort-{'up' if sort_order == 'asc' else 'down'} ml-1" if sort_by == 'price' else "fas fa-sort ml-1 opacity-50"),
-                href=build_url(view="list", sort="price", order="desc" if sort_by == "price" and sort_order == "asc" else "asc"),
+                href=build_url(view="list", sort="price", order="asc" if sort_by == "price" and sort_order == "desc" else "desc"),
                 cls=f"text-sm font-medium transition-colors flex items-center {'text-blue-400' if sort_by == 'price' else 'text-gray-400 hover:text-white'}"
             ),
             cls="flex items-center mb-4 justify-end"
