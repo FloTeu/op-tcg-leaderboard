@@ -37,41 +37,40 @@
       group.sort(function (a, b) { return (a[1].cost || 0) - (b[1].cost || 0); });
 
       var sec = document.createElement('div');
-      sec.style.marginBottom = '10px';
+      sec.style.marginBottom = '12px';
 
       var cnt = group.reduce(function (s, e) { return s + e[1].count; }, 0);
       var hdr = document.createElement('div');
-      hdr.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;';
+      hdr.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;';
       hdr.innerHTML =
         '<span style="font-family:\'Bebas Neue\',sans-serif;letter-spacing:.1em;font-size:.6rem;color:#334155;">' + type.toUpperCase() + 'S</span>' +
         '<span style="font-family:\'Share Tech Mono\',monospace;font-size:.65rem;color:#334155;">' + cnt + '</span>';
       sec.appendChild(hdr);
 
+      var grid = document.createElement('div');
+      grid.className = 'db-deck-grid';
+
       group.forEach(function (e) {
         var id = e[0]; var d = e[1];
-        // Safe versions for inline onclick strings
-        var safeId   = id.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        var safeName = (d.name || id).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        var safeImg  = (d.img || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        var safeCost = d.cost || 0;
-        var safeType = (d.type || '').replace(/'/g, "\\'");
-
-        var row = document.createElement('div');
-        row.className = 'db-deck-row';
-        row.innerHTML =
-          '<img src="' + (d.img || '') + '" style="width:28px;height:auto;border-radius:3px;flex-shrink:0;" alt="">' +
-          '<div style="flex:1;min-width:0;">' +
-            '<div style="font-family:Barlow,sans-serif;font-size:.72rem;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (d.name || id) + '</div>' +
-            (d.cost ? '<div style="font-family:\'Share Tech Mono\',monospace;font-size:.6rem;color:#334155;">cost ' + d.cost + '</div>' : '') +
-          '</div>' +
-          '<div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">' +
-            '<button onclick="window._cdb.removeCard(\'' + safeId + '\')" class="db-qty-btn">\u2212</button>' +
-            '<span style="font-family:\'Share Tech Mono\',monospace;font-size:.7rem;color:#f1f5f9;width:14px;text-align:center;">' + d.count + '</span>' +
-            '<button onclick="window._cdb.addCard(\'' + safeId + '\',\'' + safeName + '\',\'' + safeImg + '\',' + safeCost + ',\'' + safeType + '\')" class="db-qty-btn">+</button>' +
+        var card = document.createElement('div');
+        card.className = 'db-deck-card';
+        card.dataset.cardId = id;
+        card.title = (d.name || id) + ' — click to remove';
+        card.innerHTML =
+          '<img src="' + (d.img || '') + '" style="width:100%;height:auto;display:block;" alt="">' +
+          '<span class="db-deck-card-count">' + d.count + '</span>' +
+          '<div class="db-deck-card-strip">' +
+            '<span style="font-family:Barlow,sans-serif;font-size:.55rem;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;">' +
+              (d.name || id) +
+            '</span>' +
           '</div>';
-        sec.appendChild(row);
+        card.addEventListener('click', function () {
+          window._cdb.removeCard(this.dataset.cardId);
+        });
+        grid.appendChild(card);
       });
 
+      sec.appendChild(grid);
       panel.appendChild(sec);
     });
   }
@@ -251,6 +250,16 @@
     var cdb = window._cdb;
     if (!cdb) return;
 
+    // Override renderLeader to update hero section
+    cdb.renderLeader = function () {
+      var heroBg   = document.getElementById('cdb-leader-hero-bg');
+      var heroName = document.getElementById('cdb-leader-hero-name');
+      var heroEl   = document.getElementById('cdb-leader-hero');
+      if (heroBg) heroBg.style.backgroundImage = this.leaderImg ? 'url(' + this.leaderImg + ')' : '';
+      if (heroName) heroName.textContent = this.leaderId ? (this.leaderName || this.leaderId) : 'SELECT A LEADER';
+      if (heroEl) heroEl.classList.toggle('has-leader', !!this.leaderId);
+    };
+
     // Replace render with grouped version
     cdb.render = function () {
       var cards = this.cards;
@@ -306,6 +315,7 @@
     };
 
     // Initial state
+    cdb.renderLeader();
     cdb.render();
     syncColorChips(cdb.leaderColors || []);
     updateCardBadges(cdb);

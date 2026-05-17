@@ -170,26 +170,69 @@ def _styles() -> ft.Style:
 }
 .db-btn-ghost:hover { color: #94a3b8; border-color: #2d3f5a; background: #0d1424; }
 
-.db-deck-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 5px 0;
-    border-bottom: 1px solid #111d30;
+.db-deck-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 5px;
 }
-.db-deck-row:last-child { border-bottom: none; }
 
-.db-qty-btn {
-    width: 20px; height: 20px;
-    background: #111d30;
-    border: none; border-radius: 4px;
-    color: #64748b; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 0.75rem;
-    transition: background 0.12s, color 0.12s;
-    flex-shrink: 0;
+.db-deck-card {
+    position: relative;
+    cursor: pointer;
+    border-radius: 5px;
+    overflow: hidden;
+    border: 1.5px solid #1a2540;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1),
+                border-color 0.15s ease,
+                box-shadow 0.15s ease;
 }
-.db-qty-btn:hover { background: #1e2d45; color: #f1f5f9; }
+.db-deck-card:hover {
+    transform: scale(1.06);
+    border-color: rgba(239,68,68,0.5);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.5), 0 0 0 1px rgba(239,68,68,0.2);
+}
+.db-deck-card:active { transform: scale(0.95); transition-duration: 0.06s; }
+
+.db-deck-card-count {
+    position: absolute;
+    top: 3px; right: 3px;
+    min-width: 16px; height: 16px;
+    padding: 0 3px;
+    border-radius: 8px;
+    background: rgba(7,11,20,0.88);
+    border: 1.5px solid rgba(245,158,11,0.6);
+    color: #fcd34d;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.5rem;
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    pointer-events: none;
+    z-index: 10;
+    line-height: 1;
+}
+
+.db-deck-card-strip {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 14px 4px 4px;
+    background: linear-gradient(transparent, rgba(4,7,16,0.96) 45%);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    pointer-events: none;
+}
+.db-deck-card:hover .db-deck-card-strip { opacity: 1; }
+
+.db-deck-card::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: rgba(239,68,68,0);
+    transition: background 0.15s ease;
+    pointer-events: none;
+    border-radius: inherit;
+}
+.db-deck-card:hover::after { background: rgba(239,68,68,0.1); }
 
 .db-progress-ring { transition: stroke-dashoffset 0.4s cubic-bezier(.4,0,.2,1), stroke 0.3s; }
 
@@ -224,9 +267,9 @@ def _styles() -> ft.Style:
 @media (min-width: 1024px) { .db-card-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (min-width: 1280px) { .db-card-grid { grid-template-columns: repeat(4, 1fr); } }
 
-.db-three-col { display: flex; flex-direction: column; gap: 1rem; }
+.db-two-col { display: flex; flex-direction: column; gap: 1rem; }
 @media (min-width: 1280px) {
-    .db-three-col { display: grid; grid-template-columns: 260px 1fr 300px; gap: 1rem; }
+    .db-two-col { display: grid; grid-template-columns: 1fr 420px; gap: 1rem; align-items: start; }
     .db-xl-show { display: block !important; }
 }
 
@@ -345,9 +388,50 @@ def _styles() -> ft.Style:
 @keyframes dbFadeIn { from { opacity:0; transform:scale(.96) translateY(3px); } to { opacity:1; transform:none; } }
 #cdb-search-results .db-card-item { animation: dbFadeIn 0.18s ease; }
 
+/* Leader hero */
+.db-leader-hero {
+    position: relative;
+    height: 160px;
+    overflow: hidden;
+    border-radius: 8px 8px 0 0;
+    margin: -16px -16px 12px;
+    background: #030508;
+}
+.db-leader-hero-bg {
+    position: absolute; inset: 0;
+    background-size: cover;
+    background-position: center 15%;
+    transition: background-image 0.35s ease;
+    filter: brightness(0.75) saturate(1.1);
+}
+.db-leader-hero-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(160deg, transparent 30%, rgba(7,11,20,0.92) 90%);
+    display: flex; align-items: flex-end;
+    padding: 10px 12px;
+}
+.db-leader-hero-name {
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 0.08em;
+    font-size: 1.15rem;
+    color: #f1f5f9;
+    line-height: 1;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.8);
+}
+.db-leader-hero.has-leader .db-leader-hero-name { color: #fef3c7; }
+
+/* Compact filter row */
+.db-filter-divider {
+    width: 1px; height: 18px;
+    background: #1a2540;
+    flex-shrink: 0;
+    align-self: center;
+    margin: 0 4px;
+}
+
 /* Sticky panels on desktop */
 @media (min-width: 1280px) {
-    .db-panel-sticky { position: sticky; top: 16px; max-height: calc(100vh - 140px); overflow-y: auto; }
+    .db-panel-sticky { position: sticky; top: 16px; max-height: calc(100vh - 120px); overflow-y: auto; }
     .db-panel-sticky.db-scroll::-webkit-scrollbar { width: 3px; }
 }
 """)
@@ -486,89 +570,40 @@ def deckbuilder_page(request):
 
     hx_include = "#cdb-search, #cdb-color-filters, #cdb-category-filters"
 
-    # Left panel: leader + filters
-    left_panel = ft.Div(
-        # Leader select
+    # Search panel: filters + search input + results
+    search_panel = ft.Div(
+        # Compact filter row (colors + divider + types in one line)
         ft.Div(
-            ft.Div("Leader", cls="db-panel-label"),
-            ft.Select(
-                *leader_opts,
-                id="cdb-leader-select",
-                cls="db-leader-select styled-select",
-                onchange="window._cdbLeaderChange(this)",
-            ),
-            ft.Div(
-                id="cdb-leader-display",
-                cls="db-leader-frame mt-2",
-            ),
-            cls="mb-5",
-        ),
-        # Color filter chips
-        ft.Div(
-            ft.Div("Colors", cls="db-panel-label"),
-            ft.Div(
-                *[
-                    ft.Button(
-                        ft.Span(cls="w-2.5 h-2.5 rounded-full flex-shrink-0 mr-1.5",
-                                style=f"background:{hex_col}"),
-                        label,
-                        type="button",
-                        cls=f"db-filter-chip db-chip-color db-chip-color-{key}",
-                        data_color=val,
-                        onclick="window._dbToggleColor(this)",
-                    )
-                    for label, key, hex_col, val in _COLOR_DEFS
-                ],
-                cls="flex flex-wrap gap-1.5",
-            ),
+            *[
+                ft.Button(
+                    ft.Span(cls="w-2 h-2 rounded-full flex-shrink-0 mr-1",
+                            style=f"background:{hex_col}"),
+                    label,
+                    type="button",
+                    cls=f"db-filter-chip db-chip-color db-chip-color-{key}",
+                    data_color=val,
+                    onclick="window._dbToggleColor(this)",
+                )
+                for label, key, hex_col, val in _COLOR_DEFS
+            ],
+            ft.Span(cls="db-filter-divider"),
+            *[
+                ft.Button(
+                    cat.value,
+                    type="button",
+                    cls="db-filter-chip db-chip-cat",
+                    data_cat=cat.value,
+                    onclick="window._dbToggleCat(this)",
+                )
+                for cat in [OPTcgCardCatagory.CHARACTER, OPTcgCardCatagory.EVENT, OPTcgCardCatagory.STAGE]
+            ],
             ft.Div(id="cdb-color-filters"),
-            cls="mb-5",
-        ),
-        # Type filter chips
-        ft.Div(
-            ft.Div("Type", cls="db-panel-label"),
-            ft.Div(
-                *[
-                    ft.Button(
-                        cat.value,
-                        type="button",
-                        cls="db-filter-chip db-chip-cat",
-                        data_cat=cat.value,
-                        onclick="window._dbToggleCat(this)",
-                    )
-                    for cat in [OPTcgCardCatagory.CHARACTER, OPTcgCardCatagory.EVENT, OPTcgCardCatagory.STAGE]
-                ],
-                cls="flex flex-wrap gap-1.5",
-            ),
             ft.Div(id="cdb-category-filters"),
-            cls="mb-5",
+            cls="flex flex-wrap items-center gap-1.5 mb-3",
         ),
-        # Import
-        ft.Div(
-            ft.Div("Import", cls="db-panel-label"),
-            ft.Select(
-                *import_opts,
-                id="cdb-import-select",
-                cls="db-leader-select mb-2",
-                onchange="window._cdbImportChange(this)",
-            ),
-            ft.Button(
-                ft.I(cls="fas fa-clipboard mr-1.5 text-xs"),
-                "Paste from clipboard",
-                type="button",
-                cls="db-btn-ghost w-full flex items-center justify-center text-xs",
-                onclick="window._cdbPasteImport()",
-            ),
-            cls="mb-2",
-        ),
-        cls="db-panel db-panel-sticky db-scroll p-4",
-    )
-
-    # Center panel: card browser
-    center_panel = ft.Div(
         ft.Input(
             type="text", name="search_term", id="cdb-search",
-            placeholder="Search cards by name, type, set… (e.g. OP09 Luffy)",
+            placeholder="Search by name, type, set… (e.g. OP09 Luffy)",
             cls="db-search mb-3",
             hx_get="/api/decklist-builder/card-search",
             hx_trigger="keyup changed delay:350ms",
@@ -581,19 +616,44 @@ def deckbuilder_page(request):
                  style="color:#1e2d45;font-size:.8rem;padding:40px 0;"),
             id="cdb-search-results",
             cls="db-scroll overflow-y-auto",
-            style="max-height: calc(100vh - 220px);",
+            style="max-height: calc(100vh - 230px);",
         ),
         cls="db-panel p-4 flex flex-col",
         style="min-height: 400px;",
     )
 
-    # Right panel: deck list
-    right_panel = ft.Div(
-        # Progress ring + type stats
+    # Deck panel: leader hero + stats + deck grid + cost curve + import
+    deck_panel = ft.Div(
+        # ── Leader hero ──────────────────────────────────────────────────
+        ft.Div(
+            ft.Div(
+                id="cdb-leader-hero-bg",
+                cls="db-leader-hero-bg",
+                style=f'background-image:url("{prefill_leader_img}");' if prefill_leader_img else "",
+            ),
+            ft.Div(
+                ft.Span(
+                    prefill_leader_name or "SELECT A LEADER",
+                    id="cdb-leader-hero-name",
+                    cls="db-leader-hero-name",
+                ),
+                cls="db-leader-hero-overlay",
+            ),
+            cls=f"db-leader-hero{'  has-leader' if prefill_leader_id else ''}",
+            id="cdb-leader-hero",
+        ),
+        # ── Leader dropdown ──────────────────────────────────────────────
+        ft.Select(
+            *leader_opts,
+            id="cdb-leader-select",
+            cls="db-leader-select styled-select mb-4",
+            onchange="window._cdbLeaderChange(this)",
+        ),
+        # ── Stats: ring + type counts ────────────────────────────────────
         ft.Div(
             ft.Div(
                 NotStr(
-                    f'<svg viewBox="0 0 80 80" style="width:68px;height:68px;">'
+                    f'<svg viewBox="0 0 80 80" style="width:56px;height:56px;">'
                     f'<circle cx="40" cy="40" r="36" fill="none" stroke="#111d30" stroke-width="5"/>'
                     f'<circle id="db-ring" cx="40" cy="40" r="36" fill="none"'
                     f' stroke="#f59e0b" stroke-width="5"'
@@ -605,37 +665,37 @@ def deckbuilder_page(request):
                 ),
                 ft.Div(
                     ft.Span("0", id="db-ring-num",
-                            style="font-family:'Share Tech Mono',monospace;font-size:1.3rem;color:#f1f5f9;line-height:1;"),
+                            style="font-family:'Share Tech Mono',monospace;font-size:1.1rem;color:#f1f5f9;line-height:1;"),
                     ft.Span("/50",
-                            style="font-family:'Share Tech Mono',monospace;font-size:.65rem;color:#334155;"),
+                            style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:#334155;"),
                     style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;",
                 ),
-                style="position:relative;width:68px;height:68px;flex-shrink:0;",
+                style="position:relative;width:56px;height:56px;flex-shrink:0;",
             ),
             ft.Div(
                 *[
                     ft.Div(
                         ft.Span(cat, cls="db-panel-label mb-0"),
                         ft.Span("0", id=f"db-tc-{cat.lower()}",
-                                style="font-family:'Share Tech Mono',monospace;font-size:.9rem;color:#475569;"),
+                                style="font-family:'Share Tech Mono',monospace;font-size:.85rem;color:#475569;"),
                         cls="flex flex-col items-center",
                     )
                     for cat in ["Character", "Event", "Stage"]
                 ],
-                cls="flex gap-4 items-center",
+                cls="flex gap-3 items-center",
             ),
             cls="flex items-center gap-4 mb-4",
         ),
-        # Deck list
+        # ── Deck card grid ───────────────────────────────────────────────
         ft.Div(
             ft.P("Add cards from the browser",
                  style="color:#1e2d45;font-family:Barlow,sans-serif;font-size:.8rem;text-align:center;padding:24px 0;"),
             id="cdb-decklist-panel",
             cls="db-scroll overflow-y-auto mb-4",
-            style="max-height: calc(100vh - 440px); min-height: 120px;",
+            style="max-height: calc(100vh - 500px); min-height: 120px;",
         ),
         ft.Input(type="hidden", id="cdb-decklist-json", value="{}"),
-        # Cost curve
+        # ── Cost curve ───────────────────────────────────────────────────
         ft.Div(
             ft.Div("Cost Curve", cls="db-panel-label"),
             ft.Div(
@@ -656,6 +716,27 @@ def deckbuilder_page(request):
                 style="display:flex;margin-top:2px;",
             ),
             cls="mb-4",
+        ),
+        # ── Import ───────────────────────────────────────────────────────
+        ft.Div(
+            ft.Div("Import", cls="db-panel-label"),
+            ft.Div(
+                ft.Select(
+                    *import_opts,
+                    id="cdb-import-select",
+                    cls="db-leader-select",
+                    style="flex:1;",
+                    onchange="window._cdbImportChange(this)",
+                ),
+                ft.Button(
+                    ft.I(cls="fas fa-clipboard text-xs"),
+                    type="button",
+                    cls="db-btn-ghost flex-shrink-0",
+                    title="Paste from clipboard",
+                    onclick="window._cdbPasteImport()",
+                ),
+                cls="flex gap-2 items-center",
+            ),
         ),
         cls="db-panel db-panel-sticky db-scroll p-4",
     )
@@ -721,76 +802,21 @@ def deckbuilder_page(request):
         ft.Div(
             page_header,
             mobile_tabs,
-            # Three-panel grid
+            # Two-panel grid
             ft.Div(
-                # Left: hidden on mobile
+                # Left: search + filters
                 ft.Div(
-                    left_panel,
-                    cls="db-xl-show",
-                    style="display:none;",
-                ),
-                # Center: card browser
-                ft.Div(
-                    # Mobile: show left panel filters as collapsible
-                    ft.Details(
-                        ft.Summary(
-                            ft.I(cls="fas fa-sliders-h mr-2 text-xs"),
-                            "Filters",
-                            style="font-family:'Bebas Neue',sans-serif;letter-spacing:.1em;font-size:.85rem;color:#475569;cursor:pointer;list-style:none;display:flex;align-items:center;padding:8px 12px;background:#0d1424;border:1px solid #1a2540;border-radius:6px;margin-bottom:10px;",
-                        ),
-                        ft.Div(
-                            # Duplicate color + type chips for mobile (separate IDs)
-                            ft.Div(
-                                ft.Div("Colors", cls="db-panel-label"),
-                                ft.Div(
-                                    *[
-                                        ft.Button(
-                                            ft.Span(cls="w-2.5 h-2.5 rounded-full flex-shrink-0 mr-1",
-                                                    style=f"background:{hex_col}"),
-                                            label,
-                                            type="button",
-                                            cls=f"db-filter-chip db-chip-color db-chip-color-{key}",
-                                            data_color=val,
-                                            onclick="window._dbToggleColor(this)",
-                                        )
-                                        for label, key, hex_col, val in _COLOR_DEFS
-                                    ],
-                                    cls="flex flex-wrap gap-1.5",
-                                ),
-                                cls="mb-3",
-                            ),
-                            ft.Div(
-                                ft.Div("Type", cls="db-panel-label"),
-                                ft.Div(
-                                    *[
-                                        ft.Button(
-                                            cat.value,
-                                            type="button",
-                                            cls="db-filter-chip db-chip-cat",
-                                            data_cat=cat.value,
-                                            onclick="window._dbToggleCat(this)",
-                                        )
-                                        for cat in [OPTcgCardCatagory.CHARACTER, OPTcgCardCatagory.EVENT, OPTcgCardCatagory.STAGE]
-                                    ],
-                                    cls="flex flex-wrap gap-1.5",
-                                ),
-                                cls="mb-3",
-                            ),
-                            cls="p-3 db-panel mb-3",
-                        ),
-                        cls="xl:hidden",
-                    ),
-                    center_panel,
+                    search_panel,
                     id="db-browse-panel",
                 ),
                 # Right: deck panel (hidden on mobile, shown via tab or xl grid)
                 ft.Div(
-                    right_panel,
+                    deck_panel,
                     id="db-deck-panel",
                     cls="db-xl-show",
                     style="display:none;",
                 ),
-                cls="db-three-col",
+                cls="db-two-col",
             ),
             cls="db-page px-4 py-4 md:px-6",
         ),

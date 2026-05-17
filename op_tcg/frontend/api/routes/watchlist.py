@@ -742,10 +742,7 @@ def setup_watchlist_routes(rt):
                     ft.Img(src=c.image_url, cls="w-full h-auto block", alt=c.name),
                     ft.Div(
                         ft.Span(c.name, cls="db-card-name-strip"),
-                        *(
-                            [ft.Span(f"Cost {c.cost}", cls="db-card-cost-strip")]
-                            if c.cost and c.card_category != OPTcgCardCatagory.LEADER else []
-                        ),
+                        ft.Span(c.id, cls="db-card-cost-strip"),
                         cls="db-card-info-strip",
                     ),
                     ft.Span("", cls="db-card-count"),
