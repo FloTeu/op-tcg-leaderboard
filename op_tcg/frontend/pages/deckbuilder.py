@@ -240,15 +240,39 @@ def _styles() -> ft.Style:
     display: flex;
     align-items: flex-end;
     gap: 3px;
-    height: 36px;
+    height: 52px;
+}
+.db-cost-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-end;
+    cursor: pointer;
+    gap: 2px;
 }
 .db-cost-bar {
-    flex: 1;
-    background: rgba(245,158,11,0.55);
+    background: rgba(245,158,11,0.45);
     border-radius: 2px 2px 0 0;
     min-height: 2px;
-    transition: height 0.25s ease;
+    transition: height 0.25s ease, background 0.15s ease;
 }
+.db-cost-col:hover .db-cost-bar { background: rgba(245,158,11,0.75); }
+.db-cost-col.active .db-cost-bar {
+    background: rgba(56,189,248,0.75);
+    box-shadow: 0 0 8px rgba(56,189,248,0.3);
+}
+.db-cost-label {
+    text-align: center;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.52rem;
+    color: #1e2d45;
+    line-height: 1;
+    transition: color 0.15s;
+    user-select: none;
+}
+.db-cost-col:hover .db-cost-label { color: #475569; }
+.db-cost-col.active .db-cost-label { color: #38bdf8; }
 
 .db-tab-btn {
     flex: 1; padding: 10px 4px;
@@ -761,20 +785,16 @@ def deckbuilder_page(request):
             ft.Div("Cost Curve", cls="db-panel-label"),
             ft.Div(
                 *[
-                    ft.Div(id=f"db-bar-{i}", cls="db-cost-bar",
-                           title=f"Cost {i if i < 10 else '10+'}: 0",
-                           style="height:2px;")
+                    ft.Div(
+                        ft.Div(id=f"db-bar-{i}", cls="db-cost-bar", style="height:2px;"),
+                        ft.Span(str(i) if i < 10 else "10+", cls="db-cost-label"),
+                        id=f"db-cost-col-{i}",
+                        cls="db-cost-col",
+                        onclick=f"window._dbToggleCostFilter({i})",
+                    )
                     for i in range(11)
                 ],
                 cls="db-cost-bar-wrap",
-            ),
-            ft.Div(
-                *[
-                    ft.Span(str(i) if i < 10 else "10+",
-                            style="flex:1;text-align:center;font-family:'Share Tech Mono',monospace;font-size:.55rem;color:#1e2d45;")
-                    for i in range(11)
-                ],
-                style="display:flex;margin-top:2px;",
             ),
             cls="mb-4",
         ),

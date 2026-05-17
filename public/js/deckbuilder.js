@@ -8,6 +8,7 @@
 
   var CIRC = 2 * Math.PI * 36; // SVG ring circumference (r=36)
   var _counterFilter = null;   // null | 0 | 1000 | 2000
+  var _costFilter    = null;   // null | 0..10
 
   /* ── Hidden-input helpers ────────────────────────────────────────────── */
 
@@ -83,6 +84,7 @@
       group.forEach(function (e) {
         var id = e[0]; var d = e[1];
         if (_counterFilter !== null && (d.counter || 0) !== _counterFilter) return;
+        if (_costFilter !== null && Math.min(d.cost || 0, 10) !== _costFilter) return;
         var card = document.createElement('div');
         card.className = 'db-deck-card';
         card.dataset.cardId = id;
@@ -154,7 +156,8 @@
       var cnt = costMap[i] || 0;
       var h = cnt > 0 ? Math.max(3, Math.round((cnt / maxBar) * 34)) : 2;
       bar.style.height = h + 'px';
-      bar.title = 'Cost ' + (i === 10 ? '10+' : i) + ': ' + cnt;
+      var col = document.getElementById('db-cost-col-' + i);
+      if (col) col.title = 'Cost ' + (i === 10 ? '10+' : i) + ': ' + cnt + ' — click to filter';
     }
   }
 
@@ -314,6 +317,16 @@
       var el = document.getElementById('db-counter-' + key);
       if (el) el.classList.toggle('active', _counterFilter === map[key]);
     });
+    if (window._cdb) window._cdb.render();
+  };
+
+  window._dbToggleCostFilter = function (cost) {
+    var parsed = parseInt(cost, 10);
+    _costFilter = (_costFilter === parsed) ? null : parsed;
+    for (var i = 0; i <= 10; i++) {
+      var col = document.getElementById('db-cost-col-' + i);
+      if (col) col.classList.toggle('active', _costFilter === i);
+    }
     if (window._cdb) window._cdb.render();
   };
 
