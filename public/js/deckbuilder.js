@@ -245,6 +245,11 @@
     var opt = sel.options[sel.selectedIndex];
     var url = opt ? opt.dataset.importUrl : null;
     if (!url) return;
+    // Preserve current mobile tab across the page reload triggered by import
+    var deckPanel = document.getElementById('db-deck-panel');
+    if (deckPanel && deckPanel.style.display !== 'none') {
+      sessionStorage.setItem('db-tab', 'deck');
+    }
     window.location.href = url;
   };
 
@@ -447,6 +452,13 @@
     window._cdb.renderLeader();
     window._cdb.render();
     updateCardBadges(window._cdb);
+
+    // Restore mobile tab after import-triggered page reload
+    var savedTab = sessionStorage.getItem('db-tab');
+    if (savedTab) {
+      sessionStorage.removeItem('db-tab');
+      window._switchBuilderTab(savedTab);
+    }
   };
 
 })();
