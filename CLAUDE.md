@@ -59,3 +59,4 @@ optcg          # main CLI entrypoint
 - **No final reports:** Do not write a markdown summary at the end of a task.
 - **No re-reads:** Do not read a file you have already read in the same session.
 - **Refactor check:** When adding new code, check if nearby existing code should be refactored for consistency.
+- **UI style:** Follow the design guidelines in @.claude/ui-guidelines.md for all frontend work.
