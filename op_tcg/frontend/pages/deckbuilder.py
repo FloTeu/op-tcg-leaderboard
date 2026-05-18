@@ -510,6 +510,165 @@ def _styles() -> ft.Style:
     .db-panel-sticky { position: sticky; top: 16px; max-height: calc(100vh - 120px); overflow-y: auto; }
     .db-panel-sticky.db-scroll::-webkit-scrollbar { width: 3px; }
 }
+
+/* ── Fullscreen deck overlay ─────────────────────────────────────── */
+.db-fs-overlay {
+    position: fixed; inset: 0; z-index: 9000;
+    display: flex; flex-direction: column;
+    transform: translateY(100%);
+    transition: transform 0.44s cubic-bezier(0.22, 1, 0.36, 1);
+    overflow: hidden;
+    background: #030508;
+}
+.db-fs-overlay.open { transform: translateY(0); }
+
+.db-fs-bg {
+    position: absolute; inset: 0;
+    background-size: cover; background-position: center 20%;
+    filter: blur(28px) brightness(0.14) saturate(1.5);
+    transform: scale(1.1);
+    z-index: 0;
+    transition: background-image 0.4s ease;
+}
+.db-fs-vignette {
+    position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: radial-gradient(ellipse 130% 110% at 50% 0%, transparent 30%, rgba(3,5,8,0.92) 90%);
+}
+@keyframes db-fs-sweep {
+    from { top: -3px; opacity: 1; }
+    to   { top: 100%; opacity: 0; }
+}
+.db-fs-sweep {
+    position: absolute; left: 0; right: 0; height: 2px; z-index: 4; pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(56,189,248,0.8) 40%, rgba(245,158,11,0.6) 60%, transparent);
+    animation: db-fs-sweep 0.75s ease-out forwards;
+}
+
+.db-fs-header {
+    position: relative; z-index: 10; flex-shrink: 0;
+    display: flex; align-items: center; gap: 14px;
+    padding: 13px 20px 11px;
+    background: rgba(3,5,8,0.78);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border-bottom: 1px solid rgba(245,158,11,0.12);
+}
+.db-fs-leader-name {
+    font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.1em;
+    font-size: clamp(1rem, 2.5vw, 1.5rem);
+    color: #fef3c7; line-height: 1;
+    text-shadow: 0 0 40px rgba(245,158,11,0.3);
+    flex-shrink: 0;
+}
+.db-fs-total {
+    font-family: 'Share Tech Mono', monospace; font-size: 0.8rem;
+    flex-shrink: 0; white-space: nowrap;
+}
+.db-fs-mini-curve {
+    display: flex; align-items: flex-end; gap: 2px; height: 22px; flex-shrink: 0;
+}
+.db-fs-mini-bar {
+    width: 7px; min-height: 2px;
+    background: rgba(245,158,11,0.4);
+    border-radius: 1px 1px 0 0;
+    transition: height 0.25s ease;
+}
+.db-fs-close {
+    margin-left: auto; width: 34px; height: 34px; border-radius: 50%;
+    background: rgba(20,30,50,0.6); border: 1px solid #1a2540;
+    color: #475569; font-size: 0.9rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; flex-shrink: 0;
+}
+.db-fs-close:hover { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.4); color: #ef4444; }
+
+.db-fs-body {
+    position: relative; z-index: 5; flex: 1; overflow-y: auto;
+    padding: 16px 20px 20px;
+}
+.db-fs-section { margin-bottom: 20px; }
+.db-fs-section-hdr {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+    font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.15em; font-size: 0.6rem;
+    color: rgba(245,158,11,0.45);
+}
+.db-fs-section-hdr::after {
+    content: ''; flex: 1; height: 1px;
+    background: linear-gradient(90deg, rgba(245,158,11,0.12), transparent);
+}
+.db-fs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+    gap: 8px;
+}
+@media (min-width: 480px) { .db-fs-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); } }
+@media (min-width: 1024px) { .db-fs-grid { grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); } }
+
+.db-fs-card {
+    position: relative; border-radius: 6px; overflow: hidden;
+    border: 1.5px solid #1a2540; cursor: pointer;
+    user-select: none; -webkit-user-select: none;
+    transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1), border-color 0.15s, box-shadow 0.15s;
+    aspect-ratio: 421 / 600;
+}
+.db-fs-card:hover {
+    transform: scale(1.06) translateY(-4px);
+    border-color: rgba(239,68,68,0.5);
+    box-shadow: 0 14px 30px rgba(0,0,0,0.65), 0 0 0 1px rgba(239,68,68,0.15);
+    z-index: 2;
+}
+.db-fs-card:active { transform: scale(0.95); transition-duration: 0.06s; }
+.db-fs-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.db-fs-card-cnt {
+    position: absolute; top: 4px; right: 4px;
+    min-width: 18px; height: 18px; padding: 0 3px; border-radius: 9px;
+    background: rgba(7,11,20,0.88); border: 1.5px solid rgba(245,158,11,0.6);
+    color: #fcd34d; font-family: 'Share Tech Mono', monospace; font-size: 0.55rem;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none; z-index: 10; backdrop-filter: blur(4px);
+}
+.db-fs-card-strip {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 16px 5px 5px;
+    background: linear-gradient(transparent, rgba(4,7,16,0.95) 50%);
+    opacity: 0; transition: opacity 0.15s; pointer-events: none;
+}
+.db-fs-card:hover .db-fs-card-strip { opacity: 1; }
+.db-fs-card-strip span {
+    display: block; font-family: 'Barlow', sans-serif;
+    font-size: 0.6rem; font-weight: 600; color: #e2e8f0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.db-fs-footer {
+    position: relative; z-index: 10; flex-shrink: 0;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 10px 20px;
+    background: rgba(3,5,8,0.78);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border-top: 1px solid rgba(26,37,64,0.8);
+}
+.db-fs-footer-type {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 0 10px; border-left: 1px solid #1a2540; flex-shrink: 0;
+}
+.db-fs-footer-type-val {
+    font-family: 'Share Tech Mono', monospace; font-size: 0.75rem; color: #475569; line-height: 1;
+}
+.db-fs-footer-type-label {
+    font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.08em;
+    font-size: 0.5rem; color: #1e2d45; margin-top: 2px;
+}
+
+/* Expand button */
+.db-expand-btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px; border-radius: 5px;
+    background: transparent; border: 1px solid #1a2540;
+    color: #334155; font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 0.08em; font-size: 0.62rem;
+    cursor: pointer; transition: all 0.12s; white-space: nowrap;
+}
+.db-expand-btn:hover { border-color: #2d3f5a; color: #64748b; background: #080e1c; }
 """)
 
 
@@ -809,6 +968,19 @@ def deckbuilder_page(request):
             ),
             cls="mb-4",
         ),
+        # ── Deck label + expand button ───────────────────────────────────
+        ft.Div(
+            ft.Span("MY DECK",
+                    style="font-family:'Bebas Neue',sans-serif;letter-spacing:.12em;font-size:.6rem;color:#334155;"),
+            ft.Button(
+                ft.I(cls="fas fa-expand-alt text-xs mr-1"),
+                "FULL VIEW",
+                type="button",
+                cls="db-expand-btn",
+                onclick="window._dbOpenFullscreen()",
+            ),
+            cls="flex items-center justify-between mb-2",
+        ),
         # ── Deck card grid ───────────────────────────────────────────────
         ft.Div(
             ft.P("Add cards from the browser",
@@ -938,6 +1110,55 @@ def deckbuilder_page(request):
                 cls="db-two-col",
             ),
             cls="db-page px-4 py-4 md:px-6",
+        ),
+        # ── Fullscreen deck overlay ──────────────────────────────────────
+        ft.Div(
+            ft.Div(id="db-fs-bg", cls="db-fs-bg"),
+            ft.Div(cls="db-fs-vignette"),
+            ft.Div(
+                ft.Span("SELECT A LEADER", id="db-fs-leader-name", cls="db-fs-leader-name"),
+                ft.Span(id="db-fs-total",
+                        style="font-family:'Share Tech Mono',monospace;font-size:.8rem;"),
+                ft.Div(
+                    *[ft.Div(id=f"db-fs-bar-{i}", cls="db-fs-mini-bar", style="height:2px;")
+                      for i in range(11)],
+                    cls="db-fs-mini-curve",
+                ),
+                ft.Button("✕", type="button", cls="db-fs-close",
+                          onclick="window._dbCloseFullscreen()"),
+                cls="db-fs-header",
+            ),
+            ft.Div(id="db-fs-body", cls="db-fs-body db-scroll"),
+            ft.Div(
+                *[
+                    ft.Button(
+                        ft.Span("0", id=f"db-fs-cn-{key}", cls="db-counter-chip-val"),
+                        ft.Span(label, cls="db-counter-chip-label"),
+                        type="button",
+                        cls="db-counter-chip",
+                        id=f"db-fs-counter-{key}",
+                        onclick=f"window._dbToggleCounterFilter({val})",
+                        title=title,
+                    )
+                    for key, label, val, title in [
+                        ("none", "No Counter", "null", "No counter — click to filter"),
+                        ("1k",   "+1000",      "1000", "+1000 counter — click to filter"),
+                        ("2k",   "+2000",      "2000", "+2000 counter — click to filter"),
+                    ]
+                ],
+                ft.Div(style="flex:1;"),
+                *[
+                    ft.Div(
+                        ft.Span("0", id=f"db-fs-tc-{cat.lower()}", cls="db-fs-footer-type-val"),
+                        ft.Span(cat, cls="db-fs-footer-type-label"),
+                        cls="db-fs-footer-type",
+                    )
+                    for cat in ["Character", "Event", "Stage"]
+                ],
+                cls="db-fs-footer",
+            ),
+            id="db-fs-overlay",
+            cls="db-fs-overlay",
         ),
         _page_script(prefill_data),
         cls="db-page",

@@ -321,6 +321,8 @@
     Object.keys(map).forEach(function (key) {
       var el = document.getElementById('db-counter-' + key);
       if (el) el.classList.toggle('active', _counterFilter === map[key]);
+      var fsEl = document.getElementById('db-fs-counter-' + key);
+      if (fsEl) fsEl.classList.toggle('active', _counterFilter === map[key]);
     });
     if (window._cdb) window._cdb.render();
   };
@@ -334,6 +336,129 @@
     }
     if (window._cdb) window._cdb.render();
   };
+
+  /* ── Fullscreen deck view ────────────────────────────────────────────── */
+
+  function renderFsGrid(cdb) {
+    var body = document.getElementById('db-fs-body');
+    if (!body) return;
+    var cards = cdb.cards;
+    var groups = { Character: [], Event: [], Stage: [] };
+    Object.entries(cards).forEach(function (e) {
+      var id = e[0]; var d = e[1];
+      if (d.is_leader) return;
+      var t = d.type || 'Character';
+      if (groups[t]) groups[t].push([id, d]); else groups['Character'].push([id, d]);
+    });
+    body.innerHTML = '';
+    var anyRendered = false;
+    ['Character', 'Event', 'Stage'].forEach(function (type) {
+      var group = groups[type] || [];
+      if (!group.length) return;
+      group.sort(function (a, b) { return (a[1].cost || 0) - (b[1].cost || 0); });
+      var grid = document.createElement('div');
+      grid.className = 'db-fs-grid';
+      var rendered = 0;
+      group.forEach(function (e) {
+        var id = e[0]; var d = e[1];
+        if (_counterFilter !== null && (d.counter || 0) !== _counterFilter) return;
+        if (_costFilter !== null && Math.min(d.cost || 0, 10) !== _costFilter) return;
+        var card = document.createElement('div');
+        card.className = 'db-fs-card';
+        card.dataset.cardId = id;
+        card.innerHTML =
+          '<img src="' + (d.img || '') + '" alt="">' +
+          '<span class="db-fs-card-cnt">' + d.count + '</span>' +
+          '<div class="db-fs-card-strip"><span>' + (d.name || id) + '</span></div>';
+        card.addEventListener('click', function () { window._cdb.removeCard(this.dataset.cardId); });
+        grid.appendChild(card);
+        rendered++;
+        anyRendered = true;
+      });
+      if (!rendered) return;
+      var cnt = group.reduce(function (s, e) { return s + e[1].count; }, 0);
+      var sec = document.createElement('div');
+      sec.className = 'db-fs-section';
+      var hdr = document.createElement('div');
+      hdr.className = 'db-fs-section-hdr';
+      hdr.innerHTML = type.toUpperCase() + 'S <span style="font-family:\'Share Tech Mono\',monospace;font-size:.55rem;color:#475569;">' + cnt + '</span>';
+      sec.appendChild(hdr);
+      sec.appendChild(grid);
+      body.appendChild(sec);
+    });
+    if (!anyRendered) {
+      body.innerHTML = '<p style="color:#1e2d45;font-family:Barlow,sans-serif;font-size:.8rem;text-align:center;padding:60px 0;">No cards match the current filter.</p>';
+    }
+  }
+
+  function updateFsStats(cdb) {
+    var bg = document.getElementById('db-fs-bg');
+    var nameEl = document.getElementById('db-fs-leader-name');
+    if (bg) bg.style.backgroundImage = cdb.leaderImg ? 'url(' + cdb.leaderImg + ')' : '';
+    if (nameEl) nameEl.textContent = cdb.leaderName || cdb.leaderId || 'SELECT A LEADER';
+
+    var total = 0;
+    var typeCounts = { Character: 0, Event: 0, Stage: 0 };
+    var costMap = {};
+    var counterCounts = { 0: 0, 1000: 0, 2000: 0 };
+    Object.values(cdb.cards).forEach(function (c) {
+      if (c.is_leader) return;
+      total += c.count;
+      costMap[Math.min(c.cost || 0, 10)] = (costMap[Math.min(c.cost || 0, 10)] || 0) + c.count;
+      if (typeCounts[c.type] !== undefined) typeCounts[c.type] += c.count;
+      var cv = c.counter || 0;
+      if (cv === 1000) counterCounts[1000] += c.count;
+      else if (cv === 2000) counterCounts[2000] += c.count;
+      else counterCounts[0] += c.count;
+    });
+
+    var totalEl = document.getElementById('db-fs-total');
+    if (totalEl) {
+      var col = total === 50 ? '#10b981' : total > 50 ? '#ef4444' : '#f59e0b';
+      totalEl.innerHTML = '<span style="color:' + col + '">' + total + '</span><span style="color:#1e2d45;font-size:.65rem;">/50</span>';
+    }
+
+    ['Character', 'Event', 'Stage'].forEach(function (t) {
+      var el = document.getElementById('db-fs-tc-' + t.toLowerCase());
+      if (el) el.textContent = typeCounts[t] || 0;
+    });
+
+    var maxBar = Math.max.apply(null, Object.values(costMap).concat([1]));
+    for (var i = 0; i <= 10; i++) {
+      var bar = document.getElementById('db-fs-bar-' + i);
+      if (bar) bar.style.height = (costMap[i] ? Math.max(2, Math.round((costMap[i] / maxBar) * 20)) : 2) + 'px';
+    }
+
+    var cmap = { 'none': 0, '1k': 1000, '2k': 2000 };
+    Object.keys(cmap).forEach(function (key) {
+      var valEl = document.getElementById('db-fs-cn-' + key);
+      if (valEl) valEl.textContent = counterCounts[cmap[key]];
+      var chip = document.getElementById('db-fs-counter-' + key);
+      if (chip) chip.classList.toggle('active', _counterFilter === cmap[key]);
+    });
+  }
+
+  window._dbOpenFullscreen = function () {
+    var overlay = document.getElementById('db-fs-overlay');
+    if (!overlay) return;
+    if (window._cdb) { updateFsStats(window._cdb); renderFsGrid(window._cdb); }
+    overlay.classList.add('open');
+    var sweep = document.createElement('div');
+    sweep.className = 'db-fs-sweep';
+    overlay.appendChild(sweep);
+    setTimeout(function () { if (sweep.parentNode) sweep.parentNode.removeChild(sweep); }, 800);
+    document.body.style.overflow = 'hidden';
+  };
+
+  window._dbCloseFullscreen = function () {
+    var overlay = document.getElementById('db-fs-overlay');
+    if (overlay) overlay.classList.remove('open');
+    document.body.style.overflow = '';
+  };
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') window._dbCloseFullscreen();
+  });
 
   /* ── Main entry point — called by the inline init script ─────────────── */
 
@@ -413,6 +538,11 @@
         updateStats(this);
         updateCounterStats(this);
         updateCardBadges(this);
+        var fsOverlay = document.getElementById('db-fs-overlay');
+        if (fsOverlay && fsOverlay.classList.contains('open')) {
+          renderFsGrid(this);
+          updateFsStats(this);
+        }
       },
 
       save: function () {
