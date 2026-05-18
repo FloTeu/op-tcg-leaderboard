@@ -26,7 +26,7 @@ def _styles() -> ft.Style:
 .db-mono    { font-family: 'Share Tech Mono', monospace; }
 .db-body    { font-family: 'Barlow', sans-serif; }
 
-.db-page { background: #070b14; font-family: 'Barlow', sans-serif; }
+.db-page { font-family: 'Barlow', sans-serif; }
 
 .db-panel {
     background: #0d1424;
@@ -694,7 +694,7 @@ def deckbuilder_page(request):
             ft.H1("Access Denied", cls="db-display text-3xl text-white mb-4"),
             ft.P("Please log in to use the Deck Builder.", cls="text-gray-400 db-body"),
             ft.A("Log in", href="/login", cls="inline-block mt-4 db-btn-primary"),
-            cls="db-page db-body min-h-screen flex flex-col items-center justify-center gap-2"
+            cls="db-page bg-deep-navy db-body min-h-screen flex flex-col items-center justify-center gap-2"
         )
 
     user_id = user.get('sub')
@@ -1109,7 +1109,7 @@ def deckbuilder_page(request):
                 ),
                 cls="db-two-col",
             ),
-            cls="db-page px-4 py-4 md:px-6",
+            cls="db-page bg-deep-navy px-4 py-4 md:px-6",
         ),
         # ── Fullscreen deck overlay ──────────────────────────────────────
         ft.Div(
@@ -1161,5 +1161,5 @@ def deckbuilder_page(request):
             cls="db-fs-overlay",
         ),
         _page_script(prefill_data),
-        cls="db-page",
+        cls="db-page bg-deep-navy",
     )

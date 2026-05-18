@@ -110,7 +110,7 @@ Placeholder: `color: #1e2d45`
 
 ## Layout
 
-- Page wrapper: `background: #070b14; font-family: 'Barlow', sans-serif`
+- Page wrapper: use `bg-deep-navy` Tailwind utility (defined globally in `main.py`, maps to `#070b14`). Also set `font-family: 'Barlow', sans-serif` via a page-scoped CSS class (e.g. `.wl-page`, `.db-page`) — do NOT inline the background color directly.
 - Mobile-first. Stack vertically on mobile, side-by-side at `xl` (1280px+)
 - Spacing via CSS Grid/Flexbox `gap`, not margin stacking
 - Sticky sidebars: `position: sticky; top: 16px; max-height: calc(100vh - Npx); overflow-y: auto`

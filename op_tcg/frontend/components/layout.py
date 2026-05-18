@@ -93,7 +93,7 @@ def layout(content, filter_component=None, current_path="/", persist_query=None,
                 user_control,
                 cls="flex justify-between items-center h-16 px-4"
             ),
-            cls="fixed top-0 left-0 right-0 bg-gray-900 z-40 shadow-md",
+            cls="fixed top-0 left-0 right-0 bg-deep-navy z-40 shadow-md",
             id="top-bar",
             style="display: block;"  # Start with top bar visible (mobile state)
         ),
@@ -111,7 +111,7 @@ def layout(content, filter_component=None, current_path="/", persist_query=None,
                 ),
                 cls="border-t border-gray-800 mt-16 py-8 px-4"
             ),
-            cls="p-4 min-h-screen bg-gray-900 transition-all duration-300 ease-in-out mt-16 relative",
+            cls="p-4 min-h-screen bg-deep-navy transition-all duration-300 ease-in-out mt-16 relative",
             id="main-content",
             style="margin-left: 0;"  # Start with no left margin (mobile state)
         ),
@@ -202,7 +202,7 @@ def layout(content, filter_component=None, current_path="/", persist_query=None,
                 bindFilterSync();
             }
         """),
-        cls="relative bg-gray-900"
+        cls="relative bg-deep-navy"
     )
 
 

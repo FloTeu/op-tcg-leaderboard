@@ -96,7 +96,7 @@ app, rt = fast_app(
         ft.Meta(name="twitter:card", content="summary_large_image"),
         ft.Meta(name="twitter:site", content="@op_leaderboard"),
         ft.Style(':root { --pico-font-size: 100%; }'),
-        ft.Style('body { background-color: rgb(17, 24, 39); }'),
+        ft.Style('body { background-color: #070b14; } .bg-deep-navy { background-color: #070b14; }'),
         ft.Link(
             href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css",
             rel="stylesheet"

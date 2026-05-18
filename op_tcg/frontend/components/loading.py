@@ -50,7 +50,7 @@ def create_loading_overlay(id: str = None, size: str = "w-8 h-8"):
     return create_loading_spinner(
         id=id,
         size=size,
-        container_classes="absolute inset-0 bg-gray-900/50",
+        container_classes="absolute inset-0 bg-deep-navy/50",
         is_htmx_indicator=True
     ) 
 

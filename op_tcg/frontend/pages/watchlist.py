@@ -13,7 +13,7 @@ def _wl_styles() -> ft.Style:
     return ft.Style("""
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap');
 
-.wl-page { background: #070b14; font-family: 'Barlow', sans-serif; min-height: 100vh; }
+.wl-page { font-family: 'Barlow', sans-serif; min-height: 100vh; }
 .wl-panel { background: #0d1424; border: 1px solid #1a2540; border-radius: 12px; overflow: hidden; }
 .wl-sep { border-top: 1px solid #1a2540; }
 
@@ -555,7 +555,7 @@ def watchlist_page(request):
                 ft.A("LOG IN", href="/login", cls="wl-btn-primary mt-4 inline-flex"),
                 cls="flex flex-col items-center justify-center min-h-screen text-center"
             ),
-            cls="wl-page"
+            cls="wl-page bg-deep-navy"
         )
 
     user_id = user.get('sub')
@@ -590,7 +590,7 @@ def watchlist_page(request):
                 _decklist_watchlist_section(user_id, request),
                 cls="container mx-auto px-4 py-8"
             ),
-            cls="wl-page"
+            cls="wl-page bg-deep-navy"
         )
 
     watchlist = get_watchlist(user_id)
@@ -613,7 +613,7 @@ def watchlist_page(request):
                 ),
                 cls="container mx-auto px-4 py-8"
             ),
-            cls="wl-page"
+            cls="wl-page bg-deep-navy"
         )
 
     card_lookup = get_card_lookup_by_id_and_aa()
@@ -1164,5 +1164,5 @@ def watchlist_page(request):
             content,
             cls="container mx-auto px-4 py-8"
         ),
-        cls="wl-page"
+        cls="wl-page bg-deep-navy"
     )
