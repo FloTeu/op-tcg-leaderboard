@@ -88,7 +88,7 @@
         var card = document.createElement('div');
         card.className = 'db-deck-card';
         card.dataset.cardId = id;
-        card.title = (d.name || id) + ' — click to remove';
+        card.title = (d.name || id) + ' — click to remove · ⌘/Ctrl+click to add';
         card.innerHTML =
           '<img src="' + (d.img || '') + '" style="width:100%;height:auto;display:block;" alt="">' +
           '<span class="db-deck-card-count">' + d.count + '</span>' +
@@ -97,7 +97,15 @@
               (d.name || id) +
             '</span>' +
           '</div>';
-        card.addEventListener('click', function () { window._cdb.removeCard(this.dataset.cardId); });
+        card.addEventListener('click', function (e) {
+          var cid = this.dataset.cardId;
+          if (e.metaKey || e.ctrlKey) {
+            var d = window._cdb.cards[cid];
+            if (d) window._cdb.addCard(cid, d.name, d.img, d.cost, d.type, d.counter);
+          } else {
+            window._cdb.removeCard(cid);
+          }
+        });
         grid.appendChild(card);
         rendered++;
       });
@@ -366,11 +374,20 @@
         var card = document.createElement('div');
         card.className = 'db-fs-card';
         card.dataset.cardId = id;
+        card.title = (d.name || id) + ' — click to remove · ⌘/Ctrl+click to add';
         card.innerHTML =
           '<img src="' + (d.img || '') + '" alt="">' +
           '<span class="db-fs-card-cnt">' + d.count + '</span>' +
           '<div class="db-fs-card-strip"><span>' + (d.name || id) + '</span></div>';
-        card.addEventListener('click', function () { window._cdb.removeCard(this.dataset.cardId); });
+        card.addEventListener('click', function (e) {
+          var cid = this.dataset.cardId;
+          if (e.metaKey || e.ctrlKey) {
+            var d = window._cdb.cards[cid];
+            if (d) window._cdb.addCard(cid, d.name, d.img, d.cost, d.type, d.counter);
+          } else {
+            window._cdb.removeCard(cid);
+          }
+        });
         grid.appendChild(card);
         rendered++;
         anyRendered = true;
