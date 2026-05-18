@@ -629,7 +629,7 @@ def setup_watchlist_routes(rt):
                     ft.A(
                         ft.I(cls="fas fa-external-link-alt mr-1 text-xs"),
                         "Full view",
-                        href=f"/leader?lid={leader_id}&modal=decklist&tournament_id={tournament_id}&player_id={player_id}",
+                        href=f"/leader?lid={leader_id}&meta_format={selected.meta_format}&modal=decklist&tournament_id={tournament_id}&player_id={player_id}",
                         style="font-size:.75rem;color:#38bdf8;transition:color .15s;display:inline-flex;align-items:center;",
                     ),
                     cls="flex items-center"
