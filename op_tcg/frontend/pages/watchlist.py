@@ -11,8 +11,6 @@ from op_tcg.backend.models.cards import CardCurrency
 
 def _wl_styles() -> ft.Style:
     return ft.Style("""
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap');
-
 .wl-page { font-family: 'Barlow', sans-serif; min-height: 100vh; }
 .wl-panel { background: #0d1424; border: 1px solid #1a2540; border-radius: 12px; overflow: hidden; }
 .wl-sep { border-top: 1px solid #1a2540; }

@@ -96,6 +96,9 @@ app, rt = fast_app(
         ft.Meta(name="twitter:card", content="summary_large_image"),
         ft.Meta(name="twitter:site", content="@op_leaderboard"),
         ft.Style(':root { --pico-font-size: 100%; }'),
+        ft.Link(rel="preconnect", href="https://fonts.googleapis.com"),
+        ft.Link(rel="preconnect", href="https://fonts.gstatic.com", crossorigin=""),
+        ft.Link(rel="stylesheet", href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap"),
         ft.Style('body { background-color: #070b14; } .bg-deep-navy { background-color: #070b14; }'),
         ft.Link(
             href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css",

@@ -52,7 +52,7 @@ def layout(content, filter_component=None, current_path="/", persist_query=None,
     filter_section = None
     if filter_component:
         filter_section = ft.Div(
-            ft.H3("Filters", cls="px-4 py-2 text-sm font-semibold text-gray-400 uppercase"),
+            ft.H3("Filters", style="font-family:'Bebas Neue',sans-serif;color:#475569;letter-spacing:.12em;font-size:.72rem;padding:6px 14px 4px;"),
             filter_component,
             cls="mt-6"
         )
@@ -81,14 +81,16 @@ def layout(content, filter_component=None, current_path="/", persist_query=None,
             ft.Div(
                 ft.Button(
                     ft.Div(
-                        ft.Div(cls="w-6 h-0.5 bg-white mb-1.5 transition-all duration-300"),
-                        ft.Div(cls="w-6 h-0.5 bg-white mb-1.5 transition-all duration-300"),
-                        ft.Div(cls="w-6 h-0.5 bg-white transition-all duration-300"),
-                        cls="flex flex-col justify-center items-center"
+                        ft.Div(style="width:20px;height:2px;background:#94a3b8;margin-bottom:5px;border-radius:1px;"),
+                        ft.Div(style="width:20px;height:2px;background:#94a3b8;margin-bottom:5px;border-radius:1px;"),
+                        ft.Div(style="width:20px;height:2px;background:#94a3b8;border-radius:1px;"),
+                        style="display:flex;flex-direction:column;justify-content:center;align-items:center;",
                     ),
-                    cls="text-white hover:bg-gray-700 z-50 bg-gray-800 rounded-md p-2",
+                    style="background:#1a2540;border:none;border-radius:6px;padding:8px;cursor:pointer;transition:background .15s;",
+                    onmouseover="this.style.background='#2d3f5a'",
+                    onmouseout="this.style.background='#1a2540'",
                     onclick="toggleSidebar()",
-                    id="burger-menu"
+                    id="burger-menu",
                 ),
                 user_control,
                 cls="flex justify-between items-center h-16 px-4"
@@ -103,13 +105,13 @@ def layout(content, filter_component=None, current_path="/", persist_query=None,
             content,
             ft.Footer(
                 ft.Div(
-                    ft.A("About", href="/about", cls="text-gray-500 hover:text-gray-300 text-sm transition-colors"),
-                    ft.A("Bug Report", href="/bug-report", cls="text-gray-500 hover:text-gray-300 text-sm transition-colors"),
-                    ft.A("Privacy Policy", href="/privacy", cls="text-gray-500 hover:text-gray-300 text-sm transition-colors"),
-                    ft.Span("© 2026 OP TCG Leaderboard", cls="text-gray-600 text-sm"),
+                    ft.A("About", href="/about", style="color:#475569;font-size:.875rem;transition:color .15s;font-family:'Barlow',sans-serif;", onmouseover="this.style.color='#94a3b8'", onmouseout="this.style.color='#475569'"),
+                    ft.A("Bug Report", href="/bug-report", style="color:#475569;font-size:.875rem;transition:color .15s;font-family:'Barlow',sans-serif;", onmouseover="this.style.color='#94a3b8'", onmouseout="this.style.color='#475569'"),
+                    ft.A("Privacy Policy", href="/privacy", style="color:#475569;font-size:.875rem;transition:color .15s;font-family:'Barlow',sans-serif;", onmouseover="this.style.color='#94a3b8'", onmouseout="this.style.color='#475569'"),
+                    ft.Span("© 2026 OP TCG Leaderboard", style="color:#334155;font-size:.875rem;font-family:'Barlow',sans-serif;"),
                     cls="flex flex-wrap items-center gap-6 justify-center"
                 ),
-                cls="border-t border-gray-800 mt-16 py-8 px-4"
+                style="border-top:1px solid #1a2540;margin-top:64px;padding:32px 16px;",
             ),
             cls="p-4 min-h-screen bg-deep-navy transition-all duration-300 ease-in-out mt-16 relative",
             id="main-content",
@@ -214,34 +216,25 @@ def get_user_control_view(user) -> Any:
         ft.Button(
             ft.Img(src=user_img, cls="w-8 h-8 rounded-full") if user_img else \
                 ft.Div(user_name[0].upper(),
-                       cls="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium"),
+                       style="width:32px;height:32px;border-radius:50%;background:rgba(245,158,11,.2);border:1px solid rgba(245,158,11,.4);display:flex;align-items:center;justify-content:center;color:#f59e0b;font-family:'Barlow',sans-serif;font-weight:600;"),
             id="user-menu-button",
-            onclick="document.getElementById('user-dropdown').classList.toggle('hidden')",
-            cls="flex text-sm bg-gray-800 rounded-full focus:ring-4 focus:ring-gray-600",
+            onclick="var d=document.getElementById('user-dropdown');d.style.display=d.style.display==='block'?'none':'block';",
+            style="display:flex;background:transparent;border:none;cursor:pointer;border-radius:50%;padding:0;",
             type="button"
         ),
         ft.Div(
             ft.Div(
-                ft.Div(user_name, cls="px-4 py-3 text-sm text-white"),
-                ft.Div(user.get('email', ''), cls="px-4 pb-3 text-sm font-medium text-gray-400 truncate"),
-                cls="border-b border-gray-600"
+                ft.Div(user_name, style="padding:12px 16px 4px;font-size:.875rem;color:#f1f5f9;font-family:'Barlow',sans-serif;font-weight:600;"),
+                ft.Div(user.get('email', ''), style="padding:0 16px 12px;font-size:.75rem;color:#475569;font-family:'Barlow',sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"),
+                style="border-bottom:1px solid #1a2540;"
             ),
             ft.Ul(
-                ft.Li(
-                    ft.A("Watchlist", href="/watchlist",
-                         cls="block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white")
-                ),
-                ft.Li(
-                    ft.A("Settings", href="/settings",
-                         cls="block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white")
-                ),
-                ft.Li(
-                    ft.A("Logout", href="/logout",
-                         cls="block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white")
-                ),
-                cls="py-1"
+                ft.Li(ft.A("Watchlist", href="/watchlist", style="display:block;padding:8px 16px;font-size:.875rem;color:#94a3b8;font-family:'Barlow',sans-serif;transition:background .12s,color .12s;", onmouseover="this.style.background='rgba(245,158,11,.08)';this.style.color='#f1f5f9'", onmouseout="this.style.background='';this.style.color='#94a3b8'")),
+                ft.Li(ft.A("Settings", href="/settings", style="display:block;padding:8px 16px;font-size:.875rem;color:#94a3b8;font-family:'Barlow',sans-serif;transition:background .12s,color .12s;", onmouseover="this.style.background='rgba(245,158,11,.08)';this.style.color='#f1f5f9'", onmouseout="this.style.background='';this.style.color='#94a3b8'")),
+                ft.Li(ft.A("Logout", href="/logout", style="display:block;padding:8px 16px;font-size:.875rem;color:#94a3b8;font-family:'Barlow',sans-serif;transition:background .12s,color .12s;", onmouseover="this.style.background='rgba(239,68,68,.08)';this.style.color='#ef4444'", onmouseout="this.style.background='';this.style.color='#94a3b8'")),
+                style="padding:6px 0;list-style:none;margin:0;"
             ),
-            cls="z-50 hidden absolute right-0 mt-2 w-48 text-base list-none bg-gray-700 divide-y divide-gray-600 rounded shadow-lg",
+            style="z-index:50;display:none;position:absolute;right:0;margin-top:8px;width:200px;background:#0d1424;border:1px solid #1a2540;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.5);overflow:hidden;",
             id="user-dropdown"
         ),
         # Click outside to close (simple implementation)
@@ -250,8 +243,8 @@ def get_user_control_view(user) -> Any:
                     const dropdown = document.getElementById('user-dropdown');
                     const button = document.getElementById('user-menu-button');
                     // Check if click is outside dropdown AND outside button
-                    if (dropdown && button && !dropdown.contains(e.target) && !button.contains(e.target) && !dropdown.classList.contains('hidden')) {
-                        dropdown.classList.add('hidden');
+                    if (dropdown && button && !dropdown.contains(e.target) && !button.contains(e.target) && dropdown.style.display === 'block') {
+                        dropdown.style.display = 'none';
                     }
                 });
             """),

@@ -20,8 +20,6 @@ _COLOR_DEFS = [
 
 def _styles() -> ft.Style:
     return ft.Style("""
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap');
-
 .db-display { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.06em; }
 .db-mono    { font-family: 'Share Tech Mono', monospace; }
 .db-body    { font-family: 'Barlow', sans-serif; }
