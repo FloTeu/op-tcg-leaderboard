@@ -135,8 +135,8 @@ def create_leader_win_rate_radar_chart(container_id: str, data: List[dict[str, A
             cls="h-full w-full"  # Use full height and width
         ),
         _create_chart_script('createRadarChart', container_id, config),
-        cls="radar-chart-container bg-gray-800 rounded-lg p-4 shadow-lg",
-        style="height: 300px; width: 100%;"  # Explicit height and width
+        cls="radar-chart-container w-full",
+        style="height: 300px;"
     )
 
 def create_bar_chart(container_id: str, data: List[dict[str, Any]], 
