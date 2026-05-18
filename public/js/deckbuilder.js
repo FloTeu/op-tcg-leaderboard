@@ -374,18 +374,27 @@
         var card = document.createElement('div');
         card.className = 'db-fs-card';
         card.dataset.cardId = id;
-        card.title = (d.name || id) + ' — click to remove · ⌘/Ctrl+click to add';
+        card.title = (d.name || id) + ' — click to view card details';
         card.innerHTML =
           '<img src="' + (d.img || '') + '" alt="">' +
           '<span class="db-fs-card-cnt">' + d.count + '</span>' +
           '<div class="db-fs-card-strip"><span>' + (d.name || id) + '</span></div>';
-        card.addEventListener('click', function (e) {
+        card.addEventListener('click', function () {
           var cid = this.dataset.cardId;
-          if (e.metaKey || e.ctrlKey) {
-            var d = window._cdb.cards[cid];
-            if (d) window._cdb.addCard(cid, d.name, d.img, d.cost, d.type, d.counter);
+          var urlParams = new URLSearchParams(window.location.search);
+          var metaFormat = urlParams.get('meta_format') || 'latest';
+          var currency = urlParams.get('currency') || 'eur';
+          var url = '/api/card-modal?card_id=' + encodeURIComponent(cid) +
+                    '&meta_format=' + encodeURIComponent(metaFormat) +
+                    '&currency=' + encodeURIComponent(currency);
+          if (window.htmx) {
+            htmx.ajax('GET', url, { target: 'body', swap: 'beforeend' });
           } else {
-            window._cdb.removeCard(cid);
+            fetch(url).then(function (r) { return r.text(); }).then(function (html) {
+              var div = document.createElement('div');
+              div.innerHTML = html;
+              if (div.firstElementChild) document.body.appendChild(div.firstElementChild);
+            });
           }
         });
         grid.appendChild(card);

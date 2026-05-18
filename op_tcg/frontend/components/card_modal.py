@@ -589,7 +589,8 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 cls="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 relative",
                 onclick="event.stopPropagation();"
             ),
-            cls="modal-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 overflow-y-auto py-4",
+            cls="modal-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center overflow-y-auto py-4",
+            style="z-index: 10000;",
             onclick="window.closeCardModal();",
             data_card_id=card.id
         ),
