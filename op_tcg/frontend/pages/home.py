@@ -8,6 +8,139 @@ from op_tcg.frontend.components.loading import create_loading_overlay, create_lo
 from op_tcg.frontend.components.layout import create_mobile_filter_button
 
 
+def _styles() -> ft.Style:
+    return ft.Style("""
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap');
+
+.hp-page { font-family: 'Barlow', sans-serif; }
+
+/* Prevent image cell from overflowing its column */
+.leaderboard-image-cell { max-width: 100% !important; width: 100% !important; }
+
+/* Tooltip anchored to the right (for columns near right edge) */
+.tooltip.hp-tooltip-right .tooltip-text {
+    right: 0;
+    left: auto;
+    transform: none;
+    white-space: normal;
+    word-wrap: break-word;
+    width: 260px;
+}
+.tooltip.hp-tooltip-right .tooltip-text::after {
+    left: auto;
+    right: 24px;
+    margin-left: 0;
+}
+
+.hp-panel {
+    background: #0d1424;
+    border: 1px solid #1a2540;
+    border-radius: 12px;
+}
+
+.hp-section-label {
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 0.12em;
+    color: #334155;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: block;
+}
+
+.hp-select {
+    width: 100%;
+    background: #080e1c;
+    color: #f1f5f9;
+    border: 1px solid #1a2540;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: 'Barlow', sans-serif;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.hp-select:focus { border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56,189,248,0.08); }
+
+/* Table */
+.hp-th {
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 0.1em;
+    font-size: 0.9rem;
+    color: #475569;
+    background: #0d1424;
+    padding: 8px 10px;
+    border-bottom: 1px solid #1a2540;
+    text-align: left;
+}
+.hp-th-active { color: #f1f5f9; }
+.hp-th-sort { cursor: pointer; transition: color 0.12s; }
+.hp-th-sort:hover { color: #94a3b8; }
+
+.hp-tr { border-bottom: 1px solid #1a2540; transition: background 0.1s; }
+.hp-tr:hover { background: rgba(56,189,248,0.04); }
+
+.hp-td {
+    font-family: 'Barlow', sans-serif;
+    font-size: 1rem;
+    color: #94a3b8;
+    padding: 6px 10px;
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hp-td-mono {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.9rem;
+    color: #94a3b8;
+    padding: 6px 10px;
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hp-leader-link {
+    font-family: 'Barlow', sans-serif;
+    font-weight: 600;
+    font-size: 1rem;
+    color: #38bdf8;
+    text-decoration: none;
+    transition: color 0.12s;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.hp-leader-link:hover { color: #7dd3fc; }
+
+/* Slider overrides */
+.slider-values {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.85rem;
+    color: #38bdf8;
+}
+
+/* Notification animations */
+.no-match-data-notification,
+.proxy-data-notification {
+    animation: hp-fade-in 0.4s ease both;
+}
+@keyframes hp-fade-in {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.no-match-data-notification {
+    box-shadow: 0 4px 20px rgba(245,158,11,0.12);
+}
+.proxy-data-notification {
+    box-shadow: 0 4px 20px rgba(245,158,11,0.15);
+}
+""")
+
+
 def _sort_header(label, column: LeaderboardSortBy, sort_by: LeaderboardSortBy, ascending: bool, hx_include: str, extra_content=None):
     """Render a clickable sort header that triggers an HTMX leaderboard refresh."""
     is_active = sort_by == column
@@ -18,9 +151,7 @@ def _sort_header(label, column: LeaderboardSortBy, sort_by: LeaderboardSortBy, a
         icon = "fa-sort opacity-50"
         new_ascending = False
     hx_vals = f'{{"sort_by": "{column}", "ascending": "{str(new_ascending).lower()}"}}'
-    cls = "flex items-center gap-1 cursor-pointer transition-colors " + (
-        "text-white" if is_active else "text-gray-400 hover:text-white"
-    )
+    cls = "flex items-center gap-1 hp-th-sort " + ("hp-th-active" if is_active else "")
     children = (extra_content or ft.Span(label), ft.I(cls=f"fas {icon} ml-1"))
     return ft.Div(
         *children,
@@ -37,170 +168,102 @@ def _sort_header(label, column: LeaderboardSortBy, sort_by: LeaderboardSortBy, a
 HX_INCLUDE = "[name='meta_format'],[name='region'],[name='sort_by'],[name='release_meta_formats'],[name='min_matches'],[name='max_matches'],[name='min_price'],[name='max_price']"
 FILTER_HX_ATTRS = {
     "hx_get": "/api/leaderboard",
-    "hx_trigger": "change", 
+    "hx_trigger": "change",
     "hx_target": "#leaderboard-table",
-    "hx_include":HX_INCLUDE,
+    "hx_include": HX_INCLUDE,
     "hx_indicator": "#loading-indicator"
 }
 
-# Common CSS classes for select components
-SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+
+def _labeled_select(label, select_el):
+    return ft.Div(ft.Span(label, cls="hp-section-label"), select_el)
+
 
 def create_filter_components(max_match_count: int = 10000, selected_meta_format: MetaFormat | None = None, selected_region: MetaFormatRegion | None = None):
-    # Meta format select
-    # Determine selected values with fallbacks
     selected_meta_format = selected_meta_format or MetaFormat.latest_meta_format
     selected_region = selected_region or MetaFormatRegion.ALL
-    
-    meta_format_select = ft.Select(
-        label="Meta Format",
-        id="meta-format-select", 
+
+    meta_format_select = _labeled_select("Meta Format", ft.Select(
+        id="meta-format-select",
         name="meta_format",
-        cls=SELECT_CLS + " styled-select",
+        cls="hp-select styled-select",
         *[ft.Option(mf, value=mf, selected=mf == selected_meta_format) for mf in reversed(MetaFormat.to_list())],
         **FILTER_HX_ATTRS,
-    )
-    
-    # Release meta formats multi-select
-    release_meta_formats_select = ft.Select(
-        label="Release Meta Formats",
+    ))
+
+    release_meta_formats_select = _labeled_select("Release Format", ft.Select(
         id="release-meta-formats-select",
         name="release_meta_formats",
         multiple=True,
         size=1,
-        cls=SELECT_CLS + " multiselect",
+        cls="hp-select multiselect",
         *[ft.Option(mf, value=mf) for mf in reversed(MetaFormat.to_list())],
         **FILTER_HX_ATTRS,
-    )
-    
-    # Region select
-    regions = MetaFormatRegion.to_list()
-    region_select = ft.Select(
-        label="Region",
+    ))
+
+    region_select = _labeled_select("Region", ft.Select(
         id="region-select",
         name="region",
-        cls=SELECT_CLS + " styled-select",
-        *[ft.Option(r, value=r, selected=(r == selected_region)) for r in regions],
+        cls="hp-select styled-select",
+        *[ft.Option(r, value=r, selected=(r == selected_region)) for r in MetaFormatRegion.to_list()],
         **FILTER_HX_ATTRS,
-    )
-    
-    # Sort by select
-    sort_by_select = ft.Select(
-        label="Sort By",
+    ))
+
+    sort_by_select = _labeled_select("Sort By", ft.Select(
         id="sort-by-select",
         name="sort_by",
-        cls=SELECT_CLS + " styled-select",
+        cls="hp-select styled-select",
         *[ft.Option(opt, value=opt) for opt in LeaderboardSortBy.to_list()],
         **FILTER_HX_ATTRS,
-    )
-    
-    # Match count range slider
-    match_count_slider = ft.Div(
-        ft.Label("Leader Match Count", cls="text-white font-medium block mb-2"),
-        ft.Div(
-            ft.Div(
-                ft.Div(cls="slider-track"),
-                ft.Input(
-                    type="range",
-                    min="0",
-                    max=str(max_match_count),
-                    value="0",
-                    name="min_matches",
-                    cls="slider-range min-range",
-                    **FILTER_HX_ATTRS
-                ),
-                ft.Input(
-                    type="range",
-                    min="0",
-                    max=str(max_match_count),
-                    value=str(max_match_count),
-                    name="max_matches",
-                    cls="slider-range max-range",
-                    **FILTER_HX_ATTRS
-                ),
-                ft.Div(
-                    ft.Span("0", cls="min-value text-white"),
-                    ft.Span(" - ", cls="text-white mx-2"),
-                    ft.Span(str(max_match_count), cls="max-value text-white"),
-                    cls="slider-values"
-                ),
-                cls="double-range-slider",
-                id="match-count-slider",
-                data_double_range_slider="true"
-            ),
-            cls="relative w-full"
-        ),
-        cls="mb-6"
-    )
+    ))
 
-    # Price range slider
-    price_slider = ft.Div(
-        ft.Label("Avg Deck Price (€)", cls="text-white font-medium block mb-2"),
-        ft.Div(
+    def _slider(label, slider_id, name_min, name_max, val_max):
+        return ft.Div(
+            ft.Span(label, cls="hp-section-label"),
             ft.Div(
-                ft.Div(cls="slider-track"),
-                ft.Input(
-                    type="range",
-                    min="0",
-                    max="300",
-                    value="0",
-                    name="min_price",
-                    cls="slider-range min-range",
-                    **FILTER_HX_ATTRS
-                ),
-                ft.Input(
-                    type="range",
-                    min="0",
-                    max="300",
-                    value="300",
-                    name="max_price",
-                    cls="slider-range max-range",
-                    **FILTER_HX_ATTRS
-                ),
                 ft.Div(
-                    ft.Span("0", cls="min-value text-white"),
-                    ft.Span(" - ", cls="text-white mx-2"),
-                    ft.Span("300", cls="max-value text-white"),
-                    cls="slider-values"
+                    ft.Div(cls="slider-track"),
+                    ft.Input(type="range", min="0", max=str(val_max), value="0",
+                             name=name_min, cls="slider-range min-range", **FILTER_HX_ATTRS),
+                    ft.Input(type="range", min="0", max=str(val_max), value=str(val_max),
+                             name=name_max, cls="slider-range max-range", **FILTER_HX_ATTRS),
+                    ft.Div(
+                        ft.Span("0", cls="min-value"),
+                        ft.Span(" – ", style="color:#334155;"),
+                        ft.Span(str(val_max), cls="max-value"),
+                        cls="slider-values",
+                    ),
+                    cls="double-range-slider",
+                    id=slider_id,
+                    data_double_range_slider="true"
                 ),
-                cls="double-range-slider",
-                id="price-slider",
-                data_double_range_slider="true"
+                cls="relative w-full"
             ),
-            cls="relative w-full"
-        ),
-        cls="mb-6"
-    )
+        )
 
     return ft.Div(
         meta_format_select,
         region_select,
         release_meta_formats_select,
         sort_by_select,
-        match_count_slider,
-        price_slider,
+        _slider("Leader Match Count", "match-count-slider", "min_matches", "max_matches", max_match_count),
+        _slider("Avg Deck Price (€)", "price-slider", "min_price", "max_price", 300),
         cls="space-y-4"
     )
 
+
 def create_chart_data_for_leader(leader: LeaderExtended, all_leaders: list[LeaderExtended], meta_format: MetaFormat, last_n: int = 5) -> list[dict]:
     """Create chart data for a specific leader from the already loaded leader data."""
-    # Get all meta formats and find the current meta format index
     all_meta_formats = MetaFormat.to_list()
     meta_format_index = all_meta_formats.index(meta_format)
-    
-    # Get leader history from all_leaders
+
     leader_history = [l for l in all_leaders if l.id == leader.id and l.only_official == leader.only_official]
-    
-    # Create a lookup for existing data points
     meta_to_leader = {l.meta_format: l for l in leader_history}
-    
-    # Determine range of meta formats to include based on last_n
-    # We want a fixed window ending at the current meta_format to ensure alignment across all leaders
+
     end_index = meta_format_index + 1
     start_index = max(0, end_index - last_n)
     relevant_meta_formats = all_meta_formats[start_index:end_index]
 
-    # Prepare data for the chart, including null values for missing meta formats
     chart_data = []
     for mf in relevant_meta_formats:
         if mf in meta_to_leader:
@@ -212,39 +275,28 @@ def create_chart_data_for_leader(leader: LeaderExtended, all_leaders: list[Leade
                 "matches": leader_data.total_matches
             })
         else:
-            chart_data.append({
-                "meta": str(mf),
-                "winRate": None,
-                "elo": None,
-                "matches": None
-            })
-    
+            chart_data.append({"meta": str(mf), "winRate": None, "elo": None, "matches": None})
+
     return chart_data
 
+
 def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders: list[LeaderExtended], meta_format: MetaFormat, region: MetaFormatRegion | None = None, leader_prices: dict[str, float] | None = None, sort_by: LeaderboardSortBy = LeaderboardSortBy.WIN_RATE, ascending: bool = False):
-    # Filter leaders for the selected meta format
     relevant_meta_formats = MetaFormat.to_list()[:MetaFormat.to_list().index(meta_format) + 1]
-    
-    # Filter leaders for the selected meta format and relevant meta formats
     selected_meta_leaders = [
-        leader for leader in filtered_leaders 
+        leader for leader in filtered_leaders
         if leader.meta_format == meta_format and leader.meta_format in relevant_meta_formats
     ]
-    
+
     if not selected_meta_leaders:
-        return ft.Div("No leader data available for the selected meta", cls="text-red-400")
-    
-    # Helper to build sort <th> cells
-    th_cls = "px-4 py-2 bg-gray-800 text-white font-semibold"
-    th_static_cls = th_cls + " text-left"
+        return ft.Div("No leader data available for the selected meta",
+                      style="color:#ef4444; font-family:'Barlow',sans-serif;")
 
     def sh(label, column, extra_content=None):
         return ft.Th(
             _sort_header(label, column, sort_by, ascending, HX_INCLUDE, extra_content=extra_content),
-            cls=th_cls,
+            cls="hp-th",
         )
 
-    # D-Score tooltip label (kept inside the sort header)
     dscore_label = ft.Div(
         ft.Div(
             "D-Score",
@@ -252,118 +304,105 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
                 "D-Score represents the dominance score of a leader. It takes into account win rate, match count, and tournament performance to provide a comprehensive measure of a leader's strength.",
                 cls="tooltip-text"
             ),
-            cls="tooltip",
+            cls="tooltip hp-tooltip-right",
         ),
         cls="inline-block"
     )
 
-    # Create table header
     header = ft.Thead(
         ft.Tr(
-            ft.Th("", cls=th_static_cls + " w-[200px]"),
-            ft.Th("Leader", cls=th_static_cls),
-            ft.Th("Set", cls=th_static_cls),
+            ft.Th("", cls="hp-th", style="width:200px;"),
+            ft.Th("Leader", cls="hp-th"),
+            ft.Th("Set", cls="hp-th"),
             sh("Tournament Wins", LeaderboardSortBy.TOURNAMENT_WINS),
             sh("Match Count", LeaderboardSortBy.MATCH_COUNT),
             sh("Win Rate", LeaderboardSortBy.WIN_RATE),
             sh("D-Score", LeaderboardSortBy.DOMINANCE_SCORE, extra_content=dscore_label),
             sh("Avg Price", LeaderboardSortBy.PRICE),
             sh("Elo", LeaderboardSortBy.ELO),
-            ft.Th("Win Rate History", cls=th_static_cls),
-            cls=""
+            ft.Th("Win Rate History", cls="hp-th", style="width:160px;"),
         )
     )
-    
-    # Create table body
+
     rows = []
     mobile_cards = []
-    # Calculate max_elo only from leaders with elo data
-    leaders_with_elo = [leader for leader in selected_meta_leaders if leader.elo is not None]
-    max_elo = max(leader.elo for leader in leaders_with_elo) if leaders_with_elo else 0
-    
+    leaders_with_elo = [l for l in selected_meta_leaders if l.elo is not None]
+    max_elo = max(l.elo for l in leaders_with_elo) if leaders_with_elo else 0
+
     for idx, leader in enumerate(selected_meta_leaders):
-        
-        # Calculate color class for Elo
         if leader.elo:
-            elo_color_class = "text-green-400" if leader.elo > (max_elo * 0.7) else "text-yellow-400" if leader.elo > (max_elo * 0.4) else "text-red-400"
+            elo_color = "#10b981" if leader.elo > (max_elo * 0.7) else "#f59e0b" if leader.elo > (max_elo * 0.4) else "#ef4444"
         else:
-            elo_color_class = "text-gray-400"
-        
-        # Create chart data for this leader
+            elo_color = "#475569"
+
         chart_data = create_chart_data_for_leader(leader, all_leaders, meta_format)
         chart_data_json = json.dumps(chart_data)
-        # Escape the JSON for safe HTML attribute usage
         chart_data_escaped = html.escape(chart_data_json)
-        
-        # Get price
+
         price = leader_prices.get(leader.id) if leader_prices else None
         price_text = f"€{price:.2f}" if price is not None else "N/A"
+        leader_url = f"/leader?lid={leader.id}&meta_format={meta_format}{f'&region={region}' if region else ''}"
+        leader_name = leader.name.replace('"', " ").replace('.', " ")
 
-        # Mobile Card
+        # ── Mobile card ──────────────────────────────────────────────
         mobile_card = ft.Div(
             ft.Div(
-                # Header: Rank and Name
+                # Header row: rank + name
                 ft.Div(
-                    ft.Span(f"#{idx + 1}", cls="text-xl font-bold text-gray-400 mr-2"),
-                    ft.A(
-                        leader.name.replace('"', " ").replace('.', " "),
-                        href=f"/leader?lid={leader.id}&meta_format={meta_format}{f'&region={region}' if region else ''}",
-                        cls="text-lg font-bold text-blue-400 hover:text-blue-300 truncate"
-                    ),
-                    cls="flex items-center mb-2"
+                    ft.Span(f"#{idx + 1}", style="font-family:'Bebas Neue',sans-serif; font-size:1.1rem; color:#334155; margin-right:8px; letter-spacing:0.08em;"),
+                    ft.A(leader_name, href=leader_url, cls="hp-leader-link truncate", style="font-size:1rem;"),
+                    cls="flex items-center mb-3"
                 ),
-                # Image and Stats
+                # Image + stats
                 ft.Div(
-                    # Image
                     ft.Div(
-                        cls="w-20 h-20 bg-cover bg-center rounded-lg flex-shrink-0 mr-4",
-                        style=f"background-image: url('{leader.aa_image_url}'); border: 2px solid {leader.to_hex_color()};"
+                        cls="w-20 h-20 rounded-lg flex-shrink-0 mr-4 bg-cover bg-center",
+                        style=f"background-image:url('{leader.aa_image_url}'); border:2px solid {leader.to_hex_color()};"
                     ),
-                    # Stats Grid
                     ft.Div(
                         ft.Div(
-                            ft.Span("Win Rate", cls="text-xs text-gray-400 block"),
-                            ft.Span(f"{leader.win_rate * 100:.1f}%" if leader.win_rate is not None else "N/A", cls="font-semibold"),
+                            ft.Span("Win Rate", cls="hp-section-label"),
+                            ft.Span(f"{leader.win_rate * 100:.1f}%" if leader.win_rate is not None else "N/A",
+                                    style="font-family:'Share Tech Mono',monospace; color:#f1f5f9; font-size:0.85rem;"),
                             cls="text-center"
                         ),
                         ft.Div(
-                            ft.Span("Elo", cls="text-xs text-gray-400 block"),
-                            ft.Span(str(leader.elo) if leader.elo is not None else "N/A", cls=f"font-semibold {elo_color_class}"),
+                            ft.Span("Elo", cls="hp-section-label"),
+                            ft.Span(str(leader.elo) if leader.elo is not None else "N/A",
+                                    style=f"font-family:'Share Tech Mono',monospace; color:{elo_color}; font-size:0.85rem;"),
                             cls="text-center"
                         ),
                         ft.Div(
-                            ft.Span("Matches", cls="text-xs text-gray-400 block"),
-                            ft.Span(str(leader.total_matches) if leader.total_matches is not None else "N/A", cls="font-semibold"),
+                            ft.Span("Matches", cls="hp-section-label"),
+                            ft.Span(str(leader.total_matches) if leader.total_matches is not None else "N/A",
+                                    style="font-family:'Share Tech Mono',monospace; color:#94a3b8; font-size:0.85rem;"),
                             cls="text-center"
                         ),
                         ft.Div(
-                            ft.Span("Top 1", cls="text-xs text-gray-400 block"),
-                            ft.Span(str(leader.tournament_wins), cls="font-semibold"),
+                            ft.Span("Top 1", cls="hp-section-label"),
+                            ft.Span(str(leader.tournament_wins),
+                                    style="font-family:'Share Tech Mono',monospace; color:#f59e0b; font-size:0.85rem;"),
                             cls="text-center"
                         ),
                         ft.Div(
-                            ft.Span("D-Score", cls="text-xs text-gray-400 block"),
-                            ft.Span(f"{int(leader.d_score * 100)}%" if leader.d_score is not None else "N/A", cls="font-semibold"),
+                            ft.Span("D-Score", cls="hp-section-label"),
+                            ft.Span(f"{int(leader.d_score * 100)}%" if leader.d_score is not None else "N/A",
+                                    style="font-family:'Share Tech Mono',monospace; color:#94a3b8; font-size:0.85rem;"),
                             cls="text-center"
                         ),
                         cls="grid grid-cols-3 gap-2 flex-grow"
                     ),
                     cls="flex"
                 ),
-                # Footer: Price and Set
+                # Footer: set + price
                 ft.Div(
-                    ft.Span(f"Set: {leader.id.split('-')[0]}", cls="text-xs text-gray-500"),
-                    ft.Span(price_text, cls="text-xs text-gray-300"),
-                    cls="flex justify-between mt-2 pt-2 border-t border-gray-700"
+                    ft.Span(f"Set: {leader.id.split('-')[0]}", style="font-family:'Share Tech Mono',monospace; font-size:0.7rem; color:#334155;"),
+                    ft.Span(price_text, style="font-family:'Share Tech Mono',monospace; font-size:0.7rem; color:#94a3b8;"),
+                    cls="flex justify-between mt-3 pt-3", style="border-top:1px solid #1a2540;"
                 ),
-                # Chart (New)
+                # Spark chart
                 ft.Div(
-                    # Chart loading indicator
-                    create_loading_overlay(
-                        id=f"chart-loading-mobile-{leader.id}",
-                        size="w-8 h-8"
-                    ),
-                    # Chart container with embedded chart data
+                    create_loading_overlay(id=f"chart-loading-mobile-{leader.id}", size="w-8 h-8"),
                     ft.Div(
                         id=f"leader-chart-mobile-{leader.id}",
                         hx_post=f"/api/leader-chart/{leader.id}",
@@ -374,53 +413,42 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
                         hx_indicator=f"#chart-loading-mobile-{leader.id}",
                         hx_vals=f'{{"chart_data": "{chart_data_escaped}"}}',
                         cls="w-full",
-                        style="height: 80px;",
+                        style="height:80px;",
                         data_chart_data=chart_data_json
                     ),
-                    cls="relative w-full mt-4 border-t border-gray-700 pt-2",
-                    style="height: 80px;"
+                    cls="relative w-full mt-3 pt-3",
+                    style="height:80px; border-top:1px solid #1a2540;"
                 ),
-                cls="bg-gray-800 rounded-lg p-4 shadow-md border border-gray-700 text-left"
+                cls="hp-panel p-4 text-left"
             )
         )
         mobile_cards.append(mobile_card)
 
+        # ── Desktop row ──────────────────────────────────────────────
         cells = [
             ft.Td(
                 ft.Div(
-                    ft.Div(
-                        f"#{idx + 1}",
-                        cls="rank-text"
-                    ),
+                    ft.Div(f"#{idx + 1}", cls="rank-text"),
                     cls="leaderboard-image-cell",
                     style=f"background-image: linear-gradient(to top, {leader.to_hex_color()}, transparent), url('{leader.aa_image_url}')"
-
                 ),
                 cls="p-0"
             ),
             ft.Td(
-                ft.A(
-                    leader.name.replace('"', " ").replace('.', " "),
-                    href=f"/leader?lid={leader.id}&meta_format={meta_format}{f'&region={region}' if region else ''}",
-                    cls="text-blue-400 hover:text-blue-300"
-                ),
-                cls="px-4 py-2"
+                ft.A(leader_name, href=leader_url, cls="hp-leader-link"),
+                cls="hp-td"
             ),
-            ft.Td(leader.id.split("-")[0], cls="px-4 py-2 text-gray-200"),
-            ft.Td(str(leader.tournament_wins), cls="px-4 py-2 text-gray-200"),
-            ft.Td(str(leader.total_matches) if leader.total_matches is not None else "N/A", cls="px-4 py-2 text-gray-200"),
-            ft.Td(f"{leader.win_rate * 100:.2f}%" if leader.win_rate is not None else "N/A", cls="px-4 py-2 text-gray-200"),
-            ft.Td(f"{int(leader.d_score * 100)}%" if leader.d_score is not None else "N/A", cls="px-4 py-2 text-gray-200"),
-            ft.Td(price_text, cls="px-4 py-2 text-gray-200"),
-            ft.Td(str(leader.elo) if leader.elo is not None else "N/A", cls=f"px-4 py-2 {elo_color_class}"),
+            ft.Td(leader.id.split("-")[0], cls="hp-td-mono"),
+            ft.Td(str(leader.tournament_wins), cls="hp-td-mono", style="color:#f59e0b;"),
+            ft.Td(str(leader.total_matches) if leader.total_matches is not None else "N/A", cls="hp-td-mono"),
+            ft.Td(f"{leader.win_rate * 100:.2f}%" if leader.win_rate is not None else "N/A", cls="hp-td-mono"),
+            ft.Td(f"{int(leader.d_score * 100)}%" if leader.d_score is not None else "N/A", cls="hp-td-mono"),
+            ft.Td(price_text, cls="hp-td-mono"),
+            ft.Td(str(leader.elo) if leader.elo is not None else "N/A", cls="hp-td-mono",
+                  style=f"color:{elo_color};"),
             ft.Td(
                 ft.Div(
-                    # Chart loading indicator
-                    create_loading_overlay(
-                        id=f"chart-loading-{leader.id}",
-                        size="w-8 h-8"
-                    ),
-                    # Chart container with embedded chart data
+                    create_loading_overlay(id=f"chart-loading-{leader.id}", size="w-8 h-8"),
                     ft.Div(
                         id=f"leader-chart-{leader.id}",
                         hx_post=f"/api/leader-chart/{leader.id}",
@@ -430,49 +458,38 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
                         hx_include=HX_INCLUDE,
                         hx_indicator=f"#chart-loading-{leader.id}",
                         hx_vals=f'{{"chart_data": "{chart_data_escaped}"}}',
-                        cls="w-[200px]",
-                        style="height: 120px;",
+                        cls="w-[160px]",
+                        style="height:100px;",
                         data_chart_data=chart_data_json
                     ),
-                    cls="relative w-[200px]",
-                    style="height: 120px;"
+                    cls="relative w-[160px]",
+                    style="height:100px;"
                 ),
-                cls="px-0 py-0 min-w-[200px] relative",
-                style="height: 120px;"
-            )
+                cls="px-0 py-0 min-w-[160px] relative",
+                style="height:100px;"
+            ),
         ]
-        
-        rows.append(ft.Tr(*cells, cls="border-b border-gray-700 hover:bg-gray-800/50"))
-    
+        rows.append(ft.Tr(*cells, cls="hp-tr"))
+
     body = ft.Tbody(*rows)
-    
-    # Create table with loading indicator
+
     table_container = ft.Div(
-        # Loading indicator for the entire table
-        create_loading_spinner(
-            id="leaderboard-loading",
-            size="w-12 h-12",
-            container_classes="htmx-indicator w-full h-[200px]"
-        ),
-        # Desktop Table
+        create_loading_spinner(id="leaderboard-loading", size="w-12 h-12",
+                               container_classes="htmx-indicator w-full h-[200px]"),
         ft.Table(
-            header,
-            body,
-            cls="min-w-full divide-y divide-gray-700 hidden md:table"
+            header, body,
+            cls="min-w-full divide-y hidden md:table",
+            style="border-collapse:collapse; table-layout:fixed; width:100%;"
         ),
-        # Mobile Cards
-        ft.Div(
-            *mobile_cards,
-            cls="md:hidden space-y-4 text-left"
-        ),
+        ft.Div(*mobile_cards, cls="md:hidden space-y-4 text-left"),
         cls="relative",
         hx_indicator="#leaderboard-loading"
     )
-    
+
     return table_container
 
+
 def home_page():
-    # Add script to persist meta_format and region in URL on changes
     persist_script = ft.Script("""
         function updateHomeURL() {
             const params = new URLSearchParams(window.location.search);
@@ -490,49 +507,19 @@ def home_page():
         });
         document.addEventListener('DOMContentLoaded', function(){ setTimeout(updateHomeURL, 50); });
     """)
-    
-    # CSS for the notification animations and styling
-    notification_styles = ft.Style("""
-        .no-match-data-notification,
-        .proxy-data-notification {
-            animation: fadeIn 0.5s ease-in-out;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .no-match-data-notification button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
-        }
-        
-        /* Add subtle glow effects */
-        .no-match-data-notification {
-            box-shadow: 0 4px 20px rgba(251, 146, 60, 0.1);
-        }
-        
-        .proxy-data-notification {
-            box-shadow: 0 4px 20px rgba(251, 191, 36, 0.15);
-        }
-    """)
-    
+
     return ft.Div(
-        notification_styles,
-        ft.H1("Leaderboard", cls="text-3xl font-bold text-white mb-6"),
+        _styles(),
+        ft.H1(
+            "Leaderboard",
+            style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:2rem; color:#f1f5f9; margin-bottom:20px;"
+        ),
         ft.Div(
             ft.Div(
                 create_mobile_filter_button(),
-                # Loading indicator
-                create_loading_spinner(
-                    id="loading-indicator",
-                    size="w-8 h-8",
-                    container_classes="min-h-[100px]"
-                ),
-                # Content
+                create_loading_spinner(id="loading-indicator", size="w-8 h-8",
+                                       container_classes="min-h-[100px]"),
                 ft.Div(
-                    cls="text-white text-center py-2",
                     hx_get="/api/leaderboard",
                     hx_trigger="load",
                     hx_include=HX_INCLUDE,
@@ -542,8 +529,8 @@ def home_page():
                 ),
                 cls="relative"
             ),
-            cls="space-y-4 overflow-x-auto"
+            cls="space-y-4 w-full overflow-x-auto"
         ),
         persist_script,
-        cls="relative"  # Changed from min-h-screen to relative to work with layout
+        cls="hp-page relative"
     )
