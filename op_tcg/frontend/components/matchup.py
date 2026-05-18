@@ -17,15 +17,15 @@ def create_leader_select_box(leader_ids: list[str], default_id: str | None = Non
     if reverse:
         leader_names.reverse()
         leader_ids.reverse()
-    
+
     return ft.Select(
         id=f"leader-select-{key}",
         name=f"lid_{key}",
-        value=default_id,  # Set initial value
-        cls="w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 styled-select",
+        value=default_id,
+        cls="lp-select styled-select",
         *[ft.Option(
-            name, 
-            value=lid,  # Use leader ID directly as value
+            name,
+            value=lid,
             selected=(lid == default_id)
         ) for name, lid in zip(leader_names, leader_ids)]
     )
@@ -40,9 +40,11 @@ def create_matchup_card(opponent: LeaderExtended, matchup: Matchup, meta_formats
     region_param = f"&region={region}" if region else ""
     leader_url = f"/leader?lid={opponent.id}{meta_format_params}{region_param}"
 
+    wr_style = "color:#10b981" if matchup.win_rate >= 0.5 else "color:#ef4444"
+
     return ft.A(
         ft.Div(
-            # Image Area with zoomed background
+            # Image Area with zoomed background + gradient
             ft.Div(
                 style=f"""
                     background-image: linear-gradient(to top, {opponent.to_hex_color()}, transparent), url('{opponent.aa_image_url}');
@@ -55,21 +57,19 @@ def create_matchup_card(opponent: LeaderExtended, matchup: Matchup, meta_formats
             ),
             # Content Area
             ft.Div(
-                # Name
-                ft.P(opponent.name, cls="text-xs text-white truncate w-full text-center font-bold mb-1"),
-                # Stats
+                ft.P(opponent.name, style="font-family:'Barlow',sans-serif; font-size:0.7rem; font-weight:600; color:#f1f5f9; text-align:center; margin-bottom:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"),
                 ft.Div(
-                    ft.Span(f"{matchup.win_rate * 100:.1f}%", cls=f"text-sm font-bold {wr_color}"),
-                    ft.Span(f" ({matchup.total_matches})", cls="text-xs text-gray-400 ml-1"),
-                    cls="flex items-center justify-center"
+                    ft.Span(f"{matchup.win_rate * 100:.1f}%", style=f"font-family:'Share Tech Mono',monospace; font-size:0.8rem; font-weight:700; {wr_style}"),
+                    ft.Span(f" ({matchup.total_matches})", style="font-family:'Share Tech Mono',monospace; font-size:0.65rem; color:#475569; margin-left:4px;"),
+                    style="display:flex; align-items:center; justify-content:center;"
                 ),
-                cls="p-2 bg-gray-800 rounded-b-lg w-full"
+                style="padding:6px 8px; background:#0d1424; border-radius:0 0 8px 8px;"
             ),
-            cls="flex flex-col items-center w-full h-full rounded-lg border border-gray-700 hover:border-gray-500 transition-colors duration-200 shadow-lg"
+            style="display:flex; flex-direction:column; align-items:center; width:100%; height:100%; border-radius:8px; border:1px solid #1a2540; transition: border-color 0.15s, box-shadow 0.15s;"
         ),
         href=leader_url,
         cls="block flex-shrink-0",
-        style="width: 120px; min-width: 120px;"
+        style="width:120px; min-width:120px; text-decoration:none;"
     )
 
 def create_matchup_analysis(leader_data: LeaderExtended, matchups: OpponentMatchups | None = None, hx_include: str | None = None, min_matches: int = 4, matchup_cards: list[ft.A] | None = None):
@@ -77,11 +77,10 @@ def create_matchup_analysis(leader_data: LeaderExtended, matchups: OpponentMatch
     
     # Slider Component
     slider_component = ft.Div(
-        ft.H3("All Matchups", cls="text-xl font-bold text-white mb-2 md:mb-0"),
-        # Slider
+        ft.H3("All Matchups", cls="lp-display", style="font-size:1.1rem; color:#f1f5f9; margin:0;"),
         ft.Div(
-            ft.Label("Min Matches: ", cls="text-gray-300 mr-2"),
-            ft.Span(str(min_matches), id="min-matches-display", cls="text-white font-bold mr-4"),
+            ft.Label("Min Matches:", style="font-family:'Barlow',sans-serif; font-size:0.8rem; color:#94a3b8; margin-right:8px;"),
+            ft.Span(str(min_matches), id="min-matches-display", style="font-family:'Share Tech Mono',monospace; color:#38bdf8; font-weight:700; margin-right:12px;"),
             ft.Input(
                 type="range",
                 min="1",
@@ -89,7 +88,8 @@ def create_matchup_analysis(leader_data: LeaderExtended, matchups: OpponentMatch
                 value=str(min_matches),
                 name="min_matches",
                 id="min-matches-slider",
-                cls="w-38 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500",
+                cls="accent-cyan-400",
+                style="width:120px; cursor:pointer; accent-color:#38bdf8;",
                 oninput="document.getElementById('min-matches-display').innerText = this.value",
                 hx_get="/api/leader-matchups",
                 hx_target="#matchup-analysis-container",
@@ -98,18 +98,18 @@ def create_matchup_analysis(leader_data: LeaderExtended, matchups: OpponentMatch
                 hx_include=hx_include,
                 hx_vals=f'{{"lid": "{leader_data.id}"}}'
             ),
-            cls="flex items-center"
+            style="display:flex; align-items:center;"
         ),
-        cls="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-2 md:gap-0"
+        style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;"
     )
 
     if not matchups:
         return ft.Div(
-            ft.H2("Matchup Analysis", cls="text-2xl font-bold text-white mb-4"),
+            ft.H2("Matchup Analysis", cls="lp-display", style="font-size:1.4rem; color:#f1f5f9; margin-bottom:16px;"),
             ft.Div(
                 slider_component,
-                ft.P("No matchup data available for this leader with current filters.", cls="text-gray-400"),
-                cls="w-full mb-8"
+                ft.P("No matchup data available for this leader with current filters.", style="color:#475569; font-family:'Barlow',sans-serif;"),
+                style="width:100%; margin-bottom:24px;"
             ),
             id="matchup-analysis-container",
             cls="w-full"
@@ -146,22 +146,20 @@ def create_matchup_analysis(leader_data: LeaderExtended, matchups: OpponentMatch
         )
 
     return ft.Div(
-        ft.H2("Matchup Analysis", cls="text-2xl font-bold text-white mb-4"),
-        
+        ft.H2("Matchup Analysis", cls="lp-display", style="font-size:1.4rem; color:#f1f5f9; margin-bottom:16px;"),
+
         # Horizontal Matchup List Section
         ft.Div(
             slider_component,
-
-            # Container for the list
             list_content,
-            cls="w-full mb-8"
+            style="width:100%; margin-bottom:24px;"
         ),
 
         # Matchup grid
         ft.Div(
             # Best Matchup
             ft.Div(
-                ft.H3("Easiest Matchup", cls="text-xl font-bold text-white mb-4"),
+                ft.H3("Easiest Matchup", cls="lp-display", style="font-size:1rem; color:#10b981; margin-bottom:12px;"),
                 create_leader_select_box(best_matchup_ids, default_best, MatchupType.BEST, reverse=False),
                 ft.Div(
                     ft.Div(
@@ -172,14 +170,14 @@ def create_matchup_analysis(leader_data: LeaderExtended, matchups: OpponentMatch
                         hx_include=hx_include + ",[name='lid_best']",
                         cls="w-full"
                     ),
-                    cls="bg-gray-700 p-4 rounded-lg mt-4"
+                    cls="lp-panel", style="padding:16px; margin-top:12px;"
                 ),
-                cls="w-full"
+                style="width:100%;"
             ),
-            
+
             # Radar Chart
             ft.Div(
-                ft.H3("Color Matchups", cls="text-xl font-bold text-white mb-4"),
+                ft.H3("Color Matchups", cls="lp-display", style="font-size:1rem; color:#f1f5f9; margin-bottom:12px;"),
                 create_loading_spinner(
                     id="matchup-radar-loading",
                     size="w-8 h-8",
@@ -195,12 +193,12 @@ def create_matchup_analysis(leader_data: LeaderExtended, matchups: OpponentMatch
                     id="matchup-radar-chart",
                     cls="min-h-[300px] flex items-center justify-center w-full"
                 ),
-                cls="w-full"
+                style="width:100%;"
             ),
-            
+
             # Worst Matchup
             ft.Div(
-                ft.H3("Hardest Matchup", cls="text-xl font-bold text-white mb-4"),
+                ft.H3("Hardest Matchup", cls="lp-display", style="font-size:1rem; color:#ef4444; margin-bottom:12px;"),
                 create_leader_select_box(worst_matchup_ids, default_worst, MatchupType.WORST, reverse=False),
                 ft.Div(
                     ft.Div(
@@ -211,9 +209,9 @@ def create_matchup_analysis(leader_data: LeaderExtended, matchups: OpponentMatch
                         hx_include=hx_include + ",[name='lid_worst']",
                         cls="w-full"
                     ),
-                    cls="bg-gray-700 p-4 rounded-lg mt-4"
+                    cls="lp-panel", style="padding:16px; margin-top:12px;"
                 ),
-                cls="w-full"
+                style="width:100%;"
             ),
             cls="grid grid-cols-1 md:grid-cols-3 gap-6"
         ),

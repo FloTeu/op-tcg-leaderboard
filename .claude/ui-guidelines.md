@@ -4,6 +4,21 @@ Use the deck builder (`op_tcg/frontend/pages/deckbuilder.py`) as the canonical s
 
 **Do not mix the old `bg-gray-800 text-white` Tailwind palette with the new one.**
 
+## Styling Approach
+
+**Prefer Tailwind utility classes over inline `style=` attributes** for all layout and spacing concerns (padding, margin, gap, flex, grid, sizing, etc.). Only use inline styles or custom CSS classes when the value is not expressible in standard Tailwind — primarily the design-token colors above (`#0d1424`, `#1a2540`, etc.) and custom animations.
+
+```python
+# Correct — Tailwind for layout/spacing
+cls="flex items-center gap-4 p-5 px-4 mb-6 w-full grid grid-cols-3"
+
+# Correct — inline style only for non-Tailwind design tokens
+style="background:#0d1424; border:1px solid #1a2540; color:#f59e0b;"
+
+# Avoid — inline style for things Tailwind handles
+style="padding:20px 16px; display:flex; gap:16px;"
+```
+
 ---
 
 ## Color Palette

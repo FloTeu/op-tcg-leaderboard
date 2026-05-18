@@ -383,9 +383,8 @@ def create_tab_view(has_match_data: bool = True):
                 ),
                 cls="lp-decklist-row", style="display:flex; flex-direction:column; gap:16px;"
             ),
-            cls="lp-tab-pane active",
+            cls="lp-tab-pane active  p-5 px-4",
             id="decklist-tab",
-            style="padding:20px 16px;"
         )
     ]
 
@@ -393,7 +392,7 @@ def create_tab_view(has_match_data: bool = True):
         tab_content.append(
             ft.Div(
                 create_loading_spinner(id="matchup-loading-indicator", size="w-8 h-8", container_classes="min-h-[100px]"),
-                cls="lp-tab-pane",
+                cls="lp-tab-pane  p-5 px-4",
                 id="matchup-tab",
             )
         )
@@ -401,9 +400,8 @@ def create_tab_view(has_match_data: bool = True):
     tab_content.append(
         ft.Div(
             create_loading_spinner(id="tournament-loading-indicator", size="w-8 h-8", container_classes="min-h-[100px]"),
-            cls="lp-tab-pane",
+            cls="lp-tab-pane  p-5 px-4",
             id="tournaments-tab",
-            style="padding:20px 16px;"
         )
     )
 
