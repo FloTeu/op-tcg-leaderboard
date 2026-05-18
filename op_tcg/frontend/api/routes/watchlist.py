@@ -20,6 +20,18 @@ from op_tcg.frontend.utils.charts import create_price_development_chart
 from op_tcg.frontend.utils.decklist import DecklistViewMode, decklist_to_export_str, ensure_leader_id
 from op_tcg.frontend.components.decklist_modal import display_decklist_modal
 
+# ── Design-system helpers ───────────────────────────────────────────────────
+# Shared inline styles for view-toggle buttons (Grid / List)
+_TAB_ACTIVE   = "background:rgba(245,158,11,.12);color:#f59e0b;border:1px solid rgba(245,158,11,.35);"
+_TAB_INACTIVE = "background:#0d1424;color:#475569;border:1px solid #1a2540;"
+
+# Shared inline style for the edit-tag pencil icon button
+_EDIT_BTN_STYLE = (
+    "color:#475569;background:transparent;border:none;cursor:pointer;"
+    "margin-left:4px;padding:0 2px;transition:color .15s;"
+)
+
+
 def _parse_tags(raw) -> list:
     if isinstance(raw, list):
         tags = [t.strip() for t in raw if str(t).strip()]
@@ -34,11 +46,11 @@ def _tag_chips_component(card_id: str, card_version: int, language: str, tags: l
     target_id = f"tags-{card_id}-{card_version}-{language}"
     tags_str = ",".join(tags)
     return ft.Div(
-        *[ft.Span(tag, cls="inline-block bg-blue-600/30 text-blue-300 text-xs px-2 py-0.5 rounded-full mr-1 mb-1") for tag in tags],
+        *[ft.Span(tag, cls="wl-tag") for tag in tags],
         ft.Button(
             ft.I(cls="fas fa-pen text-xs"),
             type="button",
-            cls="text-gray-500 hover:text-gray-300 ml-1 transition-colors",
+            style=_EDIT_BTN_STYLE,
             title="Edit tags",
             hx_get=f"/api/watchlist/tag-editor?card_id={card_id}&card_version={card_version}&language={language}&tags={tags_str}",
             hx_target=f"#{target_id}",
@@ -63,7 +75,8 @@ def _tag_editor_component(card_id: str, card_version: int, language: str, tags: 
                 name="tags",
                 value=tags_str,
                 placeholder="my collection",
-                cls="bg-gray-700 text-white border border-gray-600 rounded px-2 py-1 text-xs w-full focus:outline-none focus:border-blue-500",
+                cls="wl-input",
+                style="font-size:.75rem;padding:4px 8px;",
                 autofocus=True,
                 onkeydown="event.stopPropagation();",
                 onkeyup="event.stopPropagation();",
@@ -73,12 +86,14 @@ def _tag_editor_component(card_id: str, card_version: int, language: str, tags: 
                 ft.Button(
                     "Save",
                     type="submit",
-                    cls="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded transition-colors"
+                    cls="wl-btn-primary",
+                    style="font-size:.75rem;padding:4px 10px;",
                 ),
                 ft.Button(
                     "Cancel",
                     type="button",
-                    cls="text-gray-400 hover:text-white text-xs px-2 py-1 ml-1 transition-colors",
+                    cls="wl-btn-ghost",
+                    style="font-size:.75rem;padding:4px 10px;margin-left:4px;",
                     hx_get=f"/api/watchlist/tag-chips?card_id={card_id}&card_version={card_version}&language={language}&tags={tags_str}",
                     hx_target=f"#{target_id}",
                     hx_swap="outerHTML",
@@ -252,7 +267,7 @@ def setup_watchlist_routes(rt):
 
         if not card_versions:
             return ft.Div(
-                ft.P("No cards in this collection.", cls="text-gray-500 text-sm text-center py-6"),
+                ft.P("No cards in this collection.", style="color:#475569;font-size:.875rem;text-align:center;padding:24px 0;"),
                 cls="h-full flex items-center justify-center"
             )
 
@@ -260,13 +275,13 @@ def setup_watchlist_routes(rt):
             price_data = get_watchlist_aggregate_price_data(card_versions, days=days)
         except Exception:
             return ft.Div(
-                ft.P("Could not load price data.", cls="text-gray-500 text-sm text-center py-6"),
+                ft.P("Could not load price data.", style="color:#475569;font-size:.875rem;text-align:center;padding:24px 0;"),
                 cls="h-full flex items-center justify-center"
             )
 
         if not price_data.get('eur') and not price_data.get('usd'):
             return ft.Div(
-                ft.P("No price history available for the selected period.", cls="text-gray-500 text-sm text-center py-6"),
+                ft.P("No price history available for the selected period.", style="color:#475569;font-size:.875rem;text-align:center;padding:24px 0;"),
                 cls="h-full flex items-center justify-center"
             )
 
@@ -306,11 +321,11 @@ def setup_watchlist_routes(rt):
         target_id = f"tags-dl-{leader_id}-{safe_tid}-{safe_pid}"
         tags_str = ",".join(tags)
         return ft.Div(
-            *[ft.Span(tag, cls="inline-block bg-blue-600/30 text-blue-300 text-xs px-2 py-0.5 rounded-full mr-1 mb-1") for tag in tags],
+            *[ft.Span(tag, cls="wl-tag") for tag in tags],
             ft.Button(
                 ft.I(cls="fas fa-pen text-xs"),
                 type="button",
-                cls="text-gray-500 hover:text-gray-300 ml-1 transition-colors",
+                style=_EDIT_BTN_STYLE,
                 title="Edit tags",
                 hx_get=f"/api/watchlist/decklist/tag-editor?leader_id={leader_id}&tournament_id={tournament_id}&player_id={player_id}&tags={tags_str}",
                 hx_target=f"#{target_id}",
@@ -336,18 +351,25 @@ def setup_watchlist_routes(rt):
                     name="tags",
                     value=tags_str,
                     placeholder="my decklists",
-                    cls="bg-gray-700 text-white border border-gray-600 rounded px-2 py-1 text-xs w-full focus:outline-none focus:border-blue-500",
+                    cls="wl-input",
+                    style="font-size:.75rem;padding:4px 8px;",
                     autofocus=True,
                     onkeydown="event.stopPropagation();",
                     onkeyup="event.stopPropagation();",
                     onkeypress="event.stopPropagation();",
                 ),
                 ft.Div(
-                    ft.Button("Save", type="submit", cls="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded transition-colors"),
+                    ft.Button(
+                        "Save",
+                        type="submit",
+                        cls="wl-btn-primary",
+                        style="font-size:.75rem;padding:4px 10px;",
+                    ),
                     ft.Button(
                         "Cancel",
                         type="button",
-                        cls="text-gray-400 hover:text-white text-xs px-2 py-1 ml-1 transition-colors",
+                        cls="wl-btn-ghost",
+                        style="font-size:.75rem;padding:4px 10px;margin-left:4px;",
                         hx_get=f"/api/watchlist/decklist/tag-chips?leader_id={leader_id}&tournament_id={tournament_id}&player_id={player_id}&tags={tags_str}",
                         hx_target=f"#{target_id}",
                         hx_swap="outerHTML",
@@ -368,11 +390,11 @@ def setup_watchlist_routes(rt):
         target_id = f"tags-cdl-{re.sub(r'[^a-zA-Z0-9_-]', '_', custom_id)[:20]}"
         tags_str = ",".join(tags)
         return ft.Div(
-            *[ft.Span(tag, cls="inline-block bg-purple-600/30 text-purple-300 text-xs px-2 py-0.5 rounded-full mr-1 mb-1") for tag in tags],
+            *[ft.Span(tag, cls="wl-tag") for tag in tags],
             ft.Button(
                 ft.I(cls="fas fa-pen text-xs"),
                 type="button",
-                cls="text-gray-500 hover:text-gray-300 ml-1 transition-colors",
+                style=_EDIT_BTN_STYLE,
                 title="Edit tags",
                 hx_get=f"/api/watchlist/custom-decklist/tag-editor?custom_id={custom_id}&tags={tags_str}",
                 hx_target=f"#{target_id}",
@@ -394,18 +416,25 @@ def setup_watchlist_routes(rt):
                     name="tags",
                     value=tags_str,
                     placeholder="my decklists",
-                    cls="bg-gray-700 text-white border border-gray-600 rounded px-2 py-1 text-xs w-full focus:outline-none focus:border-blue-500",
+                    cls="wl-input",
+                    style="font-size:.75rem;padding:4px 8px;",
                     autofocus=True,
                     onkeydown="event.stopPropagation();",
                     onkeyup="event.stopPropagation();",
                     onkeypress="event.stopPropagation();",
                 ),
                 ft.Div(
-                    ft.Button("Save", type="submit", cls="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded transition-colors"),
+                    ft.Button(
+                        "Save",
+                        type="submit",
+                        cls="wl-btn-primary",
+                        style="font-size:.75rem;padding:4px 10px;",
+                    ),
                     ft.Button(
                         "Cancel",
                         type="button",
-                        cls="text-gray-400 hover:text-white text-xs px-2 py-1 ml-1 transition-colors",
+                        cls="wl-btn-ghost",
+                        style="font-size:.75rem;padding:4px 10px;margin-left:4px;",
                         hx_get=f"/api/watchlist/custom-decklist/tag-chips?custom_id={custom_id}&tags={tags_str}",
                         hx_target=f"#{target_id}",
                         hx_swap="outerHTML",
@@ -518,7 +547,7 @@ def setup_watchlist_routes(rt):
         view_mode = p.get('view_mode', DecklistViewMode.GRID)
 
         if not all([leader_id, tournament_id, player_id]):
-            return ft.P("Missing parameters.", cls="text-red-400 text-sm p-3")
+            return ft.P("Missing parameters.", style="color:#ef4444;font-size:.875rem;padding:.75rem;")
 
         # Cached lookup — fast after first call
         all_decklists = get_all_tournament_decklist_data()
@@ -528,7 +557,7 @@ def setup_watchlist_routes(rt):
         )
 
         if not selected or not selected.decklist:
-            return ft.P("Decklist not found.", cls="text-gray-500 text-sm p-3")
+            return ft.P("Decklist not found.", style="color:#475569;font-size:.875rem;padding:.75rem;")
 
         card_id2card_data = get_card_id_card_data_lookup()
         total_cards = sum(selected.decklist.values())
@@ -550,7 +579,8 @@ def setup_watchlist_routes(rt):
             ft.Button(
                 ft.I(cls="fas fa-th-large mr-1"), "Grid",
                 type="button",
-                cls=f"px-3 py-1 rounded-l-lg border border-gray-600 text-xs transition-colors {'bg-blue-600 text-white' if view_mode == DecklistViewMode.GRID else 'bg-gray-800 text-gray-400 hover:bg-gray-700'}",
+                cls="px-3 py-1 rounded-l-lg text-xs transition-all",
+                style=_TAB_ACTIVE if view_mode == DecklistViewMode.GRID else _TAB_INACTIVE,
                 hx_get=f"{base_url}&view_mode={DecklistViewMode.GRID}",
                 hx_target=f"#{container_id}",
                 hx_swap="innerHTML",
@@ -558,7 +588,8 @@ def setup_watchlist_routes(rt):
             ft.Button(
                 ft.I(cls="fas fa-list mr-1"), "List",
                 type="button",
-                cls=f"px-3 py-1 rounded-r-lg border border-gray-600 border-l-0 text-xs transition-colors {'bg-blue-600 text-white' if view_mode == DecklistViewMode.LIST else 'bg-gray-800 text-gray-400 hover:bg-gray-700'}",
+                cls="px-3 py-1 rounded-r-lg text-xs transition-all",
+                style=_TAB_ACTIVE if view_mode == DecklistViewMode.LIST else _TAB_INACTIVE,
                 hx_get=f"{base_url}&view_mode={DecklistViewMode.LIST}",
                 hx_target=f"#{container_id}",
                 hx_swap="innerHTML",
@@ -579,7 +610,10 @@ def setup_watchlist_routes(rt):
             ft.Div(
                 ft.Div(
                     view_toggle,
-                    ft.Span(f"{total_cards} cards · {selected.meta_format}", cls="text-xs text-gray-500 ml-3"),
+                    ft.Span(
+                        f"{total_cards} cards · {selected.meta_format}",
+                        style="font-size:.75rem;color:#475569;margin-left:.75rem;",
+                    ),
                     cls="flex items-center"
                 ),
                 ft.Div(
@@ -588,14 +622,15 @@ def setup_watchlist_routes(rt):
                         "Copy for Sim",
                         id=copy_btn_id,
                         type="button",
-                        cls="text-xs px-3 py-1 rounded border border-gray-600 bg-gray-800 text-gray-300 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors inline-flex items-center mr-2",
+                        cls="wl-btn-ghost",
+                        style="font-size:.75rem;padding:4px 10px;display:inline-flex;align-items:center;margin-right:.5rem;",
                         onclick=f"window._copyDecklistSim('{copy_btn_id}', '{export_pre_id}'); event.stopPropagation();",
                     ),
                     ft.A(
                         ft.I(cls="fas fa-external-link-alt mr-1 text-xs"),
                         "Full view",
                         href=f"/leader?lid={leader_id}&modal=decklist&tournament_id={tournament_id}&player_id={player_id}",
-                        cls="text-xs text-blue-400 hover:text-blue-300 transition-colors inline-flex items-center",
+                        style="font-size:.75rem;color:#38bdf8;transition:color .15s;display:inline-flex;align-items:center;",
                     ),
                     cls="flex items-center"
                 ),
@@ -613,12 +648,14 @@ def setup_watchlist_routes(rt):
         var done = function() {
             var orig = btn.innerHTML;
             btn.innerHTML = '<i class="fas fa-check mr-1"></i>Copied!';
-            btn.classList.add('bg-green-600', 'border-green-600', 'text-white');
-            btn.classList.remove('bg-gray-800', 'hover:bg-blue-600');
+            btn.style.background = 'rgba(16,185,129,.15)';
+            btn.style.color = '#10b981';
+            btn.style.borderColor = 'rgba(16,185,129,.35)';
             setTimeout(function() {
                 btn.innerHTML = orig;
-                btn.classList.remove('bg-green-600', 'border-green-600');
-                btn.classList.add('bg-gray-800', 'hover:bg-blue-600');
+                btn.style.background = '';
+                btn.style.color = '';
+                btn.style.borderColor = '';
             }, 2000);
         };
         if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -636,7 +673,7 @@ def setup_watchlist_routes(rt):
     }
 })();
 """),
-            cls="pt-3 px-4 pb-4 border-t border-gray-700/60"
+            style="padding:12px 16px 16px;border-top:1px solid #1a2540;"
         )
 
     @rt("/api/watchlist/custom-decklist/tag-editor", methods=["GET"])
@@ -719,13 +756,13 @@ def setup_watchlist_routes(rt):
 
         params = CardPopularityParams(**get_query_params_as_dict(request))
         if not params.search_term:
-            return ft.P("Type to search for cards.", cls="text-gray-500 text-sm text-center py-4")
+            return ft.P("Type to search for cards.", style="color:#475569;font-size:.875rem;text-align:center;padding:16px 0;")
 
         card_lookup = get_card_id_card_data_lookup()
         filtered = filter_cards(list(card_lookup.values()), params)
 
         if not filtered:
-            return ft.P("No cards found.", cls="text-gray-500 text-sm text-center py-4")
+            return ft.P("No cards found.", style="color:#475569;font-size:.875rem;text-align:center;padding:16px 0;")
 
         # Sort by popularity (same logic as card popularity page)
         popularity_list = get_card_popularity_data()
@@ -819,11 +856,11 @@ def setup_watchlist_routes(rt):
         custom_id = request.query_params.get('custom_id', '')
         view_mode = request.query_params.get('view_mode', DecklistViewMode.GRID)
         if not custom_id:
-            return ft.P("Missing custom_id.", cls="text-red-400 text-sm p-3")
+            return ft.P("Missing custom_id.", style="color:#ef4444;font-size:.875rem;padding:.75rem;")
 
         custom = next((d for d in get_custom_decklists(user.get('sub')) if d.get('id') == custom_id), None)
         if not custom or not custom.get('decklist'):
-            return ft.P("Decklist not found.", cls="text-gray-500 text-sm p-3")
+            return ft.P("Decklist not found.", style="color:#475569;font-size:.875rem;padding:.75rem;")
 
         decklist = {k: int(v) for k, v in custom['decklist'].items()}
         leader_id = custom.get('leader_id', '')
@@ -843,14 +880,16 @@ def setup_watchlist_routes(rt):
             ft.Button(
                 ft.I(cls="fas fa-th-large mr-1"), "Grid",
                 type="button",
-                cls=f"px-3 py-1 rounded-l-lg border border-gray-600 text-xs transition-colors {'bg-blue-600 text-white' if view_mode == DecklistViewMode.GRID else 'bg-gray-800 text-gray-400 hover:bg-gray-700'}",
+                cls="px-3 py-1 rounded-l-lg text-xs transition-all",
+                style=_TAB_ACTIVE if view_mode == DecklistViewMode.GRID else _TAB_INACTIVE,
                 hx_get=f"{base_url}&view_mode={DecklistViewMode.GRID}",
                 hx_target=f"#{container_id}", hx_swap="innerHTML",
             ),
             ft.Button(
                 ft.I(cls="fas fa-list mr-1"), "List",
                 type="button",
-                cls=f"px-3 py-1 rounded-r-lg border border-gray-600 border-l-0 text-xs transition-colors {'bg-blue-600 text-white' if view_mode == DecklistViewMode.LIST else 'bg-gray-800 text-gray-400 hover:bg-gray-700'}",
+                cls="px-3 py-1 rounded-r-lg text-xs transition-all",
+                style=_TAB_ACTIVE if view_mode == DecklistViewMode.LIST else _TAB_INACTIVE,
                 hx_get=f"{base_url}&view_mode={DecklistViewMode.LIST}",
                 hx_target=f"#{container_id}", hx_swap="innerHTML",
             ),
@@ -862,7 +901,10 @@ def setup_watchlist_routes(rt):
             ft.Div(
                 ft.Div(
                     view_toggle,
-                    ft.Span(f"{total_cards} cards", cls="text-xs text-gray-500 ml-3"),
+                    ft.Span(
+                        f"{total_cards} cards",
+                        style="font-size:.75rem;color:#475569;margin-left:.75rem;",
+                    ),
                     cls="flex items-center"
                 ),
                 ft.Button(
@@ -870,7 +912,8 @@ def setup_watchlist_routes(rt):
                     "Copy for Sim",
                     id=copy_btn_id,
                     type="button",
-                    cls="text-xs px-3 py-1 rounded border border-gray-600 bg-gray-800 text-gray-300 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors inline-flex items-center",
+                    cls="wl-btn-ghost",
+                    style="font-size:.75rem;padding:4px 10px;display:inline-flex;align-items:center;",
                     onclick=f"window._copyDecklistSim('{copy_btn_id}', '{export_pre_id}'); event.stopPropagation();",
                 ),
                 cls="flex items-center justify-between mb-3"
@@ -882,5 +925,5 @@ def setup_watchlist_routes(rt):
                 view_mode=view_mode,
                 unique_id=unique_id,
             ),
-            cls="pt-3 px-4 pb-4 border-t border-gray-700/60"
+            style="padding:12px 16px 16px;border-top:1px solid #1a2540;"
         )
