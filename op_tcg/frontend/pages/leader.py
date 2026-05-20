@@ -20,8 +20,6 @@ FILTER_HX_ATTRS = {
 
 def _styles() -> ft.Style:
     return ft.Style("""
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap');
-
 .lp-page { font-family: 'Barlow', sans-serif; }
 .lp-display { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.08em; }
 .lp-mono { font-family: 'Share Tech Mono', monospace; }

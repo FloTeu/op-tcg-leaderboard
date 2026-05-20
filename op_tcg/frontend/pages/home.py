@@ -10,8 +10,6 @@ from op_tcg.frontend.components.layout import create_mobile_filter_button
 
 def _styles() -> ft.Style:
     return ft.Style("""
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap');
-
 .hp-page { font-family: 'Barlow', sans-serif; }
 
 /* Prevent image cell from overflowing its column */
