@@ -839,6 +839,7 @@ def deckbuilder_page(request):
             'cost': int(c.cost or 0) if c and c.cost else 0,
             'type': c.card_category.value if c else '',
             'counter': int(c.counter) if c and c.counter else 0,
+            'has_trigger': ('[Trigger]' in c.ability) if c else False,
         }
 
     # Ensure leader card is always present in prefill_cards
@@ -1055,6 +1056,15 @@ def deckbuilder_page(request):
                         ("2k",   "+2000",      "2000", "+2000 counter — click to filter"),
                     ]
                 ],
+                ft.Button(
+                    ft.Span("0", id="db-cn-trigger", cls="db-counter-chip-val"),
+                    ft.Span("Trigger", cls="db-counter-chip-label"),
+                    type="button",
+                    cls="db-counter-chip",
+                    id="db-counter-trigger",
+                    onclick="window._dbToggleTriggerFilter()",
+                    title="Cards with Trigger — click to filter",
+                ),
                 cls="db-counter-chips",
             ),
             cls="mb-4",
@@ -1247,6 +1257,15 @@ def deckbuilder_page(request):
                         ("2k",   "+2000",      "2000", "+2000 counter — click to filter"),
                     ]
                 ],
+                ft.Button(
+                    ft.Span("0", id="db-fs-cn-trigger", cls="db-counter-chip-val"),
+                    ft.Span("Trigger", cls="db-counter-chip-label"),
+                    type="button",
+                    cls="db-counter-chip",
+                    id="db-fs-counter-trigger",
+                    onclick="window._dbToggleTriggerFilter()",
+                    title="Cards with Trigger — click to filter",
+                ),
                 ft.Div(style="flex:1;"),
                 ft.Button(
                     ft.I(cls="fas fa-random text-xs mr-1"),

@@ -740,7 +740,10 @@ def setup_watchlist_routes(rt):
                     'img': c.image_url,
                     'is_leader': c.card_category == OPTcgCardCatagory.LEADER,
                     'colors': [col.value for col in c.colors],
+                    'cost': int(c.cost or 0) if c.cost else 0,
+                    'type': c.card_category.value,
                     'counter': int(c.counter) if c.counter else 0,
+                    'has_trigger': '[Trigger]' in c.ability,
                 })
         return JSONResponse(cards)
 
@@ -796,6 +799,7 @@ def setup_watchlist_routes(rt):
                     data_card_cost=str(c.cost or 0),
                     data_card_type=c.card_category.value,
                     data_card_counter=str(c.counter or 0),
+                    data_card_trigger="1" if '[Trigger]' in c.ability else "0",
                     onclick="if(window._cdb){window._cdb.addFromBtn(this);window._dbCardFlash(this);}",
                 )
                 for c in filtered

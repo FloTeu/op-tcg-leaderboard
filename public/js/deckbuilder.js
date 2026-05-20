@@ -9,6 +9,7 @@
   var CIRC = 2 * Math.PI * 36; // SVG ring circumference (r=36)
   var _counterFilter = null;   // null | 0 | 1000 | 2000
   var _costFilter    = null;   // null | 0..10
+  var _triggerFilter = false;  // show only trigger cards
 
   /* ── Hidden-input helpers ────────────────────────────────────────────── */
 
@@ -85,6 +86,7 @@
         var id = e[0]; var d = e[1];
         if (_counterFilter !== null && (d.counter || 0) !== _counterFilter) return;
         if (_costFilter !== null && Math.min(d.cost || 0, 10) !== _costFilter) return;
+        if (_triggerFilter && !d.has_trigger) return;
         var card = document.createElement('div');
         card.className = 'db-deck-card';
         card.dataset.cardId = id;
@@ -101,7 +103,7 @@
           var cid = this.dataset.cardId;
           if (e.metaKey || e.ctrlKey) {
             var d = window._cdb.cards[cid];
-            if (d) window._cdb.addCard(cid, d.name, d.img, d.cost, d.type, d.counter);
+            if (d) window._cdb.addCard(cid, d.name, d.img, d.cost, d.type, d.counter, d.has_trigger);
           } else {
             window._cdb.removeCard(cid);
           }
@@ -173,18 +175,22 @@
 
   function updateCounterStats(cdb) {
     var counts = { 0: 0, 1000: 0, 2000: 0 };
+    var triggerCount = 0;
     Object.values(cdb.cards).forEach(function (c) {
       if (c.is_leader) return;
       var cv = c.counter || 0;
       if (cv === 1000) counts[1000] += c.count;
       else if (cv === 2000) counts[2000] += c.count;
       else counts[0] += c.count;
+      if (c.has_trigger) triggerCount += c.count;
     });
     var map = { 'none': 0, '1k': 1000, '2k': 2000 };
     Object.keys(map).forEach(function (key) {
       var el = document.getElementById('db-cn-' + key);
       if (el) el.textContent = counts[map[key]];
     });
+    var trigEl = document.getElementById('db-cn-trigger');
+    if (trigEl) trigEl.textContent = triggerCount;
   }
 
   /* ── Card browser badge sync ─────────────────────────────────────────── */
@@ -227,7 +233,7 @@
         if (c.is_leader) {
           cdb.setLeader(c.id, c.name || c.id, c.img || '', c.colors || []);
         } else {
-          cdb.cards[c.id] = { count: c.count, name: c.name || c.id, img: c.img || '', is_leader: false, cost: c.cost || 0, type: c.type || '', counter: c.counter || 0 };
+          cdb.cards[c.id] = { count: c.count, name: c.name || c.id, img: c.img || '', is_leader: false, cost: c.cost || 0, type: c.type || '', counter: c.counter || 0, has_trigger: !!c.has_trigger };
         }
       });
       cdb.render();
@@ -335,6 +341,15 @@
     if (window._cdb) window._cdb.render();
   };
 
+  window._dbToggleTriggerFilter = function () {
+    _triggerFilter = !_triggerFilter;
+    var chip = document.getElementById('db-counter-trigger');
+    if (chip) chip.classList.toggle('active', _triggerFilter);
+    var fsChip = document.getElementById('db-fs-counter-trigger');
+    if (fsChip) fsChip.classList.toggle('active', _triggerFilter);
+    if (window._cdb) window._cdb.render();
+  };
+
   window._dbToggleCostFilter = function (cost) {
     var parsed = parseInt(cost, 10);
     _costFilter = (_costFilter === parsed) ? null : parsed;
@@ -371,6 +386,7 @@
         var id = e[0]; var d = e[1];
         if (_counterFilter !== null && (d.counter || 0) !== _counterFilter) return;
         if (_costFilter !== null && Math.min(d.cost || 0, 10) !== _costFilter) return;
+        if (_triggerFilter && !d.has_trigger) return;
         var card = document.createElement('div');
         card.className = 'db-fs-card';
         card.dataset.cardId = id;
@@ -427,6 +443,7 @@
     var typeCounts = { Character: 0, Event: 0, Stage: 0 };
     var costMap = {};
     var counterCounts = { 0: 0, 1000: 0, 2000: 0 };
+    var fsTriggerCount = 0;
     Object.values(cdb.cards).forEach(function (c) {
       if (c.is_leader) return;
       total += c.count;
@@ -436,6 +453,7 @@
       if (cv === 1000) counterCounts[1000] += c.count;
       else if (cv === 2000) counterCounts[2000] += c.count;
       else counterCounts[0] += c.count;
+      if (c.has_trigger) fsTriggerCount += c.count;
     });
 
     var totalEl = document.getElementById('db-fs-total');
@@ -462,6 +480,10 @@
       var chip = document.getElementById('db-fs-counter-' + key);
       if (chip) chip.classList.toggle('active', _counterFilter === cmap[key]);
     });
+    var fsTrigEl = document.getElementById('db-fs-cn-trigger');
+    if (fsTrigEl) fsTrigEl.textContent = fsTriggerCount;
+    var fsTrigChip = document.getElementById('db-fs-counter-trigger');
+    if (fsTrigChip) fsTrigChip.classList.toggle('active', _triggerFilter);
   }
 
   window._dbOpenFullscreen = function () {
@@ -578,13 +600,14 @@
         var cost    = parseInt(btn.dataset.cardCost    || '0', 10);
         var type    = btn.dataset.cardType  || '';
         var counter = parseInt(btn.dataset.cardCounter || '0', 10);
+        var has_trigger = btn.dataset.cardTrigger === '1';
         if (isLeader) { this.setLeader(id, name, img, []); }
-        else          { this.addCard(id, name, img, cost, type, counter); }
+        else          { this.addCard(id, name, img, cost, type, counter, has_trigger); }
       },
 
-      addCard: function (id, name, img, cost, type, counter) {
+      addCard: function (id, name, img, cost, type, counter, has_trigger) {
         if (!(id in this.cards)) {
-          this.cards[id] = { count: 0, name: name, img: img, is_leader: false, cost: cost || 0, type: type || '', counter: counter || 0 };
+          this.cards[id] = { count: 0, name: name, img: img, is_leader: false, cost: cost || 0, type: type || '', counter: counter || 0, has_trigger: !!has_trigger };
         }
         if (this.cards[id].count < 4) this.cards[id].count++;
         this.render();
