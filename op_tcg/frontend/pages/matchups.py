@@ -1,7 +1,7 @@
 from fasthtml import ft
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended
-from op_tcg.frontend.components.loading import create_loading_spinner
+from op_tcg.frontend.components.loading import create_loading_spinner, create_loading_overlay
 from op_tcg.frontend.utils.api import detect_no_match_data
 from op_tcg.frontend.utils.extract import get_leader_extended
 
@@ -11,7 +11,6 @@ FILTER_HX_ATTRS = {
     "hx_trigger": "change",
     "hx_target": "#matchup-content",
     "hx_include": HX_INCLUDE,
-    "hx_indicator": "#matchup-loading-indicator"
 }
 
 
@@ -171,15 +170,16 @@ def create_matchup_content(selected_meta_formats=None, selected_leader_ids=None,
                 style="padding-bottom:14px; border-bottom:1px solid #1a2540;",
             ),
             ft.Div(
+                create_loading_overlay(id="matchup-chart-loading", size="w-8 h-8"),
                 ft.Div(
                     id="matchup-chart-container",
                     hx_get="/api/matchups/chart",
                     hx_trigger="load",
-                    hx_indicator="#matchup-loading-indicator",
+                    hx_indicator="#matchup-chart-loading",
                     hx_include=HX_INCLUDE,
                     cls="w-full h-full",
                 ),
-                cls="meta-chart-area",
+                cls="meta-chart-area relative",
                 style="min-height:500px;",
             ),
             cls="meta-panel mb-4",
@@ -193,15 +193,16 @@ def create_matchup_content(selected_meta_formats=None, selected_leader_ids=None,
                 style="padding-bottom:14px; border-bottom:1px solid #1a2540;",
             ),
             ft.Div(
+                create_loading_overlay(id="matchup-table-loading", size="w-8 h-8"),
                 ft.Div(
                     id="matchup-table-container",
                     hx_get="/api/matchups/table",
                     hx_trigger="load",
-                    hx_indicator="#matchup-loading-indicator",
+                    hx_indicator="#matchup-table-loading",
                     hx_include=HX_INCLUDE,
                     cls="w-full h-full",
                 ),
-                cls="meta-chart-area overflow-x-auto",
+                cls="meta-chart-area overflow-x-auto relative",
                 style="min-height:300px;",
             ),
             cls="meta-panel",
@@ -226,8 +227,6 @@ def matchups_page():
                 cls="mb-6",
                 style="padding-bottom:16px; border-bottom:1px solid #111d30;",
             ),
-            create_loading_spinner(id="matchup-loading-indicator", size="w-8 h-8",
-                                   container_classes="min-h-[100px]"),
             ft.Div(
                 ft.Div(
                     ft.P("Select leaders to view matchup analysis.",
