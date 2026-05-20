@@ -217,18 +217,19 @@ def setup_api_routes(rt):
         if not radar_data:
             return ft.P("No matchup data available for the selected leaders", cls="text-red-400")
 
-        # Get colors for each leader
         colors = [leader_dict[lid].to_hex_color() for lid in params.leader_ids if lid in leader_dict]
+        leader_names = {lid: leader_dict[lid].name for lid in params.leader_ids if lid in leader_dict}
 
-        # Create and return the radar chart with responsive container
         return ft.Div(
             create_leader_win_rate_radar_chart(
                 container_id="matchup-radar-chart",
                 data=radar_data,
                 leader_ids=params.leader_ids,
-                colors=colors
+                colors=colors,
+                height="450px",
+                leader_names=leader_names,
             ),
-            cls="w-full h-[500px] md:h-[600px]"  # Increased height, responsive
+            cls="w-full flex items-center justify-center",
         )
 
     @rt("/api/matchups/table")

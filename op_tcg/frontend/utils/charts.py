@@ -86,9 +86,10 @@ def create_line_chart(container_id: str, data: List[dict[str, Any]],
         cls="w-full h-full"  # Use full height and width of parent
     )
 
-def create_leader_win_rate_radar_chart(container_id: str, data: List[dict[str, Any]], 
-                                      leader_ids: List[str], colors: List[str] = None, 
-                                      show_legend: bool = True) -> ft.Div:
+def create_leader_win_rate_radar_chart(container_id: str, data: List[dict[str, Any]],
+                                      leader_ids: List[str], colors: List[str] = None,
+                                      show_legend: bool = True, height: str = "300px",
+                                      leader_names: dict | None = None) -> ft.Div:
     """
     Create a radar chart to display leader win rates against different color matchups (REFACTORED).
 
@@ -119,24 +120,23 @@ def create_leader_win_rate_radar_chart(container_id: str, data: List[dict[str, A
     if not colors or len(colors) != len(leader_ids):
         colors = ["#3498db", "#e74c3c", "#2ecc71", "#f39c12", "#9b59b6"][:len(leader_ids)]
 
-    # Prepare configuration for ChartManager
     config = {
         'containerId': container_id,
         'data': filtered_data,
         'leaderIds': leader_ids,
         'colors': colors,
-        'showLegend': show_legend
+        'showLegend': show_legend,
+        'leaderNames': leader_names or {},
     }
 
     return ft.Div(
-        # Chart container with canvas
         ft.Div(
             ft.Canvas(id=container_id),
-            cls="h-full w-full"  # Use full height and width
+            cls="h-full w-full"
         ),
         _create_chart_script('createRadarChart', container_id, config),
         cls="radar-chart-container w-full",
-        style="height: 300px;"
+        style=f"height: {height};"
     )
 
 def create_bar_chart(container_id: str, data: List[dict[str, Any]], 
