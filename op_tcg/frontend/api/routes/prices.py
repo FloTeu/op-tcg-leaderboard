@@ -17,15 +17,15 @@ from op_tcg.frontend.components.loading import create_loading_spinner, create_sk
 def _header(currency: CardCurrency, start_date: int, end_date: int) -> ft.Div:
     start_str = datetime.fromtimestamp(start_date).strftime('%Y-%m-%d')
     end_str = datetime.fromtimestamp(end_date).strftime('%Y-%m-%d')
+    currency_label = 'EUR' if currency == CardCurrency.EURO else 'USD'
     return ft.Div(
-        ft.H2("Card Prices Overview", cls="text-2xl font-bold text-white mb-1"),
-        ft.P(
-            f"From {start_str} to {end_str} • Currency: {'EUR' if currency == CardCurrency.EURO else 'USD'}",
-            cls="text-gray-300"
+        ft.Span(
+            f"{start_str} → {end_str} · {currency_label}",
+            style="font-family:'Share Tech Mono',monospace; font-size:0.72rem; color:#475569; margin-top:4px; display:block;",
         ),
         cls="mb-4",
         id="prices-header-container",
-        hx_swap_oob="true"
+        hx_swap_oob="true",
     )
 
 
