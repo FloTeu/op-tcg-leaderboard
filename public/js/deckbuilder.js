@@ -483,8 +483,76 @@
   };
 
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') window._dbCloseFullscreen();
+    if (e.key === 'Escape') {
+      window._dbCloseHand();
+      window._dbCloseFullscreen();
+    }
   });
+
+  /* ── Starting Hand ───────────────────────────────────────────────── */
+
+  window._dbDrawHand = function () {
+    var cdb = window._cdb;
+    if (!cdb) return;
+
+    // Build weighted pool (one entry per copy of each card)
+    var pool = [];
+    Object.entries(cdb.cards).forEach(function (e) {
+      var id = e[0]; var d = e[1];
+      if (d.is_leader) return;
+      for (var i = 0; i < d.count; i++) {
+        pool.push({ id: id, img: d.img || '', name: d.name || id });
+      }
+    });
+
+    if (pool.length < 5) {
+      alert('Need at least 5 cards in the deck to draw a starting hand.');
+      return;
+    }
+
+    // Fisher-Yates shuffle
+    for (var i = pool.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+    }
+    var hand = pool.slice(0, 5);
+
+    // Fan arc: rotations and vertical offsets for each of the 5 cards
+    var rots = [-16, -8, 0, 8, 16];
+    var tys  = [18,   7,  0, 7, 18];
+
+    var container = document.getElementById('db-hand-cards');
+    if (!container) return;
+    container.innerHTML = '';
+
+    hand.forEach(function (card, i) {
+      var outer = document.createElement('div');
+      outer.className = 'db-hand-card-outer';
+      outer.style.transform = 'rotate(' + rots[i] + 'deg) translateY(' + tys[i] + 'px)';
+
+      var inner = document.createElement('div');
+      inner.className = 'db-hand-card-inner';
+      inner.style.animationDelay = (i * 0.07) + 's';
+      inner.innerHTML = '<img src="' + card.img + '" alt="' + card.name + '" style="width:100%;display:block;">';
+
+      outer.appendChild(inner);
+      container.appendChild(outer);
+    });
+
+    var overlay = document.getElementById('db-hand-overlay');
+    if (overlay) overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  };
+
+  window._dbCloseHand = function () {
+    var overlay = document.getElementById('db-hand-overlay');
+    if (overlay) overlay.classList.remove('open');
+    // Only restore scroll if fullscreen is also closed
+    var fs = document.getElementById('db-fs-overlay');
+    if (!fs || !fs.classList.contains('open')) {
+      document.body.style.overflow = '';
+    }
+  };
 
   /* ── Main entry point — called by the inline init script ─────────────── */
 

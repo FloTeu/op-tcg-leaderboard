@@ -667,6 +667,99 @@ def _styles() -> ft.Style:
     cursor: pointer; transition: all 0.12s; white-space: nowrap;
 }
 .db-expand-btn:hover { border-color: #2d3f5a; color: #64748b; background: #080e1c; }
+
+/* ── Starting Hand overlay ──────────────────────────────────────────── */
+.db-hand-overlay {
+    position: fixed; inset: 0; z-index: 9500;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s ease;
+    background: rgba(3,5,8,0.88);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+.db-hand-overlay.open { opacity: 1; pointer-events: all; }
+
+.db-hand-modal {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 28px 24px 36px; width: 100%;
+    transform: translateY(24px);
+    transition: transform 0.3s cubic-bezier(0.22,1,0.36,1);
+}
+.db-hand-overlay.open .db-hand-modal { transform: translateY(0); }
+
+.db-hand-header {
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; margin-bottom: 4px;
+}
+.db-hand-title-label {
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 0.18em; font-size: 1.5rem;
+    color: #fef3c7;
+    text-shadow: 0 0 30px rgba(245,158,11,0.3);
+}
+.db-hand-subtitle {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.58rem; color: #334155;
+    letter-spacing: 0.1em; margin-bottom: 8px;
+}
+.db-hand-close {
+    position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+    width: 30px; height: 30px; border-radius: 50%;
+    background: rgba(20,30,50,0.6); border: 1px solid #1a2540;
+    color: #475569; font-size: 0.8rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+}
+.db-hand-close:hover { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.4); color: #ef4444; }
+
+.db-hand-cards {
+    display: flex; align-items: flex-end; justify-content: center;
+    padding: 12px 0 8px;
+}
+.db-hand-card-outer {
+    flex-shrink: 0;
+    margin: 0 -10px;
+    position: relative;
+    transform-origin: center bottom;
+}
+.db-hand-card-outer:hover { z-index: 10; }
+.db-hand-card-outer:hover .db-hand-card-inner {
+    transform: translateY(-22px) scale(1.07);
+    border-color: rgba(245,158,11,0.55);
+    box-shadow: 0 22px 44px rgba(0,0,0,0.75), 0 0 22px rgba(245,158,11,0.18);
+}
+.db-hand-card-inner {
+    width: 88px;
+    border-radius: 7px; overflow: hidden;
+    border: 1.5px solid #1a2540;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.65);
+    transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), border-color 0.15s, box-shadow 0.15s;
+    animation: db-deal-in 0.42s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+@media (min-width: 480px) { .db-hand-card-inner { width: 108px; } }
+@media (min-width: 768px) { .db-hand-card-inner { width: 130px; } }
+
+@keyframes db-deal-in {
+    from { opacity: 0; transform: translateY(48px) scale(0.82); }
+    to   { opacity: 1; }
+}
+
+.db-hand-actions { display: flex; gap: 10px; margin-top: 20px; }
+.db-hand-btn-draw {
+    background: rgba(245,158,11,0.12);
+    color: #f59e0b; border: 1px solid rgba(245,158,11,0.35);
+    font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.12em;
+    font-size: 0.92rem; padding: 8px 26px; border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, transform 0.1s;
+}
+.db-hand-btn-draw:hover {
+    background: rgba(245,158,11,0.22);
+    border-color: rgba(245,158,11,0.55);
+    transform: translateY(-1px);
+}
 """)
 
 
@@ -970,12 +1063,22 @@ def deckbuilder_page(request):
         ft.Div(
             ft.Span("MY DECK",
                     style="font-family:'Bebas Neue',sans-serif;letter-spacing:.12em;font-size:.6rem;color:#334155;"),
-            ft.Button(
-                ft.I(cls="fas fa-expand-alt text-xs mr-1"),
-                "FULL VIEW",
-                type="button",
-                cls="db-expand-btn",
-                onclick="window._dbOpenFullscreen()",
+            ft.Div(
+                ft.Button(
+                    ft.I(cls="fas fa-random text-xs mr-1"),
+                    "HAND",
+                    type="button",
+                    cls="db-expand-btn",
+                    onclick="window._dbDrawHand()",
+                ),
+                ft.Button(
+                    ft.I(cls="fas fa-expand-alt text-xs mr-1"),
+                    "FULL VIEW",
+                    type="button",
+                    cls="db-expand-btn",
+                    onclick="window._dbOpenFullscreen()",
+                ),
+                cls="flex items-center gap-1",
             ),
             cls="flex items-center justify-between mb-2",
         ),
@@ -1145,6 +1248,13 @@ def deckbuilder_page(request):
                     ]
                 ],
                 ft.Div(style="flex:1;"),
+                ft.Button(
+                    ft.I(cls="fas fa-random text-xs mr-1"),
+                    "HAND",
+                    type="button",
+                    cls="db-expand-btn",
+                    onclick="window._dbDrawHand()",
+                ),
                 *[
                     ft.Div(
                         ft.Span("0", id=f"db-fs-tc-{cat.lower()}", cls="db-fs-footer-type-val"),
@@ -1157,6 +1267,33 @@ def deckbuilder_page(request):
             ),
             id="db-fs-overlay",
             cls="db-fs-overlay",
+        ),
+        # ── Starting Hand overlay ────────────────────────────────────────
+        ft.Div(
+            ft.Div(
+                ft.Div(
+                    ft.Span("OPENING HAND", cls="db-hand-title-label"),
+                    ft.Button("✕", type="button", cls="db-hand-close",
+                              onclick="window._dbCloseHand()"),
+                    cls="db-hand-header",
+                ),
+                ft.Span("5 CARDS — RANDOM STARTING HAND", cls="db-hand-subtitle"),
+                ft.Div(id="db-hand-cards", cls="db-hand-cards"),
+                ft.Div(
+                    ft.Button(
+                        ft.I(cls="fas fa-random mr-1.5 text-xs"),
+                        "DRAW AGAIN",
+                        type="button",
+                        cls="db-hand-btn-draw",
+                        onclick="window._dbDrawHand()",
+                    ),
+                    cls="db-hand-actions",
+                ),
+                cls="db-hand-modal",
+            ),
+            id="db-hand-overlay",
+            cls="db-hand-overlay",
+            onclick="if(event.target===this)window._dbCloseHand()",
         ),
         _page_script(prefill_data),
         cls="db-page bg-deep-navy",
