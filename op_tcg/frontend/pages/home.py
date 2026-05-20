@@ -110,9 +110,9 @@ def _styles() -> ft.Style:
     text-decoration: none;
     transition: color 0.12s;
     display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.3;
 }
 .hp-leader-link:hover { color: #7dd3fc; }
 
@@ -312,7 +312,7 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
     header = ft.Thead(
         ft.Tr(
             ft.Th("", cls="hp-th", style="width:200px;"),
-            ft.Th("Leader", cls="hp-th"),
+            ft.Th("Leader", cls="hp-th", style="text-align:center;"),
             ft.Th("Set", cls="hp-th"),
             sh("Tournament Wins", LeaderboardSortBy.TOURNAMENT_WINS),
             sh("Match Count", LeaderboardSortBy.MATCH_COUNT),
@@ -436,7 +436,7 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
             ),
             ft.Td(
                 ft.A(leader_name, href=leader_url, cls="hp-leader-link"),
-                cls="hp-td"
+                cls="hp-td", style="text-align:center; vertical-align:middle;"
             ),
             ft.Td(leader.id.split("-")[0], cls="hp-td-mono"),
             ft.Td(str(leader.tournament_wins), cls="hp-td-mono", style="color:#f59e0b;"),
