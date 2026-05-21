@@ -26,7 +26,7 @@ def _flash_toast(flash):
             cls=f"flex items-center {bg} text-white font-medium px-4 py-3 rounded-lg shadow-lg"
         ),
         ft.Script("setTimeout(function(){var t=document.getElementById('flash-toast');if(t)t.remove();},5000);"),
-        cls="fixed top-20 right-4 z-50 max-w-sm w-full",
+        cls="fixed top-20 right-4 left-4 sm:left-auto z-50 max-w-sm",
         id="flash-toast"
     )
 
