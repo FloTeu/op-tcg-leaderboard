@@ -212,7 +212,7 @@ def layout(content, filter_component=None, current_path="/", persist_query=None,
 
 
 def get_user_control_view(user, current_path: str = "/") -> Any:
-    user_name = user.get('name', 'User')
+    user_name = (user.get('name') or 'User').split()[0]
     user_img = user.get('picture', None)
 
     user_control = ft.Div(

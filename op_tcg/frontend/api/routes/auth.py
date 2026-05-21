@@ -128,7 +128,8 @@ def setup_auth_routes(rt):
             logger.error(f"Error updating user in Firestore: {e}")
 
         request.session['user'] = user
-        request.session['flash'] = {"message": f"Welcome back, {user.get('name', 'there')}!", "type": "success"}
+        first_name = (user.get('name') or 'there').split()[0]
+        request.session['flash'] = {"message": f"Welcome back, {first_name}!", "type": "success"}
         redirect_to = request.session.pop('login_next', '/')
         return RedirectResponse(url=redirect_to, status_code=302)
 
@@ -150,7 +151,8 @@ def setup_auth_routes(rt):
 
         request.session.pop('pending_registration', None)
         request.session['user'] = pending
-        request.session['flash'] = {"message": f"Welcome, {pending.get('name', 'there')}! Your account has been created.", "type": "success"}
+        first_name = (pending.get('name') or 'there').split()[0]
+        request.session['flash'] = {"message": f"Welcome, {first_name}! Your account has been created.", "type": "success"}
         redirect_to = request.session.pop('login_next', '/')
         return RedirectResponse(url=redirect_to, status_code=302)
 
@@ -162,5 +164,6 @@ def setup_auth_routes(rt):
     @rt("/logout", name="logout")
     async def logout(request: Request):
         request.session.pop('user', None)
+        request.session.pop('flash', None)
         redirect_to = _safe_next_url(request.query_params.get("next")) or '/'
         return RedirectResponse(url=redirect_to, status_code=302)
