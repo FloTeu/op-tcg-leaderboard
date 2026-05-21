@@ -74,6 +74,9 @@ def _wl_styles() -> ft.Style:
     color: #334155; display: block; margin-bottom: 3px;
 }
 .wl-stat-val { font-family: 'Share Tech Mono', monospace; font-size: 1.5rem; color: #f1f5f9; line-height: 1; }
+@media (max-width: 640px) {
+    .wl-stat-val { font-size: 1.15rem; }
+}
 
 .wl-btn-primary {
     display: inline-flex; align-items: center; gap: 6px;
@@ -851,9 +854,9 @@ def watchlist_page(request):
                                 id=f"{chart_id}-loading", size="w-6 h-6",
                                 container_classes="absolute inset-0 flex items-center justify-center pointer-events-none hidden"
                             ),
-                            cls="w-full min-w-[200px] h-36 relative overflow-hidden"
+                            cls="h-36 relative", style="min-width:260px;"
                         ),
-                        cls="wl-td w-full"
+                        cls="wl-td"
                     ),
                     cls="wl-tr watchlist-card-item",
                     data_eur_price=str(item['latest_eur']),
@@ -862,6 +865,7 @@ def watchlist_page(request):
             )
 
         content = ft.Div(
+            ft.Div(
             ft.Table(
                 ft.Thead(
                     ft.Tr(
@@ -886,7 +890,7 @@ def watchlist_page(request):
                                 ),
                                 cls="flex items-center gap-3"
                             ),
-                            cls="wl-th min-w-[300px]"
+                            cls="wl-th", style="min-width:260px;"
                         ),
                     ),
                     cls="wl-thead"
@@ -894,7 +898,9 @@ def watchlist_page(request):
                 ft.Tbody(*rows),
                 cls="wl-table"
             ),
-            cls="wl-panel overflow-x-auto wl-scroll"
+            cls="overflow-x-auto wl-scroll"
+            ),
+            cls="wl-panel"
         )
 
     else:
@@ -1069,7 +1075,7 @@ def watchlist_page(request):
     collection_label = f'"{tag_filter}"' if tag_filter else "All Cards"
 
     def _stat_divider():
-        return ft.Div(style="width:1px;background:#1a2540;align-self:stretch;margin:0 4px;flex-shrink:0;")
+        return ft.Div(cls="hidden sm:block flex-shrink-0", style="width:1px;background:#1a2540;align-self:stretch;margin:0 4px;")
 
     portfolio_section = ft.Div(
         ft.Div(
@@ -1100,9 +1106,9 @@ def watchlist_page(request):
                 ft.Span("COLLECTION", cls="wl-stat-label"),
                 ft.Span(collection_label,
                         style="font-family:'Share Tech Mono',monospace;font-size:.75rem;color:#38bdf8;"),
-                cls="flex flex-col ml-auto"
+                cls="flex flex-col w-full sm:w-auto sm:ml-auto"
             ),
-            cls="flex items-center gap-3 sm:gap-5 px-5 py-4",
+            cls="flex flex-wrap items-start gap-x-4 gap-y-3 sm:gap-x-5 px-5 py-4",
             style="border-bottom:1px solid #1a2540;"
         ),
         ft.Div(

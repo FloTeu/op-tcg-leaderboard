@@ -1114,6 +1114,7 @@ class ChartManager {
                     scales: {
                         x: {
                             display: showXAxis,
+                            offset: false,
                             grid: {
                                 display: showXAxis,
                                 color: 'rgba(75, 85, 99, 0.3)'
@@ -1141,20 +1142,24 @@ class ChartManager {
                                 font: {
                                     size: 11
                                 },
-                                padding: 8,
-                                callback: function(value, index, values) {
-                                    return '€/' + value.toFixed(2);
+                                padding: 4,
+                                maxTicksLimit: 5,
+                                callback: function(value) {
+                                    return value >= 100 ? value.toFixed(0) : value.toFixed(2);
                                 }
                             },
-                            beginAtZero: true
+                            afterFit: function(scale) {
+                                scale.width = Math.max(scale.width, 48);
+                            },
+                            beginAtZero: false
                         }
                     },
                     layout: {
                         padding: {
-                            top: 10,
-                            right: 15,
-                            bottom: 10,
-                            left: 15
+                            top: 4,
+                            right: 4,
+                            bottom: 4,
+                            left: 0
                         }
                     }
                 }
