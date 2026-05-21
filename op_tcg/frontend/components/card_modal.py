@@ -170,7 +170,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     card_version=selected_card.aa_version,
                     language="en",
                     is_in_watchlist=initial_in_watchlist,
-                    extra_cls="absolute top-4 right-16 md:top-4 md:right-16 z-30",
+                    extra_cls="absolute top-4 right-16 md:top-4 md:right-16 z-30 mobile-watchlist-btn",
                     btn_cls="w-9 h-9",
                     include_script=True
                 ) if is_logged_in else None,
@@ -614,6 +614,9 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     border: 1px solid #1a2540 !important;
                     box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important;
                     z-index: 40 !important;
+                }
+                .mobile-watchlist-btn {
+                    top: 0.5rem !important; right: 3rem !important;
                 }
 
                 .card-nav-left, .card-nav-right { width: 80px; }

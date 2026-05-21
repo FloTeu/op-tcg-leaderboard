@@ -108,7 +108,7 @@ def create_watchlist_toggle(card_id: str, card_version: int = 0, language: str =
                     closeTagPopover();
                     const popover = document.createElement('div');
                     popover.id = 'watchlist-tag-popover';
-                    popover.style.cssText = 'position:fixed;z-index:9999;background:#1f2937;border:1px solid #374151;border-radius:8px;padding:14px;box-shadow:0 10px 25px rgba(0,0,0,0.6);min-width:240px;';
+                    popover.style.cssText = 'position:fixed;z-index:20000;background:#1f2937;border:1px solid #374151;border-radius:8px;padding:14px;box-shadow:0 10px 25px rgba(0,0,0,0.6);min-width:240px;';
 
                     const rect = btn.getBoundingClientRect();
                     const top = Math.min(rect.bottom + 8, window.innerHeight - 130);
