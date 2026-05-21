@@ -59,15 +59,18 @@ def layout(content, filter_component=None, current_path="/", persist_query=None,
 
     # Main layout
     if user:
-        user_control = get_user_control_view(user)
+        user_control = get_user_control_view(user, current_path)
     else:
-        user_control = None
-        # user_control = ft.A(
-        #     ft.I(cls="fas fa-sign-in-alt mr-2"),
-        #     "Sign In",
-        #     href="/login",
-        #     cls="text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 font-semibold rounded-full text-sm px-5 py-2 shadow-lg hover:shadow-xl transition-all duration-200 border border-blue-400/20 flex items-center"
-        # )
+        login_next = current_path if current_path and current_path != "/login" else "/"
+        user_control = ft.A(
+            ft.I(cls="fas fa-sign-in-alt mr-2"),
+            "Sign In",
+            href=f"/login?next={login_next}",
+            cls="flex items-center rounded-lg px-4 py-2",
+            style="background:#f59e0b;color:#000;font-family:'Bebas Neue',sans-serif;letter-spacing:.1em;font-size:.85rem;text-decoration:none;transition:background .12s,transform .1s;",
+            onmouseover="this.style.background='#fbbf24';this.style.transform='translateY(-1px)'",
+            onmouseout="this.style.background='#f59e0b';this.style.transform=''",
+        )
 
     return ft.Div(
         # Include external CSS files
@@ -208,7 +211,7 @@ def layout(content, filter_component=None, current_path="/", persist_query=None,
     )
 
 
-def get_user_control_view(user) -> Any:
+def get_user_control_view(user, current_path: str = "/") -> Any:
     user_name = user.get('name', 'User')
     user_img = user.get('picture', None)
 
@@ -231,7 +234,7 @@ def get_user_control_view(user) -> Any:
             ft.Ul(
                 ft.Li(ft.A("Watchlist", href="/watchlist", style="display:block;padding:8px 16px;font-size:.875rem;color:#94a3b8;font-family:'Barlow',sans-serif;transition:background .12s,color .12s;", onmouseover="this.style.background='rgba(245,158,11,.08)';this.style.color='#f1f5f9'", onmouseout="this.style.background='';this.style.color='#94a3b8'")),
                 ft.Li(ft.A("Settings", href="/settings", style="display:block;padding:8px 16px;font-size:.875rem;color:#94a3b8;font-family:'Barlow',sans-serif;transition:background .12s,color .12s;", onmouseover="this.style.background='rgba(245,158,11,.08)';this.style.color='#f1f5f9'", onmouseout="this.style.background='';this.style.color='#94a3b8'")),
-                ft.Li(ft.A("Logout", href="/logout", style="display:block;padding:8px 16px;font-size:.875rem;color:#94a3b8;font-family:'Barlow',sans-serif;transition:background .12s,color .12s;", onmouseover="this.style.background='rgba(239,68,68,.08)';this.style.color='#ef4444'", onmouseout="this.style.background='';this.style.color='#94a3b8'")),
+                ft.Li(ft.A("Logout", href=f"/logout?next={current_path}", style="display:block;padding:8px 16px;font-size:.875rem;color:#94a3b8;font-family:'Barlow',sans-serif;transition:background .12s,color .12s;", onmouseover="this.style.background='rgba(239,68,68,.08)';this.style.color='#ef4444'", onmouseout="this.style.background='';this.style.color='#94a3b8'")),
                 style="padding:6px 0;list-style:none;margin:0;"
             ),
             style="z-index:50;display:none;position:absolute;right:0;margin-top:8px;width:200px;background:#0d1424;border:1px solid #1a2540;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.5);overflow:hidden;",

@@ -592,7 +592,7 @@ def privacy(request: Request):
 def watchlist_route(request: Request):
     user = request.session.get('user')
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login?next=/watchlist")
 
     # Add canonical link to head based on incoming host
     canonical_url = f"{canonical_base(request)}/watchlist"
@@ -614,7 +614,7 @@ def watchlist_route(request: Request):
 def deckbuilder_route(request: Request):
     user = request.session.get('user')
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login?next=/deckbuilder")
     return (
         ft.Title("Deck Builder – OP TCG Leaderboard"),
         ft.Meta(name="description", content="Build and save One Piece TCG decks."),

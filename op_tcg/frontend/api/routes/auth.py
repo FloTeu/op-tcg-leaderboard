@@ -10,6 +10,13 @@ logger = logging.getLogger(__name__)
 VALID_PROVIDERS = ('google', 'discord')
 
 
+def _safe_next_url(url: str | None) -> str | None:
+    """Return url only if it's a safe relative path (prevents open redirect)."""
+    if url and url.startswith('/') and not url.startswith('//'):
+        return url
+    return None
+
+
 def _normalize_discord_user(discord_user: dict) -> dict:
     user_id = discord_user.get('id', '')
     avatar_hash = discord_user.get('avatar')
@@ -31,13 +38,18 @@ def setup_auth_routes(rt):
         from op_tcg.frontend.pages.login import login_provider_select_content
         flash = request.session.pop('flash', None)
         user = request.session.get('user')
-        return layout(login_provider_select_content(), current_path="/login", user=user, flash=flash)
+        next_url = _safe_next_url(request.query_params.get("next"))
+        return layout(login_provider_select_content(next_url=next_url), current_path="/login", user=user, flash=flash)
 
     @rt("/login/{provider}", name="login_provider")
     async def login_provider(request: Request, provider: str):
         if provider not in VALID_PROVIDERS:
             request.session['flash'] = {"message": "Unknown login provider.", "type": "error"}
             return RedirectResponse(url='/login', status_code=302)
+
+        next_url = _safe_next_url(request.query_params.get("next"))
+        if next_url:
+            request.session['login_next'] = next_url
 
         redirect_uri = str(request.url_for('auth_callback', provider=provider))
         if "0.0.0.0" in redirect_uri:
@@ -117,7 +129,8 @@ def setup_auth_routes(rt):
 
         request.session['user'] = user
         request.session['flash'] = {"message": f"Welcome back, {user.get('name', 'there')}!", "type": "success"}
-        return RedirectResponse(url='/', status_code=302)
+        redirect_to = request.session.pop('login_next', '/')
+        return RedirectResponse(url=redirect_to, status_code=302)
 
     @rt("/api/register", methods=["POST"])
     async def confirm_registration(request: Request):
@@ -138,7 +151,8 @@ def setup_auth_routes(rt):
         request.session.pop('pending_registration', None)
         request.session['user'] = pending
         request.session['flash'] = {"message": f"Welcome, {pending.get('name', 'there')}! Your account has been created.", "type": "success"}
-        return RedirectResponse(url='/', status_code=302)
+        redirect_to = request.session.pop('login_next', '/')
+        return RedirectResponse(url=redirect_to, status_code=302)
 
     @rt("/api/register/cancel", methods=["POST"])
     async def cancel_registration(request: Request):
@@ -148,4 +162,5 @@ def setup_auth_routes(rt):
     @rt("/logout", name="logout")
     async def logout(request: Request):
         request.session.pop('user', None)
-        return RedirectResponse(url='/', status_code=302)
+        redirect_to = _safe_next_url(request.query_params.get("next")) or '/'
+        return RedirectResponse(url=redirect_to, status_code=302)
