@@ -76,7 +76,7 @@ _SIDEBAR_STYLES = ft.Style("""
         letter-spacing: 0.1em;
         font-size: 1rem;
         margin-bottom: 12px;
-        padding: 0 14px;
+        padding-top: 12px;
         display: block;
     }
 """)
