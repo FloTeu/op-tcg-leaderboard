@@ -172,8 +172,9 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     is_in_watchlist=initial_in_watchlist,
                     extra_cls="absolute top-4 right-16 md:top-4 md:right-16 z-30 mobile-watchlist-btn",
                     btn_cls="w-9 h-9",
-                    include_script=True
-                ) if is_logged_in else None,
+                    include_script=True,
+                    is_logged_in=is_logged_in,
+                ),
 
                 # Card navigation — previous
                 ft.Div(

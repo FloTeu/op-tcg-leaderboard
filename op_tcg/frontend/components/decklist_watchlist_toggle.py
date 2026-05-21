@@ -10,6 +10,7 @@ def create_decklist_watchlist_toggle(
     extra_cls: str = "",
     btn_cls: str = "",
     include_script: bool = False,
+    is_logged_in: bool = True,
 ) -> ft.Div:
     """Heart icon button to toggle a tournament decklist in/out of the watchlist.
 
@@ -36,6 +37,10 @@ def create_decklist_watchlist_toggle(
     if (window.toggleDecklistWatchlistItem) return;
 
     window.toggleDecklistWatchlistItem = function(btn) {
+        if (btn.dataset.loggedIn === 'false') {
+            window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+            return;
+        }
         const isInWatchlist = btn.dataset.inWatchlist === 'true';
         if (isInWatchlist) {
             _performDecklistAction(btn, true, null);
@@ -225,6 +230,7 @@ def create_decklist_watchlist_toggle(
         data_player_id=player_id,
         data_meta_format=meta_format,
         data_in_watchlist="true" if is_in_watchlist else "false",
+        data_logged_in="true" if is_logged_in else "false",
     )
 
     if script:

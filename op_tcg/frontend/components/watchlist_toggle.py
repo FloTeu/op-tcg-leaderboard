@@ -1,6 +1,6 @@
 from fasthtml import ft
 
-def create_watchlist_toggle(card_id: str, card_version: int = 0, language: str = "en", is_in_watchlist: bool = False, extra_cls: str = "", btn_cls: str = "", include_script: bool = False) -> ft.Div:
+def create_watchlist_toggle(card_id: str, card_version: int = 0, language: str = "en", is_in_watchlist: bool = False, extra_cls: str = "", btn_cls: str = "", include_script: bool = False, is_logged_in: bool = True) -> ft.Div:
     """
     Creates a heart icon button to toggle watchlist status.
 
@@ -34,6 +34,10 @@ def create_watchlist_toggle(card_id: str, card_version: int = 0, language: str =
                 if (window.toggleWatchlistItem) return; // Already defined
 
                 window.toggleWatchlistItem = function(btn) {
+                    if (btn.dataset.loggedIn === 'false') {
+                        window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+                        return;
+                    }
                     const isInWatchlist = btn.dataset.inWatchlist === 'true';
                     if (isInWatchlist) {
                         performWatchlistAction(btn, true, null);
@@ -188,7 +192,8 @@ def create_watchlist_toggle(card_id: str, card_version: int = 0, language: str =
         data_card_id=card_id,
         data_card_version=card_version,
         data_language=language,
-        data_in_watchlist="true" if is_in_watchlist else "false"
+        data_in_watchlist="true" if is_in_watchlist else "false",
+        data_logged_in="true" if is_logged_in else "false"
     )
 
     if script:

@@ -411,8 +411,9 @@ def create_decklist_modal(
                             meta_format=str(selected_td.meta_format) if selected_td and selected_td.meta_format else "",
                             is_in_watchlist=bool(selected_td and f"{selected_td.tournament_id}:{selected_td.player_id}" in watchlisted_keys),
                             include_script=True,
+                            is_logged_in=is_logged_in,
                         )]
-                        if is_logged_in and selected_td else []
+                        if selected_td else []
                     ),
                     # Close button
                     ft.Button(
