@@ -753,9 +753,6 @@ def setup_watchlist_routes(rt):
     async def builder_card_search(request: Request):
         """Card search for the custom decklist builder. Reuses filter_cards logic."""
         from op_tcg.frontend.api.routes.pages import filter_cards
-        user = request.session.get('user')
-        if not user:
-            return JSONResponse({"error": "Unauthorized"}, status_code=401)
 
         params = CardPopularityParams(**get_query_params_as_dict(request))
         if not params.search_term:

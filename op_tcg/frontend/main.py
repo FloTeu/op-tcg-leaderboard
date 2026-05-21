@@ -613,8 +613,6 @@ def watchlist_route(request: Request):
 @rt("/deckbuilder")
 def deckbuilder_route(request: Request):
     user = request.session.get('user')
-    if not user:
-        return RedirectResponse(url="/login?next=/deckbuilder")
     return (
         ft.Title("Deck Builder – OP TCG Leaderboard"),
         ft.Meta(name="description", content="Build and save One Piece TCG decks."),

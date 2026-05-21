@@ -663,6 +663,11 @@
       },
 
       save: function () {
+        var btn = document.getElementById('cdb-save-btn');
+        if (btn && btn.dataset.loggedIn !== 'true') {
+          window.location.href = '/login?next=/deckbuilder';
+          return;
+        }
         var nameEl = document.getElementById('cdb-name');
         var name = nameEl ? nameEl.value.trim() : '';
         if (!name) { alert('Please name your deck.'); if (nameEl) nameEl.focus(); return; }
@@ -675,7 +680,6 @@
           if (!(self.cards[e[0]] && self.cards[e[0]].is_leader)) nonLeader += e[1];
         });
         if (nonLeader < 50 && !confirm('Deck has ' + nonLeader + '/50 cards. Save anyway?')) return;
-        var btn = document.getElementById('cdb-save-btn');
         if (btn) { btn.disabled = true; btn.textContent = 'Saving\u2026'; }
         fetch('/api/watchlist/custom-decklist/save', {
           method: 'POST',
@@ -684,6 +688,8 @@
         }).then(function (r) {
           if (r.ok) {
             window.location.href = '/watchlist?section=decklists';
+          } else if (r.status === 401) {
+            window.location.href = '/login?next=/deckbuilder';
           } else {
             alert('Failed to save. Please try again.');
             if (btn) { btn.disabled = false; btn.textContent = 'SAVE DECK'; }

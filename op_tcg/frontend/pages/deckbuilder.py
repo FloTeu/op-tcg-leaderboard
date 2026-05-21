@@ -780,15 +780,7 @@ if (typeof window._dbSetup === 'function') {{
 
 def deckbuilder_page(request):
     user = request.session.get('user')
-    if not user:
-        return ft.Div(
-            ft.H1("Access Denied", cls="db-display text-3xl text-white mb-4"),
-            ft.P("Please log in to use the Deck Builder.", cls="text-gray-400 db-body"),
-            ft.A("Log in", href="/login", cls="inline-block mt-4 db-btn-primary"),
-            cls="db-page bg-deep-navy db-body min-h-screen flex flex-col items-center justify-center gap-2"
-        )
-
-    user_id = user.get('sub')
+    user_id = user.get('sub') if user else None
     card_lookup = get_card_id_card_data_lookup()
     custom_id = request.query_params.get('custom_id', '')
     import_tournament_id = request.query_params.get('import_tournament_id', '')
@@ -797,7 +789,7 @@ def deckbuilder_page(request):
 
     # Resolve prefill (edit mode or import)
     prefill_name, prefill_leader_id, prefill_leader_img, prefill_leader_name, prefill_decklist = '', '', '', '', {}
-    if custom_id:
+    if user_id and custom_id:
         customs = get_custom_decklists(user_id)
         match = next((d for d in customs if d.get('id') == custom_id), None)
         if match:
@@ -815,7 +807,7 @@ def deckbuilder_page(request):
             prefill_decklist = {k: int(v) for k, v in (td.decklist or {}).items()}
             prefill_leader_id = td.leader_id  # always override — import brings its own leader
 
-    if import_custom_id:
+    if user_id and import_custom_id:
         for d in get_custom_decklists(user_id):
             if d.get('id') == import_custom_id:
                 prefill_decklist = {k: int(v) for k, v in (d.get('decklist') or {}).items()}
@@ -886,8 +878,8 @@ def deckbuilder_page(request):
         ))
 
     # Import options
-    dl_watchlist = get_decklist_watchlist(user_id)
-    customs_all = get_custom_decklists(user_id)
+    dl_watchlist = get_decklist_watchlist(user_id) if user_id else []
+    customs_all = get_custom_decklists(user_id) if user_id else []
     import_opts = [ft.Option("— import from —", value="", disabled=True, selected=True)]
     if dl_watchlist:
         import_opts.append(ft.Option("── Tournament Decklists ──", value="", disabled=True))
@@ -1180,6 +1172,7 @@ def deckbuilder_page(request):
                 type="button",
                 cls="db-btn-primary",
                 onclick="if(window._cdb) window._cdb.save();",
+                data_logged_in="true" if user_id else "false",
             ),
             cls="flex items-center gap-2",
         ),
