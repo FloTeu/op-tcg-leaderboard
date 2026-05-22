@@ -472,22 +472,39 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     ft.Div(
                         ft.Span("Price Development",
                                 style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:1rem; color:#f1f5f9;"),
-                        ft.Select(
-                            ft.Option("30 days", value="30"),
-                            ft.Option("60 days", value="60"),
-                            ft.Option("90 days", value="90", selected=True),
-                            ft.Option("180 days", value="180"),
-                            ft.Option("365 days", value="365"),
-                            id=f"price-period-selector-{card.id}",
-                            style="background:#080e1c; color:#f1f5f9; border:1px solid #1a2540; border-radius:6px; padding:4px 10px; font-family:'Barlow',sans-serif; font-size:0.8rem; outline:none; cursor:pointer;",
-                            hx_get=f"/api/card-price-development-chart",
-                            hx_target=f"#price-chart-container-{card.id}",
-                            hx_indicator=f"#price-chart-loading-{card.id}",
-                            hx_vals=f'js:{{"card_id": "{card.id}", "days": document.getElementById("price-period-selector-{card.id}").value, "include_alt_art": "false", "aa_version": "{selected_aa_version}", "location": "modal"}}',
-                            **{
-                                "hx-on::before-request": f"document.getElementById('price-chart-container-{card.id}').innerHTML = ''; document.getElementById('price-chart-loading-{card.id}').style.display = 'flex';"}
+                        ft.Div(
+                            *[
+                                ft.Button(
+                                    label,
+                                    type="button",
+                                    cls="price-period-chip",
+                                    style=(
+                                        "font-family:'Barlow',sans-serif;font-size:0.75rem;padding:3px 10px;"
+                                        "border:1px solid;border-radius:20px;cursor:pointer;"
+                                        "transition:background .15s,color .15s,border-color .15s;"
+                                        + ("background:rgba(245,158,11,0.12);color:#f59e0b;border-color:rgba(245,158,11,0.35);"
+                                           if days_val == "90" else
+                                           "background:#0d1424;color:#475569;border-color:#1a2540;")
+                                    ),
+                                    hx_get="/api/card-price-development-chart",
+                                    hx_target=f"#price-chart-container-{card.id}",
+                                    hx_indicator=f"#price-chart-loading-{card.id}",
+                                    hx_vals=f'js:{{"card_id":"{card.id}","days":"{days_val}","include_alt_art":"false","aa_version":(document.querySelector(".carousel-item.active")?.dataset?.aaVersion||"0"),"location":"modal"}}',
+                                    **{"hx-on::before-request": f"document.getElementById('price-chart-container-{card.id}').innerHTML='';"},
+                                    onclick=(
+                                        "this.closest('.price-period-chips').querySelectorAll('.price-period-chip')"
+                                        ".forEach(function(b){b.style.background='#0d1424';b.style.color='#475569';b.style.borderColor='#1a2540';});"
+                                        "this.style.background='rgba(245,158,11,0.12)';this.style.color='#f59e0b';this.style.borderColor='rgba(245,158,11,0.35)';"
+                                        f"document.getElementById('price-period-selector-{card.id}').value='{days_val}';"
+                                    ),
+                                )
+                                for label, days_val in [("30d","30"),("60d","60"),("90d","90"),("180d","180"),("1yr","365")]
+                            ],
+                            # Hidden input keeps selected value; card-modal.js reads .value on carousel change
+                            ft.Input(type="hidden", id=f"price-period-selector-{card.id}", value="90"),
+                            cls="flex gap-1.5 flex-wrap price-period-chips",
                         ),
-                        cls="flex justify-between items-center mb-4",
+                        cls="flex justify-between items-center gap-4 mb-4 flex-wrap",
                     ),
                     ft.Div(
                         id=f"price-chart-container-{card.id}",
