@@ -1182,12 +1182,12 @@ def deckbuilder_page(request):
 
     # ── Mobile tabs ──────────────────────────────────────────────────────────
     mobile_tabs = ft.Div(
-        ft.Button("Browse", id="db-tab-browse", type="button",
-                  cls="db-tab-btn active-tab",
-                  onclick="window._switchBuilderTab('browse')"),
         ft.Button("My Deck", id="db-tab-deck", type="button",
-                  cls="db-tab-btn",
+                  cls="db-tab-btn active-tab",
                   onclick="window._switchBuilderTab('deck')"),
+        ft.Button("Browse", id="db-tab-browse", type="button",
+                  cls="db-tab-btn",
+                  onclick="window._switchBuilderTab('browse')"),
         cls="flex xl:hidden border-b mb-4",
         style="border-color:#111d30;",
     )
@@ -1199,17 +1199,18 @@ def deckbuilder_page(request):
             mobile_tabs,
             # Two-panel grid
             ft.Div(
-                # Left: search + filters
+                # Left: search + filters (hidden on mobile by default, shown via tab or xl grid)
                 ft.Div(
                     search_panel,
                     id="db-browse-panel",
+                    cls="db-xl-show",
+                    style="display:none;",
                 ),
-                # Right: deck panel (hidden on mobile, shown via tab or xl grid)
+                # Right: deck panel (shown first on mobile)
                 ft.Div(
                     deck_panel,
                     id="db-deck-panel",
                     cls="db-xl-show",
-                    style="display:none;",
                 ),
                 cls="db-two-col",
             ),
