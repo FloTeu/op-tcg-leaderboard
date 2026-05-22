@@ -82,10 +82,11 @@ _SIDEBAR_STYLES = ft.Style("""
 """)
 
 
-def create_nav_link(href: str | None, text: str, icon: str, is_active: bool = False):
+def create_nav_link(href: str | None, text: str, icon, is_active: bool = False):
     cls = "sb-link-active" if is_active else "sb-link"
+    icon_el = icon if not isinstance(icon, str) else ft.Span(icon, style="margin-right:10px;font-size:.95rem;")
     content = ft.Div(
-        ft.Span(icon, style="margin-right:10px;font-size:.95rem;"),
+        icon_el,
         ft.Span(text),
         cls=cls,
     )
@@ -118,7 +119,7 @@ def sidebar_content(filter_component=None, current_path="/", persist_query: dict
         return f"{base_path}?{qp}" if qp else base_path
 
     leader_links = [
-        (build_href("/"), "Leaderboard", "🏆", current_path == "/"),
+        (build_href("/"), "Leaderboard", ft.Img(src="/public/favicon32x23.png", style="width:18px;height:auto;margin-right:10px;flex-shrink:0;vertical-align:middle;"), current_path == "/"),
         (build_href("/leader"), "Leader", "👤", current_path == "/leader"),
         (build_href("/meta"), "Meta Analysis", "📊", current_path == "/meta"),
         (build_href("/tournaments"), "Tournaments", "🏅", current_path == "/tournaments"),
