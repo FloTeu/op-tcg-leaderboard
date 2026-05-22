@@ -345,7 +345,11 @@ window.setNavigationHeight = function() {
 
 // Get carousel container element
 window.getCarouselContainer = function(element) {
-    return element.closest('.modal-backdrop').querySelector('.carousel-item').parentElement;
+    if (!element || typeof element.closest !== 'function') return null;
+    const backdrop = element.closest('.modal-backdrop');
+    if (!backdrop) return null;
+    const item = backdrop.querySelector('.carousel-item');
+    return item ? item.parentElement : null;
 }
 
 // Update price display
@@ -390,6 +394,7 @@ window.updatePrice = function(activeItem) {
 // Show specific carousel item
 window.showCarouselItem = function(element, index) {
     const container = window.getCarouselContainer(element);
+    if (!container) return;
     const items = container.querySelectorAll('.carousel-item');
     const dots = container.querySelectorAll('.carousel-dot');
 
@@ -450,6 +455,7 @@ window.showCarouselItem = function(element, index) {
 // Navigate to next carousel item
 window.nextCarouselItem = function(element) {
     const container = window.getCarouselContainer(element);
+    if (!container) return;
     const items = container.querySelectorAll('.carousel-item');
     const currentIndex = Array.from(items).findIndex(item => item.classList.contains('active'));
     const nextIndex = (currentIndex + 1) % items.length;
@@ -459,11 +465,165 @@ window.nextCarouselItem = function(element) {
 // Navigate to previous carousel item
 window.previousCarouselItem = function(element) {
     const container = window.getCarouselContainer(element);
+    if (!container) return;
     const items = container.querySelectorAll('.carousel-item');
     const currentIndex = Array.from(items).findIndex(item => item.classList.contains('active'));
     const prevIndex = (currentIndex - 1 + items.length) % items.length;
     window.showCarouselItem(element, prevIndex);
-}
+};
+
+// Card Modal Loading Indicator
+;(function() {
+    const LOADING_STYLE_ID = 'card-modal-loading-styles';
+
+    function injectStyles() {
+        if (document.getElementById(LOADING_STYLE_ID)) return;
+        const style = document.createElement('style');
+        style.id = LOADING_STYLE_ID;
+        style.textContent = `
+            #card-modal-loading-indicator {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 9998;
+                background: rgba(7,11,20,0.93);
+                backdrop-filter: blur(14px);
+                -webkit-backdrop-filter: blur(14px);
+                border-top: 1px solid #1a2540;
+                padding: 14px 20px 18px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 0;
+                transform: translateY(100%);
+                opacity: 0;
+                transition: transform 0.28s cubic-bezier(0.22,1,0.36,1), opacity 0.18s ease;
+                pointer-events: none;
+            }
+            #card-modal-loading-indicator.cm-loader-visible {
+                transform: translateY(0);
+                opacity: 1;
+            }
+            #card-modal-loading-dim {
+                position: fixed;
+                inset: 0;
+                z-index: 9997;
+                background: rgba(7,11,20,0.45);
+                opacity: 0;
+                transition: opacity 0.22s ease;
+                pointer-events: none;
+            }
+            #card-modal-loading-dim.cm-loader-visible {
+                opacity: 1;
+            }
+            .cm-loader-sweep {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 2px;
+                background: linear-gradient(90deg, transparent 0%, #38bdf8 30%, #f59e0b 60%, transparent 100%);
+                background-size: 250% 100%;
+                animation: cm-sweep 1.4s linear infinite;
+            }
+            @keyframes cm-sweep {
+                0%   { background-position: 120% 0; }
+                100% { background-position: -120% 0; }
+            }
+            .cm-loader-inner {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                margin-top: 2px;
+            }
+            .cm-loader-spinner {
+                width: 22px;
+                height: 22px;
+                border: 2.5px solid #1a2540;
+                border-top-color: #38bdf8;
+                border-radius: 50%;
+                animation: cm-spin 0.65s linear infinite;
+                box-shadow: 0 0 12px rgba(56,189,248,0.25);
+                flex-shrink: 0;
+            }
+            @keyframes cm-spin { to { transform: rotate(360deg); } }
+            .cm-loader-label {
+                font-family: 'Bebas Neue', sans-serif;
+                color: #f1f5f9;
+                font-size: 1.05rem;
+                letter-spacing: 0.12em;
+                line-height: 1;
+            }
+            .cm-loader-dots span {
+                font-family: 'Bebas Neue', sans-serif;
+                color: #f59e0b;
+                font-size: 1.05rem;
+                letter-spacing: 0.06em;
+                animation: cm-dot 1.2s infinite;
+                display: inline-block;
+            }
+            .cm-loader-dots span:nth-child(2) { animation-delay: 0.2s; }
+            .cm-loader-dots span:nth-child(3) { animation-delay: 0.4s; }
+            @keyframes cm-dot {
+                0%,60%,100% { opacity: 0.15; transform: translateY(0); }
+                30% { opacity: 1; transform: translateY(-2px); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    function showCardLoader() {
+        injectStyles();
+        if (!document.getElementById('card-modal-loading-dim')) {
+            const dim = document.createElement('div');
+            dim.id = 'card-modal-loading-dim';
+            document.body.appendChild(dim);
+            dim.offsetHeight; // force reflow so transition fires
+            dim.classList.add('cm-loader-visible');
+        }
+        if (!document.getElementById('card-modal-loading-indicator')) {
+            const el = document.createElement('div');
+            el.id = 'card-modal-loading-indicator';
+            el.innerHTML = `
+                <div class="cm-loader-sweep"></div>
+                <div class="cm-loader-inner">
+                    <div class="cm-loader-spinner"></div>
+                    <span class="cm-loader-label">Loading Card</span>
+                    <span class="cm-loader-dots"><span>.</span><span>.</span><span>.</span></span>
+                </div>`;
+            document.body.appendChild(el);
+            el.offsetHeight; // force reflow so transition fires
+            el.classList.add('cm-loader-visible');
+        }
+    }
+
+    function hideCardLoader() {
+        ['card-modal-loading-indicator', 'card-modal-loading-dim'].forEach(function(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.remove('cm-loader-visible');
+            setTimeout(() => { if (el.parentNode) el.remove(); }, 320);
+        });
+    }
+
+    // htmx:configRequest reliably exposes evt.detail.path before the request fires
+    document.addEventListener('htmx:configRequest', function(evt) {
+        const path = (evt.detail && evt.detail.path) || '';
+        if (path.includes('/api/card-modal')) {
+            showCardLoader();
+        }
+    });
+
+    document.addEventListener('htmx:afterRequest', function(evt) {
+        const elt = evt.detail && evt.detail.elt;
+        const hxGet = elt && elt.getAttribute && elt.getAttribute('hx-get');
+        const path = hxGet || (evt.detail && evt.detail.path) || '';
+        if (path.includes('/api/card-modal')) {
+            hideCardLoader();
+        }
+    });
+})();
 
 // Event Listeners
 
