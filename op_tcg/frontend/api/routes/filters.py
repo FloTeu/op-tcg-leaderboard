@@ -47,10 +47,11 @@ def setup_api_routes(rt):
             auto_select_top=True,  # Auto-select top leader if current one is not available
             htmx_attrs={
                 "hx_get": "/api/leader-data",
-                "hx_trigger": "change", 
-                "hx_target": "#leader-content",
+                "hx_trigger": "change",
+                "hx_target": "#leader-content-inner",
+                "hx_swap": "outerHTML",
                 "hx_include": "[name='meta_format'],[name='lid'],[name='only_official'],[name='region']",
-                "hx_indicator": "#loading-indicator"
+                "hx_indicator": "#leader-page-loading"
             }
         )
     
@@ -95,10 +96,11 @@ def setup_api_routes(rt):
         else:  # Default to leader page
             htmx_attrs = {
                 "hx_get": "/api/leader-data",
-                "hx_trigger": "change", 
-                "hx_target": "#leader-content",
+                "hx_trigger": "change",
+                "hx_target": "#leader-content-inner",
+                "hx_swap": "outerHTML",
                 "hx_include": "[name='meta_format'],[name='lid'],[name='only_official']",
-                "hx_indicator": "#loading-indicator"
+                "hx_indicator": "#leader-page-loading"
             }
         
         # Use the modular leader select component with custom parameters

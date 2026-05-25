@@ -187,6 +187,7 @@ class ChartManager {
             containerId,
             data,
             leaderIds,
+            leaderNames = {},
             colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6'],
             showLegend = true
         } = config;
@@ -198,15 +199,20 @@ class ChartManager {
             return null;
         }
 
+        function hexToRgba(hex, alpha) {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+        }
+
         try {
-            // Extract labels from first data object (excluding 'leader_id')
             const labels = Object.keys(data[0]).filter(key => key !== 'leader_id');
 
-            // Prepare datasets for each leader
             const datasets = data.map((item, index) => ({
-                label: item.leader_id,
+                label: leaderNames[item.leader_id] || item.leader_id,
                 data: labels.map(label => item[label]),
-                backgroundColor: colors[index] + '33', // Add transparency
+                backgroundColor: hexToRgba(colors[index], 0.2),
                 borderColor: colors[index],
                 pointBackgroundColor: colors[index],
                 pointBorderColor: '#fff',
@@ -217,12 +223,23 @@ class ChartManager {
                 pointHoverRadius: 6
             }));
 
+            // Track which datasets are actively selected
+            const selectedIndices = new Set();
+
+            function applySelection(chart) {
+                const hasSelection = selectedIndices.size > 0;
+                chart.data.datasets.forEach(function(ds, i) {
+                    const active = !hasSelection || selectedIndices.has(i);
+                    ds.borderColor = hexToRgba(colors[i], active ? 1.0 : 0.18);
+                    ds.backgroundColor = hexToRgba(colors[i], active ? 0.2 : 0.04);
+                    ds.pointBackgroundColor = hexToRgba(colors[i], active ? 1.0 : 0.18);
+                });
+                chart.update('none');
+            }
+
             const chart = new Chart(canvas, {
                 type: 'radar',
-                data: {
-                    labels: labels,
-                    datasets: datasets
-                },
+                data: { labels: labels, datasets: datasets },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
@@ -232,8 +249,32 @@ class ChartManager {
                             display: showLegend,
                             position: 'bottom',
                             labels: {
-                                color: '#ffffff',
-                                font: { size: 16 }
+                                padding: 16,
+                                font: { size: 13, family: "'Barlow', sans-serif" },
+                                generateLabels: function(chart) {
+                                    const hasSelection = selectedIndices.size > 0;
+                                    return chart.data.datasets.map(function(ds, i) {
+                                        const active = !hasSelection || selectedIndices.has(i);
+                                        return {
+                                            text: ds.label,
+                                            fillStyle: colors[i],
+                                            strokeStyle: colors[i],
+                                            fontColor: active ? '#f1f5f9' : '#475569',
+                                            lineWidth: 2,
+                                            datasetIndex: i,
+                                            hidden: false
+                                        };
+                                    });
+                                }
+                            },
+                            onClick: function(e, legendItem, legend) {
+                                const idx = legendItem.datasetIndex;
+                                if (selectedIndices.has(idx)) {
+                                    selectedIndices.delete(idx);
+                                } else {
+                                    selectedIndices.add(idx);
+                                }
+                                applySelection(legend.chart);
                             }
                         },
                         tooltip: {
@@ -246,15 +287,16 @@ class ChartManager {
                     },
                     scales: {
                         r: {
-                            angleLines: { color: 'rgba(255, 255, 255, 0.2)' },
-                            grid: { color: 'rgba(255, 255, 255, 0.2)' },
+                            angleLines: { color: 'rgba(255,255,255,0.12)' },
+                            grid: { color: 'rgba(255,255,255,0.12)' },
                             pointLabels: {
-                                color: '#ffffff',
-                                font: { size: 16 }
+                                color: '#94a3b8',
+                                font: { size: 13, family: "'Barlow', sans-serif" }
                             },
                             ticks: {
-                                color: '#ffffff',
-                                backdropColor: 'transparent'
+                                color: '#94a3b8',
+                                backdropColor: 'transparent',
+                                font: { size: 11 }
                             }
                         }
                     }
@@ -263,7 +305,7 @@ class ChartManager {
 
             this.charts.set(containerId, chart);
             return chart;
-            
+
         } catch (error) {
             console.error('Error creating radar chart:', error);
             return null;
@@ -1072,6 +1114,7 @@ class ChartManager {
                     scales: {
                         x: {
                             display: showXAxis,
+                            offset: false,
                             grid: {
                                 display: showXAxis,
                                 color: 'rgba(75, 85, 99, 0.3)'
@@ -1099,20 +1142,24 @@ class ChartManager {
                                 font: {
                                     size: 11
                                 },
-                                padding: 8,
-                                callback: function(value, index, values) {
-                                    return '€/' + value.toFixed(2);
+                                padding: 4,
+                                maxTicksLimit: 5,
+                                callback: function(value) {
+                                    return value >= 100 ? value.toFixed(0) : value.toFixed(2);
                                 }
                             },
-                            beginAtZero: true
+                            afterFit: function(scale) {
+                                scale.width = Math.max(scale.width, 48);
+                            },
+                            beginAtZero: false
                         }
                     },
                     layout: {
                         padding: {
-                            top: 10,
-                            right: 15,
-                            bottom: 10,
-                            left: 15
+                            top: 4,
+                            right: 4,
+                            bottom: 4,
+                            left: 0
                         }
                     }
                 }

@@ -5,44 +5,29 @@ from op_tcg.frontend.components.effect_text import render_effect_text
 from op_tcg.frontend.components.watchlist_toggle import create_watchlist_toggle
 from op_tcg.frontend.utils.card_price import get_marketplace_link
 
+_ROW_CLS = "flex justify-between items-center py-2"
+_ROW_STYLE = "border-bottom:1px solid #1a2540;"
+_LABEL_STYLE = "font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:0.65rem; color:#475569; text-transform:uppercase;"
+_VALUE_STYLE = "font-family:'Share Tech Mono',monospace; font-size:0.8rem; color:#f1f5f9;"
+
 
 def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardData], popularity: float,
                       currency: CardCurrency, selected_aa_version: int = 0, watched_versions: set = None,
                       is_logged_in: bool = False) -> ft.Div:
-    """Create a modal dialog for displaying card details.
-
-    Args:
-        card: The base card data to display
-        card_versions: List of all versions of the card (including alt arts)
-        popularity: The card's popularity (0-1)
-        currency: The selected currency for price display
-        selected_aa_version: The AA version to show initially (default: 0)
-
-    Returns:
-        A FastHTML Div containing the modal dialog
-
-    Note:
-        Card navigation (prev/next) is handled dynamically via JavaScript,
-        which scans the DOM for all loaded cards at navigation time.
-    """
+    """Create a modal dialog for displaying card details."""
     if watched_versions is None:
         watched_versions = set()
 
-    # Helper function to create a key fact row
     def create_key_fact(label: str, value: str | None, icon: str = None) -> ft.Div:
         if value is None:
             return None
         return ft.Div(
-            ft.Div(
-                ft.I(icon, cls="text-gray-400") if icon else None,
-                ft.Span(label, cls="text-gray-400 ml-2 mr-2"),
-                cls="flex items-center"
-            ),
-            ft.Span(value, cls="text-white font-medium"),
-            cls="flex justify-between items-center py-2 border-b border-gray-700"
+            ft.Span(label, style=_LABEL_STYLE),
+            ft.Span(value, style=_VALUE_STYLE),
+            cls=_ROW_CLS,
+            style=_ROW_STYLE,
         )
 
-    # Find the selected card version for initial display
     selected_card = card
     if selected_aa_version > 0:
         for v in card_versions:
@@ -50,7 +35,6 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 selected_card = v
                 break
 
-    # Create carousel items starting with the base card
     cm_url, _ = get_marketplace_link(card, CardCurrency.EURO)
     tcg_url, _ = get_marketplace_link(card, CardCurrency.US_DOLLAR)
 
@@ -65,13 +49,11 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 alt=f"{card.name} ({card.id})",
                 cls="w-full h-auto rounded-lg shadow-lg"
             ),
-            # Left click area for card version navigation (invisible overlay)
             ft.Div(
                 cls="absolute left-0 top-0 w-1/3 h-full cursor-pointer z-20 card-version-nav",
                 onclick="window.previousCarouselItem(this)",
                 title="Previous version"
             ) if len(card_versions) > 0 else None,
-            # Right click area for card version navigation (invisible overlay)
             ft.Div(
                 cls="absolute right-0 top-0 w-1/3 h-full cursor-pointer z-20 card-version-nav",
                 onclick="window.nextCarouselItem(this)",
@@ -92,12 +74,9 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
         )
     ]
 
-    # Add alternate art versions
     for i, version in enumerate(card_versions):
-        # Build external marketplace link for version
         v_cm_url, _ = get_marketplace_link(version, CardCurrency.EURO)
         v_tcg_url, _ = get_marketplace_link(version, CardCurrency.US_DOLLAR)
-
         is_active = (version.aa_version == selected_aa_version)
         item_cls = "carousel-item active relative" if is_active else "carousel-item relative"
         version_in_watchlist = version.aa_version in watched_versions
@@ -109,13 +88,11 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     alt=f"{version.name} ({version.id})",
                     cls="w-full h-auto rounded-lg shadow-lg"
                 ),
-                # Left click area for card version navigation (invisible overlay)
                 ft.Div(
                     cls="absolute left-0 top-0 w-1/3 h-full cursor-pointer z-20 card-version-nav",
                     onclick="window.previousCarouselItem(this)",
                     title="Previous version"
                 ),
-                # Right click area for card version navigation (invisible overlay)
                 ft.Div(
                     cls="absolute right-0 top-0 w-1/3 h-full cursor-pointer z-20 card-version-nav",
                     onclick="window.nextCarouselItem(this)",
@@ -136,16 +113,15 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
             )
         )
 
-    # Create carousel navigation
     carousel_nav = []
-    if len(card_versions) > 0:  # Changed condition since we always have at least the base card
+    if len(card_versions) > 0:
         carousel_nav = [
-            # Dots navigation
             ft.Div(
                 *[
                     ft.Button(
                         "",
-                        cls=f"w-2 h-2 rounded-full {'bg-white' if i == 0 else 'bg-white/50'} hover:bg-white/75 transition-colors",
+                        cls=f"w-2 h-2 rounded-full transition-colors",
+                        style=f"background:{'#38bdf8' if i == 0 else 'rgba(56,189,248,0.3)'}; border:none; cursor:pointer;",
                         onclick=f"window.showCarouselItem(this, {i})"
                     )
                     for i in range(len(carousel_items))
@@ -154,16 +130,12 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
             )
         ]
 
-    # Get the price symbol based on currency
     price_symbol = "€" if currency == CardCurrency.EURO else "$"
     price_label = "Price (EUR)" if currency == CardCurrency.EURO else "Price (USD)"
 
-
-    # Build external marketplace link using selected card
     cm_url, _ = get_marketplace_link(selected_card, CardCurrency.EURO)
     tcg_url, _ = get_marketplace_link(selected_card, CardCurrency.US_DOLLAR)
 
-    # Format the initial price display - show both currencies when available
     initial_price = "N/A"
     if selected_card.latest_eur_price and selected_card.latest_usd_price:
         initial_price = f"€{selected_card.latest_eur_price:.2f} | ${selected_card.latest_usd_price:.2f}"
@@ -178,81 +150,96 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
     elif selected_card.latest_usd_price:
         initial_price = f"${selected_card.latest_usd_price:.2f}"
 
-    # Determine initial watchlist state
     initial_in_watchlist = selected_card.aa_version in watched_versions
 
     return ft.Div(
-        # Modal backdrop
         ft.Div(
-            # Single modal content container
             ft.Div(
-                # Close button (styled consistent with decklist modal)
+                # Close button
                 ft.Button(
-                    ft.Span("×", cls="text-lg"),
+                    ft.Span("×", style="font-size:1.2rem; line-height:1;"),
                     type="button",
-                    cls="absolute top-4 right-4 md:top-4 md:right-4 inline-flex items-center justify-center w-9 h-9 rounded-full bg-gray-700/60 hover:bg-gray-700 text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 transition z-30 mobile-close-btn",
+                    cls="absolute top-4 right-4 md:top-4 md:right-4 inline-flex items-center justify-center w-9 h-9 rounded-full z-30 mobile-close-btn transition",
+                    style="background:rgba(8,14,28,0.9); border:1px solid #1a2540; color:#94a3b8;",
                     onclick="event.stopPropagation(); window.closeCardModal();"
                 ),
 
-                # Watchlist button (Heart icon) - only shown when logged in
+                # Watchlist button
                 create_watchlist_toggle(
                     card_id=selected_card.id,
                     card_version=selected_card.aa_version,
                     language="en",
                     is_in_watchlist=initial_in_watchlist,
-                    extra_cls="absolute top-4 right-16 md:top-4 md:right-16 z-30",
-                    btn_cls="w-9 h-9 bg-gray-700/60 hover:bg-gray-700 shadow-sm",
-                    include_script=True
-                ) if is_logged_in else None,
+                    extra_cls="absolute top-4 right-16 md:top-4 md:right-16 z-30 mobile-watchlist-btn",
+                    btn_cls="w-9 h-9",
+                    include_script=True,
+                    is_logged_in=is_logged_in,
+                ),
 
-                # Card navigation areas (only for top section, not charts) - positioned at modal edges
-                # Navigation is handled via JavaScript that dynamically collects all loaded cards
+                # Watchlist one-time hint
                 ft.Div(
-                    ft.Div(
-                        "‹",
-                        cls="text-white text-4xl font-bold opacity-0 group-hover:opacity-100 transition-opacity"
-                    ),
+                    "♥ tap to add to watchlist",
+                    id="watchlist-hint-label",
+                    cls="pointer-events-none text-center",
+                    style=(
+                        "position:absolute; top:3.4rem; right:0.25rem; z-index:31;"
+                        "font-family:'Barlow',sans-serif; font-size:0.7rem; color:#f1f5f9;"
+                        "background:rgba(0,0,0,0.88); border:1px solid rgba(245,158,11,0.35);"
+                        "border-radius:8px; padding:5px 10px; white-space:nowrap;"
+                        "opacity:0; transition:opacity 0.4s ease;"
+                    )
+                ),
+                ft.Script("""
+(function() {
+    var KEY = 'card-watchlist-hint-seen';
+    //if (localStorage.getItem(KEY)) return;
+    var hint = document.getElementById('watchlist-hint-label');
+    if (!hint) return;
+    hint.style.pointerEvents = 'auto';
+    setTimeout(function() {
+        hint.style.opacity = '1';
+        setTimeout(function() {
+            hint.style.opacity = '0';
+            localStorage.setItem(KEY, '1');
+        }, 2200);
+    }, 500);
+    hint.addEventListener('click', function() {
+        hint.style.opacity = '0';
+        localStorage.setItem(KEY, '1');
+    }, { once: true });
+})();
+"""),
+
+                # Card navigation — previous
+                ft.Div(
+                    ft.Div("‹", cls="text-white text-4xl font-bold opacity-0 group-hover:opacity-100 transition-opacity"),
                     cls="absolute left-0 top-0 w-16 h-full cursor-pointer z-10 card-nav-left card-nav-top-section flex items-center justify-center hover:bg-black/30 transition-colors group",
                     onclick=f"event.stopPropagation(); window.navigateToPreviousCard('{card.id}', event);",
                     title="Previous card",
                     data_current_card_id=card.id
                 ),
 
+                # Card navigation — next
                 ft.Div(
-                    ft.Div(
-                        "›",
-                        cls="text-white text-4xl font-bold opacity-0 group-hover:opacity-100 transition-opacity"
-                    ),
+                    ft.Div("›", cls="text-white text-4xl font-bold opacity-0 group-hover:opacity-100 transition-opacity"),
                     cls="absolute right-0 top-0 w-16 h-full cursor-pointer z-10 card-nav-right card-nav-top-section flex items-center justify-center hover:bg-black/30 transition-colors group",
                     onclick=f"event.stopPropagation(); window.navigateToNextCard('{card.id}', event);",
                     title="Next card",
                     data_current_card_id=card.id
                 ),
 
-                # Main card content section
+                # ── Main content ─────────────────────────────────────────────
                 ft.Div(
                     # Card image carousel
                     ft.Div(
                         *carousel_items,
                         *carousel_nav,
-                        # One-time alt-art hint overlay — only rendered when versions exist
                         *(
                             [
-                                # Left pulse arrow hint
-                                ft.Div(
-                                    ft.Div("◀", cls="aa-hint-arrow"),
-                                    id="aa-hint-left",
-                                    cls="aa-hint-side aa-hint-left-side",
-                                    style="opacity:0; transition: opacity 0.4s ease;"
-                                ),
-                                # Right pulse arrow hint
-                                ft.Div(
-                                    ft.Div("▶", cls="aa-hint-arrow"),
-                                    id="aa-hint-right",
-                                    cls="aa-hint-side aa-hint-right-side",
-                                    style="opacity:0; transition: opacity 0.4s ease;"
-                                ),
-                                # Center label
+                                ft.Div(ft.Div("◀", cls="aa-hint-arrow"), id="aa-hint-left",
+                                       cls="aa-hint-side aa-hint-left-side", style="opacity:0; transition: opacity 0.4s ease;"),
+                                ft.Div(ft.Div("▶", cls="aa-hint-arrow"), id="aa-hint-right",
+                                       cls="aa-hint-side aa-hint-right-side", style="opacity:0; transition: opacity 0.4s ease;"),
                                 ft.Div(
                                     ft.Div("✦ Alt art versions available", cls="font-bold text-sm mb-0.5"),
                                     ft.Div("tap ◀ left  or  right ▶ to browse", cls="text-xs text-white/80"),
@@ -290,7 +277,8 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                         ),
                         cls="md:w-1/2 relative md:self-start"
                     ),
-                    # Script to handle carousel updates linking to watchlist
+
+                    # Watchlist carousel sync script (unchanged)
                     ft.Script("""
                         (function() {
                             // Find our button - relying on its unique position class
@@ -303,10 +291,10 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                                 const btn = getWatchlistBtn();
                                 if (!btn) return;
                                 const svg = btn.querySelector('svg');
-                                
+
                                 // Update dataset so the generic toggle function reads correct state
                                 btn.dataset.inWatchlist = isInWatchlist.toString();
-                                
+
                                 if (isInWatchlist) {
                                     svg.setAttribute('fill', 'currentColor');
                                     btn.classList.remove('text-gray-400', 'hover:text-red-400');
@@ -326,7 +314,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                                 if (originalShowCarouselItem) {
                                     originalShowCarouselItem(element, index);
                                 }
-                                
+
                                 // Update watchlist button based on new active item
                                 setTimeout(() => {
                                     // Logic to match the active item
@@ -336,7 +324,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                                          const isIn = activeItem.dataset.inWatchlist === 'true';
                                          const cardId = activeItem.dataset.cardId;
                                          const cardVersion = activeItem.dataset.aaVersion;
-                                         
+
                                          // Update global button attributes so generic toggle actions the correct card
                                          const btn = getWatchlistBtn();
                                          if (btn) {
@@ -348,7 +336,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                                     }
                                 }, 50);
                             };
-                            
+
                             // Observe carousel changes for robustness (e.g. if updated by other means)
                              const observer = new MutationObserver((mutations) => {
                                 mutations.forEach((mutation) => {
@@ -358,7 +346,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                                             const isIn = activeItem.dataset.inWatchlist === 'true';
                                             const cardId = activeItem.dataset.cardId;
                                             const cardVersion = activeItem.dataset.aaVersion;
-                                            
+
                                             const btn = getWatchlistBtn();
                                             if (btn) {
                                                  btn.dataset.cardId = cardId;
@@ -369,144 +357,115 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                                     }
                                 });
                             });
-                            
+
                             document.querySelectorAll('.carousel-item').forEach(item => {
                                 observer.observe(item, { attributes: true });
                             });
-                            
-                            // Listen for the custom event or handle the case where the generic toggle 
-                            // updates the button state but we need to sync back to the carousel item data
-                            // The generic toggle updates `btn.dataset.inWatchlist`.
-                            // We should sync that back to `activeCarouselItem.dataset.inWatchlist`
-                            // so if we swipe away and back, it remembers.
-                            // We can monkeypatch `toggleWatchlistItem` or just listen to clicks on our button?
+
                             const btn = getWatchlistBtn();
                             if (btn) {
                                 btn.addEventListener('click', function() {
                                     setTimeout(() => {
-                                        // Read back state from button and save to active carousel item
                                         const newState = btn.dataset.inWatchlist;
                                         const activeItem = document.querySelector('.carousel-item.active');
                                         if (activeItem) {
                                             activeItem.dataset.inWatchlist = newState;
                                         }
-                                    }, 200); // Small delay to allow async fetch to likely complete/optimistic update
+                                    }, 200);
                                 });
                             }
-                            
+
                         })();
                     """),
-                    # Card details
+
+                    # ── Card details ──────────────────────────────────────────
                     ft.Div(
-                        # Card name and ID
-                        ft.H2(
-                            ft.Span(card.name, cls="text-2xl font-bold text-white"),
-                            ft.Span(f" ({card.id})", cls="text-gray-400 text-lg"),
-                            cls="mb-6"
-                        ),
-                        # Key facts container
+                        # Name + ID
                         ft.Div(
-                            # Type
-                            create_key_fact("Type", card.card_category, "🎴"),
-                            # Subtype
-                            create_key_fact("Subtype", ", ".join(card.types) if card.types else None, "🏷️"),
-                            # Colors
-                            create_key_fact("Colors", ", ".join(card.colors), "🎨"),
-                            # Attributes
-                            create_key_fact("Attributes", ", ".join(card.attributes) if card.attributes else None, "⚡"),
-                            # Cost
-                            create_key_fact("Cost", str(card.cost) if card.cost is not None else None, "💎"),
-                            # Power
-                            create_key_fact("Power", str(card.power) if card.power is not None else None, "💪"),
-                            # Counter
-                            create_key_fact("Counter", str(card.counter) if card.counter is not None else None, "🛡️"),
-                            # Price
+                            ft.Span(card.name,
+                                    style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:1.5rem; color:#f1f5f9; line-height:1.1;"),
+                            ft.Span(f" {card.id}",
+                                    style="font-family:'Share Tech Mono',monospace; font-size:0.75rem; color:#475569; margin-left:6px;"),
+                            cls="flex flex-wrap items-baseline gap-1 mb-5",
+                            style="padding-bottom:12px; border-bottom:1px solid #1a2540;",
+                        ),
+
+                        # Key facts
+                        ft.Div(
+                            create_key_fact("Type", card.card_category),
+                            create_key_fact("Subtype", ", ".join(card.types) if card.types else None),
+                            create_key_fact("Colors", ", ".join(card.colors)),
+                            create_key_fact("Attributes", ", ".join(card.attributes) if card.attributes else None),
+                            create_key_fact("Cost", str(card.cost) if card.cost is not None else None),
+                            create_key_fact("Power", str(card.power) if card.power is not None else None),
+                            create_key_fact("Counter", str(card.counter) if card.counter is not None else None),
+
+                            # Price row
                             ft.Div(
-                                ft.Div(
-                                    ft.I(price_symbol, cls="text-gray-400"),
-                                    ft.Span(price_label, cls="text-gray-400 ml-2 mr-2"),
-                                    cls="flex items-center"
-                                ),
-                                ft.Span(
-                                    initial_price,
-                                    cls="text-white font-medium",
-                                    id="card-price"
-                                ),
-                                cls="flex justify-between items-center py-2 border-b border-gray-700"
+                                ft.Span(price_label, style=_LABEL_STYLE),
+                                ft.Span(initial_price, id="card-price",
+                                        style="font-family:'Share Tech Mono',monospace; font-size:0.85rem; color:#f59e0b;"),
+                                cls=_ROW_CLS, style=_ROW_STYLE,
                             ),
-                            # Marketplace Link
+
+                            # Marketplace row
                             ft.Div(
+                                ft.Span("Buy on", style=_LABEL_STYLE),
                                 ft.Div(
-                                    ft.I("🛒", cls="text-gray-400"),
-                                    ft.Span("Buy on", cls="text-gray-400 ml-2 mr-2"),
-                                    cls="flex items-center"
+                                    ft.A("Cardmarket", href=cm_url, target="_blank", rel="noopener",
+                                         id="marketplace-link-cm",
+                                         style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.08em; font-size:0.75rem; background:#10b981; color:#000; padding:5px 14px; border-radius:6px 0 0 6px; text-decoration:none; transition:background 0.12s; flex:1; text-align:center; display:block;"),
+                                    ft.A("TCGPlayer", href=tcg_url, target="_blank", rel="noopener",
+                                         id="marketplace-link-tcg",
+                                         style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.08em; font-size:0.75rem; background:#38bdf8; color:#000; padding:5px 14px; border-radius:0 6px 6px 0; text-decoration:none; transition:background 0.12s; flex:1; text-align:center; display:block;"),
+                                    cls="flex",
+                                    style="max-width:200px;",
                                 ),
-                                ft.Div(
-                                    ft.A(
-                                        "Cardmarket",
-                                        href=cm_url,
-                                        target="_blank",
-                                        rel="noopener",
-                                        cls="flex-1 text-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-l-lg transition-colors border-r border-green-800",
-                                        id="marketplace-link-cm"
-                                    ),
-                                    ft.A(
-                                        "TCGPlayer",
-                                        href=tcg_url,
-                                        target="_blank",
-                                        rel="noopener",
-                                        cls="flex-1 text-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-r-lg transition-colors",
-                                        id="marketplace-link-tcg"
-                                    ),
-                                    cls="flex w-full max-w-xs"
-                                ),
-                                cls="flex justify-between items-center py-2 border-b border-gray-700"
+                                cls=_ROW_CLS, style=_ROW_STYLE,
                             ),
-                            # Ability rendered with styled brackets
+
+                            # Ability row
                             ft.Div(
-                                ft.Div(
-                                    ft.I("✨", cls="text-gray-400"),
-                                    ft.Span("Ability", cls="text-gray-400 ml-2 mr-2"),
-                                    cls="flex items-center"
-                                ),
+                                ft.Span("Ability", style=_LABEL_STYLE + " flex-shrink:0; margin-right:12px;"),
                                 ft.Div(
                                     render_effect_text(card.ability, subject_name=card.name),
-                                    cls="text-white font-medium"
+                                    style="font-family:'Barlow',sans-serif; font-size:0.82rem; color:#94a3b8; line-height:1.5; flex:1; text-align:right;",
                                 ),
-                                cls="flex justify-between items-start py-2 border-b border-gray-700"
+                                cls="flex justify-between items-start py-2",
+                                style=_ROW_STYLE,
                             ),
-                            # Popularity
+
+                            # Popularity row
                             ft.Div(
-                                ft.Div(
-                                    ft.I("📊", cls="text-gray-400"),
-                                    ft.Span("Popularity", cls="text-gray-400 ml-2 mr-2"),
-                                    cls="flex items-center"
-                                ),
+                                ft.Span("Popularity", style=_LABEL_STYLE),
                                 ft.Div(
                                     ft.Div(
-                                        ft.Span(
-                                            f"{int(popularity * 100)}%",
-                                            cls="text-white text-sm ml-5"
-                                        ),
-                                        cls="progress-bar",
-                                        style=f"width: {max(popularity * 100, 5)}%"
+                                        ft.Span(f"{int(popularity * 100)}%",
+                                                style="font-family:'Share Tech Mono',monospace; font-size:0.65rem; color:#f1f5f9; padding-right:4px;"),
+                                        cls="cm-progress-bar",
+                                        style=f"width:{max(popularity * 100, 5)}%;",
+                                        data_tooltip="Percentage of same color decks playing this card."
                                     ),
-                                    cls="progress-container"
+                                    cls="cm-progress-container",
+                                    style="flex:1; max-width:160px;",
                                 ),
-                                cls="flex justify-between items-center py-2"
+                                cls=_ROW_CLS,
                             ),
-                            cls="space-y-2 bg-gray-800/50 rounded-lg p-4"
+
+                            style="background:#080e1c; border:1px solid #1a2540; border-radius:8px; padding:12px;",
                         ),
-                        cls="md:w-1/2 text-white space-y-6"
+
+                        cls="md:w-1/2 space-y-0",
                     ),
-                    cls="flex flex-col md:flex-row gap-6 mb-6"
+
+                    cls="flex flex-col md:flex-row gap-6 mb-6",
                 ),
 
-                # Card occurrence chart section
+                # ── Card Occurrence chart ─────────────────────────────────────
                 ft.Div(
                     ft.Div(
-                        ft.H3("Card Occurrence by Leader", cls="text-lg font-semibold text-white mb-4"),
-                        # Toggle for absolute vs normalized data
+                        ft.Span("Card Occurrence by Leader",
+                                style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:1rem; color:#f1f5f9;"),
                         ft.Div(
                             ft.Label(
                                 ft.Input(
@@ -519,17 +478,15 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                                     hx_indicator=f"#occurrence-chart-loading-{card.id}",
                                     hx_vals='js:{"normalized": document.getElementById("normalize-toggle-' + card.id + '").checked.toString()}'
                                 ),
-                                ft.Div(
-                                    ft.Div(cls="toggle-thumb"),
-                                    cls="toggle-track"
-                                ),
-                                ft.Span("Show normalized data", cls="text-white ml-3 text-sm"),
+                                ft.Div(ft.Div(cls="toggle-thumb"), cls="toggle-track"),
+                                ft.Span("Normalized",
+                                        style="font-family:'Barlow',sans-serif; font-size:0.78rem; color:#475569; margin-left:8px;"),
                                 cls="flex items-center cursor-pointer",
                                 for_=f"normalize-toggle-{card.id}"
                             ),
-                            cls="flex justify-end mb-4"
+                            cls="flex justify-end",
                         ),
-                        cls="flex justify-between items-start mb-4"
+                        cls="flex justify-between items-center mb-4",
                     ),
                     ft.Div(
                         id=f"occurrence-chart-container-{card.id}",
@@ -538,38 +495,50 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                         hx_indicator=f"#occurrence-chart-loading-{card.id}",
                         cls="min-h-[300px]"
                     ),
-                    create_loading_spinner(
-                        id=f"occurrence-chart-loading-{card.id}",
-                        size="w-8 h-8",
-                        container_classes="min-h-[300px]"
-                    ),
-                    cls="w-full mb-6"
+                    create_loading_spinner(id=f"occurrence-chart-loading-{card.id}", size="w-8 h-8",
+                                           container_classes="min-h-[300px]"),
+                    cls="w-full mb-6",
+                    style="padding-top:20px; border-top:1px solid #1a2540;",
                 ),
 
-                # Price development chart section
+                # ── Price Development chart ───────────────────────────────────
                 ft.Div(
                     ft.Div(
-                        ft.H3("Price Development", cls="text-lg font-semibold text-white mb-4"),
-                        # Time period selector
+                        ft.Span("Price Development",
+                                style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:1rem; color:#f1f5f9;"),
                         ft.Div(
-                            ft.Select(
-                                ft.Option("30 days", value="30"),
-                                ft.Option("60 days", value="60"),
-                                ft.Option("90 days", value="90", selected=True),
-                                ft.Option("180 days", value="180"),
-                                ft.Option("365 days", value="365"),
-                                id=f"price-period-selector-{card.id}",
-                                cls="bg-gray-700 text-white border border-gray-600 rounded px-3 py-1 text-sm",
-                                hx_get=f"/api/card-price-development-chart",
-                                hx_target=f"#price-chart-container-{card.id}",
-                                hx_indicator=f"#price-chart-loading-{card.id}",
-                                hx_vals=f'js:{{"card_id": "{card.id}", "days": document.getElementById("price-period-selector-{card.id}").value, "include_alt_art": "false", "aa_version": "{selected_aa_version}", "location": "modal"}}',
-                                **{
-                                    "hx-on::before-request": f"document.getElementById('price-chart-container-{card.id}').innerHTML = ''; document.getElementById('price-chart-loading-{card.id}').style.display = 'flex';"}
-                            ),
-                            cls="flex justify-end mb-4"
+                            *[
+                                ft.Button(
+                                    label,
+                                    type="button",
+                                    cls="price-period-chip",
+                                    style=(
+                                        "font-family:'Barlow',sans-serif;font-size:0.75rem;padding:3px 10px;"
+                                        "border:1px solid;border-radius:20px;cursor:pointer;"
+                                        "transition:background .15s,color .15s,border-color .15s;"
+                                        + ("background:rgba(245,158,11,0.12);color:#f59e0b;border-color:rgba(245,158,11,0.35);"
+                                           if days_val == "90" else
+                                           "background:#0d1424;color:#475569;border-color:#1a2540;")
+                                    ),
+                                    hx_get="/api/card-price-development-chart",
+                                    hx_target=f"#price-chart-container-{card.id}",
+                                    hx_indicator=f"#price-chart-loading-{card.id}",
+                                    hx_vals=f'js:{{"card_id":"{card.id}","days":"{days_val}","include_alt_art":"false","aa_version":(document.querySelector(".carousel-item.active")?.dataset?.aaVersion||"0"),"location":"modal"}}',
+                                    **{"hx-on::before-request": f"document.getElementById('price-chart-container-{card.id}').innerHTML='';"},
+                                    onclick=(
+                                        "this.closest('.price-period-chips').querySelectorAll('.price-period-chip')"
+                                        ".forEach(function(b){b.style.background='#0d1424';b.style.color='#475569';b.style.borderColor='#1a2540';});"
+                                        "this.style.background='rgba(245,158,11,0.12)';this.style.color='#f59e0b';this.style.borderColor='rgba(245,158,11,0.35)';"
+                                        f"document.getElementById('price-period-selector-{card.id}').value='{days_val}';"
+                                    ),
+                                )
+                                for label, days_val in [("30d","30"),("60d","60"),("90d","90"),("180d","180"),("1yr","365")]
+                            ],
+                            # Hidden input keeps selected value; card-modal.js reads .value on carousel change
+                            ft.Input(type="hidden", id=f"price-period-selector-{card.id}", value="90"),
+                            cls="flex gap-1.5 flex-wrap price-period-chips",
                         ),
-                        cls="flex justify-between items-start mb-4"
+                        cls="flex justify-between items-center gap-4 mb-4 flex-wrap",
                     ),
                     ft.Div(
                         id=f"price-chart-container-{card.id}",
@@ -578,22 +547,21 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                         hx_indicator=f"#price-chart-loading-{card.id}",
                         cls="min-h-[300px]"
                     ),
-                    create_loading_spinner(
-                        id=f"price-chart-loading-{card.id}",
-                        size="w-8 h-8",
-                        container_classes="min-h-[300px]"
-                    ),
-                    cls="w-full"
+                    create_loading_spinner(id=f"price-chart-loading-{card.id}", size="w-8 h-8",
+                                           container_classes="min-h-[300px]"),
+                    cls="w-full",
+                    style="padding-top:20px; border-top:1px solid #1a2540;",
                 ),
 
-                cls="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 relative",
+                style="background:#0d1424; border:1px solid #1a2540; border-radius:12px; padding:24px; max-width:56rem; width:100%; margin:0 1rem; position:relative;",
                 onclick="event.stopPropagation();"
             ),
-            cls="modal-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 overflow-y-auto py-4",
+            cls="modal-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center overflow-y-auto py-4",
+            style="z-index: 10000;",
             onclick="window.closeCardModal();",
             data_card_id=card.id
         ),
-        # Carousel CSS
+
         ft.Style("""
             .carousel-item {
                 display: none;
@@ -605,223 +573,141 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 opacity: 1;
             }
 
-            /* Card version navigation hover effects (for alt art carousel) */
             .card-version-nav:hover {
                 background: rgba(255, 255, 255, 0.1);
                 transition: background 0.2s ease;
-                z-index: 30; /* Ensure version navigation is always on top */
+                z-index: 30;
             }
-
-            /* Add subtle visual indicators on hover for version navigation */
             .card-version-nav:first-of-type:hover::after {
                 content: '◀';
                 position: absolute;
-                top: 50%;
-                left: 50%;
+                top: 50%; left: 50%;
                 transform: translate(-50%, -50%);
-                color: white;
-                font-size: 1.5rem;
-                text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
-                pointer-events: none;
-                z-index: 31;
+                color: white; font-size: 1.5rem;
+                text-shadow: 0 0 4px rgba(0,0,0,0.8);
+                pointer-events: none; z-index: 31;
             }
-
             .card-version-nav:last-of-type:hover::after {
                 content: '▶';
                 position: absolute;
-                top: 50%;
-                left: 50%;
+                top: 50%; left: 50%;
                 transform: translate(-50%, -50%);
-                color: white;
-                font-size: 1.5rem;
-                text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
-                pointer-events: none;
-                z-index: 31;
+                color: white; font-size: 1.5rem;
+                text-shadow: 0 0 4px rgba(0,0,0,0.8);
+                pointer-events: none; z-index: 31;
             }
 
-            /* Card navigation hover effects - only active outside image area */
-            .card-nav-left:hover {
-                background: linear-gradient(to right, rgba(0, 0, 0, 0.4), transparent);
-                transition: background 0.2s ease;
-            }
+            .card-nav-left:hover  { background: linear-gradient(to right, rgba(0,0,0,0.4), transparent); transition: background 0.2s ease; }
+            .card-nav-right:hover { background: linear-gradient(to left,  rgba(0,0,0,0.4), transparent); transition: background 0.2s ease; }
 
-            .card-nav-right:hover {
-                background: linear-gradient(to left, rgba(0, 0, 0, 0.4), transparent);
-                transition: background 0.2s ease;
-            }
-
-            /* Card navigation arrows are now handled via HTML elements with group-hover */
-            /* No need for ::after pseudo-elements */
-
-            /* Ensure card navigation doesn't interfere with image area on desktop */
             @media (min-width: 769px) {
-                .card-nav-left {
-                    /* Only show on the left margin area, not overlapping with image */
-                    width: 64px;
-                    background: transparent;
-                }
-
-                .card-nav-right {
-                    /* Only show on the right margin area, not overlapping with image */
-                    width: 64px;
-                    background: transparent;
-                }
-
-                /* Hide card navigation arrows when hovering over image area */
+                .card-nav-left, .card-nav-right { width: 64px; background: transparent; }
                 .md\\:w-1\\/2:hover ~ .card-nav-left,
-                .md\\:w-1\\/2:hover ~ .card-nav-right {
-                    pointer-events: none;
-                    opacity: 0.3;
-                }
+                .md\\:w-1\\/2:hover ~ .card-nav-right { pointer-events: none; opacity: 0.3; }
             }
 
-            /* Toggle switch styles */
+            /* Progress bar (popularity) */
+            .cm-progress-container {
+                height: 16px;
+                background: #080e1c;
+                border: 1px solid #1a2540;
+                border-radius: 8px;
+                overflow: hidden;
+            }
+            .cm-progress-bar {
+                height: 100%;
+                background: linear-gradient(90deg, #0ea5e9, #38bdf8);
+                display: flex;
+                align-items: center;
+                justify-content: flex-end;
+                padding-right: 4px;
+                transition: width 0.3s ease;
+                border-radius: 8px;
+            }
+
+            /* Toggle switch */
             .toggle-track {
-                width: 44px;
-                height: 24px;
-                background-color: #4B5563;
-                border-radius: 12px;
+                width: 40px;
+                height: 22px;
+                background: #1a2540;
+                border-radius: 11px;
                 position: relative;
-                transition: background-color 0.3s ease;
+                transition: background 0.2s ease;
             }
-
             .toggle-thumb {
-                width: 20px;
-                height: 20px;
-                background-color: white;
+                width: 18px; height: 18px;
+                background: #475569;
                 border-radius: 50%;
                 position: absolute;
-                top: 2px;
-                left: 2px;
-                transition: transform 0.3s ease;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                top: 2px; left: 2px;
+                transition: transform 0.2s ease, background 0.2s ease;
             }
-
-            /* Toggle checked state */
-            input[type="checkbox"]:checked + .toggle-track {
-                background-color: #10B981;
-            }
-
+            input[type="checkbox"]:checked + .toggle-track { background: #0369a1; }
             input[type="checkbox"]:checked + .toggle-track .toggle-thumb {
-                transform: translateX(20px);
+                transform: translateX(18px);
+                background: #38bdf8;
             }
 
-            /* Mobile-specific styles */
+            /* Mobile */
             @media (max-width: 768px) {
-                .modal-backdrop {
-                    align-items: flex-start !important;
-                    padding: 1rem 0;
-                }
+                .modal-backdrop { align-items: flex-start !important; padding: 1rem 0; }
                 .modal-backdrop > div {
                     margin: 0 1rem;
                     max-height: none;
                     min-height: calc(100vh - 2rem);
                     width: calc(100% - 2rem);
                 }
-                .modal-backdrop > div > div:first-of-type {
-                    flex-direction: column;
-                }
-                .modal-backdrop > div > div:first-of-type .md\\:w-1\\/2 {
-                    width: 100%;
-                }
-                
-                /* Mobile close button positioning - move to top right corner */
+                .modal-backdrop > div > div:first-of-type { flex-direction: column; }
+                .modal-backdrop > div > div:first-of-type .md\\:w-1\\/2 { width: 100%; }
+
                 .mobile-close-btn {
-                    top: 0.5rem !important;
-                    right: 0.5rem !important;
-                    background-color: rgba(55, 65, 81, 0.9) !important;
-                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+                    top: 0.5rem !important; right: 0.5rem !important;
+                    background: rgba(8,14,28,0.95) !important;
+                    border: 1px solid #1a2540 !important;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important;
                     z-index: 40 !important;
                 }
-
-                /* Adjust card navigation for mobile - make them wider for easier touch */
-                .card-nav-left, .card-nav-right {
-                    width: 80px; /* Increased width for easier touch */
+                .mobile-watchlist-btn {
+                    top: 0.5rem !important; right: 3rem !important;
                 }
 
-                /* Add visual feedback for touch on mobile */
-                .card-nav-left:active {
-                    background: linear-gradient(to right, rgba(0, 0, 0, 0.6), transparent);
-                }
-
-                .card-nav-right:active {
-                    background: linear-gradient(to left, rgba(0, 0, 0, 0.6), transparent);
-                }
-
-                /* Show navigation indicators on mobile without hover */
+                .card-nav-left, .card-nav-right { width: 80px; }
+                .card-nav-left:active  { background: linear-gradient(to right, rgba(0,0,0,0.6), transparent); }
+                .card-nav-right:active { background: linear-gradient(to left,  rgba(0,0,0,0.6), transparent); }
                 .card-nav-left::before {
-                    content: '◀';
-                    position: absolute;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                    color: rgba(255, 255, 255, 0.3);
-                    font-size: 1.5rem;
-                    font-weight: bold;
-                    text-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
-                    pointer-events: none;
+                    content: '◀'; position: absolute; top: 50%; left: 50%;
+                    transform: translate(-50%,-50%);
+                    color: rgba(255,255,255,0.3); font-size: 1.5rem; font-weight: bold;
+                    text-shadow: 0 0 8px rgba(0,0,0,0.9); pointer-events: none;
                 }
-
                 .card-nav-right::before {
-                    content: '▶';
-                    position: absolute;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                    color: rgba(255, 255, 255, 0.3);
-                    font-size: 1.5rem;
-                    font-weight: bold;
-                    text-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
-                    pointer-events: none;
-                }
-
-                /* Adjust navigation text for mobile */
-                .card-nav-left:hover::after {
-                    content: '◀';
-                    font-size: 2rem; /* Larger for mobile */
-                }
-
-                .card-nav-right:hover::after {
-                    content: '▶';
-                    font-size: 2rem; /* Larger for mobile */
+                    content: '▶'; position: absolute; top: 50%; left: 50%;
+                    transform: translate(-50%,-50%);
+                    color: rgba(255,255,255,0.3); font-size: 1.5rem; font-weight: bold;
+                    text-shadow: 0 0 8px rgba(0,0,0,0.9); pointer-events: none;
                 }
             }
 
-            /* Desktop-specific styles */
             @media (min-width: 769px) {
-                .modal-backdrop {
-                    align-items: center;
-                    justify-content: center;
-                }
-                .modal-backdrop > div {
-                    max-height: 90vh;
-                    overflow-y: auto;
-                }
+                .modal-backdrop { align-items: center; justify-content: center; }
+                .modal-backdrop > div { max-height: 90vh; overflow-y: auto; }
             }
 
-            /* Alt-art one-time hint arrows */
+            /* Alt-art hint */
             .aa-hint-side {
-                position: absolute;
-                top: 0;
-                bottom: 0;
-                width: 36%;
-                z-index: 29;
-                pointer-events: none;
-                display: flex;
-                align-items: center;
-                justify-content: center;
+                position: absolute; top: 0; bottom: 0; width: 36%;
+                z-index: 29; pointer-events: none;
+                display: flex; align-items: center; justify-content: center;
             }
             .aa-hint-left-side  { left: 0;  background: linear-gradient(to right, rgba(0,0,0,0.45), transparent); }
             .aa-hint-right-side { right: 0; background: linear-gradient(to left,  rgba(0,0,0,0.45), transparent); }
             .aa-hint-arrow {
-                font-size: 2.5rem;
-                color: white;
+                font-size: 2.5rem; color: white;
                 text-shadow: 0 0 16px rgba(0,0,0,1), 0 0 32px rgba(255,255,255,0.3);
                 animation: aa-pulse 0.65s ease-in-out infinite alternate;
             }
             .aa-hint-label {
-                padding: 10px 18px;
-                border-radius: 10px;
+                padding: 10px 18px; border-radius: 10px;
                 background: rgba(0,0,0,0.88);
                 border: 1px solid rgba(255,255,255,0.25);
                 box-shadow: 0 4px 24px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
@@ -829,23 +715,14 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 white-space: nowrap;
             }
             @keyframes aa-pulse {
-                from { transform: scale(1);    opacity: 0.75; }
-                to   { transform: scale(1.3);  opacity: 1;    }
+                from { transform: scale(1);   opacity: 0.75; }
+                to   { transform: scale(1.3); opacity: 1; }
             }
             @keyframes aa-label-pulse {
                 from { box-shadow: 0 4px 24px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06); }
                 to   { box-shadow: 0 4px 24px rgba(0,0,0,0.7), 0 0 12px 2px rgba(255,255,255,0.18); }
             }
 
-            /* Chart container overflow prevention */
-            .bg-gray-800\\/30 {
-                overflow: hidden;
-            }
-
-            /* Ensure chart legend stays within bounds */
-            canvas {
-                max-width: 100% !important;
-                height: auto !important;
-            }
+            canvas { max-width: 100% !important; height: auto !important; }
         """)
     )

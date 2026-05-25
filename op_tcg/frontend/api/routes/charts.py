@@ -403,7 +403,8 @@ def setup_api_routes(rt):
                 container_id=f"price-development-chart-{card_id}-{days}-{aa_version}-{compact}-{location}",
                 price_data=price_data,
                 card_name=card_name,
-                show_x_axis=not compact
+                show_x_axis=not compact,
+                show_legend=not compact,
             )
             
         except Exception as e:

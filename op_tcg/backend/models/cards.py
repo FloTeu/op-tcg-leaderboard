@@ -71,6 +71,7 @@ class OPTcgCardRarity(EnumBase, StrEnum):
 
 class OPTcgAbility(EnumBase, StrEnum):
     RUSH = "Rush"
+    RUSH_CHARACTER = "Rush: Character"
     BLOCKER = "Blocker"
     BANISH = "Banish"
     TRIGGER = "Trigger"

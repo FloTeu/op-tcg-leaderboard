@@ -1,31 +1,98 @@
 from fasthtml import ft
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderExtended
-from op_tcg.frontend.components.loading import create_loading_spinner
+from op_tcg.frontend.components.loading import create_loading_spinner, create_loading_overlay
 from op_tcg.frontend.utils.api import detect_no_match_data
 from op_tcg.frontend.utils.extract import get_leader_extended
 
-# Common HTMX attributes for filter components
 HX_INCLUDE = "[name='meta_format'],[name='leader_ids']"
 FILTER_HX_ATTRS = {
     "hx_get": "/api/matchup-content",
     "hx_trigger": "change",
     "hx_target": "#matchup-content",
     "hx_include": HX_INCLUDE,
-    "hx_indicator": "#matchup-loading-indicator"
 }
 
-# Common CSS classes for select components
-SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+
+def _styles() -> ft.Style:
+    return ft.Style("""
+.mu-page { font-family: 'Barlow', sans-serif; }
+
+/* Shared design-token panel/select/label classes (mirrors meta.py) */
+.meta-panel {
+    background: #0d1424;
+    border: 1px solid #1a2540;
+    border-radius: 12px;
+    padding: 20px;
+}
+@media (min-width: 768px) { .meta-panel { padding: 24px 28px; } }
+
+.meta-select {
+    width: 100%;
+    background: #080e1c;
+    color: #f1f5f9;
+    border: 1px solid #1a2540;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-family: 'Barlow', sans-serif;
+    font-size: 0.875rem;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.meta-select:focus { border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56,189,248,0.08); }
+
+.meta-section-label {
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 0.1em;
+    color: #475569;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 6px;
+}
+
+.meta-panel-title {
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 0.12em;
+    font-size: 1.15rem;
+    color: #f1f5f9;
+    line-height: 1;
+    display: block;
+}
+
+.meta-panel-sub {
+    font-family: 'Barlow', sans-serif;
+    font-size: 0.7rem;
+    color: #475569;
+    margin-top: 4px;
+    display: block;
+}
+
+.meta-chart-area {
+    background: #080e1c;
+    border: 1px solid #1a2540;
+    border-radius: 8px;
+    overflow: hidden;
+    padding: 8px;
+}
+
+/* Matchup table */
+.mu-th-label {
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 0.1em;
+    font-size: 1.00rem;
+    color: #475569;
+    text-transform: uppercase;
+    white-space: nowrap;
+    display: block;
+    line-height: 1.3;
+}
+""")
+
 
 def create_filter_components(selected_meta_formats=None, selected_leader_ids=None, only_official=True):
-    """Create filter components for the matchups page using HTMX and API routes.
-    
-    Args:
-        selected_meta_formats: Optional list of meta formats to select
-        selected_leader_ids: Optional list of leader IDs to pre-select
-        only_official: Whether to filter for official matches only
-    """
+    """Create filter components for the matchups page using HTMX and API routes."""
     leader_extended_data: list[LeaderExtended] = get_leader_extended(
         meta_formats=[MetaFormat.latest_meta_format()])
     contains_no_match_data = detect_no_match_data(leader_extended_data)
@@ -33,51 +100,46 @@ def create_filter_components(selected_meta_formats=None, selected_leader_ids=Non
 
     latest_meta = MetaFormat.latest_meta_format(region=latest_with_match_data)
     available_meta_formats = MetaFormat.to_list(region=latest_with_match_data)
-    
-    # If no selected formats provided, default to latest
-    if not selected_meta_formats or all(selected_meta_format not in available_meta_formats for selected_meta_format in selected_meta_formats):
+
+    if not selected_meta_formats or all(
+        mf not in available_meta_formats for mf in selected_meta_formats
+    ):
         selected_meta_formats = [latest_meta]
 
-    # Meta format multi-select
-    meta_format_select = ft.Select(
-        label="Meta Formats",
-        id="meta-formats-select",
-        name="meta_format",
-        multiple=True,
-        size=1,
-        cls=SELECT_CLS + " multiselect",
-        *[ft.Option(mf, value=mf, selected=(mf in selected_meta_formats)) for mf in reversed(available_meta_formats)],
-        **{
-            "hx_get": "/api/leader-multiselect",
-            "hx_target": "#leader-multiselect-wrapper",
-            "hx_include": HX_INCLUDE,
-            "hx_trigger": "change",
-            "hx_swap": "innerHTML",
-            "hx_params": "*"  # Include all parameters in the request
-        }
+    meta_format_select = ft.Div(
+        ft.Span("Meta Formats", cls="meta-section-label"),
+        ft.Select(
+            *[ft.Option(mf, value=mf, selected=(mf in selected_meta_formats))
+              for mf in reversed(available_meta_formats)],
+            id="meta-formats-select",
+            name="meta_format",
+            multiple=True,
+            size=1,
+            cls="meta-select multiselect",
+            **{
+                "hx_get": "/api/leader-multiselect",
+                "hx_target": "#leader-multiselect-wrapper",
+                "hx_include": HX_INCLUDE,
+                "hx_trigger": "change",
+                "hx_swap": "innerHTML",
+                "hx_params": "*",
+            }
+        ),
     )
 
-    # Only official is default true in API; no UI toggle
-
-    # Add a hidden div that will trigger the content update
     content_trigger = ft.Div(
         id="content-trigger",
         **FILTER_HX_ATTRS,
         style="display: none;"
     )
 
-    # Add JavaScript to trigger the content update after leader select is updated
     trigger_script = ft.Script("""
         document.addEventListener('htmx:afterSettle', function(evt) {
             if (evt.target.id === 'leader-multiselect-wrapper') {
-                // Trigger content update after leader multiselect is ready
                 htmx.trigger('#content-trigger', 'change');
             }
         });
-        
-        // Also trigger initial load if we have default leader selections
         document.addEventListener('DOMContentLoaded', function() {
-            // Small delay to ensure all elements are ready
             setTimeout(function() {
                 const leaderSelect = document.querySelector('[name="leader_ids"]');
                 if (leaderSelect && leaderSelect.value) {
@@ -87,15 +149,9 @@ def create_filter_components(selected_meta_formats=None, selected_leader_ids=Non
         });
     """)
 
-    # Leader multiselect wrapper with initial content loaded via HTMX
     leader_multiselect_wrapper = ft.Div(
-        # Initial loading spinner
-        create_loading_spinner(
-            id="leader-multiselect-loading",
-            size="w-6 h-6",
-            container_classes="min-h-[60px]"
-        ),
-        # Load the initial component
+        create_loading_spinner(id="leader-multiselect-loading", size="w-6 h-6",
+                               container_classes="min-h-[60px]"),
         hx_get="/api/leader-multiselect",
         hx_trigger="load",
         hx_include=HX_INCLUDE,
@@ -118,75 +174,80 @@ def create_filter_components(selected_meta_formats=None, selected_leader_ids=Non
 def create_matchup_content(selected_meta_formats=None, selected_leader_ids=None, only_official=True):
     """Create the matchup charts and tables content that will be loaded via HTMX."""
     return ft.Div(
-        # Matchup Chart Section
+        # Radar chart panel
         ft.Div(
-            ft.H2("Matchup Radar Chart", cls="text-2xl font-bold text-white mb-6"),
             ft.Div(
-                # Chart container that loads via HTMX
+                ft.Span("Matchup Radar Chart", cls="meta-panel-title"),
+                cls="mb-5",
+                style="padding-bottom:14px; border-bottom:1px solid #1a2540;",
+            ),
+            ft.Div(
+                create_loading_overlay(id="matchup-chart-loading", size="w-8 h-8"),
                 ft.Div(
                     id="matchup-chart-container",
                     hx_get="/api/matchups/chart",
                     hx_trigger="load",
-                    hx_indicator="#matchup-loading-indicator",
+                    hx_indicator="#matchup-chart-loading",
                     hx_include=HX_INCLUDE,
-                    cls="w-full min-h-[500px] bg-gray-800 rounded-lg shadow-xl flex items-center justify-center"
+                    cls="w-full h-full",
                 ),
-                cls="w-full"
+                cls="meta-chart-area relative",
+                style="min-height:500px;",
             ),
-            cls="mb-8"
+            cls="meta-panel mb-4",
         ),
-        
-        # Matchup Table Section
+
+        # Details table panel
         ft.Div(
-            ft.H2("Matchup Details", cls="text-2xl font-bold text-white mb-6"),
             ft.Div(
-                # Table container that loads via HTMX
+                ft.Span("Matchup Details", cls="meta-panel-title"),
+                cls="mb-5",
+                style="padding-bottom:14px; border-bottom:1px solid #1a2540;",
+            ),
+            ft.Div(
+                create_loading_overlay(id="matchup-table-loading", size="w-8 h-8"),
                 ft.Div(
                     id="matchup-table-container",
                     hx_get="/api/matchups/table",
                     hx_trigger="load",
-                    hx_indicator="#matchup-loading-indicator",
+                    hx_indicator="#matchup-table-loading",
                     hx_include=HX_INCLUDE,
-                    cls="w-full min-h-[300px] bg-gray-800 rounded-lg shadow-xl"
+                    cls="w-full h-full",
                 ),
-                cls="w-full overflow-x-auto"
+                cls="meta-chart-area overflow-x-auto relative",
+                style="min-height:300px;",
             ),
-            cls="w-full"
+            cls="meta-panel",
         ),
-        cls="space-y-8"
+
+        cls="space-y-0",
     )
 
 
 def matchups_page():
     """Create the main matchups page with HTMX-driven content loading."""
     return ft.Div(
-        # Initial content structure (no automatic loading)
+        _styles(),
         ft.Div(
-            # Header Section
             ft.Div(
-                ft.H1("Leader Matchups", cls="text-3xl font-bold text-white"),
-                ft.P("Analyze matchups between different leaders across meta formats", cls="text-gray-300 mt-2"),
-                cls="mb-8"
+                ft.H1("LEADER MATCHUPS",
+                      style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:2rem; color:#f1f5f9; line-height:1; margin-bottom:6px;"),
+                ft.P(
+                    "Analyze matchups between different leaders across meta formats.",
+                    style="font-family:'Barlow',sans-serif; font-size:0.875rem; color:#475569;",
+                ),
+                cls="mb-6",
+                style="padding-bottom:16px; border-bottom:1px solid #111d30;",
             ),
-
-            # Loading Spinner for dynamic content
-            create_loading_spinner(
-                id="matchup-loading-indicator",
-                size="w-8 h-8",
-                container_classes="min-h-[100px]"
-            ),
-
-            # Content container that will be populated after leader selection
             ft.Div(
-                # Initially empty - will be populated via HTMX after leader multiselect is ready
                 ft.Div(
-                    ft.P("Please select leaders to view matchup analysis", cls="text-gray-400 text-center py-8"),
-                    cls="text-center"
+                    ft.P("Select leaders to view matchup analysis.",
+                         style="font-family:'Barlow',sans-serif; color:#475569; text-align:center; padding:32px 0;"),
                 ),
                 id="matchup-content",
-                cls="w-full"
+                cls="w-full",
             ),
-            cls="min-h-screen p-4 md:p-6 w-full"
+            cls="mu-page bg-deep-navy px-4 py-4 md:px-6 md:py-6 min-h-screen",
+            style="max-width:1280px; margin:0 auto;",
         ),
-        cls="w-full"
-    ) 
+    )

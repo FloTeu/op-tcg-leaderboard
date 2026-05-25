@@ -16,6 +16,7 @@ from op_tcg.frontend.pages.matchups import matchups_page, create_filter_componen
 from op_tcg.frontend.pages.card_popularity import card_popularity_page, create_filter_components as card_popularity_filters
 from op_tcg.frontend.pages.prices import prices_page, create_filter_components as prices_filters
 from op_tcg.frontend.pages.watchlist import watchlist_page
+from op_tcg.frontend.pages.deckbuilder import deckbuilder_page
 from op_tcg.frontend.pages.meta import meta_page, create_filter_components as meta_filters
 from op_tcg.frontend.pages.settings import settings_content
 from op_tcg.frontend.pages.register import register_content
@@ -46,7 +47,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Security: Load secret key from environment
-SECRET_KEY = os.getenv("SESSION_MIDDLEWARE_SECRET_KEY", "dev_not_secure_key")
+SECRET_KEY = os.environ["SESSION_MIDDLEWARE_SECRET_KEY"]
 
 
 @asynccontextmanager
@@ -95,7 +96,10 @@ app, rt = fast_app(
         ft.Meta(name="twitter:card", content="summary_large_image"),
         ft.Meta(name="twitter:site", content="@op_leaderboard"),
         ft.Style(':root { --pico-font-size: 100%; }'),
-        ft.Style('body { background-color: rgb(17, 24, 39); }'),
+        ft.Link(rel="preconnect", href="https://fonts.googleapis.com"),
+        ft.Link(rel="preconnect", href="https://fonts.gstatic.com", crossorigin=""),
+        ft.Link(rel="stylesheet", href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap"),
+        ft.Style('body { background-color: #070b14; } .bg-deep-navy { background-color: #070b14; }'),
         ft.Link(
             href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css",
             rel="stylesheet"
@@ -136,7 +140,7 @@ app, rt = fast_app(
         ft.Script(src="/public/js/sidebar.js"),
         ft.Script(src="/public/js/card-modal.js"),
         ft.Script(src="/public/js/decklist-modal.js"),
-        ft.Script(src="/public/js/decklist_builder.js"),
+        ft.Script(src="/public/js/deckbuilder.js"),
     ],
     #static_path='public'
 )
@@ -588,7 +592,7 @@ def privacy(request: Request):
 def watchlist_route(request: Request):
     user = request.session.get('user')
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login?next=/watchlist")
 
     # Add canonical link to head based on incoming host
     canonical_url = f"{canonical_base(request)}/watchlist"
@@ -605,6 +609,20 @@ def watchlist_route(request: Request):
             user=user
         )
     )
+
+@rt("/deckbuilder")
+def deckbuilder_route(request: Request):
+    user = request.session.get('user')
+    return (
+        ft.Title("Deck Builder – OP TCG Leaderboard"),
+        ft.Meta(name="description", content="Build and save One Piece TCG decks."),
+        layout(
+            deckbuilder_page(request),
+            current_path="/deckbuilder",
+            user=user,
+        )
+    )
+
 
 @rt("/register")
 def register(request: Request):

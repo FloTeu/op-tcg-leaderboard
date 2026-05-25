@@ -9,8 +9,6 @@ from op_tcg.frontend.utils.leader_data import lid_to_name_and_lid, get_lid2ldata
 from op_tcg.frontend.utils.extract import get_card_id_card_data_lookup
 from op_tcg.backend.models.cards import Card, LatestCardPrice, OPTcgLanguage
 
-SELECT_CLS = "w-full p-3 bg-gray-800 text-white border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-
 def setup_api_routes(rt):
     @rt("/api/leader-similar")
     async def get_leader_similar(request: Request):
@@ -65,64 +63,69 @@ def setup_api_routes(rt):
             for cid in similar_leader_data.cards_intersection
         ])
         
+        leader_url = f"/leader?lid={selected_most_similar_lid}{''.join([f'&meta_format={mf}' for mf in params.meta_format])}{f'&region={params.region}' if params.region else ''}"
+
         # Create the component
         return ft.Div(
-            ft.H2("Most Similar Leader", cls="text-2xl font-bold text-white mb-4"),
-            
-            # Leader select wrapper
+            ft.H2("Most Similar Leader", cls="lp-display mb-4", style="font-size:1.4rem; color:#f1f5f9;"),
+
+            # Leader select
             ft.Div(
-                ft.Label("Similar Leader", cls="text-white font-medium block mb-2"),
+                ft.Label("Similar Leader", cls="lp-section-label"),
                 ft.Select(
                     id="similar-leader-select",
                     name="similar_lid",
-                    cls=SELECT_CLS + " styled-select",
+                    cls="lp-select styled-select",
                     *[
                         ft.Option(
                             f"{lid2data_dict.get(lid, Card.from_default()).name} ({lid}) - {int(lid2similar_leader_data[lid].similarity_score * 100)}% similar",
                             value=lid,
                             selected=(lid == selected_most_similar_lid)
-                        ) 
-                        for lid in most_similar_leader_ids[:10]  # Show top 10 similar leaders
+                        )
+                        for lid in most_similar_leader_ids[:10]
                     ],
                     hx_get="/api/leader-similar",
                     hx_trigger="change",
                     hx_target="#leader-similar-container",
                     hx_include="[name='meta_format'],[name='lid'],[name='only_official'],[name='similar_lid'],[name='region']"
                 ),
-                cls="relative mb-4"  # Required for proper styling
+                cls="mb-4"
             ),
-            
-            # Image and Stats container
+
+            # Image + Stats
             ft.Div(
-                # Leader image with link
                 ft.Div(
                     ft.A(
-                        ft.Img(
-                            src=lid2data_dict[selected_most_similar_lid].aa_image_url,
-                            cls="w-full rounded-lg shadow-lg"
-                        ),
-                        href=f"/leader?lid={selected_most_similar_lid}{''.join([f'&meta_format={mf}' for mf in params.meta_format])}{f'&region={params.region}' if params.region else ''}",
-                        cls="block"
+                        ft.Img(src=lid2data_dict[selected_most_similar_lid].aa_image_url, cls="w-full rounded-lg"),
+                        href=leader_url, cls="block"
                     ),
                     cls="w-full md:w-1/2"
                 ),
-                
-                # Stats
                 ft.Div(
-                    ft.P(f"Deck Similarity: {int(round(similar_leader_data.similarity_score, 2) * 100)}%", 
-                         cls="text-blue-400"),
-                    ft.P(f"Missing Cards Price: {round(cards_missing_price_eur, 2)}€ | ${round(cards_missing_price_usd, 2)}", 
-                         cls="text-red-400"),
-                    ft.P(f"Intersection Cards Price: {round(cards_intersection_price_eur, 2)}€ | ${round(cards_intersection_price_usd, 2)}", 
-                         cls="text-green-400"),
-                    cls="w-full md:w-1/2 md:pl-4 mt-4 md:mt-0 bg-gray-700 rounded-lg p-4 md:ml-4"
+                    ft.Div(
+                        ft.Span("Similarity", cls="lp-section-label"),
+                        ft.Span(f"{int(round(similar_leader_data.similarity_score, 2) * 100)}%", cls="lp-mono", style="font-size:1.1rem; color:#38bdf8; font-weight:700;"),
+                        cls="flex flex-col mb-3"
+                    ),
+                    ft.Div(
+                        ft.Span("Missing Cards", cls="lp-section-label"),
+                        ft.Span(f"{round(cards_missing_price_eur, 2)}€ / ${round(cards_missing_price_usd, 2)}", cls="lp-mono", style="font-size:0.85rem; color:#ef4444;"),
+                        cls="flex flex-col mb-3"
+                    ),
+                    ft.Div(
+                        ft.Span("Shared Cards", cls="lp-section-label"),
+                        ft.Span(f"{round(cards_intersection_price_eur, 2)}€ / ${round(cards_intersection_price_usd, 2)}", cls="lp-mono", style="font-size:0.85rem; color:#10b981;"),
+                        cls="flex flex-col"
+                    ),
+                    cls="w-full md:w-1/2 md:pl-4 mt-4 md:mt-0 p-4 rounded-lg",
+                    style="background:#080e1c; border:1px solid #1a2540;"
                 ),
                 cls="flex flex-col md:flex-row items-start mb-4"
             ),
-            
+
             # Cards sections
             ft.Details(
-                ft.Summary("Cards in both decks", cls="text-xl font-bold text-white mb-2 cursor-pointer outline-none focus:ring-2 focus:ring-blue-500 rounded"),
+                ft.Summary("Cards in both decks", cls="lp-display cursor-pointer mb-2", style="font-size:0.95rem; color:#94a3b8; letter-spacing:0.08em;"),
                 ft.Div(
                     *[
                         ft.Img(
@@ -130,14 +133,13 @@ def setup_api_routes(rt):
                             cls="w-1/4 inline-block p-1"
                         ) for cid in similar_leader_data.cards_intersection
                     ],
-                    cls="flex flex-wrap pt-2"  # Add some padding when expanded
+                    cls="flex flex-wrap pt-2"
                 ),
-                # open=True, # Uncomment to make it open by default
-                cls="mb-4 bg-gray-750 p-3 rounded-lg shadow"
+                cls="mb-3 p-3 rounded-lg", style="background:#080e1c; border:1px solid #1a2540;"
             ),
-            
+
             ft.Details(
-                ft.Summary("Missing cards", cls="text-xl font-bold text-white mb-2 cursor-pointer outline-none focus:ring-2 focus:ring-blue-500 rounded"),
+                ft.Summary("Missing cards", cls="lp-display cursor-pointer mb-2", style="font-size:0.95rem; color:#94a3b8; letter-spacing:0.08em;"),
                 ft.Div(
                     *[
                         ft.Img(
@@ -145,11 +147,8 @@ def setup_api_routes(rt):
                             cls="w-1/4 inline-block p-1"
                         ) for cid in similar_leader_data.cards_missing
                     ],
-                    cls="flex flex-wrap pt-2"  # Add some padding when expanded
+                    cls="flex flex-wrap pt-2"
                 ),
-                # open=True, # Uncomment to make it open by default
-                cls="mb-4 bg-gray-750 p-3 rounded-lg shadow"
+                cls="mb-3 p-3 rounded-lg", style="background:#080e1c; border:1px solid #1a2540;"
             ),
-            
-            cls="bg-gray-800 rounded-lg p-6 shadow-xl"
         ) 

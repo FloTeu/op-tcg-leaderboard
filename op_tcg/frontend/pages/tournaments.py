@@ -6,7 +6,6 @@ from op_tcg.frontend.components.tournament_charts import (
     create_leader_popularity_section,
 )
 
-SELECT_CLS = "bg-gray-700 text-white p-2 rounded"
 FILTER_HX_ATTRS = {
     "hx_get": "/api/tournament-content",
     "hx_trigger": "change",
@@ -14,126 +13,206 @@ FILTER_HX_ATTRS = {
     "hx_include": "[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']"
 }
 
+
+def _styles() -> ft.Style:
+    return ft.Style("""
+.tp-page { font-family: 'Barlow', sans-serif; }
+
+/* Shared design-token panel/select/label classes (mirrors meta.py until design-system.css) */
+.meta-panel {
+    background: #0d1424;
+    border: 1px solid #1a2540;
+    border-radius: 12px;
+    padding: 20px;
+}
+@media (min-width: 768px) { .meta-panel { padding: 24px 28px; } }
+
+.meta-select {
+    width: 100%;
+    background: #080e1c;
+    color: #f1f5f9;
+    border: 1px solid #1a2540;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-family: 'Barlow', sans-serif;
+    font-size: 0.875rem;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.meta-select:focus { border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56,189,248,0.08); }
+
+.meta-section-label {
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 0.1em;
+    color: #475569;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 6px;
+}
+
+.meta-panel-title {
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 0.12em;
+    font-size: 1.15rem;
+    color: #f1f5f9;
+    line-height: 1;
+    display: block;
+}
+
+.meta-panel-sub {
+    font-family: 'Barlow', sans-serif;
+    font-size: 0.7rem;
+    color: #475569;
+    margin-top: 4px;
+    display: block;
+}
+
+.meta-toggle-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px;
+    background: #080e1c;
+    border: 1px solid #1a2540;
+    border-radius: 24px;
+    flex-shrink: 0;
+}
+
+.meta-toggle-btn {
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 0.08em;
+    font-size: 0.72rem;
+    padding: 4px 16px;
+    border-radius: 20px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.12s;
+    white-space: nowrap;
+}
+.meta-toggle-btn:hover { color: #64748b; }
+.meta-toggle-btn.active {
+    background: rgba(56,189,248,0.1);
+    color: #38bdf8;
+    border-color: rgba(56,189,248,0.3);
+}
+
+.meta-chart-area {
+    background: #080e1c;
+    border: 1px solid #1a2540;
+    border-radius: 8px;
+    overflow: hidden;
+    padding: 8px;
+}
+
+.slider-values {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.8rem;
+    color: #38bdf8;
+}
+
+/* Prevent chart tooltips from causing horizontal overflow */
+#chartjs-tooltip {
+    max-width: 90vw !important;
+    box-sizing: border-box !important;
+}
+""")
+
+
 def create_filter_components(selected_meta_formats=None, selected_region: MetaFormatRegion | None = None):
     latest_meta = MetaFormat.latest_meta_format()
-    
-    # If no selected formats provided, default to latest
+
     if not selected_meta_formats:
         selected_meta_formats = [latest_meta]
-    
-    # Default region
+
     selected_region = selected_region or MetaFormatRegion.ALL
 
-    # Release meta formats multi-select - use region for filtering available formats
-    meta_format_select = ft.Select(
-        label="Meta Formats",
-        id="meta-formats-select",
-        name="meta_format",
-        multiple=True,
-        size=1,
-        cls=SELECT_CLS + " multiselect",
-        *[ft.Option(mf, value=mf, selected=(mf in selected_meta_formats)) for mf in reversed(MetaFormat.to_list(region=MetaFormatRegion.ALL))],
-        **FILTER_HX_ATTRS
+    meta_format_select = ft.Div(
+        ft.Span("Meta Formats", cls="meta-section-label"),
+        ft.Select(
+            *[ft.Option(mf, value=mf, selected=(mf in selected_meta_formats))
+              for mf in reversed(MetaFormat.to_list(region=MetaFormatRegion.ALL))],
+            id="meta-formats-select",
+            name="meta_format",
+            multiple=True,
+            size=1,
+            cls="meta-select multiselect",
+            **FILTER_HX_ATTRS,
+        ),
     )
 
-    regions = MetaFormatRegion.to_list()
-    region_select = ft.Select(
-        label="Region",
-        id="region-select",
-        name="region",
-        cls=SELECT_CLS + " styled-select",
-        *[ft.Option(r, value=r, selected=(r == selected_region)) for r in regions],
-        **FILTER_HX_ATTRS
+    region_select = ft.Div(
+        ft.Span("Region", cls="meta-section-label"),
+        ft.Select(
+            *[ft.Option(r, value=r, selected=(r == selected_region))
+              for r in MetaFormatRegion.to_list()],
+            id="region-select",
+            name="region",
+            cls="meta-select styled-select",
+            **FILTER_HX_ATTRS,
+        ),
     )
 
-    return ft.Div(
-        meta_format_select,
-        region_select,
-        cls="space-y-4"
-    )
+    return ft.Div(meta_format_select, region_select, cls="space-y-4")
+
 
 def create_tournament_content():
     return ft.Div(
-        # Add style to prevent horizontal overflow on mobile
-        ft.Style("""
-            /* Prevent horizontal overflow on mobile */
-            html, body {
-                overflow-x: hidden !important;
-                max-width: 100vw !important;
-            }
-            
-            /* Ensure all chart containers stay within bounds */
-            .bg-gray-800\\/30, .bg-gray-900\\/50 {
-                max-width: 100%;
-                overflow-x: hidden;
-            }
-            
-            /* Ensure tooltips don't cause overflow */
-            #chartjs-tooltip {
-                max-width: 90vw !important;
-                box-sizing: border-box !important;
-            }
-        """),
-        # Header and Filters Section
-        ft.Div(
-            ft.H1("Tournaments", cls="text-3xl font-bold text-white"),
-            cls="mb-8"
-        ),
-
-        # Analytics Dashboard Section - Mobile-optimized layout
-        ft.Div(
-            ft.H2("Tournament Analytics", cls="text-2xl md:text-3xl font-bold text-white mb-6 md:mb-8 text-center px-2"),
-            
-            # Chart Grid Container - Mobile-first responsive design
-            ft.Div(
-                # Decklist Popularity Section
-                ft.Div(
-                    create_decklist_popularity_section(id_prefix="tournament-"),
-                    cls="w-full"
-                ),
-
-                # Tournament Leader Popularity Section
-                ft.Div(
-                    create_leader_popularity_section(id_prefix="tournament-"),
-                    cls="w-full"
-                ),
-                
-                cls="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 lg:gap-8 w-full"
-            ),
-            cls="mt-6 md:mt-8 w-full"
-        ),
-        
-        # Tournament List Section
+        # ── Tournament Analytics ──────────────────────────────────────────────
         ft.Div(
             ft.Div(
-                ft.H2("Tournament Explorer", cls="text-2xl md:text-3xl font-bold text-white mb-6 md:mb-8 text-center px-2"),
-                ft.Div(
-                    # Loading overlay positioned absolutely within the list container
-                    create_loading_overlay(
-                        id="tournament-list-loading",
-                        size="w-8 h-8"
-                    ),
-                    ft.Div(
-                        id="tournament-list-container",
-                        hx_get="/api/tournaments/all",
-                        hx_trigger="load",
-                        hx_include="[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']",
-                        hx_indicator="#tournament-list-loading",
-                        cls="w-full h-full"
-                    ),
-                    cls="relative bg-gray-900/50 rounded-lg p-3 md:p-6 overflow-x-auto",
-                    style="min-height: 200px;"
+                ft.H1("TOURNAMENTS",
+                      style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:2rem; color:#f1f5f9; line-height:1; margin-bottom:6px;"),
+                ft.P(
+                    "Analytics and results for competitive One Piece TCG tournaments.",
+                    style="font-family:'Barlow',sans-serif; font-size:0.875rem; color:#475569;",
                 ),
-                cls="bg-gray-800 rounded-lg p-4 md:p-8 shadow-xl"
+                cls="mb-6",
+                style="padding-bottom:16px; border-bottom:1px solid #111d30;",
             ),
-            cls="mt-8 md:mt-16"
+            ft.Div(
+                ft.Div(create_decklist_popularity_section(id_prefix="tournament-"), cls="w-full"),
+                ft.Div(create_leader_popularity_section(id_prefix="tournament-"), cls="w-full"),
+                cls="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6",
+            ),
+            cls="mb-6",
         ),
-        
-        cls="min-h-screen p-3 md:p-6 max-w-7xl mx-auto w-full",
-        id="tournament-content"
+
+        # ── Tournament Explorer ───────────────────────────────────────────────
+        ft.Div(
+            ft.Div(
+                ft.Span("Tournament Explorer", cls="meta-panel-title", style="font-size:1.3rem;"),
+                ft.Span("Browse and filter all recorded tournaments.", cls="meta-panel-sub"),
+                cls="mb-5",
+                style="padding-bottom:14px; border-bottom:1px solid #1a2540;",
+            ),
+            ft.Div(
+                create_loading_overlay(id="tournament-list-loading", size="w-8 h-8"),
+                ft.Div(
+                    id="tournament-list-container",
+                    hx_get="/api/tournaments/all",
+                    hx_trigger="load",
+                    hx_include="[name='meta_format'],[name='region'],[name='min_matches'],[name='max_matches']",
+                    hx_indicator="#tournament-list-loading",
+                    cls="w-full h-full",
+                ),
+                cls="meta-chart-area relative overflow-x-auto",
+                style="min-height:200px;",
+            ),
+            cls="meta-panel",
+        ),
+
+        cls="tp-page bg-deep-navy px-4 py-4 md:px-6 md:py-6 min-h-screen",
+        style="max-width:1280px; margin:0 auto;",
+        id="tournament-content",
     )
+
 
 def tournaments_page():
     return ft.Div(
-        create_tournament_content()
-    ) 
+        _styles(),
+        create_tournament_content(),
+    )

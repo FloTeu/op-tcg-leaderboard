@@ -59,7 +59,7 @@ def create_leader_grid(leader_stats: Dict[str, float], leader_extended_dict: Dic
             is_selected = selected_leader_id == lid
             card_classes = "w-full transform transition-transform hover:scale-105 cursor-pointer"
             if is_selected:
-                card_classes += " ring-2 ring-blue-400"
+                card_classes += " ring-2 ring-amber-400"
                 
             leader_card = ft.Div(
                 ft.Div(
@@ -75,7 +75,8 @@ def create_leader_grid(leader_stats: Dict[str, float], leader_extended_dict: Dic
                     # Selection indicator
                     ft.Div(
                         "✓",
-                        cls="absolute top-2 right-2 bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold"
+                        cls="absolute top-2 right-2 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold",
+                        style="background:#f59e0b; color:#000;"
                     ) if is_selected else None,
                     cls="relative w-full pb-[100%]"  # Square aspect ratio
                 ),
@@ -141,13 +142,17 @@ def create_tournament_section(leader_id: str, tournament_decklists: List[Tournam
     return ft.Div(
         # Tournament wins count and chart section
         ft.Div(
-            ft.H3("Tournament Wins", cls="text-2xl font-bold text-white mb-4"),
-            ft.P(f"Total Wins: {len(tournaments_with_win)}", cls="text-xl text-gray-200 mb-4"),
-
-            # Tournament wins chart
+            ft.Div(
+                ft.H3("Tournament Wins", cls="lp-display", style="font-size:1.2rem; color:#f1f5f9; margin:0;"),
+                ft.Span(
+                    str(len(tournaments_with_win)),
+                    style="font-family:'Share Tech Mono',monospace; font-size:1.4rem; color:#f59e0b; font-weight:700;"
+                ),
+                style="display:flex; align-items:baseline; gap:12px; margin-bottom:16px;"
+            ),
             ft.Div(
                 create_stream_chart(
-                    container_id=f"tournament-wins-chart",
+                    container_id="tournament-wins-chart",
                     data=chart_data,
                     y_key="wins",
                     x_key="date",
@@ -156,42 +161,29 @@ def create_tournament_section(leader_id: str, tournament_decklists: List[Tournam
                     color=leader_color,
                     show_x_axis=True,
                     show_y_axis=True
-                ) if chart_data else ft.P("No tournament wins found", cls="text-gray-400"),
-                cls="mb-8 h-[400px] bg-gray-800 rounded-lg p-0 md:p-6 shadow-lg"
+                ) if chart_data else ft.P("No tournament wins found", style="color:#475569; font-family:'Barlow',sans-serif;"),
+                cls="lp-panel mb-8 h-[400px]", style="padding:0; overflow:hidden;"
             ),
-            cls="mb-8"
+            style="margin-bottom:24px;"
         ),
-        
+
         # Tournament details section
         ft.Div(
-            ft.H4("Tournament Details", cls="text-xl font-bold text-white mb-4"),
-
-            # Tournament selector
+            ft.H4("Tournament Details", cls="lp-display", style="font-size:1.1rem; color:#f1f5f9; margin-bottom:14px;"),
             ft.Select(
                 *[ft.Option(t.name, value=t.id, selected=(t == initial_tournament)) for t in tournaments_with_win],
                 name="tournament_id",
-                cls="w-full p-2 bg-gray-700 text-white rounded-lg mb-4",
+                cls="lp-select styled-select",
+                style="margin-bottom:14px;",
                 hx_get="/api/tournament-details",
-                hx_trigger="change, load",  # Added load trigger
+                hx_trigger="change, load",
                 hx_target="#tournament-details",
                 hx_include=f"{hx_include}[name='tournament_id']",
                 hx_indicator="#tournament-details-loading"
             ) if tournaments_with_win else None,
-
-            # Loading spinner
-            create_loading_spinner(
-                id="tournament-details-loading",
-                size="w-8 h-8",
-                container_classes="min-h-[50px]"
-            ),
-
-            # Tournament details container
-            ft.Div(
-                id="tournament-details",
-                cls="space-y-4"
-            ),
-
-            cls="space-y-4 bg-gray-800 rounded-lg p-6 shadow-lg"
+            create_loading_spinner(id="tournament-details-loading", size="w-8 h-8", container_classes="min-h-[50px]"),
+            ft.Div(id="tournament-details", cls="space-y-4"),
+            cls="lp-panel", style="padding:20px;"
         ) if tournaments_with_win else None,
 
         cls="space-y-6"
@@ -210,15 +202,16 @@ def create_tournament_keyfacts(tournament: TournamentExtended, winner_name: str)
     
     # Filter out None values and create fact elements
     fact_elements = [
-        ft.P(
-            f"{label_and_value[0]}: {label_and_value[1]}",
-            cls="text-gray-200"
+        ft.Div(
+            ft.Span(f"{label_and_value[0]}", style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:0.65rem; color:#475569; text-transform:uppercase;"),
+            ft.Span(f" {label_and_value[1]}", style="font-family:'Barlow',sans-serif; font-size:0.85rem; color:#94a3b8;"),
+            style="display:flex; align-items:baseline; gap:6px;"
         ) for label_and_value in facts if label_and_value is not None
     ]
-    
+
     return ft.Div(
         *fact_elements,
-        cls="space-y-2 mb-6"  # Added margin bottom
+        style="display:flex; flex-direction:column; gap:6px; margin-bottom:20px;"
     ) 
 
 def create_match_progression(matches: List[Match], leader_extended_dict: Dict[str, LeaderExtended], 
@@ -226,9 +219,9 @@ def create_match_progression(matches: List[Match], leader_extended_dict: Dict[st
     """Create a match progression timeline for a leader in a tournament."""
     if not matches:
         return ft.Div(
-            ft.P("No detailed match data available for this tournament.", cls="text-gray-400 text-center py-8"),
-            ft.P("Match data might not be recorded for this tournament", cls="text-gray-500 text-sm text-center"),
-            cls="bg-gray-800 rounded-lg p-6"
+            ft.P("No detailed match data available for this tournament.", style="color:#475569; font-family:'Barlow',sans-serif; text-align:center; padding:24px 0 8px;"),
+            ft.P("Match data might not be recorded for this tournament", style="color:#475569; font-family:'Barlow',sans-serif; font-size:0.8rem; text-align:center;"),
+            cls="lp-panel", style="padding:20px;"
         )
     
     # Group matches by round/phase
@@ -261,87 +254,84 @@ def create_match_progression(matches: List[Match], leader_extended_dict: Dict[st
             # Determine result and styling
             if match.result == MatchResult.WIN:
                 result_text = "Won"
-                result_color = "text-green-400"
-                bg_color = "bg-green-900/30 border-green-600"
+                result_style = "color:#10b981"
+                border_color = "rgba(16,185,129,0.35)"
+                bg = "rgba(16,185,129,0.06)"
                 total_wins += 1
             elif match.result == MatchResult.LOSE:
                 result_text = "Lost"
-                result_color = "text-red-400"
-                bg_color = "bg-red-900/30 border-red-600"
+                result_style = "color:#ef4444"
+                border_color = "rgba(239,68,68,0.35)"
+                bg = "rgba(239,68,68,0.06)"
                 total_losses += 1
             else:
                 result_text = "Draw"
-                result_color = "text-yellow-400"
-                bg_color = "bg-yellow-900/30 border-yellow-600"
-            
+                result_style = "color:#f59e0b"
+                border_color = "rgba(245,158,11,0.35)"
+                bg = "rgba(245,158,11,0.06)"
+
             # Create match card
             match_card = ft.Div(
                 ft.Div(
-                    # Opponent image
                     ft.Div(
-                        ft.Img(
-                            src=opponent_image,
-                            cls="w-16 h-16 object-cover rounded-lg"
-                        ) if opponent_image else ft.Div(
+                        ft.Img(src=opponent_image, style="width:56px; height:56px; object-fit:cover; border-radius:6px;")
+                        if opponent_image else ft.Div(
                             opponent_id[:8] + "...",
-                            cls="w-16 h-16 bg-gray-600 rounded-lg flex items-center justify-center text-white text-xs"
+                            style="width:56px; height:56px; background:#080e1c; border:1px solid #1a2540; border-radius:6px; display:flex; align-items:center; justify-content:center; font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:#475569;"
                         ),
-                        cls="flex-shrink-0"
+                        style="flex-shrink:0;"
                     ),
-                    
-                    # Match details
                     ft.Div(
-                        ft.P(f"vs {opponent_name}", cls="font-semibold text-white"),
-                        ft.P(f"Result: {result_text}", cls=f"text-sm {result_color}"),
-                        ft.P(f"Table: {match.tournament_table}", cls="text-xs text-gray-400") if match.tournament_table else None,
-                        ft.P(f"Match: {match.tournament_match}", cls="text-xs text-gray-400") if match.tournament_match else None,
-                        cls="flex-1 ml-4"
+                        ft.P(f"vs {opponent_name}", style="font-family:'Barlow',sans-serif; font-weight:600; color:#f1f5f9; font-size:0.85rem; margin-bottom:2px;"),
+                        ft.P(f"Result: {result_text}", style=f"font-family:'Bebas Neue',sans-serif; letter-spacing:0.08em; font-size:0.85rem; {result_style}"),
+                        ft.P(f"Table: {match.tournament_table}", style="font-family:'Share Tech Mono',monospace; font-size:0.7rem; color:#475569;") if match.tournament_table else None,
+                        ft.P(f"Match: {match.tournament_match}", style="font-family:'Share Tech Mono',monospace; font-size:0.7rem; color:#475569;") if match.tournament_match else None,
+                        style="flex:1; margin-left:14px;"
                     ),
-                    
-                    cls="flex items-center"
+                    style="display:flex; align-items:center;"
                 ),
-                cls=f"border rounded-lg p-4 {bg_color}"
+                style=f"border-radius:8px; padding:12px; background:{bg}; border:1px solid {border_color};"
             )
             
             match_elements.append(match_card)
         
         # Create round section
         round_section = ft.Div(
-            ft.H5(round_name, cls="text-lg font-bold text-white mb-3"),
-            ft.Div(*match_elements, cls="space-y-3"),
-            cls="mb-6"
+            ft.H5(round_name, style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:0.85rem; color:#475569; text-transform:uppercase; margin-bottom:10px;"),
+            ft.Div(*match_elements, style="display:flex; flex-direction:column; gap:8px;"),
+            style="margin-bottom:20px;"
         )
         round_elements.append(round_section)
     
-    # Create summary
+    win_rate_str = f"{(total_wins / (total_wins + total_losses) * 100):.1f}%" if (total_wins + total_losses) > 0 else "N/A"
     summary = ft.Div(
-        ft.H4("Match Summary", cls="text-xl font-bold text-white mb-4"),
+        ft.H4("Match Summary", style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:1rem; color:#f1f5f9; margin-bottom:12px;"),
         ft.Div(
             ft.Div(
-                ft.Span("Wins: ", cls="text-gray-300"),
-                ft.Span(str(total_wins), cls="text-green-400 font-bold"),
-                cls="mr-6"
+                ft.Span("Wins ", style="font-family:'Barlow',sans-serif; font-size:0.75rem; color:#475569; text-transform:uppercase; letter-spacing:0.05em;"),
+                ft.Span(str(total_wins), style="font-family:'Share Tech Mono',monospace; color:#10b981; font-weight:700; font-size:1rem;"),
+                style="display:flex; flex-direction:column; align-items:center; padding:8px 16px; background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.2); border-radius:6px;"
             ),
             ft.Div(
-                ft.Span("Losses: ", cls="text-gray-300"),
-                ft.Span(str(total_losses), cls="text-red-400 font-bold"),
-                cls="mr-6"
+                ft.Span("Losses ", style="font-family:'Barlow',sans-serif; font-size:0.75rem; color:#475569; text-transform:uppercase; letter-spacing:0.05em;"),
+                ft.Span(str(total_losses), style="font-family:'Share Tech Mono',monospace; color:#ef4444; font-weight:700; font-size:1rem;"),
+                style="display:flex; flex-direction:column; align-items:center; padding:8px 16px; background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.2); border-radius:6px;"
             ),
             ft.Div(
-                ft.Span("Win Rate: ", cls="text-gray-300"),
-                ft.Span(f"{(total_wins / (total_wins + total_losses) * 100):.1f}%" if (total_wins + total_losses) > 0 else "N/A", 
-                       cls="text-blue-400 font-bold"),
+                ft.Span("Win Rate", style="font-family:'Barlow',sans-serif; font-size:0.75rem; color:#475569; text-transform:uppercase; letter-spacing:0.05em;"),
+                ft.Span(win_rate_str, style="font-family:'Share Tech Mono',monospace; color:#38bdf8; font-weight:700; font-size:1rem;"),
+                style="display:flex; flex-direction:column; align-items:center; padding:8px 16px; background:rgba(56,189,248,0.06); border:1px solid rgba(56,189,248,0.2); border-radius:6px;"
             ),
-            cls="flex flex-wrap"
+            style="display:flex; gap:10px; flex-wrap:wrap;"
         ),
-        cls="bg-gray-800 rounded-lg p-4 mb-6"
+        cls="lp-panel", style="padding:16px; margin-bottom:20px;"
     )
-    
+
     return ft.Div(
         summary,
-        ft.H4("Match Progression", cls="text-xl font-bold text-white mb-4"),
-        ft.Div(*round_elements, cls="space-y-4"),
-        cls="space-y-6"
+        ft.H4("Match Progression", style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:1rem; color:#f1f5f9; margin-bottom:16px;"),
+        ft.Div(*round_elements),
+        style="display:flex; flex-direction:column; gap:8px;"
     ) 
 
 def create_decklist_selector(leader_decklists: list, selected_decklist_index: int = 0, 
