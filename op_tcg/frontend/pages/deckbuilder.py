@@ -291,7 +291,7 @@ def _styles() -> ft.Style:
 
 .db-two-col { display: flex; flex-direction: column; gap: 1rem; }
 @media (min-width: 1280px) {
-    .db-two-col { display: grid; grid-template-columns: 1fr 420px; gap: 1rem; align-items: start; }
+    .db-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: start; }
     .db-xl-show { display: block !important; }
 }
 
