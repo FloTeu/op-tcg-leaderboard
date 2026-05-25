@@ -47,7 +47,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Security: Load secret key from environment
-SECRET_KEY = os.getenv("SESSION_MIDDLEWARE_SECRET_KEY", "dev_not_secure_key")
+SECRET_KEY = os.environ["SESSION_MIDDLEWARE_SECRET_KEY"]
 
 
 @asynccontextmanager
