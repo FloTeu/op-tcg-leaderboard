@@ -20,7 +20,7 @@ def privacy_page():
 
     return ft.Div(
         ft.H1("Privacy Policy", cls="text-3xl font-bold text-white mb-2"),
-        ft.P("Last updated: March 2026", cls="text-gray-500 text-sm mb-8"),
+        ft.P("Last updated: May 2026", cls="text-gray-500 text-sm mb-8"),
 
         ft.Div(
             section(
@@ -32,9 +32,9 @@ def privacy_page():
             ),
             section(
                 "2. What Data We Collect",
-                p("When you sign in with Google we receive and store the following data:"),
+                p("When you sign in with Google or Discord we receive and store the following data:"),
                 ul(
-                    "Your Google account ID (used as your unique user identifier)",
+                    "Your account ID from the chosen provider (used as your unique user identifier)",
                     "Your display name",
                     "Your email address",
                     "Your profile picture URL",
@@ -73,7 +73,27 @@ def privacy_page():
                 ),
             ),
             section(
-                "5. Data Retention",
+                "5. Discord OAuth",
+                p(
+                    "You may alternatively sign in with Discord. By doing so you agree to "
+                    "Discord's Privacy Policy and Terms of Service. We request only the minimum "
+                    "scopes needed to identify your account: identify and email. "
+                    "We receive and store your Discord user ID, global display name, email address, "
+                    "and avatar URL. We do not access your servers, messages, or any other Discord data."
+                ),
+                ft.P(
+                    "Discord's privacy policy: ",
+                    ft.A(
+                        "https://discord.com/privacy",
+                        href="https://discord.com/privacy",
+                        target="_blank",
+                        cls="text-blue-400 hover:text-blue-300"
+                    ),
+                    cls="text-gray-300 mb-3"
+                ),
+            ),
+            section(
+                "6. Data Retention",
                 p(
                     "Your data is stored for as long as your account exists. "
                     "You can permanently delete your account — including your watchlist, settings, "
@@ -81,7 +101,7 @@ def privacy_page():
                 ),
             ),
             section(
-                "6. Your Rights (GDPR)",
+                "7. Your Rights (GDPR)",
                 p("If you are located in the EU/EEA you have the following rights:"),
                 ul(
                     "Right of access — request a copy of the data we hold about you",
@@ -98,7 +118,7 @@ def privacy_page():
                 ),
             ),
             section(
-                "7. Analytics",
+                "8. Analytics",
                 p(
                     "This site uses GoatCounter, a privacy-friendly, open-source analytics tool. "
                     "GoatCounter does not use cookies, does not collect personal data, and does not "
@@ -117,14 +137,14 @@ def privacy_page():
                 ),
             ),
             section(
-                "8. Cookies & Sessions",
+                "9. Cookies & Sessions",
                 p(
                     "We use a single session cookie to keep you signed in. This cookie is strictly "
                     "necessary for authentication and is not used for tracking or advertising."
                 ),
             ),
             section(
-                "9. Changes to This Policy",
+                "10. Changes to This Policy",
                 p(
                     "We may update this policy from time to time. The date at the top of this page "
                     "reflects the most recent revision. Continued use of the site after changes "
