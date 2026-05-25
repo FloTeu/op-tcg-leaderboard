@@ -288,20 +288,19 @@ def setup_api_routes(rt):
         header_cells = [
             ft.Th(
                 ft.Div(
-                    ft.Span("Opponent →", cls="block text-left"),
-                    ft.Span("Leader ↓", cls="block text-left"),
-                    cls="flex flex-col w-full"
+                    ft.Span("Opponent →", cls="mu-th-label"),
+                    ft.Span("Leader ↓", cls="mu-th-label"),
+                    cls="flex flex-col w-full",
                 ),
-                cls="text-left py-2 px-4 w-[200px]"
+                cls="w-[200px]",
             ),
             ft.Th(
                 ft.Div(
-                    ft.Span("Overall"),
-                    ft.Br(),
-                    ft.Span("Win Rate")
+                    ft.Span("Overall", cls="mu-th-label"),
+                    ft.Span("Win Rate", cls="mu-th-label"),
                 ),
-                cls="text-left py-2 px-4 w-[120px]"
-            )
+                cls="w-[120px]",
+            ),
         ]
         
         # Add leader columns to header
@@ -363,7 +362,7 @@ def setup_api_routes(rt):
                                 tooltip=f"Match Count: {int(total_matches)}"
                             )
                         )
-                rows.append(ft.Tr(*row_cells, cls="hover:bg-gray-700"))
+                rows.append(ft.Tr(*row_cells))
 
         if not rows:
             return ft.P("No matchup data available for the selected leaders", cls="text-red-400")
@@ -373,14 +372,13 @@ def setup_api_routes(rt):
             ft.Div(
                 ft.Table(
                     ft.Thead(
-                        ft.Tr(*header_cells, cls="bg-gray-800"),
-                        cls="text-white"
+                        ft.Tr(*header_cells),
                     ),
                     ft.Tbody(
                         *rows,
-                        cls="text-gray-300"
+                        style="color:#94a3b8;",
                     ),
-                    cls="w-full text-left border-collapse"
+                    cls="w-full text-left border-collapse mu-table"
                 ),
                 cls="min-w-[1024px] w-full"  # Inner container with minimum width
             ),

@@ -76,6 +76,18 @@ def _styles() -> ft.Style:
     overflow: hidden;
     padding: 8px;
 }
+
+/* Matchup table */
+.mu-th-label {
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 0.1em;
+    font-size: 1.00rem;
+    color: #475569;
+    text-transform: uppercase;
+    white-space: nowrap;
+    display: block;
+    line-height: 1.3;
+}
 """)
 
 
