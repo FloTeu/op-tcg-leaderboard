@@ -624,6 +624,16 @@ window.previousCarouselItem = function(element) {
             hideCardLoader();
         }
     });
+
+    // Fallback: htmx:afterSettle fires on document.body (always in DOM), catching
+    // cases where the triggering element was detached before afterRequest bubbles up.
+    document.addEventListener('htmx:afterSettle', function(evt) {
+        if (evt.detail && evt.detail.target === document.body) {
+            if (document.querySelector('.modal-backdrop[data-card-id]')) {
+                hideCardLoader();
+            }
+        }
+    });
 })();
 
 // Event Listeners
