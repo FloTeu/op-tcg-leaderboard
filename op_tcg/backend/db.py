@@ -257,7 +257,7 @@ def update_custom_decklist(user_id: str, custom_id: str, name: str = None, leade
                        ('meta_format', meta_format), ('tags', tags)]:
         if val is not None:
             data[field] = val
-    db.collection('users').document(user_id).collection('custom_decklists').document(custom_id).set(data, merge=True)
+    db.collection('users').document(user_id).collection('custom_decklists').document(custom_id).update(data)
 
 
 def delete_custom_decklist(user_id: str, custom_id: str):
