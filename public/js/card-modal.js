@@ -618,7 +618,8 @@ window.previousCarouselItem = function(element) {
     document.addEventListener('htmx:afterRequest', function(evt) {
         const elt = evt.detail && evt.detail.elt;
         const hxGet = elt && elt.getAttribute && elt.getAttribute('hx-get');
-        const path = hxGet || (evt.detail && evt.detail.path) || '';
+        const configPath = (evt.detail && evt.detail.requestConfig && evt.detail.requestConfig.path) || '';
+        const path = hxGet || configPath || '';
         if (path.includes('/api/card-modal')) {
             hideCardLoader();
         }
