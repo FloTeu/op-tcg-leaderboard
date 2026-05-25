@@ -31,9 +31,8 @@ Border default:     #1a2540
 Border hover:       #2d3f5a
 Text primary:       #f1f5f9
 Text secondary:     #94a3b8
-Text muted:         #475569
-Text dim:           #334155
-Text very dim:      #1e2d45   (placeholders, decorative)
+Text muted:         #475569   (also used for dim labels/section headers)
+Text very dim:      #1e2d45   (placeholders, decorative only)
 Accent gold:        #f59e0b   (primary interactive — active states, save, leader elements)
 Accent gold hover:  #fbbf24
 Accent gold glow:   rgba(245,158,11,0.12–0.35)

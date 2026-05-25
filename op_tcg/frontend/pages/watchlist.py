@@ -19,7 +19,7 @@ def _wl_styles() -> ft.Style:
     display: inline-flex; align-items: center; gap: 6px;
     padding: 5px 14px; border-radius: 20px;
     font-family: 'Bebas Neue', sans-serif; letter-spacing: .08em; font-size: .8rem;
-    background: #0d1424; border: 1px solid #1a2540; color: #334155;
+    background: #0d1424; border: 1px solid #1a2540; color: #475569;
     cursor: pointer; text-decoration: none; transition: all .12s; white-space: nowrap;
 }
 .wl-tab:hover { border-color: #2d3f5a; color: #64748b; }
@@ -64,14 +64,14 @@ def _wl_styles() -> ft.Style:
 .wl-expand-btn {
     width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;
     padding: 8px 12px; background: transparent; border: none; border-top: 1px solid #1a2540;
-    font-family: 'Barlow', sans-serif; font-size: .68rem; color: #334155;
+    font-family: 'Barlow', sans-serif; font-size: .68rem; color: #475569;
     cursor: pointer; transition: all .12s;
 }
 .wl-expand-btn:hover { color: #64748b; background: rgba(245,158,11,.03); }
 
 .wl-stat-label {
     font-family: 'Bebas Neue', sans-serif; letter-spacing: .1em; font-size: .55rem;
-    color: #334155; display: block; margin-bottom: 3px;
+    color: #475569; display: block; margin-bottom: 3px;
 }
 .wl-stat-val { font-family: 'Share Tech Mono', monospace; font-size: 1.5rem; color: #f1f5f9; line-height: 1; }
 @media (max-width: 640px) {
@@ -116,14 +116,14 @@ def _wl_styles() -> ft.Style:
 
 .wl-section-label {
     font-family: 'Bebas Neue', sans-serif; letter-spacing: .12em; font-size: .6rem;
-    color: #334155; margin-bottom: 10px; display: block;
+    color: #475569; margin-bottom: 10px; display: block;
 }
 
 .wl-table { min-width: 100%; }
 .wl-th {
     padding: 12px 16px; text-align: left;
     font-family: 'Bebas Neue', sans-serif; letter-spacing: .1em; font-size: .58rem;
-    color: #334155; white-space: nowrap; border-bottom: 1px solid #1a2540;
+    color: #475569; white-space: nowrap; border-bottom: 1px solid #1a2540;
 }
 .wl-tr { transition: background .1s; }
 .wl-tr + .wl-tr { border-top: 1px solid rgba(26,37,64,.5); }
@@ -137,7 +137,7 @@ def _wl_styles() -> ft.Style:
 .wl-sort-link {
     display: inline-flex; align-items: center; gap: 4px;
     font-family: 'Barlow', sans-serif; font-size: .7rem; font-weight: 500;
-    color: #334155; text-decoration: none; transition: color .12s;
+    color: #475569; text-decoration: none; transition: color .12s;
 }
 .wl-sort-link:hover { color: #64748b; }
 .wl-sort-active { color: #f59e0b; }
@@ -271,7 +271,7 @@ def _decklist_watchlist_section(user_id: str, request) -> ft.Div:
             ft.Div(
                 ft.I(cls="fas fa-layer-group text-4xl mb-3", style="color:#1e2d45;"),
                 ft.P("No saved decklists yet.",
-                     style="font-family:'Barlow',sans-serif;font-size:.85rem;color:#334155;"),
+                     style="font-family:'Barlow',sans-serif;font-size:.85rem;color:#475569;"),
                 ft.P("Open a tournament decklist and click the bookmark icon to save it.",
                      style="font-family:'Barlow',sans-serif;font-size:.75rem;color:#1e2d45;margin-top:4px;"),
                 cls="flex flex-col items-center justify-center py-16 text-center"
@@ -350,10 +350,10 @@ def _decklist_watchlist_section(user_id: str, request) -> ft.Div:
                         ft.P(f"Player: {player_id}",
                              style="font-family:'Barlow',sans-serif;font-size:.7rem;color:#475569;"),
                         ft.P(f"Tournament: {tournament_id[:40]}{'...' if len(tournament_id) > 40 else ''}",
-                             style="font-family:'Barlow',sans-serif;font-size:.68rem;color:#334155;"),
+                             style="font-family:'Barlow',sans-serif;font-size:.68rem;color:#475569;"),
                         *(
                             [ft.P(f"Played: {tournament_date_str}",
-                                  style="font-family:'Share Tech Mono',monospace;font-size:.65rem;color:#334155;")]
+                                  style="font-family:'Share Tech Mono',monospace;font-size:.65rem;color:#475569;")]
                             if tournament_date_str else []
                         ),
                         tag_chips,
@@ -468,7 +468,7 @@ def _decklist_watchlist_section(user_id: str, request) -> ft.Div:
                         ft.P(f"Leader: {c_leader_name}",
                              style="font-family:'Barlow',sans-serif;font-size:.7rem;color:#475569;"),
                         ft.P(f"{c_card_count} cards",
-                             style="font-family:'Share Tech Mono',monospace;font-size:.65rem;color:#334155;"),
+                             style="font-family:'Share Tech Mono',monospace;font-size:.65rem;color:#475569;"),
                         c_tag_chips,
                         cls="flex-1 min-w-0"
                     ),
@@ -609,7 +609,7 @@ def watchlist_page(request):
                 ft.Div(
                     ft.I(cls="fas fa-heart text-4xl mb-3", style="color:#1e2d45;"),
                     ft.P("Your card watchlist is empty.",
-                         style="font-family:'Barlow',sans-serif;font-size:.85rem;color:#334155;"),
+                         style="font-family:'Barlow',sans-serif;font-size:.85rem;color:#475569;"),
                     cls="flex flex-col items-center justify-center py-20 text-center"
                 ),
                 cls="container mx-auto px-4 py-8"
@@ -793,7 +793,7 @@ def watchlist_page(request):
                                        hx_get=f"/api/card-modal?card_id={card_id}&meta_format=latest&aa_version={aa_version}",
                                        hx_target="body", hx_swap="beforeend"),
                                 ft.Div(card_id,
-                                       style="font-family:'Share Tech Mono',monospace;font-size:.65rem;color:#334155;margin-top:2px;"),
+                                       style="font-family:'Share Tech Mono',monospace;font-size:.65rem;color:#475569;margin-top:2px;"),
                                 tag_chips,
                                 cls="flex flex-col min-w-0"
                             ),
@@ -830,7 +830,7 @@ def watchlist_page(request):
                             ft.Div(version_label,
                                    style="font-family:'Barlow',sans-serif;font-size:.75rem;color:#94a3b8;"),
                             ft.Div(language.upper(),
-                                   style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:#334155;margin-top:2px;"),
+                                   style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:#475569;margin-top:2px;"),
                             cls="flex flex-col"
                         ),
                         cls="wl-td whitespace-nowrap"
@@ -877,7 +877,7 @@ def watchlist_page(request):
                         ft.Th(
                             ft.Div(
                                 ft.Span("PRICE TREND",
-                                        style="font-family:'Bebas Neue',sans-serif;letter-spacing:.1em;font-size:.58rem;color:#334155;"),
+                                        style="font-family:'Bebas Neue',sans-serif;letter-spacing:.1em;font-size:.58rem;color:#475569;"),
                                 ft.Select(
                                     ft.Option("30d", value="30"),
                                     ft.Option("90d", value="90", selected=True),
@@ -965,13 +965,13 @@ def watchlist_page(request):
                                   hx_get=f"/api/card-modal?card_id={card_id}&meta_format=latest&aa_version={aa_version}",
                                   hx_target="body", hx_swap="beforeend"),
                             ft.P(f"{card_id} · {version_label} · {language.upper()}",
-                                 style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:#334155;margin-top:3px;"),
+                                 style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:#475569;margin-top:3px;"),
                             ft.Div(
                                 ft.Span(f"€{item['latest_eur'] * quantity:.2f}",
                                         style="font-family:'Share Tech Mono',monospace;font-size:.85rem;color:#10b981;font-weight:600;margin-right:10px;",
                                         data_price_eur=True),
                                 ft.Span(f"${item['latest_usd'] * quantity:.2f}",
-                                        style="font-family:'Share Tech Mono',monospace;font-size:.85rem;color:#334155;",
+                                        style="font-family:'Share Tech Mono',monospace;font-size:.85rem;color:#475569;",
                                         data_price_usd=True),
                                 cls="mt-2"
                             ),
@@ -986,7 +986,7 @@ def watchlist_page(request):
                     ),
                     ft.Div(
                         ft.Span("QTY",
-                                style="font-family:'Bebas Neue',sans-serif;letter-spacing:.08em;font-size:.65rem;color:#334155;margin-right:10px;"),
+                                style="font-family:'Bebas Neue',sans-serif;letter-spacing:.08em;font-size:.65rem;color:#475569;margin-right:10px;"),
                         _qty_stepper(card_id, aa_version, language, quantity),
                         cls="flex items-center px-4 py-2",
                         style="border-bottom:1px solid #1a2540;"
@@ -994,7 +994,7 @@ def watchlist_page(request):
                     ft.Div(
                         ft.Div(
                             ft.Span("PRICE TREND",
-                                    style="font-family:'Bebas Neue',sans-serif;letter-spacing:.1em;font-size:.6rem;color:#334155;"),
+                                    style="font-family:'Bebas Neue',sans-serif;letter-spacing:.1em;font-size:.6rem;color:#475569;"),
                             ft.Select(
                                 ft.Option("30 Days", value="30"),
                                 ft.Option("90 Days", value="90", selected=True),
@@ -1047,7 +1047,7 @@ def watchlist_page(request):
 
         sort_options = ft.Div(
             ft.Span("SORT BY",
-                    style="font-family:'Bebas Neue',sans-serif;letter-spacing:.1em;font-size:.6rem;color:#334155;margin-right:10px;"),
+                    style="font-family:'Bebas Neue',sans-serif;letter-spacing:.1em;font-size:.6rem;color:#475569;margin-right:10px;"),
             ft.A(
                 ft.Span("Name"),
                 ft.I(cls=f"fas fa-sort-{'up' if sort_order == 'asc' else 'down'} ml-1 text-xs"
@@ -1114,7 +1114,7 @@ def watchlist_page(request):
         ft.Div(
             ft.Div(
                 ft.Span("PORTFOLIO VALUE",
-                        style="font-family:'Bebas Neue',sans-serif;letter-spacing:.1em;font-size:.6rem;color:#334155;"),
+                        style="font-family:'Bebas Neue',sans-serif;letter-spacing:.1em;font-size:.6rem;color:#475569;"),
                 ft.Select(
                     ft.Option("30 days", value="30"),
                     ft.Option("90 days", value="90", selected=True),

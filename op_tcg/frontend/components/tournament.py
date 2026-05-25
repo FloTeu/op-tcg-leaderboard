@@ -203,7 +203,7 @@ def create_tournament_keyfacts(tournament: TournamentExtended, winner_name: str)
     # Filter out None values and create fact elements
     fact_elements = [
         ft.Div(
-            ft.Span(f"{label_and_value[0]}", style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:0.65rem; color:#334155; text-transform:uppercase;"),
+            ft.Span(f"{label_and_value[0]}", style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:0.65rem; color:#475569; text-transform:uppercase;"),
             ft.Span(f" {label_and_value[1]}", style="font-family:'Barlow',sans-serif; font-size:0.85rem; color:#94a3b8;"),
             style="display:flex; align-items:baseline; gap:6px;"
         ) for label_and_value in facts if label_and_value is not None
@@ -220,7 +220,7 @@ def create_match_progression(matches: List[Match], leader_extended_dict: Dict[st
     if not matches:
         return ft.Div(
             ft.P("No detailed match data available for this tournament.", style="color:#475569; font-family:'Barlow',sans-serif; text-align:center; padding:24px 0 8px;"),
-            ft.P("Match data might not be recorded for this tournament", style="color:#334155; font-family:'Barlow',sans-serif; font-size:0.8rem; text-align:center;"),
+            ft.P("Match data might not be recorded for this tournament", style="color:#475569; font-family:'Barlow',sans-serif; font-size:0.8rem; text-align:center;"),
             cls="lp-panel", style="padding:20px;"
         )
     
@@ -297,7 +297,7 @@ def create_match_progression(matches: List[Match], leader_extended_dict: Dict[st
         
         # Create round section
         round_section = ft.Div(
-            ft.H5(round_name, style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:0.85rem; color:#334155; text-transform:uppercase; margin-bottom:10px;"),
+            ft.H5(round_name, style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:0.85rem; color:#475569; text-transform:uppercase; margin-bottom:10px;"),
             ft.Div(*match_elements, style="display:flex; flex-direction:column; gap:8px;"),
             style="margin-bottom:20px;"
         )

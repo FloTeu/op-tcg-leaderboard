@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 HX_INCLUDE = "[name='currency'],[name='start_date'],[name='end_date'],[name='min_latest_price'],[name='max_latest_price'],[name='order_by'],[name='include_alt_art'],[name='change_metric'],[name='query'],[name='rarity']"
 
-_LABEL_STYLE = "font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:0.65rem; color:#334155; text-transform:uppercase; display:block; margin-bottom:6px;"
+_LABEL_STYLE = "font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:0.65rem; color:#475569; text-transform:uppercase; display:block; margin-bottom:6px;"
 
 
 def _styles() -> ft.Style:
@@ -41,7 +41,7 @@ def _styles() -> ft.Style:
 .meta-section-label {
     font-family: 'Bebas Neue', sans-serif;
     letter-spacing: 0.1em;
-    color: #334155;
+    color: #475569;
     font-size: 0.65rem;
     text-transform: uppercase;
     display: block;
@@ -176,7 +176,7 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
                     ft.Div(
                         ft.Span(cls="min-value",
                                 style="font-family:'Share Tech Mono',monospace; font-size:0.75rem; color:#94a3b8;"),
-                        ft.Span(" — ", style="color:#334155; margin:0 4px;"),
+                        ft.Span(" — ", style="color:#475569; margin:0 4px;"),
                         ft.Span(cls="max-value",
                                 style="font-family:'Share Tech Mono',monospace; font-size:0.75rem; color:#94a3b8;"),
                         cls="slider-values",
@@ -207,7 +207,7 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
                     ft.Div(
                         ft.Span("0", cls="min-value",
                                 style="font-family:'Share Tech Mono',monospace; font-size:0.75rem; color:#94a3b8;"),
-                        ft.Span(" — ", style="color:#334155; margin:0 4px;"),
+                        ft.Span(" — ", style="color:#475569; margin:0 4px;"),
                         ft.Span("500", cls="max-value",
                                 style="font-family:'Share Tech Mono',monospace; font-size:0.75rem; color:#94a3b8;"),
                         cls="slider-values",
@@ -233,7 +233,7 @@ def prices_page():
                       style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:2rem; color:#f1f5f9; line-height:1; margin-bottom:6px;"),
                 ft.P(
                     "Track price movements and discover rising cards across the market.",
-                    style="font-family:'Barlow',sans-serif; font-size:0.875rem; color:#334155;",
+                    style="font-family:'Barlow',sans-serif; font-size:0.875rem; color:#475569;",
                 ),
                 cls="mb-6",
                 style="padding-bottom:16px; border-bottom:1px solid #111d30;",

@@ -259,7 +259,7 @@ class ChartManager {
                                             text: ds.label,
                                             fillStyle: colors[i],
                                             strokeStyle: colors[i],
-                                            fontColor: active ? '#f1f5f9' : '#334155',
+                                            fontColor: active ? '#f1f5f9' : '#475569',
                                             lineWidth: 2,
                                             datasetIndex: i,
                                             hidden: false

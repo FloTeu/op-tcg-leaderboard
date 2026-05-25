@@ -62,7 +62,7 @@ def _styles() -> ft.Style:
 .meta-section-label {
     font-family: 'Bebas Neue', sans-serif;
     letter-spacing: 0.1em;
-    color: #334155;
+    color: #475569;
     font-size: 0.65rem;
     text-transform: uppercase;
     display: block;
@@ -81,7 +81,7 @@ def _styles() -> ft.Style:
 .meta-panel-sub {
     font-family: 'Barlow', sans-serif;
     font-size: 0.7rem;
-    color: #334155;
+    color: #475569;
     margin-top: 4px;
     display: block;
 }
@@ -262,7 +262,7 @@ def create_card_frequency_section(cards: List[CardFrequencyChange], title: str, 
                 ft.P(f"Cur: {card.current_frequency * 100:.1f}%",
                      style="font-family:'Share Tech Mono',monospace; font-size:0.68rem; color:#475569; text-align:center;"),
                 ft.P(f"Prev: {card.previous_frequency * 100:.1f}%",
-                     style="font-family:'Share Tech Mono',monospace; font-size:0.68rem; color:#334155; text-align:center;"),
+                     style="font-family:'Share Tech Mono',monospace; font-size:0.68rem; color:#475569; text-align:center;"),
             )
 
         card_elements.append(
@@ -561,7 +561,7 @@ def card_movement_page():
                       style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:2rem; color:#f1f5f9; line-height:1; margin-bottom:6px;"),
                 ft.P(
                     "Track card play frequency changes between meta formats.",
-                    style="font-family:'Barlow',sans-serif; font-size:0.875rem; color:#334155;",
+                    style="font-family:'Barlow',sans-serif; font-size:0.875rem; color:#475569;",
                 ),
                 cls="mb-6",
                 style="padding-bottom:16px; border-bottom:1px solid #111d30;",
@@ -571,7 +571,7 @@ def card_movement_page():
             ft.Div(
                 ft.Div(
                     ft.P("Select a leader to view card movement analysis.",
-                         style="font-family:'Barlow',sans-serif; color:#334155; text-align:center; padding:32px 0;"),
+                         style="font-family:'Barlow',sans-serif; color:#475569; text-align:center; padding:32px 0;"),
                 ),
                 id="card-movement-content",
                 cls="w-full",

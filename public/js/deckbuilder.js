@@ -120,8 +120,8 @@
       var hdr = document.createElement('div');
       hdr.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;';
       hdr.innerHTML =
-        '<span style="font-family:\'Bebas Neue\',sans-serif;letter-spacing:.1em;font-size:.6rem;color:#334155;">' + type.toUpperCase() + 'S</span>' +
-        '<span style="font-family:\'Share Tech Mono\',monospace;font-size:.65rem;color:#334155;">' + cnt + '</span>';
+        '<span style="font-family:\'Bebas Neue\',sans-serif;letter-spacing:.1em;font-size:.6rem;color:#475569;">' + type.toUpperCase() + 'S</span>' +
+        '<span style="font-family:\'Share Tech Mono\',monospace;font-size:.65rem;color:#475569;">' + cnt + '</span>';
       sec.appendChild(hdr);
       sec.appendChild(grid);
       panel.appendChild(sec);

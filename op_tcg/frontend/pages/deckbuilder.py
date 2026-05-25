@@ -35,7 +35,7 @@ def _styles() -> ft.Style:
 .db-panel-label {
     font-family: 'Bebas Neue', sans-serif;
     letter-spacing: 0.12em;
-    color: #334155;
+    color: #475569;
     font-size: 0.65rem;
     text-transform: uppercase;
     margin-bottom: 8px;
@@ -151,7 +151,7 @@ def _styles() -> ft.Style:
     white-space: nowrap;
 }
 .db-btn-primary:hover { background: #fbbf24; transform: translateY(-1px); }
-.db-btn-primary:disabled { background: #1a2540; color: #334155; transform: none; cursor: not-allowed; }
+.db-btn-primary:disabled { background: #1a2540; color: #475569; transform: none; cursor: not-allowed; }
 
 .db-btn-ghost {
     background: transparent;
@@ -275,7 +275,7 @@ def _styles() -> ft.Style:
 .db-tab-btn {
     flex: 1; padding: 10px 4px;
     background: transparent; border: none;
-    color: #334155;
+    color: #475569;
     font-family: 'Bebas Neue', sans-serif;
     font-size: 1rem; letter-spacing: 0.1em;
     cursor: pointer;
@@ -498,7 +498,7 @@ def _styles() -> ft.Style:
     font-family: 'Bebas Neue', sans-serif;
     letter-spacing: 0.08em;
     font-size: 0.52rem;
-    color: #334155;
+    color: #475569;
     line-height: 1;
 }
 .db-counter-chip.active .db-counter-chip-label { color: #38bdf8; }
@@ -586,7 +586,7 @@ def _styles() -> ft.Style:
     font-size: 0.42rem; color: #1e2d45; line-height: 1;
     user-select: none; transition: color 0.15s;
 }
-.db-fs-cost-col:hover .db-fs-mini-cost-label { color: #334155; }
+.db-fs-cost-col:hover .db-fs-mini-cost-label { color: #475569; }
 .db-fs-cost-col.active .db-fs-mini-cost-label { color: #38bdf8; }
 .db-fs-close {
     margin-left: auto; width: 34px; height: 34px; border-radius: 50%;
@@ -680,7 +680,7 @@ def _styles() -> ft.Style:
     display: inline-flex; align-items: center; gap: 4px;
     padding: 3px 8px; border-radius: 5px;
     background: transparent; border: 1px solid #1a2540;
-    color: #334155; font-family: 'Bebas Neue', sans-serif;
+    color: #475569; font-family: 'Bebas Neue', sans-serif;
     letter-spacing: 0.08em; font-size: 0.62rem;
     cursor: pointer; transition: all 0.12s; white-space: nowrap;
 }
@@ -719,7 +719,7 @@ def _styles() -> ft.Style:
 }
 .db-hand-subtitle {
     font-family: 'Share Tech Mono', monospace;
-    font-size: 0.58rem; color: #334155;
+    font-size: 0.58rem; color: #475569;
     letter-spacing: 0.1em; margin-bottom: 8px;
 }
 .db-hand-close {
@@ -1027,7 +1027,7 @@ def deckbuilder_page(request):
                     ft.Span("0", id="db-ring-num",
                             style="font-family:'Share Tech Mono',monospace;font-size:1.1rem;color:#f1f5f9;line-height:1;"),
                     ft.Span("/50",
-                            style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:#334155;"),
+                            style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:#475569;"),
                     style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;",
                 ),
                 style="position:relative;width:56px;height:56px;flex-shrink:0;",
@@ -1082,7 +1082,7 @@ def deckbuilder_page(request):
         # ── Deck label + expand button ───────────────────────────────────
         ft.Div(
             ft.Span("MY DECK",
-                    style="font-family:'Bebas Neue',sans-serif;letter-spacing:.12em;font-size:.6rem;color:#334155;"),
+                    style="font-family:'Bebas Neue',sans-serif;letter-spacing:.12em;font-size:.6rem;color:#475569;"),
             ft.Div(
                 ft.Button(
                     ft.I(cls="fas fa-random text-xs mr-1"),
@@ -1157,8 +1157,8 @@ def deckbuilder_page(request):
     page_header = ft.Div(
         ft.Div(
             ft.A("← Watchlist", href="/watchlist?section=decklists",
-                 style="font-family:Barlow,sans-serif;font-size:.72rem;color:#334155;text-decoration:none;transition:color .15s;"
-                        " onmouseover=\"this.style.color='#64748b'\" onmouseout=\"this.style.color='#334155'\""),
+                 style="font-family:Barlow,sans-serif;font-size:.72rem;color:#475569;text-decoration:none;transition:color .15s;"
+                        " onmouseover=\"this.style.color='#64748b'\" onmouseout=\"this.style.color='#475569'\""),
             ft.H1(
                 "Edit Deck" if custom_id else "Deck Builder",
                 cls="db-display",

@@ -48,7 +48,7 @@ def _styles() -> ft.Style:
 .meta-section-label {
     font-family: 'Bebas Neue', sans-serif;
     letter-spacing: 0.1em;
-    color: #334155;
+    color: #475569;
     font-size: 0.65rem;
     text-transform: uppercase;
     display: block;
@@ -210,7 +210,7 @@ def create_filter_components(selected_meta_format: MetaFormat | None = None, cur
                          name=name_max, cls="slider-range max-range", **FILTER_HX_ATTRS),
                 ft.Div(
                     ft.Span(min_val, cls="min-value"),
-                    ft.Span(" – ", style="color:#334155; margin:0 4px;"),
+                    ft.Span(" – ", style="color:#475569; margin:0 4px;"),
                     ft.Span(max_val, cls="max-value"),
                     cls="slider-values",
                 ),
@@ -406,7 +406,7 @@ def card_popularity_page():
                       style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:2rem; color:#f1f5f9; line-height:1; margin-bottom:6px;"),
                 ft.P(
                     "Cards ordered by play rate. 100% means the card appears in every tournament deck of the same color.",
-                    style="font-family:'Barlow',sans-serif; font-size:0.875rem; color:#334155;",
+                    style="font-family:'Barlow',sans-serif; font-size:0.875rem; color:#475569;",
                 ),
                 cls="mb-6",
                 style="padding-bottom:16px; border-bottom:1px solid #111d30;",

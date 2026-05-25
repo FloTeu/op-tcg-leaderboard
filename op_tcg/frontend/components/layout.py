@@ -111,7 +111,7 @@ def layout(content, filter_component=None, current_path="/", persist_query=None,
                     ft.A("About", href="/about", style="color:#475569;font-size:.875rem;transition:color .15s;font-family:'Barlow',sans-serif;", onmouseover="this.style.color='#94a3b8'", onmouseout="this.style.color='#475569'"),
                     ft.A("Bug Report", href="/bug-report", style="color:#475569;font-size:.875rem;transition:color .15s;font-family:'Barlow',sans-serif;", onmouseover="this.style.color='#94a3b8'", onmouseout="this.style.color='#475569'"),
                     ft.A("Privacy Policy", href="/privacy", style="color:#475569;font-size:.875rem;transition:color .15s;font-family:'Barlow',sans-serif;", onmouseover="this.style.color='#94a3b8'", onmouseout="this.style.color='#475569'"),
-                    ft.Span("© 2026 OP TCG Leaderboard", style="color:#334155;font-size:.875rem;font-family:'Barlow',sans-serif;"),
+                    ft.Span("© 2026 OP TCG Leaderboard", style="color:#475569;font-size:.875rem;font-family:'Barlow',sans-serif;"),
                     cls="flex flex-wrap items-center gap-6 justify-center"
                 ),
                 style="border-top:1px solid #1a2540;margin-top:64px;padding:32px 16px;",

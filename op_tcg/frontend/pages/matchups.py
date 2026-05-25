@@ -45,7 +45,7 @@ def _styles() -> ft.Style:
 .meta-section-label {
     font-family: 'Bebas Neue', sans-serif;
     letter-spacing: 0.1em;
-    color: #334155;
+    color: #475569;
     font-size: 0.65rem;
     text-transform: uppercase;
     display: block;
@@ -64,7 +64,7 @@ def _styles() -> ft.Style:
 .meta-panel-sub {
     font-family: 'Barlow', sans-serif;
     font-size: 0.7rem;
-    color: #334155;
+    color: #475569;
     margin-top: 4px;
     display: block;
 }
@@ -234,7 +234,7 @@ def matchups_page():
                       style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:2rem; color:#f1f5f9; line-height:1; margin-bottom:6px;"),
                 ft.P(
                     "Analyze matchups between different leaders across meta formats.",
-                    style="font-family:'Barlow',sans-serif; font-size:0.875rem; color:#334155;",
+                    style="font-family:'Barlow',sans-serif; font-size:0.875rem; color:#475569;",
                 ),
                 cls="mb-6",
                 style="padding-bottom:16px; border-bottom:1px solid #111d30;",
@@ -242,7 +242,7 @@ def matchups_page():
             ft.Div(
                 ft.Div(
                     ft.P("Select leaders to view matchup analysis.",
-                         style="font-family:'Barlow',sans-serif; color:#334155; text-align:center; padding:32px 0;"),
+                         style="font-family:'Barlow',sans-serif; color:#475569; text-align:center; padding:32px 0;"),
                 ),
                 id="matchup-content",
                 cls="w-full",

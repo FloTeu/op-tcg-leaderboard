@@ -154,7 +154,7 @@ def create_leader_popularity_section(id_prefix: str = "", extra_triggers: str = 
                 "ⓘ",
                 id=f"{p}bubble-chart-tooltip",
                 cls="cursor-help",
-                style="font-family:'Barlow',sans-serif; font-size:0.7rem; color:#334155;",
+                style="font-family:'Barlow',sans-serif; font-size:0.7rem; color:#475569;",
                 data_tooltip=data_tooltip,
             ),
             cls="meta-panel-title",
@@ -202,7 +202,7 @@ def create_leader_popularity_section(id_prefix: str = "", extra_triggers: str = 
                     ),
                     ft.Div(
                         ft.Span("0", cls="min-value"),
-                        ft.Span(" – ", style="color:#334155; margin:0 4px;"),
+                        ft.Span(" – ", style="color:#475569; margin:0 4px;"),
                         ft.Span("1000", cls="max-value"),
                         cls="slider-values",
                     ),

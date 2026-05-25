@@ -39,7 +39,7 @@ def _styles() -> ft.Style:
 .hp-section-label {
     font-family: 'Bebas Neue', sans-serif;
     letter-spacing: 0.12em;
-    color: #334155;
+    color: #475569;
     font-size: 0.75rem;
     text-transform: uppercase;
     margin-bottom: 6px;
@@ -227,7 +227,7 @@ def create_filter_components(max_match_count: int = 10000, selected_meta_format:
                              name=name_max, cls="slider-range max-range", **FILTER_HX_ATTRS),
                     ft.Div(
                         ft.Span("0", cls="min-value"),
-                        ft.Span(" – ", style="color:#334155;"),
+                        ft.Span(" – ", style="color:#475569;"),
                         ft.Span(str(val_max), cls="max-value"),
                         cls="slider-values",
                     ),
@@ -347,7 +347,7 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
             ft.Div(
                 # Header row: rank + name
                 ft.Div(
-                    ft.Span(f"#{idx + 1}", style="font-family:'Bebas Neue',sans-serif; font-size:1.1rem; color:#334155; margin-right:8px; letter-spacing:0.08em;"),
+                    ft.Span(f"#{idx + 1}", style="font-family:'Bebas Neue',sans-serif; font-size:1.1rem; color:#475569; margin-right:8px; letter-spacing:0.08em;"),
                     ft.A(leader_name, href=leader_url, cls="hp-leader-link truncate", style="font-size:1rem;"),
                     cls="flex items-center mb-3"
                 ),
@@ -394,7 +394,7 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
                 ),
                 # Footer: set + price
                 ft.Div(
-                    ft.Span(f"Set: {leader.id.split('-')[0]}", style="font-family:'Share Tech Mono',monospace; font-size:0.7rem; color:#334155;"),
+                    ft.Span(f"Set: {leader.id.split('-')[0]}", style="font-family:'Share Tech Mono',monospace; font-size:0.7rem; color:#475569;"),
                     ft.Span(price_text, style="font-family:'Share Tech Mono',monospace; font-size:0.7rem; color:#94a3b8;"),
                     cls="flex justify-between mt-3 pt-3", style="border-top:1px solid #1a2540;"
                 ),

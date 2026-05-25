@@ -61,7 +61,7 @@ def _styles() -> ft.Style:
 .meta-section-label {
     font-family: 'Bebas Neue', sans-serif;
     letter-spacing: 0.1em;
-    color: #334155;
+    color: #475569;
     font-size: 0.65rem;
     text-transform: uppercase;
     display: block;
@@ -80,7 +80,7 @@ def _styles() -> ft.Style:
 .meta-panel-sub {
     font-family: 'Barlow', sans-serif;
     font-size: 0.7rem;
-    color: #334155;
+    color: #475569;
     margin-top: 4px;
     display: block;
 }
@@ -127,7 +127,7 @@ def _styles() -> ft.Style:
 .meta-range-label {
     font-family: 'Bebas Neue', sans-serif;
     letter-spacing: 0.1em;
-    color: #334155;
+    color: #475569;
     font-size: 0.65rem;
     text-transform: uppercase;
     display: block;
@@ -151,7 +151,7 @@ def _panel_header(title: str, subtitle: str, toggle_leaders_id: str, toggle_colo
             ft.Span(
                 "ⓘ",
                 cls="cursor-help",
-                style="font-family:'Barlow',sans-serif;font-size:0.7rem;color:#334155;margin-left:6px;",
+                style="font-family:'Barlow',sans-serif;font-size:0.7rem;color:#475569;margin-left:6px;",
                 data_tooltip=tooltip,
             ) if tooltip else "",
             cls="meta-panel-title",
@@ -311,7 +311,7 @@ def meta_page(selected_meta_format: str | None = None):
                 ),
                 ft.Div(
                     ft.Span(meta_formats[default_from], cls="min-value"),
-                    ft.Span(" – ", style="color:#334155; margin:0 4px;"),
+                    ft.Span(" – ", style="color:#475569; margin:0 4px;"),
                     ft.Span(meta_formats[default_to], cls="max-value"),
                     cls="slider-values",
                 ),
@@ -378,7 +378,7 @@ def meta_page(selected_meta_format: str | None = None):
                     "Track how tournament win share evolves across meta formats. "
                     "Use the range slider to zoom in on a period and switch between "
                     "Leaders and Colors to explore the data from different angles.",
-                    style="font-family:'Barlow',sans-serif; font-size:0.875rem; color:#334155; max-width:600px;",
+                    style="font-family:'Barlow',sans-serif; font-size:0.875rem; color:#475569; max-width:600px;",
                 ),
                 cls="mb-6",
                 style="padding-bottom:16px; border-bottom:1px solid #111d30;",

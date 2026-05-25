@@ -6,7 +6,7 @@ from op_tcg.frontend.components.loading import create_loading_spinner
 from op_tcg.frontend.components.decklist_export import create_decklist_export_component
 from op_tcg.frontend.components.decklist_watchlist_toggle import create_decklist_watchlist_toggle
 
-_LABEL_STYLE = "font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:0.65rem; color:#334155; text-transform:uppercase; display:block; margin-bottom:6px;"
+_LABEL_STYLE = "font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:0.65rem; color:#475569; text-transform:uppercase; display:block; margin-bottom:6px;"
 _STAT_LABEL = "font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:0.6rem; color:#475569; text-transform:uppercase; display:block; margin-top:4px;"
 _STAT_VALUE = "font-family:'Share Tech Mono',monospace; font-size:1.4rem; line-height:1; display:block;"
 _PANEL_STYLE = "background:#0d1424; border:1px solid #1a2540; border-radius:8px; padding:14px;"

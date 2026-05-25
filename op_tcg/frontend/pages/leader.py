@@ -53,7 +53,7 @@ def _styles() -> ft.Style:
 .lp-section-label {
     font-family: 'Bebas Neue', sans-serif;
     letter-spacing: 0.12em;
-    color: #334155;
+    color: #475569;
     font-size: 0.65rem;
     text-transform: uppercase;
     margin-bottom: 6px;
