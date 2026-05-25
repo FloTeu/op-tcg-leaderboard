@@ -359,7 +359,17 @@ def _decklist_watchlist_section(user_id: str, request) -> ft.Div:
                         tag_chips,
                         cls="flex-1 min-w-0"
                     ),
-                    ft.Div(toggle_btn, cls="flex flex-col items-end flex-shrink-0 ml-2"),
+                    ft.Div(
+                        toggle_btn,
+                        ft.A(
+                            ft.I(cls="fas fa-file-import text-xs"),
+                            href=f"/deckbuilder?import_tournament_id={tournament_id}&import_player_id={player_id}",
+                            cls="wl-btn-ghost",
+                            style="width:32px;height:32px;padding:0;",
+                            title="Import to Deck Builder",
+                        ),
+                        cls="flex flex-col items-center gap-1 flex-shrink-0 ml-2"
+                    ),
                     cls="flex items-start px-4 py-4",
                 ),
                 ft.Button(
