@@ -176,6 +176,40 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                     is_logged_in=is_logged_in,
                 ),
 
+                # Watchlist one-time hint
+                ft.Div(
+                    "♥ tap to add to watchlist",
+                    id="watchlist-hint-label",
+                    cls="pointer-events-none text-center",
+                    style=(
+                        "position:absolute; top:3.4rem; right:0.25rem; z-index:31;"
+                        "font-family:'Barlow',sans-serif; font-size:0.7rem; color:#f1f5f9;"
+                        "background:rgba(0,0,0,0.88); border:1px solid rgba(245,158,11,0.35);"
+                        "border-radius:8px; padding:5px 10px; white-space:nowrap;"
+                        "opacity:0; transition:opacity 0.4s ease;"
+                    )
+                ),
+                ft.Script("""
+(function() {
+    var KEY = 'card-watchlist-hint-seen';
+    //if (localStorage.getItem(KEY)) return;
+    var hint = document.getElementById('watchlist-hint-label');
+    if (!hint) return;
+    hint.style.pointerEvents = 'auto';
+    setTimeout(function() {
+        hint.style.opacity = '1';
+        setTimeout(function() {
+            hint.style.opacity = '0';
+            localStorage.setItem(KEY, '1');
+        }, 2200);
+    }, 500);
+    hint.addEventListener('click', function() {
+        hint.style.opacity = '0';
+        localStorage.setItem(KEY, '1');
+    }, { once: true });
+})();
+"""),
+
                 # Card navigation — previous
                 ft.Div(
                     ft.Div("‹", cls="text-white text-4xl font-bold opacity-0 group-hover:opacity-100 transition-opacity"),
