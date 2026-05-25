@@ -562,14 +562,32 @@ def _styles() -> ft.Style:
     flex-shrink: 0; white-space: nowrap;
 }
 .db-fs-mini-curve {
-    display: flex; align-items: flex-end; gap: 2px; height: 22px; flex-shrink: 0;
+    display: flex; align-items: flex-end; gap: 2px; height: 30px; flex-shrink: 0;
 }
 .db-fs-mini-bar {
     width: 7px; min-height: 2px;
     background: rgba(245,158,11,0.4);
     border-radius: 1px 1px 0 0;
-    transition: height 0.25s ease;
+    transition: height 0.25s ease, background 0.15s ease;
 }
+.db-fs-cost-col {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: stretch; justify-content: flex-end;
+    cursor: pointer; gap: 2px;
+}
+.db-fs-cost-col:hover .db-fs-mini-bar { background: rgba(245,158,11,0.75); }
+.db-fs-cost-col.active .db-fs-mini-bar {
+    background: rgba(56,189,248,0.75);
+    box-shadow: 0 0 6px rgba(56,189,248,0.3);
+}
+.db-fs-mini-cost-label {
+    text-align: center;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.42rem; color: #1e2d45; line-height: 1;
+    user-select: none; transition: color 0.15s;
+}
+.db-fs-cost-col:hover .db-fs-mini-cost-label { color: #334155; }
+.db-fs-cost-col.active .db-fs-mini-cost-label { color: #38bdf8; }
 .db-fs-close {
     margin-left: auto; width: 34px; height: 34px; border-radius: 50%;
     background: rgba(20,30,50,0.6); border: 1px solid #1a2540;
@@ -1225,8 +1243,17 @@ def deckbuilder_page(request):
                 ft.Span(id="db-fs-total",
                         style="font-family:'Share Tech Mono',monospace;font-size:.8rem;"),
                 ft.Div(
-                    *[ft.Div(id=f"db-fs-bar-{i}", cls="db-fs-mini-bar", style="height:2px;")
-                      for i in range(11)],
+                    *[
+                        ft.Div(
+                            ft.Div(id=f"db-fs-bar-{i}", cls="db-fs-mini-bar", style="height:2px;"),
+                            ft.Span(str(i) if i < 10 else "10+", cls="db-fs-mini-cost-label"),
+                            id=f"db-fs-cost-col-{i}",
+                            cls="db-fs-cost-col",
+                            onclick=f"window._dbToggleCostFilter({i})",
+                            title=f"Cost {i if i < 10 else '10+'} — click to filter",
+                        )
+                        for i in range(11)
+                    ],
                     cls="db-fs-mini-curve",
                 ),
                 ft.Button("✕", type="button", cls="db-fs-close",

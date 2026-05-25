@@ -356,6 +356,8 @@
     for (var i = 0; i <= 10; i++) {
       var col = document.getElementById('db-cost-col-' + i);
       if (col) col.classList.toggle('active', _costFilter === i);
+      var fsCol = document.getElementById('db-fs-cost-col-' + i);
+      if (fsCol) fsCol.classList.toggle('active', _costFilter === i);
     }
     if (window._cdb) window._cdb.render();
   };
@@ -471,6 +473,8 @@
     for (var i = 0; i <= 10; i++) {
       var bar = document.getElementById('db-fs-bar-' + i);
       if (bar) bar.style.height = (costMap[i] ? Math.max(2, Math.round((costMap[i] / maxBar) * 20)) : 2) + 'px';
+      var fsCol = document.getElementById('db-fs-cost-col-' + i);
+      if (fsCol) fsCol.classList.toggle('active', _costFilter === i);
     }
 
     var cmap = { 'none': 0, '1k': 1000, '2k': 2000 };
