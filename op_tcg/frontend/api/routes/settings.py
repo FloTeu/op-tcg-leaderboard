@@ -44,5 +44,5 @@ def setup_settings_routes(rt):
             return Response(status_code=403)
 
         delete_user(user['sub'])
-        request.session.pop('user', None)
+        request.session.clear()
         return Response(status_code=200, headers={"HX-Redirect": "/"})
