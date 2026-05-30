@@ -7,9 +7,10 @@
   'use strict';
 
   var CIRC = 2 * Math.PI * 36; // SVG ring circumference (r=36)
-  var _counterFilter = null;   // null | 0 | 1000 | 2000
-  var _costFilter    = null;   // null | 0..10
-  var _triggerFilter = false;  // show only trigger cards
+  var _counterFilter   = null;  // null | 0 | 1000 | 2000
+  var _costFilter      = null;  // null | 0..10
+  var _triggerFilter   = false; // show only trigger cards
+  var _unlimitedCopies = false; // bypass 4-copy limit when true
 
   /* ── Hidden-input helpers ────────────────────────────────────────────── */
 
@@ -204,7 +205,7 @@
       if (!badge) return;
       var card = cdb.cards[id];
       var count = card ? card.count : 0;
-      var maxCount = el.dataset.isLeader === '1' ? 1 : 4;
+      var maxCount = el.dataset.isLeader === '1' ? 1 : (_unlimitedCopies ? Infinity : 4);
       badge.textContent = count > 0 ? count : '';
       badge.classList.toggle('visible', count > 0);
       el.classList.toggle('is-maxed', count >= maxCount);
@@ -359,6 +360,12 @@
       var fsCol = document.getElementById('db-fs-cost-col-' + i);
       if (fsCol) fsCol.classList.toggle('active', _costFilter === i);
     }
+    if (window._cdb) window._cdb.render();
+  };
+
+  window._dbToggleUnlimited = function (btn) {
+    _unlimitedCopies = !_unlimitedCopies;
+    btn.classList.toggle('active', _unlimitedCopies);
     if (window._cdb) window._cdb.render();
   };
 
@@ -613,7 +620,17 @@
         if (!(id in this.cards)) {
           this.cards[id] = { count: 0, name: name, img: img, is_leader: false, cost: cost || 0, type: type || '', counter: counter || 0, has_trigger: !!has_trigger };
         }
-        if (this.cards[id].count < 4) this.cards[id].count++;
+        if (!_unlimitedCopies && this.cards[id].count >= 4) {
+          if (confirm('This card already has 4 copies.\nEnable unlimited mode to add more?')) {
+            _unlimitedCopies = true;
+            var unlBtn = document.getElementById('db-unlimited-btn');
+            if (unlBtn) unlBtn.classList.add('active');
+            this.cards[id].count++;
+            this.render();
+          }
+          return;
+        }
+        this.cards[id].count++;
         this.render();
       },
 
