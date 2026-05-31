@@ -38,6 +38,7 @@ from op_tcg.frontend.utils.og_images import (
     get_leader_og_image_bytes, warm_leader_og_image,
 )
 from op_tcg.frontend.utils.middleware import canonical_redirect_middleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 import os
 import logging
@@ -157,25 +158,29 @@ setup_settings_routes(rt)
 from starlette.responses import Response as StarletteResponse
 
 
-@app.middleware("http")
-async def serve_file_routes(request: Request, call_next):
+class _FileRouteMiddleware(BaseHTTPMiddleware):
     """Serve paths with file extensions before FastHTML routing (which doesn't match dots)."""
-    path = request.url.path
-    if path == "/sitemap.xml":
-        return FileResponse("public/sitemap.xml", media_type="application/xml")
-    if path == "/og/meta.png":
-        png = get_meta_og_image_bytes()
-        if png:
-            return StarletteResponse(content=png, media_type="image/png",
-                                     headers={"Cache-Control": "public, max-age=14400"})
-        return FileResponse("public/favicon32x23.png", media_type="image/png")
-    if path == "/og/leader.png":
-        png = get_leader_og_image_bytes()
-        if png:
-            return StarletteResponse(content=png, media_type="image/png",
-                                     headers={"Cache-Control": "public, max-age=14400"})
-        return FileResponse("public/favicon32x23.png", media_type="image/png")
-    return await call_next(request)
+
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        if path == "/sitemap.xml":
+            return FileResponse("public/sitemap.xml", media_type="application/xml")
+        if path == "/og/meta.png":
+            png = get_meta_og_image_bytes()
+            if png:
+                return StarletteResponse(content=png, media_type="image/png",
+                                         headers={"Cache-Control": "public, max-age=14400"})
+            return FileResponse("public/favicon32x23.png", media_type="image/png")
+        if path == "/og/leader.png":
+            png = get_leader_og_image_bytes()
+            if png:
+                return StarletteResponse(content=png, media_type="image/png",
+                                         headers={"Cache-Control": "public, max-age=14400"})
+            return FileResponse("public/favicon32x23.png", media_type="image/png")
+        return await call_next(request)
+
+
+app.add_middleware(_FileRouteMiddleware)
 
 
 @rt("/api/cache/status")
@@ -215,9 +220,12 @@ def clear_cache():
         return {"status": "error", "message": str(e)}
 
 
-@app.middleware("http")
-async def enforce_canonical_host(request, call_next):
-    return await canonical_redirect_middleware(request, call_next)
+class _CanonicalHostMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        return await canonical_redirect_middleware(request, call_next)
+
+
+app.add_middleware(_CanonicalHostMiddleware)
 
 def _user_setting_defaults(request: Request) -> dict:
     """Return the logged-in user's saved settings, or empty dict if not logged in / no settings."""
