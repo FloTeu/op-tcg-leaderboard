@@ -302,19 +302,26 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
         """
         placing_text = placing_text.strip().lower()  # Normalize the input
 
-        if 'place' in placing_text:
-            # Extract the number from phrases like '1st Place'
-            parts = placing_text.split()
-            if len(parts) > 0:
-                # Check if the first part is a number (with an ordinal suffix)
-                first_part = parts[0]
-                if first_part[:-2].isdigit():  # Check if the part before 'st', 'nd', 'rd', 'th' is a digit
-                    return int(first_part[:-2])  # Return the integer value
-        elif 'top' in placing_text:
-            # Extract the number from phrases like 'Top-8'
-            parts = placing_text.split('-')
-            if len(parts) > 1 and parts[1].isdigit():
-                return int(parts[1])  # Return the integer value
+        parts = placing_text.split()
+        if not parts:
+            return None
+
+        first_part = parts[0]
+
+        # Ordinal format: "1st Place", "1st (8-0)", "2nd Place", etc.
+        # Require at least one more token after the ordinal so bare "1st" returns None.
+        if first_part[:-2].isdigit() and len(parts) > 1:
+            return int(first_part[:-2])
+
+        # Short top format: "T4", "T4 (4-1)", "T8", etc.
+        if first_part.startswith('t') and first_part[1:].isdigit():
+            return int(first_part[1:])
+
+        # Long top format: "Top-8", "Top-16", etc.
+        if 'top' in placing_text:
+            top_parts = placing_text.split('-')
+            if len(top_parts) > 1 and top_parts[1].isdigit():
+                return int(top_parts[1])
 
         return None  # Return None if no valid placing found
 
