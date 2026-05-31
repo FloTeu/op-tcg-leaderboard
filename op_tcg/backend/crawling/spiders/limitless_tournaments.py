@@ -51,7 +51,7 @@ class LimitlessTournamentSpider(scrapy.Spider):
             decklist_ids.append(dict(card_row)["id"])
         return decklist_ids
 
-    def start_requests(self):
+    async def start(self):
         self.bq_client = bigquery.Client(location="europe-west1")
         self.match_table = get_or_create_table(Match, client=self.bq_client)
         self.tournament_table = get_or_create_table(Tournament, client=self.bq_client)

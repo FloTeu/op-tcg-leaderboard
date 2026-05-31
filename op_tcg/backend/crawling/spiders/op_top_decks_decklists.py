@@ -29,6 +29,10 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
         'COOKIES_ENABLED': True,
     }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.bq_add_data_stats: dict[str, int] = {}
+
     def get_bq_op_top_deck_decklists(self) -> list[OpTopDeckDecklistExtended]:
         """Returns list of OPTopDeckDecklistExtended stored in bq"""
         bq_decklists: list[OpTopDeckDecklistExtended] = []
@@ -70,7 +74,7 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
     def tournament_standing_to_id(self, ts: TournamentStanding) -> str:
         return f"{ts.tournament_id}_{ts.decklist_id}_{ts.player_id}"
 
-    def start_requests(self):
+    async def start(self):
         self.bq_client = bigquery.Client(location="europe-west1")
         self.decklist_table = get_or_create_table(Decklist, client=self.bq_client)
         self.op_top_deck_table = get_or_create_table(OpTopDeckDecklist, client=self.bq_client)

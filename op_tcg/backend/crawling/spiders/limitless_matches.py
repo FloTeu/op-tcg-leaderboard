@@ -28,7 +28,7 @@ class LimitlessMatchSpider(scrapy.Spider):
         return leaders
 
 
-    def start_requests(self):
+    async def start(self):
         data_dir = Path(op_tcg.__file__).parent.parent / "data" / "limitless"
         leader_ids = self.leader_ids if self.leader_ids else ["OP01-001"]
         meta_formats = self.meta_formats if self.meta_formats else [MetaFormat.OP01]

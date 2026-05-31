@@ -91,7 +91,7 @@ class LimitlessPricesSpider(scrapy.Spider):
             logging.warning(f"Could not fetch marketplace urls: {e}")
         return card_ids_to_aa_version
 
-    def start_requests(self):
+    async def start(self):
         self.bq_client = bigquery.Client(location="europe-west1")
         self.card_table = get_or_create_table(Card, client=self.bq_client)
         self.price_table = get_or_create_table(CardPrice, client=self.bq_client)
