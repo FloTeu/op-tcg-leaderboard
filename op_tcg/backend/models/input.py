@@ -128,7 +128,7 @@ def meta_format2release_datetime(meta_format: MetaFormat, region: MetaFormatRegi
         MetaFormat.OP13: datetime(2025, 8, 23),    # 3 months earlier
         MetaFormat.OP14: datetime(2025, 11, 21),    # 3 months earlier
         MetaFormat.OP15: datetime(2026, 3, 4),
-        MetaFormat.OP16: datetime(2026, 6, 6),
+        MetaFormat.OP16: datetime(2026, 5, 29),
         MetaFormat.OP17: datetime(2026, 8, 28),
     }
     

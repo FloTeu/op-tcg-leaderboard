@@ -4,7 +4,6 @@ load_dotenv()
 from fasthtml import ft
 from fasthtml.common import fast_app, serve
 from starlette.responses import FileResponse, RedirectResponse
-from contextlib import asynccontextmanager
 from op_tcg.backend.utils.environment import is_debug
 from op_tcg.frontend.utils.scripts import create_decklist_deep_link_script
 from op_tcg.frontend.components.layout import layout
@@ -51,7 +50,6 @@ logger = logging.getLogger(__name__)
 SECRET_KEY = os.environ["SESSION_MIDDLEWARE_SECRET_KEY"]
 
 
-@asynccontextmanager
 async def lifespan(app):
     """Application lifespan manager - runs in the same process as request handlers"""
     logger.info("Starting OP TCG Leaderboard application...")
