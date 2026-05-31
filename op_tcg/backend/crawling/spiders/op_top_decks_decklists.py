@@ -29,9 +29,29 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
         'COOKIES_ENABLED': True,
     }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, delete_existing: bool = False, **kwargs):
         super().__init__(*args, **kwargs)
         self.bq_add_data_stats: dict[str, int] = {}
+        self.delete_existing = delete_existing
+
+    def delete_bq_tournament_standings(self) -> int:
+        """Deletes tournament_standing rows for OP Top Decks tournaments in the selected meta formats."""
+        meta_format_values = ", ".join(f"'{mf.value}'" for mf in self.meta_formats)
+        ts_id = self.tournament_standing_table.full_table_id.replace(":", ".")
+        t_id = self.tournament_table.full_table_id.replace(":", ".")
+        delete_sql = f"""
+        DELETE FROM `{ts_id}`
+        WHERE tournament_id IN (
+          SELECT id FROM `{t_id}`
+          WHERE source = '{DataSource.OP_TOP_DECKS}'
+          AND meta_format IN ({meta_format_values})
+        )
+        """
+        query_job = self.bq_client.query(delete_sql)
+        query_job.result()
+        deleted = query_job.num_dml_affected_rows or 0
+        self.logger.info("Deleted %d tournament_standing rows for meta formats %s", deleted, meta_format_values)
+        return deleted
 
     def get_bq_op_top_deck_decklists(self) -> list[OpTopDeckDecklistExtended]:
         """Returns list of OPTopDeckDecklistExtended stored in bq"""
@@ -80,6 +100,9 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
         self.op_top_deck_table = get_or_create_table(OpTopDeckDecklist, client=self.bq_client)
         self.tournament_table = get_or_create_table(Tournament, client=self.bq_client)
         self.tournament_standing_table = get_or_create_table(TournamentStanding, client=self.bq_client)
+
+        if self.delete_existing:
+            self.delete_bq_tournament_standings()
 
         self.tournament_ids_crawled = self.get_bq_tournament_ids()
         self.tournament_standing_ids_crawled = self.get_bq_tournament_standing_ids()
