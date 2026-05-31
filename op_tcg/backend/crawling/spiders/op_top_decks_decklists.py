@@ -29,9 +29,29 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
         'COOKIES_ENABLED': True,
     }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, delete_existing: bool = False, **kwargs):
         super().__init__(*args, **kwargs)
         self.bq_add_data_stats: dict[str, int] = {}
+        self.delete_existing = delete_existing
+
+    def delete_bq_tournament_standings(self) -> int:
+        """Deletes tournament_standing rows for OP Top Decks tournaments in the selected meta formats."""
+        meta_format_values = ", ".join(f"'{mf.value}'" for mf in self.meta_formats)
+        ts_id = self.tournament_standing_table.full_table_id.replace(":", ".")
+        t_id = self.tournament_table.full_table_id.replace(":", ".")
+        delete_sql = f"""
+        DELETE FROM `{ts_id}`
+        WHERE tournament_id IN (
+          SELECT id FROM `{t_id}`
+          WHERE source = '{DataSource.OP_TOP_DECKS}'
+          AND meta_format IN ({meta_format_values})
+        )
+        """
+        query_job = self.bq_client.query(delete_sql)
+        query_job.result()
+        deleted = query_job.num_dml_affected_rows or 0
+        self.logger.info("Deleted %d tournament_standing rows for meta formats %s", deleted, meta_format_values)
+        return deleted
 
     def get_bq_op_top_deck_decklists(self) -> list[OpTopDeckDecklistExtended]:
         """Returns list of OPTopDeckDecklistExtended stored in bq"""
@@ -80,6 +100,9 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
         self.op_top_deck_table = get_or_create_table(OpTopDeckDecklist, client=self.bq_client)
         self.tournament_table = get_or_create_table(Tournament, client=self.bq_client)
         self.tournament_standing_table = get_or_create_table(TournamentStanding, client=self.bq_client)
+
+        if self.delete_existing:
+            self.delete_bq_tournament_standings()
 
         self.tournament_ids_crawled = self.get_bq_tournament_ids()
         self.tournament_standing_ids_crawled = self.get_bq_tournament_standing_ids()
@@ -302,19 +325,26 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
         """
         placing_text = placing_text.strip().lower()  # Normalize the input
 
-        if 'place' in placing_text:
-            # Extract the number from phrases like '1st Place'
-            parts = placing_text.split()
-            if len(parts) > 0:
-                # Check if the first part is a number (with an ordinal suffix)
-                first_part = parts[0]
-                if first_part[:-2].isdigit():  # Check if the part before 'st', 'nd', 'rd', 'th' is a digit
-                    return int(first_part[:-2])  # Return the integer value
-        elif 'top' in placing_text:
-            # Extract the number from phrases like 'Top-8'
-            parts = placing_text.split('-')
-            if len(parts) > 1 and parts[1].isdigit():
-                return int(parts[1])  # Return the integer value
+        parts = placing_text.split()
+        if not parts:
+            return None
+
+        first_part = parts[0]
+
+        # Ordinal format: "1st Place", "1st (8-0)", "2nd Place", etc.
+        # Require at least one more token after the ordinal so bare "1st" returns None.
+        if first_part[:-2].isdigit() and len(parts) > 1:
+            return int(first_part[:-2])
+
+        # Short top format: "T4", "T4 (4-1)", "T8", etc.
+        if first_part.startswith('t') and first_part[1:].isdigit():
+            return int(first_part[1:])
+
+        # Long top format: "Top-8", "Top-16", etc.
+        if 'top' in placing_text:
+            top_parts = placing_text.split('-')
+            if len(top_parts) > 1 and top_parts[1].isdigit():
+                return int(top_parts[1])
 
         return None  # Return None if no valid placing found
 

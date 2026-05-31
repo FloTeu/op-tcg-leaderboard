@@ -202,8 +202,11 @@ def crawl_decklist_cards(
 
 @op_top_deck_group.command()
 @click.option("--meta-formats", "-m", multiple=True)
+@click.option("--delete-existing", is_flag=True, default=False,
+              help="Delete existing tournament_standing rows for the selected meta formats before crawling.")
 def crawl_decklists(
     meta_formats: list[MetaFormat] | None = None,
+    delete_existing: bool = False,
 ) -> None:
     """
     Starts a One Piece Top Deck crawler for tournament data
@@ -223,7 +226,7 @@ def crawl_decklists(
         latest_meta_format_i = MetaFormat.to_list(only_after_release=False).index(latest_meta_format)
         meta_formats = MetaFormat.to_list(only_after_release=False)[latest_meta_format_i: latest_meta_format_i+2]
 
-    process.crawl(OPTopDeckDecklistSpider, meta_formats=meta_formats)
+    process.crawl(OPTopDeckDecklistSpider, meta_formats=meta_formats, delete_existing=delete_existing)
     process.start() # the script will block here until the crawling is finished
 
 
