@@ -4502,26 +4502,26 @@ cli = ["click (>=5.0)"]
 
 [[package]]
 name = "python-fasthtml"
-version = "0.12.50"
+version = "0.14.2"
 description = "The fastest way to create an HTML app"
 optional = false
 python-versions = ">=3.10"
 groups = ["frontend"]
 files = [
-    {file = "python_fasthtml-0.12.50-py3-none-any.whl", hash = "sha256:d88c83af59d20c61d24e835ecd69df045c75faebf7fbb549fb4c074205583e5e"},
-    {file = "python_fasthtml-0.12.50.tar.gz", hash = "sha256:e03cf5253902962d1b22e4572f084cdd8a6d3757650263865ee3972923a92d07"},
+    {file = "python_fasthtml-0.14.2-py3-none-any.whl", hash = "sha256:0237d244b77ebed4b02fd1500243d295729b8b7fa22eeff7b0f58dfaaef82f1b"},
+    {file = "python_fasthtml-0.14.2.tar.gz", hash = "sha256:27e2ccc13f30c270abbdf7d08ab7c062eb5c3f5d8a40b6be0e4c888f455af090"},
 ]
 
 [package.dependencies]
 beautifulsoup4 = "*"
-fastcore = ">=1.12.16"
+fastcore = ">=1.12.45"
 fastlite = ">=0.1.1"
 httpx = "*"
 itsdangerous = "*"
 oauthlib = "*"
 python-dateutil = "*"
 python-multipart = "*"
-starlette = ">0.33"
+starlette = ">=1.0.1"
 uvicorn = {version = ">=0.30", extras = ["standard"]}
 
 [package.extras]
@@ -6427,4 +6427,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.13"
-content-hash = "b153220f827022c10669f925d99602c3af1002ea9bd27301b9fc1e16898f47f2"
+content-hash = "6caf43b9ff1a134f7083ee8504a1b97e10f768893ed3b09230cfc8625e7dabf2"
