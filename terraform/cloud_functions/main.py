@@ -101,7 +101,7 @@ def run_crawl_tournament(event, context):
     process.crawl(OPTopDeckDecklistSpider, meta_formats=meta_formats)
 
     # the script will block here until the crawling is finished (both crawler will start in parallel)
-    process.start()
+    process.start(install_signal_handlers=False)  # install_signal_handlers=False required in non-main threads (Cloud Functions)
 
     return f"Successfully ran limitless/op top deck tournament crawling"
 
@@ -149,6 +149,6 @@ def run_crawl_prices(event, context):
                            }
     })
     process.crawl(LimitlessPricesSpider)
-    process.start() # the script will block here until the crawling is finished
+    process.start(install_signal_handlers=False)  # install_signal_handlers=False required in non-main threads (Cloud Functions)
 
     return f"Success!"

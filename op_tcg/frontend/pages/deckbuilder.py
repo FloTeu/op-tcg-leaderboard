@@ -320,8 +320,7 @@ def _styles() -> ft.Style:
 .db-card-item:active { transform: translateY(-1px) scale(0.97); transition-duration: 0.06s; }
 .db-card-item.is-maxed {
     opacity: 0.28;
-    cursor: not-allowed;
-    pointer-events: none;
+    cursor: pointer;
     filter: saturate(0.2);
 }
 
@@ -685,6 +684,7 @@ def _styles() -> ft.Style:
     cursor: pointer; transition: all 0.12s; white-space: nowrap;
 }
 .db-expand-btn:hover { border-color: #2d3f5a; color: #64748b; background: #080e1c; }
+.db-expand-btn.active { color: #f59e0b; border-color: rgba(245,158,11,0.45); background: rgba(245,158,11,0.08); }
 
 /* ── Starting Hand overlay ──────────────────────────────────────────── */
 .db-hand-overlay {
@@ -1097,6 +1097,15 @@ def deckbuilder_page(request):
                     type="button",
                     cls="db-expand-btn",
                     onclick="window._dbOpenFullscreen()",
+                ),
+                ft.Button(
+                    ft.I(cls="fas fa-infinity text-xs mr-1"),
+                    "4+",
+                    id="db-unlimited-btn",
+                    type="button",
+                    cls="db-expand-btn",
+                    title="Allow more than 4 copies of a card",
+                    onclick="window._dbToggleUnlimited(this)",
                 ),
                 cls="flex items-center gap-1",
             ),

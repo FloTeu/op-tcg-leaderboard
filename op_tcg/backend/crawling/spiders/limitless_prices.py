@@ -40,6 +40,12 @@ class LimitlessPricesSpider(scrapy.Spider):
         'USER_AGENT': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
         'COOKIES_ENABLED': True,
     }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.price_count: dict[str, dict[int, int]] = {}  # dict[card id, dict[aa_version, count]]
+        self.card_count: dict[str, dict[int, int]] = {}  # dict[card id, dict[aa_version, count]]
+
     def get_release_sets(self) -> list[CardReleaseSet]:
         """Returns list of CardReleaseSet stored in bq"""
         release_sets: list[CardReleaseSet] = []
@@ -91,8 +97,6 @@ class LimitlessPricesSpider(scrapy.Spider):
         self.price_table = get_or_create_table(CardPrice, client=self.bq_client)
         self.release_set_table = get_or_create_table(CardReleaseSet, client=self.bq_client)
         self.marketplace_url_table = get_or_create_table(CardMarketplaceUrl, client=self.bq_client)
-        self.price_count: dict[str, dict[int, int]] = {}  # dict[card id, dict[aa_version, count]]
-        self.card_count: dict[str, dict[int, int]] = {}  # dict[card id, dict[aa_version, count]]
 
         self.bq_card_ids = self.get_card_ids()
         self.bq_marketplace_urls = self.get_marketplace_urls()
