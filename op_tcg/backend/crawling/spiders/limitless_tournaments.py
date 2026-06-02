@@ -116,6 +116,7 @@ class LimitlessTournamentSpider(scrapy.Spider):
         all_decklists: list[dict[str, int]] = []
         tournament_standings: list[TournamentStanding] = []
         bq_decklists: list[Decklist] = []
+
         for standing in json_res:
             decklist_id = None
             decklist = None
@@ -127,7 +128,9 @@ class LimitlessTournamentSpider(scrapy.Spider):
                     # leader + deck
                     decklist = {leader_id: 1, **{f'{card["set"]}-{card["number"]}': card["count"] for card in
                                                  decklist["character"] + decklist["event"] + decklist["stage"]}}
-                    assert sum(decklist.values()) == 51, "Sum of card in deck should be 51"
+                    if sum(decklist.values()) != 51:
+                        logging.warning(f"Sum of card in deck should be 51, but is {sum(decklist.values())} for id {response.meta['id']}")
+                        continue
                     all_decklists.append(decklist)
                     decklist_id = create_decklist_id(decklist)
                     bq_decklists.append(Decklist(
@@ -141,6 +144,7 @@ class LimitlessTournamentSpider(scrapy.Spider):
             else:
                 logging.warning("No decklist or deck information found in standing")
                 continue
+
             try:
                 tournament_standings.append(TournamentStanding(tournament_id=response.meta["id"], leader_id=leader_id,
                                                                decklist=decklist, decklist_id=decklist_id,
@@ -157,7 +161,7 @@ class LimitlessTournamentSpider(scrapy.Spider):
                                                                                          "%Y-%m-%dT%H:%M:%S.%fZ"))
         url = f"https://play.limitlesstcg.com/api/tournaments/{response.meta['id']}/pairings?key={self.api_token}"
         # only add matches, if all players have a leader information
-        if not any(leader_id == None for leader_id in player_id2leader_id.values()):
+        if player_id2leader_id and not any(leader_id == None for leader_id in player_id2leader_id.values()):
             yield scrapy.Request(url=url, callback=self.parse_tournament_pairings,
                                  meta={"player_id2leader_id": player_id2leader_id,
                                        "bq_decklists": bq_decklists,
