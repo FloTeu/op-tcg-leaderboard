@@ -62,7 +62,12 @@ class LimitlessTournamentSpider(scrapy.Spider):
         self.known_tournament_id2contains_decklists = self.get_already_crawled_tournament_ids()
         self.already_crawled_card_ids = self.get_already_crawled_card_ids()
         self.decklist_ids_crawled = self.get_bq_decklist_ids()
-
+        self.bq_add_data_stats = {
+            self.tournament_table.table_id: 0,
+            self.tournament_standing_table.table_id: 0,
+            self.match_table.table_id: 0,
+            self.decklist_table.table_id: 0,
+        }
 
         url = f"https://play.limitlesstcg.com/api/tournaments?game=OP&limit={self.num_tournament_limit}&key={self.api_token}"
         yield scrapy.Request(url=url, callback=self.parse_tournaments)
@@ -119,24 +124,24 @@ class LimitlessTournamentSpider(scrapy.Spider):
 
         for standing in json_res:
             decklist_id = None
-            decklist = None
+            final_decklist = None
             leader_id = None
             if "decklist"  in standing:
                 decklist = standing["decklist"]
                 if decklist:
                     leader_id = f'{decklist["leader"]["set"]}-{decklist["leader"]["number"]}'
                     # leader + deck
-                    decklist = {leader_id: 1, **{f'{card["set"]}-{card["number"]}': card["count"] for card in
+                    final_decklist = {leader_id: 1, **{f'{card["set"]}-{card["number"]}': card["count"] for card in
                                                  decklist["character"] + decklist["event"] + decklist["stage"]}}
-                    if sum(decklist.values()) != 51:
-                        logging.warning(f"Sum of card in deck should be 51, but is {sum(decklist.values())} for id {response.meta['id']}")
-                        continue
-                    all_decklists.append(decklist)
-                    decklist_id = create_decklist_id(decklist)
+                    if sum(final_decklist.values()) != 51:
+                        logging.warning(f"Sum of card in deck should be 51, but is {sum(final_decklist.values())} for id {response.meta['id']}")
+
+                    all_decklists.append(final_decklist)
+                    decklist_id = create_decklist_id(final_decklist)
                     bq_decklists.append(Decklist(
                         id=decklist_id,
                         leader_id=leader_id,
-                        decklist=decklist
+                        decklist=final_decklist
                     ))
             elif "deck" in standing and standing["deck"]:
                 # deck only contains leader information
@@ -147,7 +152,7 @@ class LimitlessTournamentSpider(scrapy.Spider):
 
             try:
                 tournament_standings.append(TournamentStanding(tournament_id=response.meta["id"], leader_id=leader_id,
-                                                               decklist=decklist, decklist_id=decklist_id,
+                                                               decklist=final_decklist, decklist_id=decklist_id,
                                                                **{k: v for k, v in standing.items() if
                                                                   k not in ["decklist"]}))
             except ValidationError as e:
@@ -225,8 +230,8 @@ class LimitlessTournamentSpider(scrapy.Spider):
                     leader_id = response.meta["player_id2leader_id"][match_result.player_id]
                     opponent_id=response.meta["player_id2leader_id"][match_result.opponent_player_id]
                 except KeyError as e:
-                    logging.warning(f"Player id '{match_result.player_id}' not found in player_id2leader_id mapping", str(e))
-                    raise e
+                    logging.warning(f"Player id '{match_result.player_id}' not found in player_id2leader_id mapping", str(e), exc_info=True)
+                    return None
                 matches.append(Match(
                     leader_id=leader_id,
                     opponent_id=opponent_id,
@@ -251,4 +256,4 @@ class LimitlessTournamentSpider(scrapy.Spider):
         return TournamentItem(tournament=tournament, tournament_standings=tournament_standings, matches=matches, decklists=decklists)
 
     def closed(self, reason):
-        logging.info(f"Finished spider")
+        logging.info(f"Finished spider with {self.bq_add_data_stats} new data in Big Query")

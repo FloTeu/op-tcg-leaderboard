@@ -46,6 +46,7 @@ class TournamentPipeline:
         Updates all tournament related data (if exists it will be deleted first)
         """
         if isinstance(item, TournamentItem):
+            has_stats = hasattr(spider, "bq_add_data_stats")
             for bq_row_list in [item.matches, item.tournament_standings]:
                 if bq_row_list:
                     bq_table = self.get_bq_table(bq_row_list[0], spider)
@@ -54,13 +55,16 @@ class TournamentPipeline:
                     # insert all new rows
                     rows_to_insert = [json.loads(bq_row.model_dump_json()) for bq_row in bq_row_list]
                     bq_insert_rows(rows_to_insert, table=bq_table, client=spider.bq_client)
+                    if has_stats and bq_table.table_id in spider.bq_add_data_stats:
+                        spider.bq_add_data_stats[bq_table.table_id] += len(rows_to_insert)
 
             bq_table = self.get_bq_table(item.tournament, spider)
             # delete existing tournament
             spider.bq_client.query(f"DELETE FROM `{bq_table.full_table_id.split(':')[1]}` WHERE id = '{item.tournament.id}';").result()
             # insert all new matches
             bq_insert_rows([json.loads(item.tournament.model_dump_json())], table=bq_table, client=spider.bq_client)
-
+            if has_stats and bq_table.table_id in spider.bq_add_data_stats:
+                spider.bq_add_data_stats[bq_table.table_id] += 1
 
             # upload decklists to BQ
             decklists_to_upload = []
@@ -73,6 +77,8 @@ class TournamentPipeline:
             if decklists_to_upload:
                 rows_to_insert = [json.loads(bq_row.model_dump_json()) for bq_row in decklists_to_upload]
                 bq_insert_rows(rows_to_insert, table=spider.decklist_table, client=spider.bq_client)
+                if has_stats and spider.decklist_table.table_id in spider.bq_add_data_stats:
+                    spider.bq_add_data_stats[spider.decklist_table.table_id] += len(decklists_to_upload)
 
         return item
 
