@@ -4,7 +4,8 @@ import json
 from datetime import datetime
 
 from google.cloud import pubsub_v1
-from scrapy.crawler import CrawlerProcess
+from scrapy.crawler import CrawlerProcess, CrawlerRunner
+from twisted.internet import reactor, defer
 
 from op_tcg.backend.crawling.spiders.limitless_prices import LimitlessPricesSpider
 from op_tcg.backend.crawling.spiders.limitless_tournaments import LimitlessTournamentSpider
@@ -86,22 +87,29 @@ def run_crawl_tournament(event, context):
     print("Crawl limitless with meta_formats and num_tournament_limit", meta_formats, num_tournament_limit)
 
     assert os.environ.get("LIMITLESS_API_TOKEN"), "LIMITLESS_API_TOKEN not set in environment"
-    process = CrawlerProcess({
-        'ITEM_PIPELINES': {'op_tcg.backend.crawling.pipelines.TournamentPipeline': 1,
-                           'op_tcg.backend.crawling.pipelines.OpTopDeckDecklistPipeline': 2
-                           },  # Hooking in our custom pipline
-    })
     # ensure enum format
     meta_formats = [MetaFormat(meta_format) for meta_format in meta_formats]
-    process.crawl(LimitlessTournamentSpider, meta_formats=meta_formats, api_token=os.environ.get("LIMITLESS_API_TOKEN"), num_tournament_limit=num_tournament_limit)
 
-    ## OP TOP DECKS CRAWLER
-    # for op top deck crawler use all meta formats (crawler will check which ones are available)
-    meta_formats = MetaFormat.to_list(only_after_release=False)
-    process.crawl(OPTopDeckDecklistSpider, meta_formats=meta_formats)
+    runner = CrawlerRunner({
+        'ITEM_PIPELINES': {'op_tcg.backend.crawling.pipelines.TournamentPipeline': 1,
+                           'op_tcg.backend.crawling.pipelines.OpTopDeckDecklistPipeline': 2
+                           },
+    })
 
-    # the script will block here until the crawling is finished (both crawler will start in parallel)
-    process.start(install_signal_handlers=False)  # install_signal_handlers=False required in non-main threads (Cloud Functions)
+    @defer.inlineCallbacks
+    def _crawl():
+        # Run limitless spider first, wait for it to finish
+        yield runner.crawl(LimitlessTournamentSpider, meta_formats=meta_formats,
+                           api_token=os.environ.get("LIMITLESS_API_TOKEN"),
+                           num_tournament_limit=num_tournament_limit)
+        ## OP TOP DECKS CRAWLER — only starts after limitless is done
+        # for op top deck crawler use all meta formats (crawler will check which ones are available)
+        op_meta_formats = MetaFormat.to_list(only_after_release=False)
+        yield runner.crawl(OPTopDeckDecklistSpider, meta_formats=op_meta_formats)
+        reactor.stop()
+
+    _crawl()
+    reactor.run(installSignalHandlers=False)  # installSignalHandlers=False required in non-main threads (Cloud Functions)
 
     return f"Successfully ran limitless/op top deck tournament crawling"
 
