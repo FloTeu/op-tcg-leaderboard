@@ -435,18 +435,6 @@ html5lib = ["html5lib"]
 lxml = ["lxml"]
 
 [[package]]
-name = "blinker"
-version = "1.9.0"
-description = "Fast, simple object-to-object and broadcast signaling"
-optional = false
-python-versions = ">=3.9"
-groups = ["cloud-functions"]
-files = [
-    {file = "blinker-1.9.0-py3-none-any.whl", hash = "sha256:ba0efaa9080b619ff2f3459d1d500c57bddea4a6b424b60a91141db6fd2f08bc"},
-    {file = "blinker-1.9.0.tar.gz", hash = "sha256:b4ce2265a7abece45e7cc896e98dbebe6cead56bcf805a3d23136d145f5445bf"},
-]
-
-[[package]]
 name = "brotli"
 version = "1.2.0"
 description = "Python bindings for the Brotli compression library"
@@ -574,7 +562,7 @@ version = "2026.5.20"
 description = "Python package for providing Mozilla's CA Bundle."
 optional = false
 python-versions = ">=3.7"
-groups = ["main", "cloud-functions", "crawler", "dev", "frontend"]
+groups = ["main", "crawler", "dev", "frontend"]
 files = [
     {file = "certifi-2026.5.20-py3-none-any.whl", hash = "sha256:3c52e209ba0a4ad7aebe60436a4ab349c39e1e602e8c134221e546902ad25897"},
     {file = "certifi-2026.5.20.tar.gz", hash = "sha256:69dea482ab64caa7b9f6aba1c6bf48bb6a5448d1c0f1b17ab42ad8c763a5344d"},
@@ -586,7 +574,7 @@ version = "2.0.0"
 description = "Foreign Function Interface for Python calling C code."
 optional = false
 python-versions = ">=3.9"
-groups = ["main", "cloud-functions", "crawler", "frontend"]
+groups = ["main", "crawler", "frontend"]
 markers = "platform_python_implementation != \"PyPy\""
 files = [
     {file = "cffi-2.0.0-cp310-cp310-macosx_10_13_x86_64.whl", hash = "sha256:0cf2d91ecc3fcc0625c2c530fe004f82c110405f101548512cce44322fa8ac44"},
@@ -730,7 +718,7 @@ version = "3.4.7"
 description = "The Real First Universal Charset Detector. Open, modern and actively maintained alternative to Chardet."
 optional = false
 python-versions = ">=3.7"
-groups = ["main", "cloud-functions", "crawler", "frontend"]
+groups = ["main", "crawler", "frontend"]
 files = [
     {file = "charset_normalizer-3.4.7-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:cdd68a1fb318e290a2077696b7eb7a21a49163c455979c639bf5a5dcdc46617d"},
     {file = "charset_normalizer-3.4.7-cp310-cp310-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:e17b8d5d6a8c47c85e68ca8379def1303fd360c3e22093a807cd34a71cd082b8"},
@@ -869,7 +857,7 @@ version = "8.4.1"
 description = "Composable command line interface toolkit"
 optional = false
 python-versions = ">=3.10"
-groups = ["main", "cloud-functions", "crawler", "frontend"]
+groups = ["main", "crawler", "frontend"]
 files = [
     {file = "click-8.4.1-py3-none-any.whl", hash = "sha256:482be17c6991b8c19c5429a1e995d9b0efdbb63172824c41f99965dc0ade8ec2"},
     {file = "click-8.4.1.tar.gz", hash = "sha256:918b5633eddf6b41c32d4f454bf0de810065c74e3f7dbf8ee5452f8be88d3e96"},
@@ -894,35 +882,17 @@ files = [
 click = "*"
 
 [[package]]
-name = "cloudevents"
-version = "1.12.1"
-description = "CloudEvents Python SDK"
-optional = false
-python-versions = "*"
-groups = ["cloud-functions"]
-files = [
-    {file = "cloudevents-1.12.1-py3-none-any.whl", hash = "sha256:5f1574bf49ff334381319bdddcab02175a69ca877a26d0900b59c85505b675b3"},
-    {file = "cloudevents-1.12.1.tar.gz", hash = "sha256:1eb52051309c3228934f86f41d50bd02c0e3d9561e5876e73ad8ad9f98f0d3ef"},
-]
-
-[package.dependencies]
-deprecation = ">=2.0,<3.0"
-
-[package.extras]
-pydantic = ["pydantic (>=1.0.0,<3.0)"]
-
-[[package]]
 name = "colorama"
 version = "0.4.6"
 description = "Cross-platform colored terminal text."
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7"
-groups = ["main", "cloud-functions", "crawler", "dev", "frontend"]
+groups = ["main", "crawler", "dev", "frontend"]
 files = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
     {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
 ]
-markers = {main = "platform_system == \"Windows\"", cloud-functions = "platform_system == \"Windows\"", crawler = "platform_system == \"Windows\"", dev = "sys_platform == \"win32\"", frontend = "platform_system == \"Windows\" or sys_platform == \"win32\""}
+markers = {main = "platform_system == \"Windows\"", crawler = "platform_system == \"Windows\"", dev = "sys_platform == \"win32\"", frontend = "platform_system == \"Windows\" or sys_platform == \"win32\""}
 
 [[package]]
 name = "constantly"
@@ -1092,7 +1062,7 @@ version = "48.0.0"
 description = "cryptography is a package which provides cryptographic recipes and primitives to Python developers."
 optional = false
 python-versions = "!=3.9.0,!=3.9.1,>=3.9"
-groups = ["main", "cloud-functions", "crawler", "frontend"]
+groups = ["main", "crawler", "frontend"]
 files = [
     {file = "cryptography-48.0.0-cp311-abi3-macosx_10_9_universal2.whl", hash = "sha256:0c558d2cdffd8f4bbb30fc7134c74d2ca9a476f830bb053074498fbc86f41ed6"},
     {file = "cryptography-48.0.0-cp311-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:f5333311663ea94f75dd408665686aaf426563556bb5283554a3539177e03b8c"},
@@ -1232,21 +1202,6 @@ files = [
     {file = "defusedxml-0.7.1-py2.py3-none-any.whl", hash = "sha256:a352e7e428770286cc899e2542b6cdaedb2b4953ff269a210103ec58f6198a61"},
     {file = "defusedxml-0.7.1.tar.gz", hash = "sha256:1bb3032db185915b62d7c6209c5a8792be6a32ab2fedacc84e01b52c51aa3e69"},
 ]
-
-[[package]]
-name = "deprecation"
-version = "2.1.0"
-description = "A library to handle automated deprecations"
-optional = false
-python-versions = "*"
-groups = ["cloud-functions"]
-files = [
-    {file = "deprecation-2.1.0-py2.py3-none-any.whl", hash = "sha256:a10811591210e1fb0e768a8c25517cabeabcba6f0bf96564f8ff45189f90b14a"},
-    {file = "deprecation-2.1.0.tar.gz", hash = "sha256:72b3bde64e5d778694b0cf68178aed03d15e15477116add3fb773e581f9518ff"},
-]
-
-[package.dependencies]
-packaging = "*"
 
 [[package]]
 name = "distro"
@@ -1431,30 +1386,6 @@ files = [
     {file = "filelock-3.29.0-py3-none-any.whl", hash = "sha256:96f5f6344709aa1572bbf631c640e4ebeeb519e08da902c39a001882f30ac258"},
     {file = "filelock-3.29.0.tar.gz", hash = "sha256:69974355e960702e789734cb4871f884ea6fe50bd8404051a3530bc07809cf90"},
 ]
-
-[[package]]
-name = "flask"
-version = "3.1.3"
-description = "A simple framework for building complex web applications."
-optional = false
-python-versions = ">=3.9"
-groups = ["cloud-functions"]
-files = [
-    {file = "flask-3.1.3-py3-none-any.whl", hash = "sha256:f4bcbefc124291925f1a26446da31a5178f9483862233b23c0c96a20701f670c"},
-    {file = "flask-3.1.3.tar.gz", hash = "sha256:0ef0e52b8a9cd932855379197dd8f94047b359ca0a78695144304cb45f87c9eb"},
-]
-
-[package.dependencies]
-blinker = ">=1.9.0"
-click = ">=8.1.3"
-itsdangerous = ">=2.2.0"
-jinja2 = ">=3.1.2"
-markupsafe = ">=2.1.1"
-werkzeug = ">=3.1.0"
-
-[package.extras]
-async = ["asgiref (>=3.2)"]
-dotenv = ["python-dotenv"]
 
 [[package]]
 name = "fonttools"
@@ -1710,32 +1641,12 @@ test-full = ["adlfs", "aiohttp (!=4.0.0a0,!=4.0.0a1)", "backports-zstd ; python_
 tqdm = ["tqdm"]
 
 [[package]]
-name = "functions-framework"
-version = "3.8.3"
-description = "An open source FaaS (Function as a service) framework for writing portable Python functions -- brought to you by the Google Cloud Functions team."
-optional = false
-python-versions = "<4,>=3.5"
-groups = ["cloud-functions"]
-files = [
-    {file = "functions_framework-3.8.3-py3-none-any.whl", hash = "sha256:fd352272c02ee08b4a3445e234213e43fbdd350365d98e2cce13e1575490bffe"},
-    {file = "functions_framework-3.8.3.tar.gz", hash = "sha256:95827698469e3979518d52e32def2f11230465877fef32afd49045013b2a469c"},
-]
-
-[package.dependencies]
-click = ">=7.0,<9.0"
-cloudevents = ">=1.2.0,<2.0.0"
-flask = ">=2.0,<4.0"
-gunicorn = {version = ">=22.0.0", markers = "platform_system != \"Windows\""}
-watchdog = ">=1.0.0"
-Werkzeug = ">=0.14,<4.0.0"
-
-[[package]]
 name = "google-api-core"
 version = "2.30.3"
 description = "Google API client core library"
 optional = false
 python-versions = ">=3.9"
-groups = ["main", "cloud-functions", "frontend"]
+groups = ["main", "frontend"]
 files = [
     {file = "google_api_core-2.30.3-py3-none-any.whl", hash = "sha256:a85761ba72c444dad5d611c2220633480b2b6be2521eca69cca2dbb3ffd6bfe8"},
     {file = "google_api_core-2.30.3.tar.gz", hash = "sha256:e601a37f148585319b26db36e219df68c5d07b6382cff2d580e83404e44d641b"},
@@ -1760,7 +1671,7 @@ version = "2.53.0"
 description = "Google Authentication Library"
 optional = false
 python-versions = ">=3.10"
-groups = ["main", "cloud-functions", "frontend"]
+groups = ["main", "frontend"]
 files = [
     {file = "google_auth-2.53.0-py3-none-any.whl", hash = "sha256:6e7449917c599b35126a99ec268ec6880301f2fea41dce198fe8fd83ff642b68"},
     {file = "google_auth-2.53.0.tar.gz", hash = "sha256:e7e6aa16f6bee7b2b264830fd04f08087a1d5a836df516251a5d15327b246c9c"},
@@ -1855,32 +1766,6 @@ proto-plus = ">=1.22.3,<2.0.0"
 protobuf = ">=4.25.8,<8.0.0"
 
 [[package]]
-name = "google-cloud-pubsub"
-version = "2.39.0"
-description = "Google Cloud Pub/Sub API client library"
-optional = false
-python-versions = ">=3.10"
-groups = ["cloud-functions"]
-files = [
-    {file = "google_cloud_pubsub-2.39.0-py3-none-any.whl", hash = "sha256:7210d691a46d7a66559696899ebe6eb731e63de29b624964b3be4dd2d12d3e19"},
-    {file = "google_cloud_pubsub-2.39.0.tar.gz", hash = "sha256:eed65e25f57f95bf3e02d96d7ee171688b23922471f9f21b5a91ed90e1282c0f"},
-]
-
-[package.dependencies]
-google-api-core = {version = ">=2.17.1,<3.0.0", extras = ["grpc"]}
-google-auth = ">=2.14.1,<2.24.0 || >2.24.0,<2.25.0 || >2.25.0,<3.0.0"
-grpc-google-iam-v1 = ">=0.14.0,<1.0.0"
-grpcio = {version = ">=1.51.3,<2.0.0", markers = "python_version < \"3.14\""}
-grpcio-status = ">=1.51.3"
-opentelemetry-api = ">=1.27.0"
-opentelemetry-sdk = ">=1.27.0"
-proto-plus = ">=1.22.3,<2.0.0"
-protobuf = ">=4.25.8,<8.0.0"
-
-[package.extras]
-libcst = ["libcst (>=0.3.10)"]
-
-[[package]]
 name = "google-cloud-storage"
 version = "2.19.0"
 description = "Google Cloud Storage API client library"
@@ -1972,14 +1857,13 @@ version = "1.75.0"
 description = "Common protobufs used in Google APIs"
 optional = false
 python-versions = ">=3.9"
-groups = ["main", "cloud-functions", "frontend"]
+groups = ["main", "frontend"]
 files = [
     {file = "googleapis_common_protos-1.75.0-py3-none-any.whl", hash = "sha256:961ed60399c457ceb0ee8f285a84c870aabc9c6a832b9d37bb281b5bebde43ed"},
     {file = "googleapis_common_protos-1.75.0.tar.gz", hash = "sha256:53a062ff3c32552fbd62c11fe23768b78e4ddf0494d5e5fd97d3f4689c75fbbd"},
 ]
 
 [package.dependencies]
-grpcio = {version = ">=1.44.0,<2.0.0", optional = true, markers = "extra == \"grpc\""}
 protobuf = ">=4.25.8,<8.0.0"
 
 [package.extras]
@@ -2079,29 +1963,12 @@ docs = ["Sphinx", "furo"]
 test = ["objgraph", "psutil", "setuptools"]
 
 [[package]]
-name = "grpc-google-iam-v1"
-version = "0.14.4"
-description = "IAM API client library"
-optional = false
-python-versions = ">=3.9"
-groups = ["cloud-functions"]
-files = [
-    {file = "grpc_google_iam_v1-0.14.4-py3-none-any.whl", hash = "sha256:412facc320fcbd94034b4df3d557662051d4d8adfa86e0ddb4dca70a3f739964"},
-    {file = "grpc_google_iam_v1-0.14.4.tar.gz", hash = "sha256:392b3796947ed6334e61171d9ab06bf7eb357f554e5fc7556ad7aab6d0e17038"},
-]
-
-[package.dependencies]
-googleapis-common-protos = {version = ">=1.63.2,<2.0.0", extras = ["grpc"]}
-grpcio = ">=1.44.0,<2.0.0"
-protobuf = ">=4.25.8,<8.0.0"
-
-[[package]]
 name = "grpcio"
 version = "1.80.0"
 description = "HTTP/2-based RPC framework"
 optional = false
 python-versions = ">=3.9"
-groups = ["main", "cloud-functions", "frontend"]
+groups = ["main", "frontend"]
 files = [
     {file = "grpcio-1.80.0-cp310-cp310-linux_armv7l.whl", hash = "sha256:886457a7768e408cdce226ad1ca67d2958917d306523a0e21e1a2fdaa75c9c9c"},
     {file = "grpcio-1.80.0-cp310-cp310-macosx_11_0_universal2.whl", hash = "sha256:7b641fc3f1dc647bfd80bd713addc68f6d145956f64677e56d9ebafc0bd72388"},
@@ -2178,7 +2045,7 @@ version = "1.80.0"
 description = "Status proto mapping for gRPC"
 optional = false
 python-versions = ">=3.9"
-groups = ["main", "cloud-functions", "frontend"]
+groups = ["main", "frontend"]
 files = [
     {file = "grpcio_status-1.80.0-py3-none-any.whl", hash = "sha256:4b56990363af50dbf2c2ebb80f1967185c07d87aa25aa2bea45ddb75fc181dbe"},
     {file = "grpcio_status-1.80.0.tar.gz", hash = "sha256:df73802a4c89a3ea88aa2aff971e886fccce162bc2e6511408b3d67a144381cd"},
@@ -2188,30 +2055,6 @@ files = [
 googleapis-common-protos = ">=1.5.5"
 grpcio = ">=1.80.0"
 protobuf = ">=6.31.1,<7.0.0"
-
-[[package]]
-name = "gunicorn"
-version = "26.0.0"
-description = "WSGI HTTP Server for UNIX"
-optional = false
-python-versions = ">=3.10"
-groups = ["cloud-functions"]
-markers = "platform_system != \"Windows\""
-files = [
-    {file = "gunicorn-26.0.0-py3-none-any.whl", hash = "sha256:40233d26a5f0d1872916188c276e21641155111c2853f0c2cd55260aec0d24fc"},
-    {file = "gunicorn-26.0.0.tar.gz", hash = "sha256:ca9346f85e3a4aeeb64d491045c16b9a35647abd37ea15efe53080eb8b090baf"},
-]
-
-[package.dependencies]
-packaging = "*"
-
-[package.extras]
-fast = ["gunicorn_h1c (>=0.6.5)"]
-gevent = ["gevent (>=24.10.1)"]
-http2 = ["h2 (>=4.1.0)"]
-setproctitle = ["setproctitle"]
-testing = ["coverage", "gevent (>=24.10.1)", "h2 (>=4.1.0)", "httpx[http2]", "pytest", "pytest-asyncio", "pytest-cov", "uvloop (>=0.19.0)"]
-tornado = ["tornado (>=6.5.0)"]
 
 [[package]]
 name = "h11"
@@ -2486,7 +2329,7 @@ version = "3.17"
 description = "Internationalized Domain Names in Applications (IDNA)"
 optional = false
 python-versions = ">=3.9"
-groups = ["main", "cloud-functions", "crawler", "dev", "frontend"]
+groups = ["main", "crawler", "dev", "frontend"]
 files = [
     {file = "idna-3.17-py3-none-any.whl", hash = "sha256:466e48829084efe2548012b855df21540b96f2e20e51bd124c851536556a592c"},
     {file = "idna-3.17.tar.gz", hash = "sha256:5eb0cb53bc467c12eadcf6de83163ad8527cec9416f44b9b61b19caedad2b87f"},
@@ -2586,7 +2429,7 @@ version = "2.2.0"
 description = "Safely pass data to untrusted environments and back."
 optional = false
 python-versions = ">=3.8"
-groups = ["cloud-functions", "frontend"]
+groups = ["frontend"]
 files = [
     {file = "itsdangerous-2.2.0-py3-none-any.whl", hash = "sha256:c6242fc49e35958c8b15141343aa660db5fc54d4f13a1db01a3f5891b98700ef"},
     {file = "itsdangerous-2.2.0.tar.gz", hash = "sha256:e0050c0b7da1eea53ffaf149c0cfbb5c6e2e2b69c4bef22c81fa6eb73e5f6173"},
@@ -2598,7 +2441,7 @@ version = "3.1.6"
 description = "A very fast and expressive template engine."
 optional = false
 python-versions = ">=3.7"
-groups = ["cloud-functions", "crawler"]
+groups = ["crawler"]
 files = [
     {file = "jinja2-3.1.6-py3-none-any.whl", hash = "sha256:85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67"},
     {file = "jinja2-3.1.6.tar.gz", hash = "sha256:0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d"},
@@ -3168,7 +3011,7 @@ version = "3.0.3"
 description = "Safely add untrusted strings to HTML/XML markup."
 optional = false
 python-versions = ">=3.9"
-groups = ["cloud-functions", "crawler"]
+groups = ["crawler"]
 files = [
     {file = "markupsafe-3.0.3-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:2f981d352f04553a7171b8e44369f2af4055f888dfb147d55e42d29e29e74559"},
     {file = "markupsafe-3.0.3-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:e1c1493fb6e50ab01d20a22826e57520f1284df32f2d8601fdd90b6304601419"},
@@ -3711,63 +3554,12 @@ realtime = ["websockets (>=13,<16)"]
 voice-helpers = ["numpy (>=2.0.2)", "sounddevice (>=0.5.1)"]
 
 [[package]]
-name = "opentelemetry-api"
-version = "1.42.1"
-description = "OpenTelemetry Python API"
-optional = false
-python-versions = ">=3.10"
-groups = ["cloud-functions"]
-files = [
-    {file = "opentelemetry_api-1.42.1-py3-none-any.whl", hash = "sha256:51a69edacadbc03a8950ace1c4c21099cacc538820ac2c9e36277e78cebba714"},
-    {file = "opentelemetry_api-1.42.1.tar.gz", hash = "sha256:56c63bea9f77b62856be8c47600474acad853b2924b99b1687c4cb6297166716"},
-]
-
-[package.dependencies]
-typing-extensions = ">=4.5.0"
-
-[[package]]
-name = "opentelemetry-sdk"
-version = "1.42.1"
-description = "OpenTelemetry Python SDK"
-optional = false
-python-versions = ">=3.10"
-groups = ["cloud-functions"]
-files = [
-    {file = "opentelemetry_sdk-1.42.1-py3-none-any.whl", hash = "sha256:083cd4bbfaa5aa7b5a9e552430d9951219967cfb27aa61feb13a77aba1fc839d"},
-    {file = "opentelemetry_sdk-1.42.1.tar.gz", hash = "sha256:8c834e8f8c9ba4171d4ec843d0cb8a67e4c7394d3f9e9297e582cbd9456ddbf7"},
-]
-
-[package.dependencies]
-opentelemetry-api = "1.42.1"
-opentelemetry-semantic-conventions = "0.63b1"
-typing-extensions = ">=4.5.0"
-
-[package.extras]
-file-configuration = ["jsonschema (>=4.0)", "pyyaml (>=6.0)"]
-
-[[package]]
-name = "opentelemetry-semantic-conventions"
-version = "0.63b1"
-description = "OpenTelemetry Semantic Conventions"
-optional = false
-python-versions = ">=3.10"
-groups = ["cloud-functions"]
-files = [
-    {file = "opentelemetry_semantic_conventions-0.63b1-py3-none-any.whl", hash = "sha256:dfe5ef4dee82586b746f522b818ceb298d00b3d59f660042bd79404bff8d0682"},
-    {file = "opentelemetry_semantic_conventions-0.63b1.tar.gz", hash = "sha256:3daf963611334b365e98a57438183eb012d3bfb40b2d931a9af613476b8701a9"},
-]
-
-[package.dependencies]
-opentelemetry-api = "1.42.1"
-typing-extensions = ">=4.5.0"
-
-[[package]]
 name = "packaging"
 version = "26.2"
 description = "Core utilities for Python packages"
 optional = false
 python-versions = ">=3.8"
-groups = ["main", "cloud-functions", "crawler", "dev", "frontend"]
+groups = ["main", "crawler", "dev", "frontend"]
 files = [
     {file = "packaging-26.2-py3-none-any.whl", hash = "sha256:5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e"},
     {file = "packaging-26.2.tar.gz", hash = "sha256:ff452ff5a3e828ce110190feff1178bb1f2ea2281fa2075aadb987c2fb221661"},
@@ -4270,7 +4062,7 @@ version = "1.28.0"
 description = "Beautiful, Pythonic protocol buffers"
 optional = false
 python-versions = ">=3.10"
-groups = ["main", "cloud-functions", "frontend"]
+groups = ["main", "frontend"]
 files = [
     {file = "proto_plus-1.28.0-py3-none-any.whl", hash = "sha256:a630604310899e73c59ec302e5765c058d412b2f090b9c79c8822589f14955b8"},
     {file = "proto_plus-1.28.0.tar.gz", hash = "sha256:38e5696342835b08fc116f30a25665b29531cda9d5d5643e9b81fc312385abd9"},
@@ -4288,7 +4080,7 @@ version = "6.33.6"
 description = ""
 optional = false
 python-versions = ">=3.9"
-groups = ["main", "cloud-functions", "frontend"]
+groups = ["main", "frontend"]
 files = [
     {file = "protobuf-6.33.6-cp310-abi3-win32.whl", hash = "sha256:7d29d9b65f8afef196f8334e80d6bc1d5d4adedb449971fefd3723824e6e77d3"},
     {file = "protobuf-6.33.6-cp310-abi3-win_amd64.whl", hash = "sha256:0cd27b587afca21b7cfa59a74dcbd48a50f0a6400cfb59391340ad729d91d326"},
@@ -4392,7 +4184,7 @@ version = "0.6.3"
 description = "Pure-Python implementation of ASN.1 types and DER/BER/CER codecs (X.208)"
 optional = false
 python-versions = ">=3.8"
-groups = ["main", "cloud-functions", "frontend"]
+groups = ["main", "frontend"]
 files = [
     {file = "pyasn1-0.6.3-py3-none-any.whl", hash = "sha256:a80184d120f0864a52a073acc6fc642847d0be408e7c7252f31390c0f4eadcde"},
     {file = "pyasn1-0.6.3.tar.gz", hash = "sha256:697a8ecd6d98891189184ca1fa05d1bb00e2f84b5977c481452050549c8a72cf"},
@@ -4404,7 +4196,7 @@ version = "0.4.2"
 description = "A collection of ASN.1-based protocols modules"
 optional = false
 python-versions = ">=3.8"
-groups = ["main", "cloud-functions", "frontend"]
+groups = ["main", "frontend"]
 files = [
     {file = "pyasn1_modules-0.4.2-py3-none-any.whl", hash = "sha256:29253a9207ce32b64c3ac6600edc75368f98473906e8fd1043bd6b5b1de2c14a"},
     {file = "pyasn1_modules-0.4.2.tar.gz", hash = "sha256:677091de870a80aae844b1ca6134f54652fa2c8c5a52aa396440ac3106e941e6"},
@@ -4419,7 +4211,7 @@ version = "3.0"
 description = "C parser in Python"
 optional = false
 python-versions = ">=3.10"
-groups = ["main", "cloud-functions", "crawler", "frontend"]
+groups = ["main", "crawler", "frontend"]
 markers = "platform_python_implementation != \"PyPy\" and implementation_name != \"PyPy\""
 files = [
     {file = "pycparser-3.0-py3-none-any.whl", hash = "sha256:b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992"},
@@ -5019,7 +4811,7 @@ version = "2.34.2"
 description = "Python HTTP for Humans."
 optional = false
 python-versions = ">=3.10"
-groups = ["main", "cloud-functions", "crawler", "frontend"]
+groups = ["main", "crawler", "frontend"]
 files = [
     {file = "requests-2.34.2-py3-none-any.whl", hash = "sha256:2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0"},
     {file = "requests-2.34.2.tar.gz", hash = "sha256:f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed"},
@@ -5791,7 +5583,7 @@ version = "4.15.0"
 description = "Backported and Experimental Type Hints for Python 3.9+"
 optional = false
 python-versions = ">=3.9"
-groups = ["main", "cloud-functions", "crawler", "dev", "frontend"]
+groups = ["main", "crawler", "dev", "frontend"]
 files = [
     {file = "typing_extensions-4.15.0-py3-none-any.whl", hash = "sha256:f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548"},
     {file = "typing_extensions-4.15.0.tar.gz", hash = "sha256:0cea48d173cc12fa28ecabc3b837ea3cf6f38c6d1136f85cbaaf598984861466"},
@@ -5831,7 +5623,7 @@ version = "2.7.0"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
 optional = false
 python-versions = ">=3.10"
-groups = ["main", "cloud-functions", "crawler", "frontend"]
+groups = ["main", "crawler", "frontend"]
 files = [
     {file = "urllib3-2.7.0-py3-none-any.whl", hash = "sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897"},
     {file = "urllib3-2.7.0.tar.gz", hash = "sha256:231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c"},
@@ -5945,49 +5737,6 @@ files = [
     {file = "w3lib-2.4.1-py3-none-any.whl", hash = "sha256:40930132907e68de906a5b89331ab8c8ff4f01bd35b5539ef7896017d814138d"},
     {file = "w3lib-2.4.1.tar.gz", hash = "sha256:8dd69ee39ff6398d708c793abc779c334a69bac7cee1cdf71736c669ed6be864"},
 ]
-
-[[package]]
-name = "watchdog"
-version = "6.0.0"
-description = "Filesystem events monitoring"
-optional = false
-python-versions = ">=3.9"
-groups = ["cloud-functions"]
-files = [
-    {file = "watchdog-6.0.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:d1cdb490583ebd691c012b3d6dae011000fe42edb7a82ece80965b42abd61f26"},
-    {file = "watchdog-6.0.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:bc64ab3bdb6a04d69d4023b29422170b74681784ffb9463ed4870cf2f3e66112"},
-    {file = "watchdog-6.0.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:c897ac1b55c5a1461e16dae288d22bb2e412ba9807df8397a635d88f671d36c3"},
-    {file = "watchdog-6.0.0-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:6eb11feb5a0d452ee41f824e271ca311a09e250441c262ca2fd7ebcf2461a06c"},
-    {file = "watchdog-6.0.0-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:ef810fbf7b781a5a593894e4f439773830bdecb885e6880d957d5b9382a960d2"},
-    {file = "watchdog-6.0.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:afd0fe1b2270917c5e23c2a65ce50c2a4abb63daafb0d419fde368e272a76b7c"},
-    {file = "watchdog-6.0.0-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:bdd4e6f14b8b18c334febb9c4425a878a2ac20efd1e0b231978e7b150f92a948"},
-    {file = "watchdog-6.0.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:c7c15dda13c4eb00d6fb6fc508b3c0ed88b9d5d374056b239c4ad1611125c860"},
-    {file = "watchdog-6.0.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:6f10cb2d5902447c7d0da897e2c6768bca89174d0c6e1e30abec5421af97a5b0"},
-    {file = "watchdog-6.0.0-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:490ab2ef84f11129844c23fb14ecf30ef3d8a6abafd3754a6f75ca1e6654136c"},
-    {file = "watchdog-6.0.0-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:76aae96b00ae814b181bb25b1b98076d5fc84e8a53cd8885a318b42b6d3a5134"},
-    {file = "watchdog-6.0.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:a175f755fc2279e0b7312c0035d52e27211a5bc39719dd529625b1930917345b"},
-    {file = "watchdog-6.0.0-cp39-cp39-macosx_10_9_universal2.whl", hash = "sha256:e6f0e77c9417e7cd62af82529b10563db3423625c5fce018430b249bf977f9e8"},
-    {file = "watchdog-6.0.0-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:90c8e78f3b94014f7aaae121e6b909674df5b46ec24d6bebc45c44c56729af2a"},
-    {file = "watchdog-6.0.0-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:e7631a77ffb1f7d2eefa4445ebbee491c720a5661ddf6df3498ebecae5ed375c"},
-    {file = "watchdog-6.0.0-pp310-pypy310_pp73-macosx_10_15_x86_64.whl", hash = "sha256:c7ac31a19f4545dd92fc25d200694098f42c9a8e391bc00bdd362c5736dbf881"},
-    {file = "watchdog-6.0.0-pp310-pypy310_pp73-macosx_11_0_arm64.whl", hash = "sha256:9513f27a1a582d9808cf21a07dae516f0fab1cf2d7683a742c498b93eedabb11"},
-    {file = "watchdog-6.0.0-pp39-pypy39_pp73-macosx_10_15_x86_64.whl", hash = "sha256:7a0e56874cfbc4b9b05c60c8a1926fedf56324bb08cfbc188969777940aef3aa"},
-    {file = "watchdog-6.0.0-pp39-pypy39_pp73-macosx_11_0_arm64.whl", hash = "sha256:e6439e374fc012255b4ec786ae3c4bc838cd7309a540e5fe0952d03687d8804e"},
-    {file = "watchdog-6.0.0-py3-none-manylinux2014_aarch64.whl", hash = "sha256:7607498efa04a3542ae3e05e64da8202e58159aa1fa4acddf7678d34a35d4f13"},
-    {file = "watchdog-6.0.0-py3-none-manylinux2014_armv7l.whl", hash = "sha256:9041567ee8953024c83343288ccc458fd0a2d811d6a0fd68c4c22609e3490379"},
-    {file = "watchdog-6.0.0-py3-none-manylinux2014_i686.whl", hash = "sha256:82dc3e3143c7e38ec49d61af98d6558288c415eac98486a5c581726e0737c00e"},
-    {file = "watchdog-6.0.0-py3-none-manylinux2014_ppc64.whl", hash = "sha256:212ac9b8bf1161dc91bd09c048048a95ca3a4c4f5e5d4a7d1b1a7d5752a7f96f"},
-    {file = "watchdog-6.0.0-py3-none-manylinux2014_ppc64le.whl", hash = "sha256:e3df4cbb9a450c6d49318f6d14f4bbc80d763fa587ba46ec86f99f9e6876bb26"},
-    {file = "watchdog-6.0.0-py3-none-manylinux2014_s390x.whl", hash = "sha256:2cce7cfc2008eb51feb6aab51251fd79b85d9894e98ba847408f662b3395ca3c"},
-    {file = "watchdog-6.0.0-py3-none-manylinux2014_x86_64.whl", hash = "sha256:20ffe5b202af80ab4266dcd3e91aae72bf2da48c0d33bdb15c66658e685e94e2"},
-    {file = "watchdog-6.0.0-py3-none-win32.whl", hash = "sha256:07df1fdd701c5d4c8e55ef6cf55b8f0120fe1aef7ef39a1c6fc6bc2e606d517a"},
-    {file = "watchdog-6.0.0-py3-none-win_amd64.whl", hash = "sha256:cbafb470cf848d93b5d013e2ecb245d4aa1c8fd0504e863ccefa32445359d680"},
-    {file = "watchdog-6.0.0-py3-none-win_ia64.whl", hash = "sha256:a1914259fa9e1454315171103c6a30961236f508b9b623eae470268bbcc6a22f"},
-    {file = "watchdog-6.0.0.tar.gz", hash = "sha256:9ddf7c82fda3ae8e24decda1338ede66e1c99883db93711d8fb941eaa2d8c282"},
-]
-
-[package.extras]
-watchmedo = ["PyYAML (>=3.10)"]
 
 [[package]]
 name = "watchfiles"
@@ -6179,24 +5928,6 @@ files = [
     {file = "websockets-16.0-py3-none-any.whl", hash = "sha256:1637db62fad1dc833276dded54215f2c7fa46912301a24bd94d45d46a011ceec"},
     {file = "websockets-16.0.tar.gz", hash = "sha256:5f6261a5e56e8d5c42a4497b364ea24d94d9563e8fbd44e78ac40879c60179b5"},
 ]
-
-[[package]]
-name = "werkzeug"
-version = "3.1.8"
-description = "The comprehensive WSGI web application library."
-optional = false
-python-versions = ">=3.9"
-groups = ["cloud-functions"]
-files = [
-    {file = "werkzeug-3.1.8-py3-none-any.whl", hash = "sha256:63a77fb8892bf28ebc3178683445222aa500e48ebad5ec77b0ad80f8726b1f50"},
-    {file = "werkzeug-3.1.8.tar.gz", hash = "sha256:9bad61a4268dac112f1c5cd4630a56ede601b6ed420300677a869083d70a4c44"},
-]
-
-[package.dependencies]
-markupsafe = ">=2.1.1"
-
-[package.extras]
-watchdog = ["watchdog (>=2.3)"]
 
 [[package]]
 name = "wrapt"
@@ -6696,4 +6427,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.13"
-content-hash = "6968f33d9b96cd3eebb17cbf97b8e3da29c6466f60e7efc30fb28dcb8de10671"
+content-hash = "6caf43b9ff1a134f7083ee8504a1b97e10f768893ed3b09230cfc8625e7dabf2"
