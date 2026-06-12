@@ -7,7 +7,6 @@ terraform {
     }
   }
   # bucket is passed via -backend-config in CI so dev/prod use separate state.
-  # Local runs: terraform init -backend-config="bucket=op-tcg-leaderboard-<env>-tf"
   backend "gcs" {
     prefix = "terraform/state"
   }
@@ -20,11 +19,8 @@ provider "google" {
 }
 
 # iam
-data "google_service_account" "existing_cloud_function_sa" {
-  account_id = "cloud-function-sa"
-}
 resource "google_service_account" "cloud_function_sa" {
-  account_id   = data.google_service_account.existing_cloud_function_sa.account_id
+  account_id   = "cloud-function-sa"
   display_name = "Cloud Function Service Account"
 }
 
@@ -370,6 +366,7 @@ resource "google_cloud_scheduler_job" "elo-update-job" {
   schedule         = "0 0 */1 * *"
   time_zone        = "Europe/Berlin"
   attempt_deadline = "320s"
+  paused           = var.environment == "dev"
 
   retry_config {
     retry_count = 1
@@ -389,6 +386,7 @@ resource "google_cloud_scheduler_job" "crawl-tournament-job" {
   schedule         = "0 22 */1 * *"
   time_zone        = "Europe/Berlin"
   attempt_deadline = "320s"
+  paused           = var.environment == "dev"
 
   retry_config {
     retry_count = 1
@@ -407,6 +405,7 @@ resource "google_cloud_scheduler_job" "crawl-prices-job" {
   schedule         = "0 23 * * 1"
   time_zone        = "Europe/Berlin"
   attempt_deadline = "320s"
+  paused           = var.environment == "dev"
 
   retry_config {
     retry_count = 1
@@ -426,6 +425,7 @@ resource "google_cloud_scheduler_job" "card_image_update_job" {
   schedule         = "0 22 */7 * *"
   time_zone        = "Europe/Berlin"
   attempt_deadline = "320s"
+  paused           = var.environment == "dev"
 
   retry_config {
     retry_count = 1

@@ -1,5 +1,8 @@
 # init terraform
 ```
+# coldstart
+terraform init -backend-config="bucket=<terraform_bucket>" -reconfigure
+
 terraform init
 ```
 
