@@ -51,12 +51,8 @@ jobs:
       run: |
         export version=$(poetry version -s)
         cp ../../dist/op_tcg-$version.tar.gz .
-        cat > requirements.txt << EOF
-        op_tcg-$version.tar.gz
-        functions-framework
-        google-cloud-pubsub
-        scrapy
-        EOF
+        poetry export --without-hashes -f requirements.txt --with crawler,cloud_functions -o requirements.txt
+        echo "op_tcg-$version.tar.gz" >> requirements.txt
         rm -f function-source.zip
         zip -r function-source.zip main.py requirements.txt op_tcg-$version.tar.gz
       working-directory: terraform/cloud_functions

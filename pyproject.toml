@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "op-tcg"
-version = "0.4.2"
+version = "0.4.3"
 description = ""
 authors = ["fteutsch <florianteutsch@yahoo.de>"]
 license = "MIT"
@@ -41,6 +41,10 @@ python-fasthtml = "^0.14.0"
 google-cloud-firestore = "^2.21.0"
 cachetools = "^7.0.5"
 matplotlib = "^3.9.0"
+
+[tool.poetry.group.cloud_functions.dependencies]
+functions-framework = "^3.10.1"
+google-cloud-pubsub = "^2.39.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
