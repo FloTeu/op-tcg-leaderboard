@@ -6,17 +6,17 @@ terraform {
       version = ">= 5.29.0"
     }
   }
+  # bucket is passed via -backend-config in CI so dev/prod use separate state.
+  # Local runs: terraform init -backend-config="bucket=op-tcg-leaderboard-<env>-tf"
   backend "gcs" {
-    bucket  = "op-tcg-leaderboard-prod-tf"
-    prefix  = "terraform/state"
+    prefix = "terraform/state"
   }
 }
 
-
 provider "google" {
   credentials = file(var.gcp_credentials)
-  project = var.project
-  region  = var.region
+  project     = var.project
+  region      = var.region
 }
 
 # iam
@@ -64,7 +64,7 @@ resource "google_project_iam_member" "run_invoker" {
   member  = "serviceAccount:${google_service_account.cloud_function_sa.email}"
 }
 
-# pub /sub
+# pub/sub
 resource "google_pubsub_topic" "all_elo_update_pubsub_topic" {
   name = "all-elo-update-pub-sub"
 }
@@ -169,7 +169,6 @@ resource "google_cloudfunctions2_function" "all_elo" {
       DEPLOYED_AT = timestamp()
     }
   }
-
 
   event_trigger {
     trigger_region = var.region
@@ -375,7 +374,6 @@ resource "google_cloud_scheduler_job" "elo-update-job" {
   retry_config {
     retry_count = 1
   }
-
 
   pubsub_target {
     topic_name = google_pubsub_topic.all_elo_update_pubsub_topic.id
