@@ -1,0 +1,100 @@
+name: Terraform (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      ref:
+        description: 'Git ref to check out. Defaults to the calling workflow ref.'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  terraform:
+    name: 'Terraform'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.ref || github.ref }}
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.11'
+
+    - name: Install Poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v1
+      with:
+        terraform_version: 1.9.5
+        cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+
+    - name: Build wheel file
+      run: poetry build
+
+    - name: Build Cloud Functions package
+      run: |
+        export version=$(poetry version -s)
+        cp ../../dist/op_tcg-$version.tar.gz .
+        cat > requirements.txt << EOF
+        op_tcg-$version.tar.gz
+        functions-framework
+        google-cloud-pubsub
+        scrapy
+        EOF
+        rm -f function-source.zip
+        zip -r function-source.zip main.py requirements.txt op_tcg-$version.tar.gz
+      working-directory: terraform/cloud_functions
+
+    - name: Set up Google Cloud credentials
+      run: echo "${{ secrets.GCP_CREDENTIALS }}" | base64 -d > ${{ github.workspace }}/gcloud.json
+
+    - name: Create terraform.tfvars
+      run: |
+        echo "limitless_api_token = \"${{ secrets.LIMITLESS_API_TOKEN }}\"" > terraform.tfvars
+        echo "project = \"${{ secrets.PROJECT }}\"" >> terraform.tfvars
+        echo "gcp_credentials = \"${{ github.workspace }}/gcloud.json\"" >> terraform.tfvars
+        terraform fmt
+      working-directory: terraform
+
+    - name: Set up Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v0.2.0
+      with:
+        service_account_key: ${{ secrets.GCP_CREDENTIALS }}
+        project_id: ${{ secrets.PROJECT }}
+        export_default_credentials: true
+
+    - name: Terraform Init
+      run: terraform init -backend-config="bucket=${{ secrets.PROJECT }}-tf"
+      working-directory: terraform
+
+    - name: Terraform Format
+      run: terraform fmt -check
+      working-directory: terraform
+
+    - name: Terraform Plan
+      run: terraform plan -input=false
+      env:
+        GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcloud.json
+      working-directory: terraform
+
+    - name: Terraform Apply
+      run: terraform apply -auto-approve -input=false
+      env:
+        GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcloud.json
+      working-directory: terraform

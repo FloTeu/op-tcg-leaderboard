@@ -25,6 +25,7 @@ class LimitlessTournamentSpider(scrapy.Spider):
     meta_formats: list[MetaFormat]
     api_token: str
     num_tournament_limit: int
+    bq_add_data_stats: dict[str, int] = {}
 
     def get_already_crawled_tournament_ids(self) -> dict[str, bool]:
         """returns tournaments already crawled and if they had decklists available back than"""
