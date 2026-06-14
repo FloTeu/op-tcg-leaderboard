@@ -8,7 +8,8 @@ import time
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.frontend.utils.extract import (
     get_all_tournament_decklist_data, get_leader_data, get_leader_extended, get_card_popularity_data,
-    get_all_tournament_extened_data, get_card_data, get_card_types, get_leader_win_rate
+    get_all_tournament_extened_data, get_card_id_card_data_lookup, get_card_lookup_by_id_and_aa,
+    get_card_types, get_leader_win_rate
 )
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,8 @@ class CacheWarmer:
             # Static data - warm every cycle
             lambda: get_leader_extended(),
             lambda: get_leader_data(),
-            lambda: get_card_data(), 
+            lambda: get_card_id_card_data_lookup(),
+            lambda: get_card_lookup_by_id_and_aa(),
             lambda: get_card_popularity_data(),
             lambda: get_card_types(),
             lambda: get_all_tournament_decklist_data(),

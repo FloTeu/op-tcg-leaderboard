@@ -7,9 +7,9 @@ from op_tcg.backend.models.leader import LeaderExtended, LeaderboardSortBy
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.cards import CardCurrency
 from op_tcg.frontend.utils.extract import (
-    get_card_data, 
-    get_leader_extended, 
-    get_card_popularity_data, 
+    get_card_lookup_by_id_and_aa,
+    get_leader_extended,
+    get_card_popularity_data,
     get_card_id_card_data_lookup,
     get_leader_average_deck_prices
 )
@@ -318,21 +318,15 @@ def setup_api_routes(rt):
             return ft.Div("No meta format provided", cls="text-red-400")
             
         # Get all versions of the card
-        card_data = get_card_data()
-        base_card = None
-        card_versions = []
-        for card in card_data:
-            if card.id == card_id:
-                if card.aa_version == 0:
-                    base_card = card
-                    continue
-                card_versions.append(card)
+        versions_by_aa = get_card_lookup_by_id_and_aa().get(card_id, {})
+        base_card = versions_by_aa.get(0)
+        card_versions = sorted(
+            [card for aa, card in versions_by_aa.items() if aa != 0],
+            key=lambda x: x.aa_version,
+        )
 
         if not base_card:
             return ft.Div("Card not found", cls="text-red-400")
-        
-        # Sort versions by ID to ensure consistent order
-        card_versions.sort(key=lambda x: x.aa_version)
             
         # Get card popularity for the specific meta format
         card_popularity_list = get_card_popularity_data()
