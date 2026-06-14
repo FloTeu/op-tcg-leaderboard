@@ -38,7 +38,6 @@ from op_tcg.frontend.utils.og_images import (
 )
 from op_tcg.frontend.utils.middleware import canonical_redirect_middleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.middleware.sessions import SessionMiddleware
 import os
 import logging
 
@@ -81,7 +80,8 @@ async def lifespan(app):
 # Create main app with lifespan manager
 app, rt = fast_app(
     pico=False,
-    lifespan=lifespan,  # Add lifespan manager here
+    lifespan=lifespan,
+    secret_key=SECRET_KEY,
     hdrs=[
         # Favicon
         ft.Link(rel="icon", type="image/png", href="/public/favicon32x23.png"),
@@ -143,10 +143,6 @@ app, rt = fast_app(
     ],
     #static_path='public'
 )
-
-# Add session middleware for authentication
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
-
 
 # Setup API routes
 setup_api_routes(rt)
