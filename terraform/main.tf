@@ -3,7 +3,7 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = ">= 5.29.0"
+      version = ">= 6.0.0"
     }
   }
   # bucket is passed via -backend-config in CI so dev/prod use separate state.
@@ -81,6 +81,10 @@ resource "google_pubsub_topic" "card_image_update_pubsub_topic" {
   name = "card-image-update-pub-sub"
 }
 
+resource "google_pubsub_topic" "crawl_op_top_decks_pubsub_topic" {
+  name = "crawl-op-top-decks-pub-sub"
+}
+
 # Set IAM binding for the Cloud Function to be invoked by Pub/Sub
 resource "google_pubsub_topic_iam_binding" "elo_updatepubsub_invoker" {
   topic = google_pubsub_topic.elo_update_pubsub_topic.name
@@ -92,6 +96,15 @@ resource "google_pubsub_topic_iam_binding" "elo_updatepubsub_invoker" {
 }
 resource "google_pubsub_topic_iam_binding" "all_elo_update_pubsub_invoker" {
   topic = google_pubsub_topic.all_elo_update_pubsub_topic.name
+  role  = "roles/pubsub.publisher"
+
+  members = [
+    "serviceAccount:${google_service_account.cloud_function_sa.email}"
+  ]
+}
+
+resource "google_pubsub_topic_iam_binding" "crawl_op_top_decks_pubsub_invoker" {
+  topic = google_pubsub_topic.crawl_op_top_decks_pubsub_topic.name
   role  = "roles/pubsub.publisher"
 
   members = [
@@ -254,7 +267,47 @@ resource "google_cloudfunctions2_function" "crawl-tournaments" {
     timeout_seconds       = 540
     service_account_email = google_service_account.cloud_function_sa.email
     environment_variables = {
-      LIMITLESS_API_TOKEN = var.limitless_api_token
+      LIMITLESS_API_TOKEN  = var.limitless_api_token
+      GOOGLE_CLOUD_PROJECT = var.project
+    }
+  }
+}
+
+resource "google_cloudfunctions2_function" "crawl-op-top-decks" {
+  name        = "crawl-op-top-decks"
+  location    = var.region
+  description = "Crawls op top decks decklists, triggered after limitless tournament crawl"
+
+  build_config {
+    runtime     = "python312"
+    entry_point = "run_crawl_op_top_decks"
+    source {
+      storage_source {
+        bucket = google_storage_bucket.default.name
+        object = google_storage_bucket_object.object.name
+      }
+    }
+    # triggers redeploy
+    environment_variables = {
+      DEPLOYED_AT = timestamp()
+    }
+  }
+
+  event_trigger {
+    trigger_region = var.region
+    event_type     = "google.cloud.pubsub.topic.v1.messagePublished"
+    pubsub_topic   = google_pubsub_topic.crawl_op_top_decks_pubsub_topic.id
+    retry_policy   = "RETRY_POLICY_DO_NOT_RETRY"
+  }
+
+  service_config {
+    max_instance_count    = 1
+    available_memory      = "768M"
+    timeout_seconds       = 540
+    service_account_email = google_service_account.cloud_function_sa.email
+    environment_variables = {
+      SCRAPER_PROXY        = var.scraper_proxy
+      GOOGLE_CLOUD_PROJECT = var.project
     }
   }
 }

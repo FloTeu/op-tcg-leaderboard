@@ -1,4 +1,5 @@
 cd cloud_functions
+poetry version patch
 poetry build
 export version=$(poetry version -s)
 cp ../../dist/op_tcg-$version.tar.gz .
