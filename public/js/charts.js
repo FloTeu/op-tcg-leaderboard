@@ -924,6 +924,49 @@ class ChartManager {
         }
     }
 
+    // Largest-Triangle-Three-Buckets downsampling — preserves visual shape while
+    // reducing point count to `threshold` when a series has too many data points.
+    _lttbDownsample(data, threshold) {
+        const n = data.length;
+        if (n <= threshold) return data;
+
+        const getY = p => p.eur_price ?? p.usd_price ?? 0;
+
+        const sampled = [data[0]];
+        const bucketSize = (n - 2) / (threshold - 2);
+        let a = 0;
+
+        for (let i = 0; i < threshold - 2; i++) {
+            const nextStart = Math.floor((i + 1) * bucketSize) + 1;
+            const nextEnd = Math.min(Math.floor((i + 2) * bucketSize) + 1, n - 1);
+
+            let avgX = 0, avgY = 0, count = 0;
+            for (let j = nextStart; j < nextEnd; j++) {
+                avgX += j; avgY += getY(data[j]); count++;
+            }
+            if (count > 0) { avgX /= count; avgY /= count; }
+
+            const curStart = Math.floor(i * bucketSize) + 1;
+            const curEnd = nextStart;
+            const ax = a, ay = getY(data[a]);
+            let maxArea = -1, maxIdx = curStart;
+
+            for (let j = curStart; j < curEnd; j++) {
+                const area = Math.abs(
+                    (ax - avgX) * (getY(data[j]) - ay) -
+                    (ax - j) * (avgY - ay)
+                ) * 0.5;
+                if (area > maxArea) { maxArea = area; maxIdx = j; }
+            }
+
+            sampled.push(data[maxIdx]);
+            a = maxIdx;
+        }
+
+        sampled.push(data[n - 1]);
+        return sampled;
+    }
+
     createPriceDevelopmentChart(config) {
         const {
             containerId,
@@ -941,6 +984,12 @@ class ChartManager {
             releasesByDate[r.date].push(r.label);
         });
         const hasReleases = Object.keys(releasesByDate).length > 0;
+
+        // Downsample to at most 40 points when the series is dense
+        const SMOOTH_THRESHOLD = 40;
+        const displayData = data.length > SMOOTH_THRESHOLD
+            ? this._lttbDownsample(data, SMOOTH_THRESHOLD)
+            : data;
 
         this.destroyChart(containerId);
 
@@ -966,7 +1015,7 @@ class ChartManager {
             const datasets = [];
 
             // EUR dataset
-            const eurData = data.map(d => d.eur_price);
+            const eurData = displayData.map(d => d.eur_price);
             if (eurData.some(price => price !== null && price !== undefined)) {
                 datasets.push({
                     label: 'EUR (€)',
@@ -988,7 +1037,7 @@ class ChartManager {
             }
 
             // USD dataset
-            const usdData = data.map(d => d.usd_price);
+            const usdData = displayData.map(d => d.usd_price);
             if (usdData.some(price => price !== null && price !== undefined)) {
                 datasets.push({
                     label: 'USD ($)',
@@ -1051,7 +1100,7 @@ class ChartManager {
             const chart = new Chart(canvas, {
                 type: 'line',
                 data: {
-                    labels: data.map(d => d.date),
+                    labels: displayData.map(d => d.date),
                     datasets: datasets
                 },
                 plugins: hasReleases ? [releaseLinesPlugin] : [],
