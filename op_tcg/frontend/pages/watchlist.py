@@ -176,15 +176,26 @@ def _qty_stepper(card_id: str, aa_version: int, language: str, quantity: int) ->
 def _table_time_range_script() -> ft.Script:
     return ft.Script("""
 (function(){
+  // Intercept every HTMX request from a chart container and rewrite days= to
+  // whatever the global select currently shows.  This fires even for the lazy
+  // `revealed` trigger, which uses a URL HTMX cached at element-processing time.
+  document.body.addEventListener('htmx:configRequest', function(e){
+    if(e.detail.elt && e.detail.elt.classList.contains('table-chart-container')){
+      var sel=document.getElementById('table-global-time-range');
+      if(sel) e.detail.path=e.detail.path.replace(/([?&]days=)\\d+/,'$1'+sel.value);
+    }
+  });
+
   function updateAllTableCharts(days){
     document.querySelectorAll('.table-chart-container').forEach(function(container){
       var chartId=container.id;
       var loadingEl=document.getElementById(chartId+'-loading');
       var cardId=container.dataset.cardId;
       var aaVersion=container.dataset.aaVersion;
+      var url='/api/card-price-development-chart?card_id='+cardId+'&days='+days+'&aa_version='+aaVersion+'&compact=true&location=watchlist';
       container.innerHTML='';
       if(loadingEl) loadingEl.classList.remove('hidden');
-      fetch('/api/card-price-development-chart?card_id='+cardId+'&days='+days+'&aa_version='+aaVersion+'&compact=true&location=watchlist')
+      fetch(url)
         .then(function(r){return r.text();})
         .then(function(html){
           container.innerHTML=html;
