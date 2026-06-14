@@ -1,5 +1,6 @@
 import logging
 import re
+import os
 from contextlib import suppress
 from datetime import datetime, timedelta
 from dateutil import parser
@@ -27,9 +28,15 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
     custom_settings = {
         'USER_AGENT': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
         'COOKIES_ENABLED': True,
+        'DOWNLOADER_MIDDLEWARES': {
+            # Runs just before the built-in RetryMiddleware (550) so 202s are
+            # caught here with exponential back-off before any other retry logic.
+            'op_tcg.backend.crawling.middlewares.Retry202Middleware': 540,
+        },
     }
 
     def __init__(self, *args, delete_existing: bool = False, **kwargs):
+        logging.info("OPTopDeckDecklistSpider: initializing Class")
         super().__init__(*args, **kwargs)
         self.bq_add_data_stats: dict[str, int] = {}
         self.delete_existing = delete_existing
@@ -95,6 +102,7 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
         return f"{ts.tournament_id}_{ts.decklist_id}_{ts.player_id}"
 
     async def start(self):
+        logging.info("OPTopDeckDecklistSpider: initializing BQ client")
         self.bq_client = bigquery.Client(location="europe-west1")
         self.decklist_table = get_or_create_table(Decklist, client=self.bq_client)
         self.op_top_deck_table = get_or_create_table(OpTopDeckDecklist, client=self.bq_client)
@@ -116,10 +124,22 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
             self.tournament_standing_table.table_id: 0
         }
 
-        start_url = "https://onepiecetopdecks.com/deck-list"
-        yield scrapy.Request(url=start_url,
-                             callback=self.parse_decklist_landingpage,
-                             errback=self.errback_httpbin)
+        start_url = "https://onepiecetopdecks.com/deck-list/"
+        logging.info(f"OPTopDeckDecklistSpider: starting crawl with meta_formats={self.meta_formats}")
+
+        # Route through a residential proxy to bypass Sucuri WAF IP-reputation blocking.
+        # GCP data-center IPs receive a JS-challenge 202 that cannot be solved without a browser.
+        # A residential/non-flagged proxy IP passes through unchallenged.
+        # Configure via SCRAPER_PROXY env var (e.g. "http://host:port").
+        self.proxy_url = os.environ.get("SCRAPER_PROXY")
+        #self.proxy_url = self.proxy_url.replace("p.webshare.io:80", "38.154.203.95:5863")
+        logging.info(f"OPTopDeckDecklistSpider: starting crawl, proxy={self.proxy_url}")
+
+        yield scrapy.Request(
+            url=start_url,
+            callback=self.parse_decklist_landingpage,
+            meta={'proxy': self.proxy_url},
+        )
 
     @staticmethod
     def is_meta_in_url(meta_format: MetaFormat, url: str, region: MetaFormatRegion | None = None) -> bool:
@@ -146,11 +166,18 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
 
     def parse_decklist_landingpage(self, response):
         """Extracts all meta format and country meta format urls for further steps"""
+        self.logger.info(
+            f"parse_decklist_landingpage: status={response.status} "
+            f"body_length={len(response.body)} "
+            f"body_preview={response.text[:500]!r}"
+        )
         # extract all urls
         urls = response.xpath('//a/@href').getall()
         # drop urls
         urls_to_crawl: dict[MetaFormatRegion, list[tuple[MetaFormat, str]]] = {cmf: [] for cmf in
                                                                                MetaFormatRegion.to_list()}
+        self.logger.info(f"Parsed decklist landingpage with {len(urls_to_crawl)} urls to crawl")
+
         for url in urls:
             if "deck-list" not in url:
                 continue
@@ -181,10 +208,9 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
                                      callback=self.parse_decklist_meta_page,
                                      errback=self.errback_httpbin,
                                      meta={
-                                         # 'dont_redirect': True,
-                                         # 'handle_httpstatus_list': [302],
                                          'meta_format_region': meta_format_region,
                                          'meta_format': meta_format,
+                                         'proxy': self.proxy_url,
                                      })
 
     def parse_decklist_meta_page(self, response):
@@ -367,8 +393,8 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
             return None
 
     def errback_httpbin(self, failure):
-        # log all failures
-        self.logger.error(repr(failure))
+        url = failure.value.response.url if hasattr(failure.value, 'response') else str(failure.value)
+        self.logger.error(f"errback called for {url}: {repr(failure)}")
 
     def closed(self, reason):
         logging.info(f"Finished spider with {self.bq_add_data_stats} new data in Big Query")
