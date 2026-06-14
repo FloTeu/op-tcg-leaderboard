@@ -146,7 +146,7 @@ def get_card_data(default_language: OPTcgLanguage = OPTcgLanguage.EN) -> list[La
                 AND rc.language = mu.language 
                 AND rc.aa_version = mu.aa_version
             WHERE rc.rn = 1
-    """, ttl_hours=24.0)
+    """, ttl_hours=None)
     return [ExtendedCardData(**d) for d in latest_card_rows]
 
 def get_card_popularity_data() -> list[CardPopularity]:
@@ -181,14 +181,16 @@ def get_card_types() -> list[str]:
     return [d["types"] for d in latest_card_rows]
 
 
+@cached(cache=TTLCache(maxsize=4, ttl=60*60*24))
 def get_card_id_card_data_lookup(aa_version: int = 0, ensure_latest_price_not_null=True, default_language: OPTcgLanguage = OPTcgLanguage.EN) -> dict[str, ExtendedCardData]:
     card_data = get_card_data()
     card_data = [cdata for cdata in card_data if cdata.aa_version == aa_version]
     if ensure_latest_price_not_null:
         for cdata in card_data:
-            cdata.ensure_latest_price_not_none()    
+            cdata.ensure_latest_price_not_none()
     return {card.id: card for card in card_data}
 
+@cached(cache=TTLCache(maxsize=1, ttl=60*60*24))
 def get_card_lookup_by_id_and_aa() -> dict[str, dict[int, ExtendedCardData]]:
     card_data = get_card_data()
     lookup = defaultdict(dict)
