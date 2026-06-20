@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from op_tcg.backend.models.cards import OPTcgLanguage, CardReleaseSet, Card, CardMarketplaceUrl
 from op_tcg.backend.models.decklists import Decklist, OpTopDeckDecklist
+from op_tcg.backend.models.sealed import SealedProduct, SealedProductPrice
 from op_tcg.backend.models.tournaments import Tournament, TournamentStanding
 from op_tcg.backend.models.matches import Match
 
@@ -41,3 +42,9 @@ class OpTopDecksItem:
     op_top_deck_decklists: list[OpTopDeckDecklist]
     tournaments: list[Tournament]
     tournament_standings: list[TournamentStanding]
+
+
+@dataclass
+class SealedProductItem:
+    products: list[SealedProduct]
+    prices: list[SealedProductPrice]

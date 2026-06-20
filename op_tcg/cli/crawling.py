@@ -11,7 +11,7 @@ from google.cloud import bigquery
 from scrapy.crawler import CrawlerProcess
 from tqdm import tqdm
 
-from op_tcg.backend.crawling.items import ReleaseSetItem
+from op_tcg.backend.crawling.items import ReleaseSetItem, SealedProductItem
 from op_tcg.backend.crawling.spiders.limitless_matches import LimitlessMatchSpider
 from op_tcg.backend.crawling.spiders.limitless_prices import LimitlessPricesSpider
 from op_tcg.backend.crawling.spiders.limitless_tournaments import LimitlessTournamentSpider
@@ -20,6 +20,7 @@ from op_tcg.backend.etl.extract import get_leader_ids, crawl_limitless_card
 from op_tcg.backend.etl.load import get_or_create_table, bq_insert_rows
 from op_tcg.backend.models.cards import Card, CardPrice, LimitlessCardData, OPTcgLanguage
 from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.sealed import SealedProduct, SealedProductPrice, SealedProductType
 from op_tcg.backend.models.tournaments import TournamentStanding
 
 
@@ -51,8 +52,14 @@ def op_top_deck_group() -> None:
     """
     pass
 
+@click.group("cardmarket", help="Cardmarket crawling functionality")
+def cardmarket_group() -> None:
+    pass
+
+
 crawling_group.add_command(limitless_group)
 crawling_group.add_command(op_top_deck_group)
+crawling_group.add_command(cardmarket_group)
 
 @limitless_group.command()
 @click.option("--meta-formats", "-m", multiple=True)
@@ -228,6 +235,48 @@ def crawl_decklists(
 
     process.crawl(OPTopDeckDecklistSpider, meta_formats=meta_formats, delete_existing=delete_existing)
     process.start() # the script will block here until the crawling is finished
+
+
+@cardmarket_group.command("sealed-products")
+@click.option(
+    "--product-types",
+    "-p",
+    multiple=True,
+    type=click.Choice([t.value for t in SealedProductType], case_sensitive=False),
+    help="Product types to crawl. Repeatable. Defaults to all types.",
+)
+@async_cmd
+async def crawl_sealed_products(product_types: tuple[str, ...]) -> None:
+    """
+    Crawl Cardmarket for One Piece sealed product prices and store them in BigQuery.
+
+    Runs with Crawl4AI (Playwright) to bypass Cloudflare. Set SCRAPER_PROXY for
+    residential proxy rotation. Usable locally and as a Cloud Run Job entrypoint:
+
+        optcg crawl cardmarket sealed-products
+        optcg crawl cardmarket sealed-products -p booster_box -p starter_deck
+    """
+    from op_tcg.backend.crawling.pipelines import SealedProductPipeline
+    from op_tcg.backend.crawling.spiders.cardmarket_sealed import crawl_cardmarket_sealed
+
+    selected_types: list[SealedProductType] = (
+        [SealedProductType(t) for t in product_types]
+        if product_types
+        else list(SealedProductType)
+    )
+
+    bq_client = bigquery.Client(location="europe-west1")
+    product_table = get_or_create_table(SealedProduct, client=bq_client)
+    price_table = get_or_create_table(SealedProductPrice, client=bq_client)
+    pipeline = SealedProductPipeline(bq_client, product_table, price_table)
+
+    results = await crawl_cardmarket_sealed(product_types=selected_types)
+
+    products = [product for product, _ in results]
+    prices = [price for _, price_list in results for price in price_list]
+
+    pipeline.process(SealedProductItem(products=products, prices=prices))
+    logging.info("Done. Products: %d, prices: %d", len(products), len(prices))
 
 
 if __name__ == "__main__":
