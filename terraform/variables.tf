@@ -9,5 +9,5 @@ variable "environment" {
   default = "dev"
 }
 variable "artifact_registry_repo" {
-  default = "op-tcg-registry"
+  default = "op-tcg"
 }

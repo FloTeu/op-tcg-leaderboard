@@ -60,7 +60,10 @@ jobs:
         id: build-crawler
         run: |
           VERSION=$(grep '^version' pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
-          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.PROJECT }}/${{ vars.ARTIFACT_REGISTRY_REPO }}/op-tcg-crawler:v${VERSION}-${{ inputs.sha }}"
+          # Derive the registry base from the web image (same repo, different image name)
+          # so the crawler always lands in the same Artifact Registry repo as the web app.
+          WEB_BASE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.PROJECT }}/${{ vars.ARTIFACT_REGISTRY_REPO }}"
+          IMAGE="${WEB_BASE}/op-tcg-crawler:v${VERSION}-${{ inputs.sha }}"
           docker build --platform linux/amd64 -f Dockerfile.crawler -t "$IMAGE" .
           docker push "$IMAGE"
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
