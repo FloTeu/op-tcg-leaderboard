@@ -1,0 +1,42 @@
+# Pin to bookworm (Debian 12) — trixie (Debian 13) renamed libgdk-pixbuf2.0-0
+# and other Firefox deps. Pinning ensures reproducible builds in CI and locally.
+FROM python:3.11-slim-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    CAMOUFOX_HEADLESS=true
+
+WORKDIR /app
+
+# System deps for Camoufox (patched Firefox headless).
+# These match Firefox's runtime requirements on Debian bookworm (python:3.11-slim base).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc g++ curl \
+    libx11-6 libxcomposite1 libxdamage1 libxext6 libxfixes3 \
+    libxrandr2 libxrender1 libxtst6 libxcb1 libx11-xcb1 \
+    libgtk-3-0 libpango-1.0-0 libcairo2 libgdk-pixbuf2.0-0 \
+    libnss3 libnspr4 libasound2 libatk1.0-0 libatk-bridge2.0-0 \
+    libdrm2 libgbm1 libdbus-1-3 libdbus-glib-1-2 libxt6 \
+    fonts-liberation libfontconfig1 libfreetype6 ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Poetry
+RUN curl -sSL https://install.python-poetry.org | python3 - && \
+    ln -s /root/.local/bin/poetry /usr/local/bin/poetry
+
+COPY pyproject.toml poetry.lock ./
+
+# Install main + crawler groups (includes camoufox, crawl4ai, scrapy, beautifulsoup4)
+RUN poetry config virtualenvs.create false && \
+    poetry install --only main,crawler --no-root --no-interaction --no-ansi
+
+# Download the patched Firefox binary at build time so it is baked into the image.
+# Avoids slow/unreliable runtime downloads in Cloud Run and keeps executions reproducible.
+RUN python -m camoufox fetch
+
+COPY . .
+
+# Run the sealed products crawler — all product types by default.
+# Override via Cloud Run Job args or --product-types flags if needed.
+ENTRYPOINT ["optcg", "crawl", "cardmarket", "sealed-products"]

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "op-tcg"
-version = "0.4.4"
+version = "0.4.5"
 description = ""
 authors = ["fteutsch <florianteutsch@yahoo.de>"]
 license = "MIT"
@@ -23,12 +23,14 @@ pandera = "^0.19.3"
 tqdm = "^4.66.4"
 timer = "^0.3.0"
 authlib = "^1.6.8"
+camoufox = {version = "^0.4.11", extras = ["geoip"]}
 
 [tool.poetry.group.crawler.dependencies]
 requests = "^2.31.0"
 scrapy = "^2.11.1"
 beautifulsoup4 = "^4.12.3"
 crawl4ai = "^0.7.4"
+camoufox = {version = "^0.4.11", extras = ["geoip"]}
 
 
 [tool.poetry.requires-plugins]

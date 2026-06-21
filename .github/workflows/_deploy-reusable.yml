@@ -56,6 +56,22 @@ jobs:
           docker push "$IMAGE"
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
 
+      - name: Build and push crawler Docker image
+        id: build-crawler
+        run: |
+          VERSION=$(grep '^version' pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.PROJECT }}/${{ vars.ARTIFACT_REGISTRY_REPO }}/op-tcg-crawler:v${VERSION}-${{ inputs.sha }}"
+          docker build --platform linux/amd64 -f Dockerfile.crawler -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+
+      - name: Update Cloud Run Job image
+        run: |
+          gcloud run jobs update crawl-sealed-products \
+            --image=${{ steps.build-crawler.outputs.image }} \
+            --region=${{ env.REGION }} \
+            --project=${{ secrets.PROJECT }}
+
       - name: Deploy to Cloud Run
         id: deploy
         uses: google-github-actions/deploy-cloudrun@v2

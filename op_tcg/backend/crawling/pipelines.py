@@ -13,7 +13,7 @@ from op_tcg.backend.models.cards import LimitlessCardData, CardPrice, CardCurren
 from op_tcg.backend.models.decklists import Decklist
 from op_tcg.backend.models.input import LimitlessLeaderMetaDoc
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
-from op_tcg.backend.crawling.items import TournamentItem, LimitlessPriceRow, ReleaseSetItem, CardsItem, OpTopDecksItem
+from op_tcg.backend.crawling.items import TournamentItem, LimitlessPriceRow, ReleaseSetItem, CardsItem, OpTopDecksItem, SealedProductItem
 from op_tcg.backend.models.matches import Match
 from op_tcg.backend.models.tournaments import Tournament, TournamentStanding
 
@@ -178,6 +178,33 @@ class CardReleaseSetPipeline:
         if isinstance(item, ReleaseSetItem):
             bq_insert_rows([json.loads(item.release_set.model_dump_json())], table=spider.release_set_table, client=spider.bq_client)
         return item
+
+
+class SealedProductPipeline:
+    """
+    Writes sealed product data to BigQuery.
+    Products are upserted (metadata may change); prices are always appended.
+    """
+
+    def __init__(self, bq_client, product_table, price_table):
+        self.bq_client = bq_client
+        self.product_table = product_table
+        self.price_table = price_table
+
+    def process(self, item: SealedProductItem) -> None:
+        if item.products:
+            bq_upsert_rows(item.products, table=self.product_table, client=self.bq_client)
+
+        prices_with_value = [p for p in item.prices if p is not None and p.price > 0]
+        if prices_with_value:
+            rows_to_insert = [json.loads(p.model_dump_json()) for p in prices_with_value]
+            bq_insert_rows(rows_to_insert, table=self.price_table, client=self.bq_client)
+
+        logging.info(
+            "SealedProductPipeline: upserted %d products, inserted %d prices",
+            len(item.products),
+            len(prices_with_value),
+        )
 
 
 class OpTopDeckDecklistPipeline:
