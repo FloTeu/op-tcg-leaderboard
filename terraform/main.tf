@@ -408,7 +408,9 @@ resource "google_cloud_run_v2_job" "crawl_sealed_products" {
       service_account = google_service_account.cloud_function_sa.email
 
       containers {
-        image = "${var.region}-docker.pkg.dev/${var.project}/${var.artifact_registry_repo}/op-tcg-crawler:latest"
+        # Public GCP placeholder — image does not need to exist at Terraform apply time.
+        # CI replaces this via `gcloud run jobs update` on every deploy.
+        image = "us-docker.pkg.dev/cloudrun/container/hello:latest"
 
         env {
           name  = "GOOGLE_CLOUD_PROJECT"
