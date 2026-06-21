@@ -384,57 +384,10 @@ resource "google_cloudfunctions2_function" "card_image_update" {
 }
 
 # ---- sealed products crawler (Cloud Run Job) ----
-
-resource "google_cloud_run_v2_job" "crawl_sealed_products" {
-  name     = "crawl-sealed-products"
-  location = var.region
-
-  # Required in provider v6+ to allow destroy/recreate without manual intervention.
-  deletion_protection = false
-
-  # CI updates the container image on each deploy via `gcloud run jobs update`.
-  # Terraform only manages the initial definition and env vars; the image is ignored
-  # after the first apply so CI-managed image updates are not reverted.
-  lifecycle {
-    ignore_changes = [template]
-  }
-
-  template {
-    task_count = 1
-
-    template {
-      max_retries     = 1
-      timeout         = "1800s"
-      service_account = google_service_account.cloud_function_sa.email
-
-      containers {
-        # Public GCP placeholder — image does not need to exist at Terraform apply time.
-        # CI replaces this via `gcloud run jobs update` on every deploy.
-        image = "us-docker.pkg.dev/cloudrun/container/hello:latest"
-
-        env {
-          name  = "GOOGLE_CLOUD_PROJECT"
-          value = var.project
-        }
-        env {
-          name  = "SCRAPER_PROXY"
-          value = var.scraper_proxy
-        }
-        env {
-          name  = "CAMOUFOX_HEADLESS"
-          value = "true"
-        }
-
-        resources {
-          limits = {
-            cpu    = "2"
-            memory = "2Gi"
-          }
-        }
-      }
-    }
-  }
-}
+# The Cloud Run Job is NOT managed by Terraform — it is created and updated entirely
+# by the CI deploy workflow via `gcloud run jobs create/update`. This avoids the
+# taint/placeholder cycle that occurs when Terraform and CI both try to own the
+# container image. The Cloud Scheduler below only needs the job's name, not ownership.
 
 resource "google_cloud_scheduler_job" "crawl_sealed_products_job" {
   name             = "crawl-sealed-products-job"

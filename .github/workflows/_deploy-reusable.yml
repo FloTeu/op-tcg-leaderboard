@@ -68,12 +68,31 @@ jobs:
           docker push "$IMAGE"
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
 
-      - name: Update Cloud Run Job image
+      - name: Deploy Cloud Run Job
         run: |
-          gcloud run jobs update crawl-sealed-products \
-            --image=${{ steps.build-crawler.outputs.image }} \
-            --region=${{ env.REGION }} \
-            --project=${{ secrets.PROJECT }}
+          IMAGE="${{ steps.build-crawler.outputs.image }}"
+          PROJECT="${{ secrets.PROJECT }}"
+          SA="cloud-function-sa@${PROJECT}.iam.gserviceaccount.com"
+          # Create the job if it doesn't exist yet, otherwise update the image.
+          if gcloud run jobs describe crawl-sealed-products \
+               --region=${{ env.REGION }} --project="${PROJECT}" &>/dev/null; then
+            gcloud run jobs update crawl-sealed-products \
+              --image="${IMAGE}" \
+              --region=${{ env.REGION }} \
+              --project="${PROJECT}"
+          else
+            gcloud run jobs create crawl-sealed-products \
+              --image="${IMAGE}" \
+              --region=${{ env.REGION }} \
+              --project="${PROJECT}" \
+              --service-account="${SA}" \
+              --set-env-vars="GOOGLE_CLOUD_PROJECT=${PROJECT},CAMOUFOX_HEADLESS=true,SCRAPER_PROXY=${{ secrets.SCRAPER_PROXY }}" \
+              --tasks=1 \
+              --max-retries=1 \
+              --task-timeout=1800 \
+              --cpu=2 \
+              --memory=2Gi
+          fi
 
       - name: Deploy to Cloud Run
         id: deploy
