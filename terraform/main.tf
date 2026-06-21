@@ -383,6 +383,78 @@ resource "google_cloudfunctions2_function" "card_image_update" {
   }
 }
 
+# ---- sealed products crawler (Cloud Run Job) ----
+
+resource "google_cloud_run_v2_job" "crawl_sealed_products" {
+  name     = "crawl-sealed-products"
+  location = var.region
+
+  # CI updates the container image on each deploy via `gcloud run jobs update`.
+  # Terraform only manages the initial definition; image changes are ignored here.
+  lifecycle {
+    ignore_changes = [template]
+  }
+
+  template {
+    task_count = 1
+
+    template {
+      max_retries     = 1
+      timeout         = "1800s"
+      service_account = google_service_account.cloud_function_sa.email
+
+      containers {
+        image = "${var.region}-docker.pkg.dev/${var.project}/${var.artifact_registry_repo}/op-tcg-crawler:latest"
+
+        env {
+          name  = "GOOGLE_CLOUD_PROJECT"
+          value = var.project
+        }
+        env {
+          name  = "SCRAPER_PROXY"
+          value = var.scraper_proxy
+        }
+        env {
+          name  = "CAMOUFOX_HEADLESS"
+          value = "true"
+        }
+
+        resources {
+          limits = {
+            cpu    = "2"
+            memory = "2Gi"
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "google_cloud_scheduler_job" "crawl_sealed_products_job" {
+  name             = "crawl-sealed-products-job"
+  region           = var.region
+  description      = "Triggers the sealed products Cloud Run Job to crawl Cardmarket prices"
+  schedule         = "0 21 * * 1"
+  time_zone        = "Europe/Berlin"
+  attempt_deadline = "320s"
+  paused           = var.environment == "dev"
+
+  retry_config {
+    retry_count = 1
+  }
+
+  http_target {
+    http_method = "POST"
+    uri         = "https://run.googleapis.com/v2/projects/${var.project}/locations/${var.region}/jobs/crawl-sealed-products:run"
+    body        = base64encode("{}")
+
+    oauth_token {
+      service_account_email = google_service_account.cloud_function_sa.email
+      scope                 = "https://www.googleapis.com/auth/cloud-platform"
+    }
+  }
+}
+
 resource "google_cloud_run_service_iam_member" "member" {
   location = google_cloudfunctions2_function.all_elo.location
   service  = google_cloudfunctions2_function.all_elo.name
