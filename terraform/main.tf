@@ -441,7 +441,7 @@ resource "google_cloud_scheduler_job" "crawl_sealed_products_job" {
   schedule         = "0 21 * * 1"
   time_zone        = "Europe/Berlin"
   attempt_deadline = "320s"
-  paused           = var.environment == "dev"
+  paused           = true
 
   retry_config {
     retry_count = 1

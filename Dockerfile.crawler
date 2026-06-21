@@ -1,4 +1,6 @@
-FROM python:3.11-slim
+# Pin to bookworm (Debian 12) — trixie (Debian 13) renamed libgdk-pixbuf2.0-0
+# and other Firefox deps. Pinning ensures reproducible builds in CI and locally.
+FROM python:3.11-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
