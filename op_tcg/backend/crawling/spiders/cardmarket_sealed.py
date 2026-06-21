@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 CARDMARKET_BASE = "https://www.cardmarket.com"
 
-ITEMS_PER_SITE = 50
+ITEMS_PER_SITE = 200
 
 # Gallery URLs per product type. perSite=100 maximises items per page.
 PRODUCT_TYPE_URLS: dict[SealedProductType, str] = {

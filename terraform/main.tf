@@ -389,8 +389,12 @@ resource "google_cloud_run_v2_job" "crawl_sealed_products" {
   name     = "crawl-sealed-products"
   location = var.region
 
+  # Required in provider v6+ to allow destroy/recreate without manual intervention.
+  deletion_protection = false
+
   # CI updates the container image on each deploy via `gcloud run jobs update`.
-  # Terraform only manages the initial definition; image changes are ignored here.
+  # Terraform only manages the initial definition and env vars; the image is ignored
+  # after the first apply so CI-managed image updates are not reverted.
   lifecycle {
     ignore_changes = [template]
   }
