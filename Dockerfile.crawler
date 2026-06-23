@@ -37,6 +37,11 @@ RUN python -m camoufox fetch
 
 COPY . .
 
+# Install the package itself (registers the `optcg` console-script entrypoint).
+# --no-root above skips this step intentionally so deps can be cached independently;
+# we do it here after COPY so the source is present.
+RUN pip install --no-deps -e .
+
 # Run the sealed products crawler — all product types by default.
 # Override via Cloud Run Job args or --product-types flags if needed.
 ENTRYPOINT ["optcg", "crawl", "cardmarket", "sealed-products"]
