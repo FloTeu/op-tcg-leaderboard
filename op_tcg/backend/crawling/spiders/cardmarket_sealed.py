@@ -285,6 +285,25 @@ class CloudflareBlockedError(RuntimeError):
     """
 
 
+async def _fetch_with_retry(browser, url: str, max_retries: int = 3, cf_wait_ms: int = 30_000) -> str:
+    """
+    Fetch *url* via a fresh browser page, retrying up to *max_retries* times on
+    CloudflareBlockedError. Each retry opens a new page so the rotating proxy
+    assigns a different exit IP.
+    """
+    last_exc: CloudflareBlockedError | None = None
+    for attempt in range(1, max_retries + 1):
+        page = await browser.new_page()
+        try:
+            return await _fetch_page_html(page, url, cf_wait_ms=cf_wait_ms)
+        except CloudflareBlockedError as exc:
+            last_exc = exc
+            logger.warning("CF blocked (attempt %d/%d) for %s — rotating IP", attempt, max_retries, url)
+        finally:
+            await page.close()
+    raise last_exc  # type: ignore[misc]
+
+
 async def _fetch_page_html(browser_page, url: str, cf_wait_ms: int = 30_000) -> str:
     """
     Navigate to *url* using an already-open Camoufox page, wait for Cloudflare's
@@ -349,8 +368,6 @@ async def crawl_cardmarket_sealed(
         os=["windows", "macos", "linux"],
         geoip=True,
     ) as browser:
-        page = await browser.new_page()
-
         for product_type in product_types:
             base_url = PRODUCT_TYPE_URLS.get(product_type)
             if not base_url:
@@ -364,9 +381,9 @@ async def crawl_cardmarket_sealed(
                 logger.info("Crawling %s (page %d)", product_type, page_num + 1)
 
                 try:
-                    html = await _fetch_page_html(page, url)
+                    html = await _fetch_with_retry(browser, url)
                 except CloudflareBlockedError:
-                    raise  # propagate — Cloud Run Job must exit non-zero
+                    raise  # all retries exhausted — Cloud Run Job must exit non-zero
                 except Exception as exc:
                     logger.error("Crawl failed for %s page %d: %s", product_type, page_num + 1, exc)
                     break
