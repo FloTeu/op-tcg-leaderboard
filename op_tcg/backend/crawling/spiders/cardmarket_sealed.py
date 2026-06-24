@@ -302,8 +302,13 @@ async def _fetch_page_html(browser_page, url: str, cf_wait_ms: int = 30_000) -> 
         logger.debug("Cloudflare challenge active, waiting... (%dms elapsed)", elapsed)
         await browser_page.wait_for_timeout(poll_interval)
         elapsed += poll_interval
+    try:
+        page_title = await browser_page.title()
+    except Exception as title_exc:  # noqa: BLE001
+        page_title = f"<error: {title_exc}>"
     raise CloudflareBlockedError(
         f"Cloudflare challenge was not resolved within {cf_wait_ms / 1000:.0f}s for {url}. "
+        f"Page title at timeout: '{page_title}'. "
         f"Ensure SCRAPER_PROXY is set to a residential proxy with valid credentials."
     )
 
@@ -327,8 +332,14 @@ async def crawl_cardmarket_sealed(
     if product_types is None:
         product_types = list(PRODUCT_TYPE_URLS.keys())
 
-    proxy_config = _build_proxy_config(os.environ.get("SCRAPER_PROXY"))
+    proxy_url = os.environ.get("SCRAPER_PROXY")
+    proxy_config = _build_proxy_config(proxy_url)
     headless = os.environ.get("CAMOUFOX_HEADLESS", "true").lower() != "false"
+
+    if proxy_config:
+        logger.info("Proxy configured: %s | username: %s", proxy_config.get("server"), proxy_config.get("username"))
+    else:
+        logger.warning("No SCRAPER_PROXY set — Cloudflare will likely block requests")
 
     all_results: list[tuple[SealedProduct, list[SealedProductPrice]]] = []
 
