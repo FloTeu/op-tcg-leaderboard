@@ -104,7 +104,7 @@ def sealed_product_tile(item: dict, symbol: str) -> ft.Div:
     product_type = SealedProductType(item.get('product_type', SealedProductType.PROMO))
     from_price = item.get('from_price')
     trend_price = item.get('trend_price')
-    image_url = item.get('gcs_image_url') or item.get('image_url')
+    image_url = item.get('gcs_image_url')
     url = item.get('url', '#')
     language = str(item.get('language', 'en')).upper()[:2]
 
@@ -114,7 +114,7 @@ def sealed_product_tile(item: dict, symbol: str) -> ft.Div:
 
     img_child = ft.Img(
         src=image_url, alt=name,
-        style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; display:block;",
+        style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:contain; display:block; padding:4px;",
     ) if image_url else ft.Div(
         ft.Span("📦", style="font-size:2.5rem; opacity:0.2;"),
         style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#080e1c;",
