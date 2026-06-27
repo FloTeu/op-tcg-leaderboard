@@ -10,7 +10,7 @@ from op_tcg.frontend.utils.extract import (
     get_sealed_product_prices,
 )
 from op_tcg.backend.models.cards import CardCurrency
-from op_tcg.frontend.components.prices import price_tiles, sealed_product_tiles
+from op_tcg.frontend.components.prices import price_tiles, sealed_product_tiles, create_sealed_product_modal
 from op_tcg.frontend.utils.extract import get_card_id_card_data_lookup, get_card_lookup_by_id_and_aa
 from op_tcg.frontend.components.loading import create_loading_spinner, create_skeleton_cards_indicator
 
@@ -37,6 +37,25 @@ def setup_api_routes(rt):
         params = SealedProductsParams(**get_query_params_as_dict(request))
         items = get_sealed_product_prices(params.currency)
         return sealed_product_tiles(items, params.currency)
+
+    @rt("/api/sealed-product-modal")
+    def sealed_product_modal(request: Request):
+        product_id = request.query_params.get("product_id")
+        currency_str = request.query_params.get("currency", "eur")
+        try:
+            currency = CardCurrency(currency_str)
+        except ValueError:
+            currency = CardCurrency.EURO
+
+        if not product_id:
+            return ft.Div()
+
+        items = get_sealed_product_prices(currency)
+        item = next((i for i in items if i.get('id') == product_id), None)
+        if not item:
+            return ft.Div()
+
+        return create_sealed_product_modal(item, currency)
 
     @rt("/api/price-overview")
     def price_overview(request: Request):

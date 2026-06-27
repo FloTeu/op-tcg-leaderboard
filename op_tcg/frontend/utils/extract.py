@@ -561,6 +561,40 @@ def get_watchlist_aggregate_price_data(card_versions: list[tuple[str, int, int]]
     return result
 
 
+def get_sealed_product_price_history(product_id: str, currency: CardCurrency, days: int = 90) -> dict[str, list[dict]]:
+    """Returns FROM and TREND price history for a single sealed product."""
+    from op_tcg.backend.models.sealed import SealedProductPrice
+    price_tbl = get_bq_table_id(SealedProductPrice).replace(":", ".")
+
+    query = f"""
+    WITH daily AS (
+        SELECT
+            price_type,
+            DATE(create_timestamp) AS price_date,
+            AVG(price) AS avg_price
+        FROM `{price_tbl}`
+        WHERE product_id = '{product_id}'
+          AND currency = '{currency}'
+          AND create_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)
+        GROUP BY price_type, price_date
+    )
+    SELECT price_type, price_date, avg_price AS price
+    FROM daily
+    ORDER BY price_type, price_date ASC
+    """
+
+    rows = run_bq_query(query, ttl_hours=None)
+    result: dict[str, list[dict]] = {'from': [], 'trend': []}
+    for row in rows:
+        pt = row['price_type']
+        date_val = row['price_date']
+        date_str = date_val.isoformat() if hasattr(date_val, 'isoformat') else str(date_val)
+        price = float(row['price']) if row['price'] is not None else None
+        if pt in result:
+            result[pt].append({'date': date_str, 'price': price})
+    return result
+
+
 def get_sealed_product_prices(currency: CardCurrency) -> list[dict]:
     from op_tcg.backend.models.sealed import SealedProduct, SealedProductPrice
     product_tbl = get_bq_table_id(SealedProduct).replace(":", ".")

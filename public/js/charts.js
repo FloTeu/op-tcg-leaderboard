@@ -1223,6 +1223,137 @@ class ChartManager {
         }
     }
 
+    createSealedPriceChart(config) {
+        const {
+            containerId,
+            data,
+            symbol = '€',
+            showXAxis = true,
+            showLegend = true,
+        } = config;
+
+        const SMOOTH_THRESHOLD = 40;
+        const displayData = data.length > SMOOTH_THRESHOLD
+            ? this._lttbDownsample(data, SMOOTH_THRESHOLD, p => p.from_price ?? p.trend_price ?? 0)
+            : data;
+
+        this.destroyChart(containerId);
+
+        const canvas = document.getElementById(containerId);
+        if (!canvas) return null;
+
+        try {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const containerEl = canvas.parentElement;
+            if (containerEl) {
+                canvas.width = containerEl.clientWidth;
+                canvas.height = containerEl.clientHeight;
+            }
+
+            const datasets = [];
+
+            const fromData = displayData.map(d => d.from_price);
+            if (fromData.some(p => p !== null && p !== undefined)) {
+                datasets.push({
+                    label: 'FROM (lowest listing)',
+                    data: fromData,
+                    borderColor: '#10B981',
+                    backgroundColor: 'rgba(16,185,129,0.08)',
+                    tension: 0.3,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    borderWidth: 2,
+                    spanGaps: true,
+                    segment: { borderDash: ctx => !ctx.p0.raw || !ctx.p1.raw ? [6,6] : undefined },
+                    pointStyle: 'circle',
+                    pointBackgroundColor: fromData.map(p => p === null ? 'transparent' : '#10B981'),
+                    pointBorderColor: fromData.map(() => '#10B981'),
+                });
+            }
+
+            const trendData = displayData.map(d => d.trend_price);
+            if (trendData.some(p => p !== null && p !== undefined)) {
+                datasets.push({
+                    label: 'TREND (30d avg)',
+                    data: trendData,
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245,158,11,0.08)',
+                    tension: 0.3,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    borderWidth: 2,
+                    spanGaps: true,
+                    segment: { borderDash: ctx => !ctx.p0.raw || !ctx.p1.raw ? [6,6] : undefined },
+                    pointStyle: 'circle',
+                    pointBackgroundColor: trendData.map(p => p === null ? 'transparent' : '#f59e0b'),
+                    pointBorderColor: trendData.map(() => '#f59e0b'),
+                });
+            }
+
+            const chart = new Chart(canvas, {
+                type: 'line',
+                data: { labels: displayData.map(d => d.date), datasets },
+                plugins: [],
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 300 },
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: {
+                        legend: {
+                            display: showLegend,
+                            position: 'top',
+                            labels: { color: '#E5E7EB', font: { size: 12 }, usePointStyle: true, pointStyle: 'circle', padding: 20, boxWidth: 10, boxHeight: 10 }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(17,24,39,0.95)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            borderColor: '#374151',
+                            borderWidth: 1,
+                            padding: 12,
+                            displayColors: true,
+                            callbacks: {
+                                title: ctx => 'Date: ' + ctx[0].label,
+                                label: ctx => {
+                                    const v = ctx.parsed.y;
+                                    if (v === null || v === undefined) return ctx.dataset.label + ': No data';
+                                    return ctx.dataset.label + ': ' + symbol + v.toFixed(2);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: showXAxis,
+                            offset: false,
+                            grid: { display: showXAxis, color: 'rgba(75,85,99,0.3)' },
+                            ticks: { display: showXAxis, color: '#9CA3AF', font: { size: 11 }, maxRotation: 45, minRotation: 0, padding: 8, maxTicksLimit: 8 }
+                        },
+                        y: {
+                            display: true,
+                            grid: { display: true, color: 'rgba(75,85,99,0.2)' },
+                            ticks: {
+                                color: '#9CA3AF', font: { size: 11 }, padding: 4, maxTicksLimit: 5,
+                                callback: v => v >= 100 ? v.toFixed(0) : v.toFixed(2)
+                            },
+                            afterFit: scale => { scale.width = Math.max(scale.width, 48); },
+                            beginAtZero: false
+                        }
+                    },
+                    layout: { padding: { top: 4, right: 4, bottom: 4, left: 0 } }
+                }
+            });
+
+            this.charts.set(containerId, chart);
+            return chart;
+        } catch (e) {
+            console.error('Error creating sealed price chart:', e);
+            return null;
+        }
+    }
+
     createCardOccurrenceChart(config) {
         const {
             containerId,
