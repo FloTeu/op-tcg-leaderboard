@@ -1,11 +1,13 @@
+import json
 from fasthtml import ft
 from op_tcg.backend.models.cards import CardCurrency, OPTcgCardRarity
+from op_tcg.backend.models.sealed import SealedProductOrderBy
 from op_tcg.frontend.components.loading import create_loading_spinner
 from op_tcg.frontend.components.layout import create_mobile_filter_button
 import time
 from datetime import datetime, timedelta
 
-HX_INCLUDE = "[name='currency'],[name='start_date'],[name='end_date'],[name='min_latest_price'],[name='max_latest_price'],[name='order_by'],[name='include_alt_art'],[name='change_metric'],[name='query'],[name='rarity']"
+HX_INCLUDE = "[name='currency'],[name='start_date'],[name='end_date'],[name='min_latest_price'],[name='max_latest_price'],[name='order_by'],[name='include_alt_art'],[name='change_metric'],[name='query'],[name='rarity'],[name='price_tab']"
 
 _LABEL_STYLE = "font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:0.65rem; color:#475569; text-transform:uppercase; display:block; margin-bottom:6px;"
 
@@ -115,12 +117,14 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
                     type="checkbox",
                     name="include_alt_art",
                     checked=False,
+                    data_pr_filter="true",
                     **{**_hx, "hx_include": HX_INCLUDE + ",[name='include_alt_art']"},
                 ),
                 ft.Span("Show alternate art versions",
                         style="font-family:'Barlow',sans-serif; font-size:0.8rem; color:#94a3b8;"),
                 cls="pr-checkbox-wrapper",
             ),
+            id="filter-section-alt-art",
             cls="mb-4",
         ),
         # Order By
@@ -135,6 +139,7 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
                 id="price-order-by-select",
                 name="order_by",
                 cls="meta-select styled-select",
+                data_pr_filter="true",
                 **_hx,
             ),
             cls="mb-4",
@@ -148,8 +153,10 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
                 id="price-change-metric-select",
                 name="change_metric",
                 cls="meta-select styled-select",
+                data_pr_filter="true",
                 **{**_hx, "hx_include": HX_INCLUDE + ",[name='change_metric']"},
             ),
+            id="filter-section-change-metric",
             cls="mb-4",
         ),
         # Card Rarity
@@ -161,8 +168,10 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
                 id="price-rarity-select",
                 name="rarity",
                 cls="meta-select styled-select",
+                data_pr_filter="true",
                 **_hx,
             ),
+            id="filter-section-rarity",
             cls="mb-4",
         ),
         # Currency
@@ -174,6 +183,7 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
                 id="price-currency-select",
                 name="currency",
                 cls="meta-select styled-select",
+                data_pr_filter="true",
                 **_hx,
             ),
             cls="mb-4",
@@ -186,11 +196,11 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
                     ft.Div(cls="slider-track"),
                     ft.Input(
                         type="range", min=str(one_year_ago), max=str(now), value=str(start_date),
-                        name="start_date", cls="slider-range min-range", **_hx,
+                        name="start_date", cls="slider-range min-range", data_pr_filter="true", **_hx,
                     ),
                     ft.Input(
                         type="range", min=str(one_year_ago), max=str(now), value=str(end_date),
-                        name="end_date", cls="slider-range max-range", **_hx,
+                        name="end_date", cls="slider-range max-range", data_pr_filter="true", **_hx,
                     ),
                     ft.Div(
                         ft.Span(cls="min-value",
@@ -207,6 +217,7 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
                 ),
                 cls="relative w-full",
             ),
+            id="filter-section-date-range",
             cls="mb-4",
         ),
         # Price Range
@@ -216,18 +227,18 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
                 ft.Div(
                     ft.Div(cls="slider-track"),
                     ft.Input(
-                        type="range", min="0", max="500", value="0",
-                        name="min_latest_price", cls="slider-range min-range", **_hx,
+                        type="range", min="0", max="1000", value="0",
+                        name="min_latest_price", cls="slider-range min-range", data_pr_filter="true", **_hx,
                     ),
                     ft.Input(
-                        type="range", min="0", max="500", value="500",
-                        name="max_latest_price", cls="slider-range max-range", **_hx,
+                        type="range", min="0", max="1000", value="1000",
+                        name="max_latest_price", cls="slider-range max-range", data_pr_filter="true", **_hx,
                     ),
                     ft.Div(
                         ft.Span("0", cls="min-value",
                                 style="font-family:'Share Tech Mono',monospace; font-size:0.75rem; color:#94a3b8;"),
                         ft.Span(" — ", style="color:#475569; margin:0 4px;"),
-                        ft.Span("500", cls="max-value",
+                        ft.Span("1000", cls="max-value",
                                 style="font-family:'Share Tech Mono',monospace; font-size:0.75rem; color:#94a3b8;"),
                         cls="slider-values",
                     ),
@@ -253,49 +264,124 @@ def _tab_switcher() -> ft.Div:
             hx_target="#price-overview",
             hx_swap="innerHTML",
             hx_include=HX_INCLUDE,
+            hx_vals='{"price_tab":"cards"}',
             hx_indicator="#price-loading-indicator",
-            onclick="setPriceTab('cards')",
         ),
         ft.Button(
             "Sealed Products",
             id="tab-sealed",
             cls="price-tab",
-            hx_get="/api/sealed-products",
+            hx_get="/api/price-overview",
             hx_target="#price-overview",
             hx_swap="innerHTML",
-            hx_include="[name='currency']",
+            hx_include=HX_INCLUDE,
+            hx_vals='{"price_tab":"sealed"}',
             hx_indicator="#price-loading-indicator",
-            onclick="setPriceTab('sealed')",
         ),
-        ft.Script("""
-function setPriceTab(tab) {
-  document.querySelectorAll('.price-tab').forEach(function(el) { el.classList.remove('price-tab-active'); });
-  document.getElementById('tab-' + tab).classList.add('price-tab-active');
-
-  var search = document.getElementById('price-search-input');
-  var label  = document.getElementById('price-search-label');
-  if (!search) return;
-  if (tab === 'sealed') {
-    search.setAttribute('hx-get', '/api/sealed-products');
-    search.setAttribute('hx-include', "[name='currency'],[name='query']");
-    search.setAttribute('placeholder', 'Search sealed products…');
-    if (label) label.textContent = 'Search Sealed Products';
-  } else {
-    search.setAttribute('hx-get', '/api/price-overview');
-    search.setAttribute('hx-include', """ + f'"{HX_INCLUDE}"' + """);
-    search.setAttribute('placeholder', 'Search by name, meta format, ID…');
-    if (label) label.textContent = 'Search Cards';
-  }
-  htmx.process(search);
-}
-"""),
         cls="flex gap-2 mb-4",
     )
+
+
+_CARD_ORDER_OPTIONS = [
+    ("rising", "Top Rising"),
+    ("fallers", "Top Fallers"),
+    ("expensive", "Most Expensive"),
+    ("diff_eur_high", "Higher in EUR (vs USD)"),
+    ("diff_usd_high", "Higher in USD (vs EUR)"),
+]
+_SEALED_ORDER_OPTIONS = [(o.value, o.label) for o in SealedProductOrderBy]
+
+
+def _price_tab_script() -> ft.Script:
+    card_opts_json = json.dumps(_CARD_ORDER_OPTIONS)
+    sealed_opts_json = json.dumps(_SEALED_ORDER_OPTIONS)
+    return ft.Script(f"""
+(function() {{
+  var CARD_OPTS = {card_opts_json};
+  var SEALED_OPTS = {sealed_opts_json};
+  var SEALED_ONLY_SECTIONS = ['filter-section-alt-art','filter-section-change-metric','filter-section-rarity','filter-section-date-range'];
+
+  function rebuildOrderBy(opts) {{
+    var sel = document.getElementById('price-order-by-select');
+    if (!sel) return;
+    var cur = sel.value;
+
+    sel.innerHTML = '';
+    var matched = false;
+    opts.forEach(function(o) {{
+      var opt = document.createElement('option');
+      opt.value = o[0]; opt.textContent = o[1];
+      if (o[0] === cur) {{ opt.selected = true; matched = true; }}
+      sel.appendChild(opt);
+    }});
+    if (!matched && sel.options.length > 0) sel.options[0].selected = true;
+
+    // Also rebuild the custom styled-select wrapper's visible UI
+    var container = sel.closest('.multi-select-container');
+    if (!container) return;
+    var dropdown = container.querySelector('.multi-select-dropdown');
+    var display  = container.querySelector('.multi-select');
+    if (dropdown) {{
+      dropdown.innerHTML = '';
+      opts.forEach(function(o) {{
+        var div = document.createElement('div');
+        div.className = 'dropdown-option';
+        div.textContent = o[1];
+        div.dataset.value = o[0];
+        if (o[0] === sel.value) div.classList.add('selected');
+        dropdown.appendChild(div);
+      }});
+    }}
+    if (display) {{
+      var selOpt = Array.from(sel.options).find(function(o) {{ return o.selected; }});
+      display.textContent = selOpt ? selOpt.text : 'Select an option...';
+    }}
+  }}
+
+  window.applyPriceTab = function(tab) {{
+    var sealed = tab === 'sealed';
+
+    document.querySelectorAll('.price-tab').forEach(function(el) {{ el.classList.remove('price-tab-active'); }});
+    var btn = document.getElementById('tab-' + tab);
+    if (btn) btn.classList.add('price-tab-active');
+
+    var tabInput = document.getElementById('active-price-tab');
+    if (tabInput) tabInput.value = tab;
+
+    var label  = document.getElementById('price-search-label');
+    var search = document.getElementById('price-search-input');
+    if (label)  label.textContent = sealed ? 'Search Sealed Products' : 'Search Cards';
+    if (search) search.setAttribute('placeholder', sealed ? 'Search sealed products...' : 'Search by name, meta format, ID...');
+
+    SEALED_ONLY_SECTIONS.forEach(function(id) {{
+      var el = document.getElementById(id);
+      if (el) el.style.display = sealed ? 'none' : '';
+    }});
+
+    rebuildOrderBy(sealed ? SEALED_OPTS : CARD_OPTS);
+  }};
+
+  // Re-apply tab state after every HTMX swap targeting #price-overview
+  document.body.addEventListener('htmx:afterSettle', function(evt) {{
+    var cfg = evt.detail && evt.detail.requestConfig;
+    if (!cfg || (cfg.path || '').indexOf('/api/price-overview') !== 0) return;
+    var params = cfg.parameters || {{}};
+    var tab = params.price_tab;
+    if (Array.isArray(tab)) tab = tab[0];
+    if (!tab) {{
+      var input = document.getElementById('active-price-tab');
+      tab = (input && input.value) || 'cards';
+    }}
+    window.applyPriceTab(tab);
+  }});
+}})();
+""")
 
 
 def prices_page():
     return ft.Div(
         _styles(),
+        _price_tab_script(),
         ft.Div(
             ft.Div(
                 ft.H1("CARD PRICES",
@@ -308,6 +394,7 @@ def prices_page():
                 style="padding-bottom:16px; border-bottom:1px solid #111d30;",
             ),
             create_mobile_filter_button(),
+            ft.Input(type="hidden", id="active-price-tab", name="price_tab", value="cards"),
             ft.Div(id="prices-header-container"),
             _tab_switcher(),
             ft.Div(

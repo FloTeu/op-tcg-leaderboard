@@ -48,6 +48,25 @@ class SealedPriceType(StrEnum):
     FROM = "from"     # lowest available listing price
 
 
+class SealedProductOrderBy(StrEnum):
+    """Sort order options for sealed product listings."""
+    PRICE_DESC = "price_desc"
+    PRICE_ASC = "price_asc"
+    NAME_ASC = "name_asc"
+    NAME_DESC = "name_desc"
+    RELEASE_DESC = "release_desc"
+
+    @property
+    def label(self) -> str:
+        return {
+            SealedProductOrderBy.PRICE_DESC: "Price: High to Low",
+            SealedProductOrderBy.PRICE_ASC: "Price: Low to High",
+            SealedProductOrderBy.NAME_ASC: "Name: A to Z",
+            SealedProductOrderBy.NAME_DESC: "Name: Z to A",
+            SealedProductOrderBy.RELEASE_DESC: "Newest First",
+        }[self]
+
+
 class SealedProductPrice(BQTableBaseModel):
     """Append-only time-series of sealed product prices. One row per product/price-type per crawl."""
     _dataset_id: str = BQDataset.CARDS

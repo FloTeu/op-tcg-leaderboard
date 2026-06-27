@@ -11,8 +11,9 @@ from op_tcg.frontend.utils.extract import (
 )
 from op_tcg.backend.db import get_sealed_watchlist
 from op_tcg.backend.models.cards import CardCurrency
+from op_tcg.backend.models.sealed import SealedProductOrderBy
 from op_tcg.frontend.components.prices import price_tiles, sealed_product_tiles, create_sealed_product_modal
-from op_tcg.frontend.utils.extract import get_card_id_card_data_lookup, get_card_lookup_by_id_and_aa
+from op_tcg.frontend.utils.extract import get_card_lookup_by_id_and_aa
 from op_tcg.frontend.components.loading import create_loading_spinner, create_skeleton_cards_indicator
 
 
@@ -31,16 +32,40 @@ def _header(currency: CardCurrency, start_date: int, end_date: int) -> ft.Div:
     )
 
 
-def setup_api_routes(rt):
+_PRICE = lambda i: i.get('from_price') or 0.0
+_NAME  = lambda i: (i.get('name') or '').lower()
+_DATE  = lambda i: str(i.get('release_date') or '')
 
-    @rt("/api/sealed-products")
-    def sealed_products_overview(request: Request):
-        params = SealedProductsParams(**get_query_params_as_dict(request))
-        query = request.query_params.get("query", "").strip().lower()
-        items = get_sealed_product_prices(params.currency)
-        if query:
-            items = [i for i in items if query in (i.get('name') or '').lower()]
-        return sealed_product_tiles(items, params.currency)
+_SEALED_SORT_CFG = {
+    SealedProductOrderBy.PRICE_DESC:   (_PRICE, True),
+    SealedProductOrderBy.PRICE_ASC:    (_PRICE, False),
+    SealedProductOrderBy.NAME_ASC:     (_NAME,  False),
+    SealedProductOrderBy.NAME_DESC:    (_NAME,  True),
+    SealedProductOrderBy.RELEASE_DESC: (_DATE,  True),
+}
+
+
+def _sealed_products_response(request: Request):
+    """Apply search/filter/sort to sealed products and return rendered tiles."""
+    params = SealedProductsParams(**get_query_params_as_dict(request))
+    query = request.query_params.get("query", "").strip().lower()
+    items = get_sealed_product_prices(params.currency)
+
+    if query:
+        items = [i for i in items if query in (i.get('name') or '').lower()]
+    if params.min_latest_price > 0:
+        items = [i for i in items if (i.get('from_price') or 0) >= params.min_latest_price]
+    if params.max_latest_price < 10000:
+        items = [i for i in items if (i.get('from_price') or 0) <= params.max_latest_price]
+
+    sort_cfg = _SEALED_SORT_CFG.get(params.order_by)
+    if sort_cfg:
+        items = sorted(items, key=sort_cfg[0], reverse=sort_cfg[1])
+
+    return sealed_product_tiles(items, params.currency)
+
+
+def setup_api_routes(rt):
 
     @rt("/api/sealed-product-modal")
     def sealed_product_modal(request: Request):
@@ -74,6 +99,10 @@ def setup_api_routes(rt):
 
     @rt("/api/price-overview")
     def price_overview(request: Request):
+        if request.query_params.get("price_tab") == "sealed":
+            return _sealed_products_response(request)
+
+        # ── Cards branch ──────────────────────────────────────────────────────
         params = PriceOverviewParams(**get_query_params_as_dict(request))
 
         # Default dates if not provided
