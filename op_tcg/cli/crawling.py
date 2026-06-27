@@ -245,8 +245,15 @@ def crawl_decklists(
     type=click.Choice([t.value for t in SealedProductType], case_sensitive=False),
     help="Product types to crawl. Repeatable. Defaults to all types.",
 )
+@click.option(
+    "--upload-images",
+    is_flag=True,
+    default=False,
+    help="Download product images via the browser session and upload to GCS. "
+         "Only re-uploads when the source image URL has changed.",
+)
 @async_cmd
-async def crawl_sealed_products(product_types: tuple[str, ...]) -> None:
+async def crawl_sealed_products(product_types: tuple[str, ...], upload_images: bool) -> None:
     """
     Crawl Cardmarket for One Piece sealed product prices and store them in BigQuery.
 
@@ -255,6 +262,7 @@ async def crawl_sealed_products(product_types: tuple[str, ...]) -> None:
 
         optcg crawl cardmarket sealed-products
         optcg crawl cardmarket sealed-products -p booster_box -p starter_deck
+        optcg crawl cardmarket sealed-products --upload-images
     """
     from op_tcg.backend.crawling.pipelines import SealedProductPipeline
     from op_tcg.backend.crawling.spiders.cardmarket_sealed import crawl_cardmarket_sealed
@@ -270,7 +278,7 @@ async def crawl_sealed_products(product_types: tuple[str, ...]) -> None:
     price_table = get_or_create_table(SealedProductPrice, client=bq_client)
     pipeline = SealedProductPipeline(bq_client, product_table, price_table)
 
-    results = await crawl_cardmarket_sealed(product_types=selected_types)
+    results = await crawl_cardmarket_sealed(product_types=selected_types, upload_images=upload_images)
 
     products = [product for product, _ in results]
     prices = [price for _, price_list in results for price in price_list]

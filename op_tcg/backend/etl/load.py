@@ -257,9 +257,12 @@ def bq_upsert_rows(rows: list[SQLTableBaseModel], client: bigquery.Client | None
         if update_columns:
             update_expressions = []
             for col in update_columns:
-                # Special handling for image_url column to avoid overwriting updated URLs
+                # Special handling for image_url: keep GCS URLs, never downgrade to marketplace URL
                 if col == 'image_url':
                     update_expressions.append(f"target.`{col}` = IF(STARTS_WITH(target.`{col}`, 'https://storage.googleapis.com'), target.`{col}`, source.`{col}`)")
+                # Preserve gcs_image_url once set — the crawler writes it; never overwrite with NULL on plain upserts
+                elif col == 'gcs_image_url':
+                    update_expressions.append(f"target.`{col}` = COALESCE(target.`{col}`, source.`{col}`)")
                 else:
                     update_expressions.append(f"target.`{col}` = source.`{col}`")
             update_clause = ', '.join(update_expressions)

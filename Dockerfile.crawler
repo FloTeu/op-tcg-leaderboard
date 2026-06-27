@@ -44,4 +44,4 @@ RUN pip install --no-deps -e .
 
 # Run the sealed products crawler — all product types by default.
 # Override via Cloud Run Job args or --product-types flags if needed.
-ENTRYPOINT ["optcg", "crawl", "cardmarket", "sealed-products"]
+ENTRYPOINT ["optcg", "crawl", "cardmarket", "sealed-products", "--upload-images"]

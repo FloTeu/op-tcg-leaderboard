@@ -27,9 +27,13 @@ PRODUCT_TYPE_URLS: dict[SealedProductType, str] = {
         f"{CARDMARKET_BASE}/en/OnePiece/Products/Booster-Boxes"
         f"?mode=gallery&searchMode=v1&idCategory=1624&idExpansion=0&sortBy=date_desc&perSite={ITEMS_PER_SITE}"
     ),
-    SealedProductType.SEALED: (
+    SealedProductType.PROMO: (
         f"{CARDMARKET_BASE}/en/OnePiece/Products/Promo-Products"
         f"?searchMode=v1&idCategory=1628&idExpansion=0&sortBy=date_desc&perSite={ITEMS_PER_SITE}"
+    ),
+    SealedProductType.PRECONSTRUCTED_DECK: (
+        f"{CARDMARKET_BASE}/en/OnePiece/Products/Preconstructed-Decks"
+        f"?searchMode=v1&sortBy=date_desc"
     ),
 }
 
@@ -149,7 +153,7 @@ def parse_gallery_page(html: str, product_type: SealedProductType) -> list[tuple
     product_links: list[Tag] = soup.select(
         "a[href*='/Products/Booster-Box'], "
         "a[href*='/Products/Booster-Case'], "
-        "a[href*='/Products/Starter-Deck'], "
+        "a[href*='/Products/Preconstructed-Decks'], "
         "a[href*='/Products/Promo-Products']"
     )
 
@@ -195,6 +199,9 @@ def parse_gallery_page(html: str, product_type: SealedProductType) -> list[tuple
 
         if trend_price is None and from_price is None:
             logger.debug("No prices found for %s", product_id)
+
+        if product_type == SealedProductType.BOOSTER_BOX and "case" in name.lower():
+            product_type = SealedProductType.BOOSTER_CASE
 
         product = SealedProduct(
             id=product_id,
