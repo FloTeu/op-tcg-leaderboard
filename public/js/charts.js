@@ -926,11 +926,9 @@ class ChartManager {
 
     // Largest-Triangle-Three-Buckets downsampling — preserves visual shape while
     // reducing point count to `threshold` when a series has too many data points.
-    _lttbDownsample(data, threshold) {
+    _lttbDownsample(data, threshold, getY = p => p.eur_price ?? p.usd_price ?? 0) {
         const n = data.length;
         if (n <= threshold) return data;
-
-        const getY = p => p.eur_price ?? p.usd_price ?? 0;
 
         const sampled = [data[0]];
         const bucketSize = (n - 2) / (threshold - 2);

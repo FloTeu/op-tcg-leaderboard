@@ -19,6 +19,7 @@ from op_tcg.frontend.api.models import CardPopularityParams
 from op_tcg.frontend.utils.api import get_query_params_as_dict
 from op_tcg.backend.models.cards import OPTcgCardCatagory
 from op_tcg.frontend.utils.charts import create_price_development_chart
+from op_tcg.frontend.components.loading import create_loading_spinner
 from op_tcg.frontend.utils.decklist import DecklistViewMode, decklist_to_export_str, ensure_leader_id
 from op_tcg.frontend.components.decklist_modal import display_decklist_modal
 
@@ -270,7 +271,51 @@ def setup_watchlist_routes(rt):
                         data_product_id=product_id,
                         data_marketplace=marketplace,
                     ),
-                    cls="flex items-center gap-3 px-3 pb-3"
+                    cls="flex items-center gap-3 px-3 py-2",
+                    style="border-bottom:1px solid #1a2540;"
+                ),
+                # Price chart
+                ft.Div(
+                    ft.Div(
+                        ft.Span("PRICE TREND",
+                                style="font-family:'Bebas Neue',sans-serif;letter-spacing:.1em;font-size:.6rem;color:#475569;"),
+                        ft.Select(
+                            ft.Option("30 Days", value="30"),
+                            ft.Option("90 Days", value="90", selected=True),
+                            ft.Option("180 Days", value="180"),
+                            ft.Option("1 Year", value="365"),
+                            name="days",
+                            cls="wl-select",
+                            hx_get="/api/sealed-product-price-chart",
+                            hx_target=f"#sealed-chart-{product_id}",
+                            hx_indicator=f"#sealed-chart-{product_id}-loading",
+                            hx_vals=f'{{"product_id":"{product_id}","currency":"{currency_str}"}}',
+                            hx_on__before_request=f"document.getElementById('sealed-chart-{product_id}').innerHTML=''; document.getElementById('sealed-chart-{product_id}-loading').classList.remove('hidden');",
+                        ),
+                        cls="flex items-center justify-between mb-3"
+                    ),
+                    ft.Div(
+                        ft.Div(
+                            id=f"sealed-chart-{product_id}",
+                            hx_get=f"/api/sealed-product-price-chart?product_id={product_id}&currency={currency_str}&days=90",
+                            hx_trigger="revealed",
+                            hx_indicator=f"#sealed-chart-{product_id}-loading",
+                            cls="w-full h-48 sm:h-56"
+                        ),
+                        create_loading_spinner(
+                            id=f"sealed-chart-{product_id}-loading", size="w-8 h-8",
+                            container_classes="absolute inset-0 flex items-center justify-center pointer-events-none hidden"
+                        ),
+                        cls="relative w-full"
+                    ),
+                    ft.A(
+                        f"View on {marketplace.capitalize()} →",
+                        href=url, target="_blank", rel="noopener",
+                        style="display:block;text-align:center;margin-top:10px;padding:8px 16px;background:rgba(16,185,129,.08);color:#10b981;font-family:'Barlow',sans-serif;font-size:.72rem;font-weight:500;border-radius:6px;text-decoration:none;transition:background .12s;",
+                        onmouseover="this.style.background='rgba(16,185,129,.18)'",
+                        onmouseout="this.style.background='rgba(16,185,129,.08)'",
+                    ),
+                    cls="px-3 py-3"
                 ),
                 cls="sealed-wl-item wl-item",
             ))
