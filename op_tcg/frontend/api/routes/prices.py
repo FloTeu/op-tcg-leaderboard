@@ -36,7 +36,10 @@ def setup_api_routes(rt):
     @rt("/api/sealed-products")
     def sealed_products_overview(request: Request):
         params = SealedProductsParams(**get_query_params_as_dict(request))
+        query = request.query_params.get("query", "").strip().lower()
         items = get_sealed_product_prices(params.currency)
+        if query:
+            items = [i for i in items if query in (i.get('name') or '').lower()]
         return sealed_product_tiles(items, params.currency)
 
     @rt("/api/sealed-product-modal")

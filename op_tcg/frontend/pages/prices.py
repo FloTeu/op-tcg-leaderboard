@@ -271,6 +271,22 @@ def _tab_switcher() -> ft.Div:
 function setPriceTab(tab) {
   document.querySelectorAll('.price-tab').forEach(function(el) { el.classList.remove('price-tab-active'); });
   document.getElementById('tab-' + tab).classList.add('price-tab-active');
+
+  var search = document.getElementById('price-search-input');
+  var label  = document.getElementById('price-search-label');
+  if (!search) return;
+  if (tab === 'sealed') {
+    search.setAttribute('hx-get', '/api/sealed-products');
+    search.setAttribute('hx-include', "[name='currency'],[name='query']");
+    search.setAttribute('placeholder', 'Search sealed products…');
+    if (label) label.textContent = 'Search Sealed Products';
+  } else {
+    search.setAttribute('hx-get', '/api/price-overview');
+    search.setAttribute('hx-include', """ + f'"{HX_INCLUDE}"' + """);
+    search.setAttribute('placeholder', 'Search by name, meta format, ID…');
+    if (label) label.textContent = 'Search Cards';
+  }
+  htmx.process(search);
 }
 """),
         cls="flex gap-2 mb-4",
@@ -295,9 +311,10 @@ def prices_page():
             ft.Div(id="prices-header-container"),
             _tab_switcher(),
             ft.Div(
-                ft.Span("Search Cards", style=_LABEL_STYLE),
+                ft.Span("Search Cards", id="price-search-label", style=_LABEL_STYLE),
                 ft.Input(
                     type="search",
+                    id="price-search-input",
                     name="query",
                     placeholder="Search by name, meta format, ID…",
                     cls="meta-select",
