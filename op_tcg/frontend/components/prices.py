@@ -99,7 +99,7 @@ def price_tiles(items: List[dict], currency: CardCurrency, card_id2card_data: Di
     )
 
 
-def create_sealed_product_modal(item: dict, currency: CardCurrency) -> ft.Div:
+def create_sealed_product_modal(item: dict, currency: CardCurrency, is_in_watchlist: bool = False, is_logged_in: bool = False) -> ft.Div:
     """Full-screen modal for a sealed product with price chart."""
     symbol = "€" if currency == CardCurrency.EURO else "$"
     name = item.get('name', '')
@@ -120,6 +120,7 @@ def create_sealed_product_modal(item: dict, currency: CardCurrency) -> ft.Div:
     currency_val = currency.value
 
     modal_id = f"sealed-modal-{product_id}"
+    wl_btn_id = f"sealed-wl-btn-{product_id}"
 
     _label = "font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:0.65rem; color:#475569; text-transform:uppercase;"
     _value = "font-family:'Share Tech Mono',monospace; font-size:0.8rem; color:#f1f5f9;"
@@ -131,16 +132,63 @@ def create_sealed_product_modal(item: dict, currency: CardCurrency) -> ft.Div:
     chart_container_id = f"sealed-price-chart-container-{product_id}"
     chart_loading_id = f"sealed-price-chart-loading-{product_id}"
 
+    wl_active_cls = "text-red-500"
+    wl_inactive_cls = "text-gray-400 hover:text-red-400"
+    wl_btn_cls = f"inline-flex items-center justify-center w-9 h-9 rounded-full z-30 transition absolute top-4 right-16 {'%s' % wl_active_cls if is_in_watchlist else wl_inactive_cls}"
+    wl_title = "Remove from Watchlist" if is_in_watchlist else "Add to Watchlist"
+    heart_fill = "currentColor" if is_in_watchlist else "none"
+
+    heart_svg = f'<svg viewBox="0 0 24 24" width="22" height="22" fill="{heart_fill}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>'
+
+    wl_script = ft.Script(f"""
+        (function() {{
+            window._toggleSealedWatchlist = function(btn) {{
+                if (btn.dataset.loggedIn === 'false') {{
+                    window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+                    return;
+                }}
+                const inWl = btn.dataset.inWatchlist === 'true';
+                const endpoint = inWl ? '/api/sealed-watchlist/remove' : '/api/sealed-watchlist/add';
+                const newState = !inWl;
+                btn.dataset.inWatchlist = newState ? 'true' : 'false';
+                btn.title = newState ? 'Remove from Watchlist' : 'Add to Watchlist';
+                const svg = btn.querySelector('svg');
+                if (svg) svg.setAttribute('fill', newState ? 'currentColor' : 'none');
+                btn.className = btn.className.replace(inWl ? 'text-red-500' : 'text-gray-400 hover:text-red-400', newState ? 'text-red-500' : 'text-gray-400 hover:text-red-400');
+                fetch(endpoint, {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{product_id: btn.dataset.productId, marketplace: btn.dataset.marketplace}})
+                }});
+            }};
+        }})();
+    """)
+
     return ft.Div(
+        wl_script,
         ft.Div(
-            # Close button
+            # Close button — matches card modal style
             ft.Button(
-                "✕",
+                ft.Span("×", style="font-size:1.2rem; line-height:1;"),
                 type="button",
-                style="position:absolute; top:12px; right:16px; background:none; border:none; color:#475569; font-size:1.2rem; cursor:pointer; z-index:1; transition:color 0.12s;",
-                onmouseover="this.style.color='#f1f5f9'",
-                onmouseout="this.style.color='#475569'",
-                onclick=f"document.getElementById('{modal_id}').remove();",
+                cls="absolute top-4 right-4 inline-flex items-center justify-center w-9 h-9 rounded-full z-30 transition",
+                style="background:rgba(8,14,28,0.9); border:1px solid #1a2540; color:#94a3b8;",
+                onclick=f"event.stopPropagation(); document.getElementById('{modal_id}').remove();",
+            ),
+
+            # Watchlist toggle button
+            ft.Button(
+                ft.Safe(heart_svg),
+                id=wl_btn_id,
+                type="button",
+                cls=wl_btn_cls,
+                style="background:rgba(8,14,28,0.9); border:1px solid #1a2540;",
+                title=wl_title,
+                onclick="event.stopPropagation(); window._toggleSealedWatchlist(this);",
+                data_product_id=product_id,
+                data_marketplace=marketplace,
+                data_in_watchlist="true" if is_in_watchlist else "false",
+                data_logged_in="true" if is_logged_in else "false",
             ),
 
             # Content layout: image left, details right
@@ -176,7 +224,7 @@ def create_sealed_product_modal(item: dict, currency: CardCurrency) -> ft.Div:
                     # Info rows
                     info_row("Language", language),
                     info_row("Marketplace", marketplace.capitalize()),
-                    info_row("Released", release_str),
+                    # info_row("Released", release_str),
 
                     # Prices
                     ft.Div(
@@ -184,11 +232,11 @@ def create_sealed_product_modal(item: dict, currency: CardCurrency) -> ft.Div:
                         ft.Span(from_str, style="font-family:'Share Tech Mono',monospace; font-size:1rem; color:#10b981; font-weight:700;"),
                         style=_row,
                     ),
-                    ft.Div(
-                        ft.Span("TREND (30d)", style=_label),
-                        ft.Span(trend_str, style="font-family:'Share Tech Mono',monospace; font-size:1rem; color:#f59e0b; font-weight:700;"),
-                        style=_row,
-                    ),
+                    # ft.Div(
+                    #     ft.Span("TREND (30d)", style=_label),
+                    #     ft.Span(trend_str, style="font-family:'Share Tech Mono',monospace; font-size:1rem; color:#f59e0b; font-weight:700;"),
+                    #     style=_row,
+                    # ),
 
                     # Marketplace link
                     ft.Div(

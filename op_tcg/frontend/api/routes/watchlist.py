@@ -7,6 +7,7 @@ from op_tcg.backend.db import (
     add_to_watchlist, remove_from_watchlist, update_watchlist_tags, update_watchlist_quantity, get_watchlist,
     add_decklist_to_watchlist, remove_decklist_from_watchlist, update_decklist_watchlist_tags,
     create_custom_decklist, get_custom_decklists, update_custom_decklist, delete_custom_decklist,
+    add_to_sealed_watchlist, remove_from_sealed_watchlist,
     DEFAULT_WATCHLIST_TAG,
 )
 from op_tcg.frontend.utils.extract import (
@@ -159,6 +160,38 @@ def setup_watchlist_routes(rt):
         remove_from_watchlist(user_id, card_id, card_version, language)
 
         return JSONResponse({"status": "success", "message": "Card removed from watchlist"})
+
+    @rt("/api/sealed-watchlist/add", methods=["POST"])
+    async def add_sealed_watchlist(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        try:
+            data = await request.json()
+        except Exception:
+            return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+        product_id = data.get('product_id')
+        marketplace = data.get('marketplace', 'cardmarket')
+        if not product_id:
+            return JSONResponse({"error": "Missing product_id"}, status_code=400)
+        add_to_sealed_watchlist(user.get('sub'), product_id, marketplace)
+        return JSONResponse({"status": "success"})
+
+    @rt("/api/sealed-watchlist/remove", methods=["POST"])
+    async def remove_sealed_watchlist(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        try:
+            data = await request.json()
+        except Exception:
+            return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+        product_id = data.get('product_id')
+        marketplace = data.get('marketplace', 'cardmarket')
+        if not product_id:
+            return JSONResponse({"error": "Missing product_id"}, status_code=400)
+        remove_from_sealed_watchlist(user.get('sub'), product_id, marketplace)
+        return JSONResponse({"status": "success"})
 
     @rt("/api/watchlist/quantity", methods=["POST"])
     async def update_quantity(request: Request):

@@ -9,6 +9,7 @@ from op_tcg.frontend.utils.extract import (
     get_price_change_data,
     get_sealed_product_prices,
 )
+from op_tcg.backend.db import get_sealed_watchlist
 from op_tcg.backend.models.cards import CardCurrency
 from op_tcg.frontend.components.prices import price_tiles, sealed_product_tiles, create_sealed_product_modal
 from op_tcg.frontend.utils.extract import get_card_id_card_data_lookup, get_card_lookup_by_id_and_aa
@@ -55,7 +56,18 @@ def setup_api_routes(rt):
         if not item:
             return ft.Div()
 
-        return create_sealed_product_modal(item, currency)
+        user = request.session.get('user')
+        is_logged_in = bool(user)
+        is_in_watchlist = False
+        if user:
+            sealed_wl = get_sealed_watchlist(user.get('sub'))
+            marketplace = item.get('marketplace', 'cardmarket')
+            is_in_watchlist = any(
+                e.get('product_id') == product_id and e.get('marketplace') == marketplace
+                for e in sealed_wl
+            )
+
+        return create_sealed_product_modal(item, currency, is_in_watchlist=is_in_watchlist, is_logged_in=is_logged_in)
 
     @rt("/api/price-overview")
     def price_overview(request: Request):
