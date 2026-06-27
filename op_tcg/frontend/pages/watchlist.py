@@ -695,8 +695,8 @@ def watchlist_page(request):
     card_lookup = get_card_lookup_by_id_and_aa()
 
     view_mode = request.query_params.get("view", "list")
-    sort_by = request.query_params.get("sort", "name")
-    sort_order = request.query_params.get("order", "asc")
+    sort_by = request.query_params.get("sort", "price")
+    sort_order = request.query_params.get("order", "desc")
     tag_filter = request.query_params.get("tag", "")
 
     all_tags = sorted({tag for item in watchlist for tag in item.get('tags', ['my collection'])})
