@@ -284,11 +284,15 @@ def _extract_image_url(tile: Tag) -> str | None:
 
 
 def _upload_image_to_gcs(image_bytes: bytes, blob_path: str, bucket_name: str, gcs_client) -> str:
-    """Upload raw image bytes to GCS and return the public https URL."""
-    ext = blob_path.rsplit(".", 1)[-1].lower()
+    """Convert image bytes to WebP, upload to GCS, and return the public https URL."""
+    import io
+    from PIL import Image
+    img = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
+    buf = io.BytesIO()
+    img.save(buf, format="WEBP", quality=85, method=6)
     bucket = gcs_client.bucket(bucket_name)
     blob = bucket.blob(blob_path)
-    blob.upload_from_string(image_bytes, content_type=f"image/{ext}")
+    blob.upload_from_string(buf.getvalue(), content_type="image/webp")
     return f"https://storage.googleapis.com/{bucket_name}/{blob_path}"
 
 

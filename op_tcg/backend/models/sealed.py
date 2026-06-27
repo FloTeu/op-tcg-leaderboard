@@ -37,12 +37,10 @@ def sealed_product_gcs_path(product_id: str, image_url: str) -> str:
 
     The URL hash is embedded in the filename so that if the source image_url
     changes the path changes too, enabling change detection without a separate field.
+    Images are always stored as WebP regardless of the source format.
     """
     url_hash = hashlib.md5(image_url.encode()).hexdigest()[:8]
-    ext = image_url.split("?")[0].split(".")[-1].lower()
-    if ext not in ("jpg", "jpeg", "png", "webp", "gif"):
-        ext = "jpg"
-    return f"sealed/images/{product_id}_{url_hash}.{ext}"
+    return f"sealed/images/{product_id}_{url_hash}.webp"
 
 
 class SealedPriceType(StrEnum):
