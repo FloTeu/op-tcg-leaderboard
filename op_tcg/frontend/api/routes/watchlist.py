@@ -7,12 +7,13 @@ from op_tcg.backend.db import (
     add_to_watchlist, remove_from_watchlist, update_watchlist_tags, update_watchlist_quantity, get_watchlist,
     add_decklist_to_watchlist, remove_decklist_from_watchlist, update_decklist_watchlist_tags,
     create_custom_decklist, get_custom_decklists, update_custom_decklist, delete_custom_decklist,
-    add_to_sealed_watchlist, remove_from_sealed_watchlist,
+    add_to_sealed_watchlist, remove_from_sealed_watchlist, update_sealed_watchlist_quantity, get_sealed_watchlist,
     DEFAULT_WATCHLIST_TAG,
 )
 from op_tcg.frontend.utils.extract import (
     get_watchlist_aggregate_price_data, get_card_id_card_data_lookup,
     get_all_tournament_decklist_data, get_card_popularity_data,
+    get_sealed_watchlist_aggregate_price_data, get_sealed_product_prices,
 )
 from op_tcg.frontend.api.models import CardPopularityParams
 from op_tcg.frontend.utils.api import get_query_params_as_dict
@@ -161,6 +162,124 @@ def setup_watchlist_routes(rt):
 
         return JSONResponse({"status": "success", "message": "Card removed from watchlist"})
 
+    @rt("/api/sealed-watchlist/quantity", methods=["POST"])
+    async def update_sealed_quantity(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        try:
+            data = await request.json()
+        except Exception:
+            return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+        product_id = data.get('product_id')
+        marketplace = data.get('marketplace', 'cardmarket')
+        quantity = max(1, int(data.get('quantity', 1)))
+        if not product_id:
+            return JSONResponse({"error": "Missing product_id"}, status_code=400)
+        update_sealed_watchlist_quantity(user.get('sub'), product_id, marketplace, quantity)
+        return JSONResponse({"status": "success"})
+
+    @rt("/api/watchlist/sealed-items", methods=["GET"])
+    def sealed_watchlist_items(request: Request):
+        from op_tcg.backend.models.cards import CardCurrency
+        user = request.session.get('user')
+        if not user:
+            return ft.Div()
+        sealed_wl = get_sealed_watchlist(user.get('sub'))
+        if not sealed_wl:
+            return ft.Div(
+                ft.I(cls="fas fa-box-open text-4xl mb-3", style="color:#1e2d45;"),
+                ft.P("No sealed products in your watchlist.",
+                     style="font-family:'Barlow',sans-serif;font-size:.85rem;color:#475569;"),
+                cls="flex flex-col items-center justify-center py-20 text-center"
+            )
+        currency_str = request.query_params.get('currency', 'eur')
+        try:
+            currency = CardCurrency(currency_str)
+        except ValueError:
+            currency = CardCurrency.EURO
+        all_products = {p['id']: p for p in get_sealed_product_prices(currency) if p.get('id')}
+        from op_tcg.frontend.components.prices import _SEALED_TYPE_CONFIG, SealedProductType
+        symbol = "€" if currency == CardCurrency.EURO else "$"
+
+        items_html = []
+        for entry in sealed_wl:
+            product_id = entry.get('product_id', '')
+            marketplace = entry.get('marketplace', 'cardmarket')
+            quantity = max(1, int(entry.get('quantity', 1)))
+            product = all_products.get(product_id, {})
+            name = product.get('name', product_id)
+            image_url = product.get('gcs_image_url') or product.get('image_url')
+            from_price = product.get('from_price')
+            trend_price = product.get('trend_price')
+            product_type_str = product.get('product_type', 'sealed')
+            try:
+                pt = SealedProductType(product_type_str)
+            except ValueError:
+                pt = SealedProductType.PROMO
+            cfg = _SEALED_TYPE_CONFIG.get(pt, _SEALED_TYPE_CONFIG[SealedProductType.PROMO])
+            from_str = f"{symbol}{from_price:.2f}" if from_price is not None else "—"
+            from_total = f"{symbol}{from_price * quantity:.2f}" if from_price is not None else "—"
+            lang = str(product.get('language', '')).upper()[:2]
+            url = product.get('url', '#')
+
+            items_html.append(ft.Div(
+                # Header: image + info + remove
+                ft.Div(
+                    ft.Div(
+                        ft.Img(src=image_url, alt=name, style="width:56px;height:auto;object-fit:contain;border-radius:4px;") if image_url
+                        else ft.Div("📦", style="width:56px;height:56px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;background:#080e1c;border-radius:4px;"),
+                        cls="flex-shrink-0"
+                    ),
+                    ft.Div(
+                        ft.Div(
+                            ft.Span(cfg['label'], style=f"font-family:'Bebas Neue',sans-serif;font-size:.55rem;letter-spacing:.1em;color:{cfg['color']};background:{cfg['bg']};border:1px solid {cfg['border']};border-radius:3px;padding:1px 5px;margin-right:4px;"),
+                            ft.Span(lang, style="font-family:'Share Tech Mono',monospace;font-size:.55rem;color:#475569;"),
+                        ),
+                        ft.P(name, title=name, style="font-family:'Barlow',sans-serif;font-size:.8rem;font-weight:600;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:2px 0 4px;"),
+                        ft.Div(
+                            ft.Span(f"FROM {from_str}", style="font-family:'Share Tech Mono',monospace;font-size:.75rem;color:#10b981;"),
+                            ft.Span(f"× {quantity} = {from_total}", style="font-family:'Share Tech Mono',monospace;font-size:.7rem;color:#475569;margin-left:6px;"),
+                            cls="flex items-center flex-wrap gap-1"
+                        ),
+                        cls="flex-1 min-w-0"
+                    ),
+                    ft.Div(
+                        ft.Button(
+                            ft.Safe('<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>'),
+                            type="button",
+                            cls="inline-flex items-center justify-center rounded-full p-2 transition-colors text-red-500 bg-gray-800 hover:bg-gray-700",
+                            title="Remove from Watchlist",
+                            onclick=f"""
+                                fetch('/api/sealed-watchlist/remove',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{product_id:'{product_id}',marketplace:'{marketplace}'}})
+                                }}).then(()=>this.closest('.sealed-wl-item').remove());
+                            """,
+                        ),
+                        cls="flex-shrink-0 self-start"
+                    ),
+                    cls="flex items-start gap-3 p-3",
+                ),
+                # Quantity stepper
+                ft.Div(
+                    ft.Span("QTY", style="font-family:'Bebas Neue',sans-serif;font-size:.55rem;letter-spacing:.1em;color:#475569;"),
+                    ft.Div(
+                        ft.Button("−", type="button", cls="qty-btn", data_delta="-1"),
+                        ft.Span(str(quantity), cls="qty-value"),
+                        ft.Button("+", type="button", cls="qty-btn", data_delta="1"),
+                        cls="qty-stepper sealed-qty-stepper flex items-center",
+                        data_product_id=product_id,
+                        data_marketplace=marketplace,
+                    ),
+                    cls="flex items-center gap-3 px-3 pb-3"
+                ),
+                cls="sealed-wl-item wl-item",
+            ))
+
+        return ft.Div(
+            *items_html,
+            cls="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4",
+        )
+
     @rt("/api/sealed-watchlist/add", methods=["POST"])
     async def add_sealed_watchlist(request: Request):
         user = request.session.get('user')
@@ -275,50 +394,87 @@ def setup_watchlist_routes(rt):
             return JSONResponse({"error": "Unauthorized"}, status_code=401)
 
         tag_filter = request.query_params.get('tag', '')
+        segment = request.query_params.get('segment', 'combined')
         try:
             days = int(request.query_params.get('days', 90))
         except (ValueError, TypeError):
             days = 90
 
         user_id = user.get('sub')
-        watchlist = get_watchlist(user_id)
 
-        if tag_filter:
-            watchlist = [item for item in watchlist if tag_filter in item.get('tags', [DEFAULT_WATCHLIST_TAG])]
+        # ── Card aggregate ────────────────────────────────────────────────────
+        card_price_data: dict[str, list[dict]] = {'eur': [], 'usd': [], 'releases': []}
+        if segment in ('cards', 'combined'):
+            watchlist = get_watchlist(user_id)
+            if tag_filter:
+                watchlist = [item for item in watchlist if tag_filter in item.get('tags', [DEFAULT_WATCHLIST_TAG])]
+            card_versions = []
+            for item in watchlist:
+                card_id = item.get('card_id')
+                version_val = item.get('card_version', 0)
+                try:
+                    aa_version = int(version_val) if version_val not in (None, 'Base') else 0
+                except (ValueError, TypeError):
+                    aa_version = 0
+                quantity = max(1, int(item.get('quantity', 1)))
+                if card_id:
+                    card_versions.append((card_id, aa_version, quantity))
+            if card_versions:
+                try:
+                    card_price_data = get_watchlist_aggregate_price_data(card_versions, days=days)
+                except Exception:
+                    pass
 
-        card_versions = []
-        for item in watchlist:
-            card_id = item.get('card_id')
-            version_val = item.get('card_version', 0)
-            try:
-                aa_version = int(version_val) if version_val not in (None, 'Base') else 0
-            except (ValueError, TypeError):
-                aa_version = 0
-            quantity = max(1, int(item.get('quantity', 1)))
-            if card_id:
-                card_versions.append((card_id, aa_version, quantity))
+        # ── Sealed aggregate ──────────────────────────────────────────────────
+        sealed_price_data: dict[str, list[dict]] = {'eur': [], 'usd': []}
+        if segment in ('sealed', 'combined'):
+            sealed_wl = get_sealed_watchlist(user_id)
+            product_qty_pairs = [
+                (e['product_id'], e.get('marketplace', 'cardmarket'), max(1, int(e.get('quantity', 1))))
+                for e in sealed_wl if e.get('product_id')
+            ]
+            if product_qty_pairs:
+                try:
+                    sealed_price_data = get_sealed_watchlist_aggregate_price_data(product_qty_pairs, days=days)
+                except Exception:
+                    pass
 
-        if not card_versions:
-            return ft.Div(
-                ft.P("No cards in this collection.", style="color:#475569;font-size:.875rem;text-align:center;padding:24px 0;"),
-                cls="h-full flex items-center justify-center"
+        # ── Merge by date with forward-fill ──────────────────────────────────
+        # If one source has no update for a day, carry its last known value
+        # forward rather than treating it as 0.
+        def _merge(a: list[dict], b: list[dict]) -> list[dict]:
+            all_dates = sorted(
+                {pt['date'] for pt in a} | {pt['date'] for pt in b}
             )
+            if not all_dates:
+                return []
+            a_map = {pt['date']: pt['price'] for pt in a if pt['price'] is not None}
+            b_map = {pt['date']: pt['price'] for pt in b if pt['price'] is not None}
+            result = []
+            last_a = last_b = 0.0
+            for date in all_dates:
+                if date in a_map:
+                    last_a = a_map[date]
+                if date in b_map:
+                    last_b = b_map[date]
+                result.append({'date': date, 'price': last_a + last_b})
+            return result
 
-        try:
-            price_data = get_watchlist_aggregate_price_data(card_versions, days=days)
-        except Exception:
-            return ft.Div(
-                ft.P("Could not load price data.", style="color:#475569;font-size:.875rem;text-align:center;padding:24px 0;"),
-                cls="h-full flex items-center justify-center"
-            )
+        price_data = {
+            'eur': _merge(card_price_data.get('eur', []), sealed_price_data.get('eur', [])),
+            'usd': _merge(card_price_data.get('usd', []), sealed_price_data.get('usd', [])),
+            'releases': card_price_data.get('releases', []),
+        }
 
         if not price_data.get('eur') and not price_data.get('usd'):
+            label_map = {'cards': 'cards', 'sealed': 'sealed products', 'combined': 'items'}
             return ft.Div(
-                ft.P("No price history available for the selected period.", style="color:#475569;font-size:.875rem;text-align:center;padding:24px 0;"),
+                ft.P(f"No price history available for the selected {label_map.get(segment, 'items')}.",
+                     style="color:#475569;font-size:.875rem;text-align:center;padding:24px 0;"),
                 cls="h-full flex items-center justify-center"
             )
 
-        # Build release event markers from data already returned by the aggregate query
+        # ── Release event markers (cards only, not critical) ──────────────────
         release_events = []
         try:
             raw_releases = price_data.get('releases', [])
@@ -332,15 +488,16 @@ def setup_watchlist_routes(rt):
                     set_label = f" ({set_code})" if set_code else ""
                     release_events.append({'date': r['date'], 'label': f"{name}{aa_label}{set_label}"})
         except Exception:
-            pass  # Release markers are non-critical
+            pass
 
-        label = f'"{tag_filter}"' if tag_filter else "All Cards"
-        chart_id = f"portfolio-aggregate-chart-{days}-{tag_filter.replace(' ', '-') or 'all'}"
+        segment_labels = {'cards': 'Cards', 'sealed': 'Sealed', 'combined': 'Cards + Sealed'}
+        tag_label = f'"{tag_filter}"' if tag_filter else segment_labels.get(segment, 'Portfolio')
+        chart_id = f"portfolio-aggregate-chart-{days}-{segment}-{tag_filter.replace(' ', '-') or 'all'}"
 
         return create_price_development_chart(
             container_id=chart_id,
             price_data=price_data,
-            card_name=f"Portfolio · {label}",
+            card_name=f"Portfolio · {tag_label}",
             show_x_axis=True,
             show_legend=True,
             release_events=release_events,

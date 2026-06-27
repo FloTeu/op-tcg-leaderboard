@@ -561,6 +561,72 @@ def get_watchlist_aggregate_price_data(card_versions: list[tuple[str, int, int]]
     return result
 
 
+def get_sealed_watchlist_aggregate_price_data(product_qty_pairs: list[tuple[str, str, int]], days: int = 90) -> dict[str, list[dict]]:
+    """
+    Returns daily aggregated FROM price totals across all watched sealed products,
+    weighted by quantity, for both EUR and USD.
+
+    Args:
+        product_qty_pairs: list of (product_id, marketplace, quantity) tuples
+        days: lookback window in days
+
+    Returns:
+        {'eur': [{'date': ..., 'price': float}, ...], 'usd': [...]}
+    """
+    from op_tcg.backend.models.sealed import SealedProductPrice
+    if not product_qty_pairs:
+        return {'eur': [], 'usd': []}
+
+    price_tbl = get_bq_table_id(SealedProductPrice).replace(":", ".")
+
+    # Inline quantities CTE as a VALUES list
+    qty_rows = ", ".join(
+        f"('{pid}', '{mkt}', {qty})"
+        for pid, mkt, qty in product_qty_pairs
+    )
+
+    query = f"""
+    WITH quantities AS (
+        SELECT product_id, marketplace, quantity
+        FROM UNNEST([
+            STRUCT{f", STRUCT".join(f"('{pid}' AS product_id, '{mkt}' AS marketplace, {qty} AS quantity)" for pid, mkt, qty in product_qty_pairs)}
+        ])
+    ),
+    daily AS (
+        SELECT
+            spp.product_id,
+            spp.marketplace,
+            spp.currency,
+            DATE(spp.create_timestamp) AS price_date,
+            AVG(spp.price) AS avg_price
+        FROM `{price_tbl}` spp
+        WHERE spp.price_type = 'from'
+          AND spp.create_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)
+        GROUP BY spp.product_id, spp.marketplace, spp.currency, DATE(spp.create_timestamp)
+    ),
+    weighted AS (
+        SELECT d.currency, d.price_date, d.avg_price * q.quantity AS weighted_price
+        FROM daily d
+        JOIN quantities q ON d.product_id = q.product_id AND d.marketplace = q.marketplace
+    )
+    SELECT currency, price_date, SUM(weighted_price) AS total_price
+    FROM weighted
+    GROUP BY currency, price_date
+    ORDER BY currency, price_date ASC
+    """
+
+    rows = run_bq_query(query, ttl_hours=1.0)
+    result: dict[str, list[dict]] = {'eur': [], 'usd': []}
+    for row in rows:
+        cur = row['currency']
+        date_val = row['price_date']
+        date_str = date_val.isoformat() if hasattr(date_val, 'isoformat') else str(date_val)
+        price = float(row['total_price']) if row['total_price'] is not None else None
+        if cur in result:
+            result[cur].append({'date': date_str, 'price': price})
+    return result
+
+
 def get_sealed_product_price_history(product_id: str, currency: CardCurrency, days: int = 90) -> dict[str, list[dict]]:
     """Returns FROM and TREND price history for a single sealed product."""
     from op_tcg.backend.models.sealed import SealedProductPrice

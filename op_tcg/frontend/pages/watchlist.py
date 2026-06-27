@@ -1,10 +1,10 @@
 import re
 from fasthtml import ft
-from op_tcg.backend.db import get_watchlist, get_user_settings, get_decklist_watchlist, get_custom_decklists
+from op_tcg.backend.db import get_watchlist, get_user_settings, get_decklist_watchlist, get_custom_decklists, get_sealed_watchlist
 from op_tcg.frontend.components.watchlist_toggle import create_watchlist_toggle
 from op_tcg.frontend.components.decklist_watchlist_toggle import create_decklist_watchlist_toggle
 from op_tcg.frontend.utils.card_price import get_marketplace_link
-from op_tcg.frontend.utils.extract import get_card_lookup_by_id_and_aa, get_card_id_card_data_lookup
+from op_tcg.frontend.utils.extract import get_card_lookup_by_id_and_aa, get_card_id_card_data_lookup, get_sealed_product_prices
 from op_tcg.frontend.components.loading import create_loading_spinner
 from op_tcg.backend.models.cards import CardCurrency
 
@@ -236,6 +236,30 @@ def _qty_script() -> ft.Script:
         }
         await fetch('/api/watchlist/quantity',{method:'POST',headers:{'Content-Type':'application/json'},
           body:JSON.stringify({card_id:s.dataset.cardId,card_version:parseInt(s.dataset.cardVersion,10),language:s.dataset.language,quantity:next})});
+      });
+    });
+  }
+  document.addEventListener('DOMContentLoaded',init);
+  document.addEventListener('htmx:afterSwap',init);
+})();
+""")
+
+
+def _sealed_qty_script() -> ft.Script:
+    return ft.Script("""
+(function(){
+  function init(){
+    document.querySelectorAll('.sealed-qty-stepper .qty-btn').forEach(function(btn){
+      if(btn._sqi) return; btn._sqi=true;
+      btn.addEventListener('click', async function(){
+        var s=btn.closest('.sealed-qty-stepper');
+        var d=s.querySelector('.qty-value');
+        var cur=parseInt(d.textContent,10);
+        var next=Math.max(1,cur+parseInt(btn.dataset.delta,10));
+        if(next===cur) return;
+        d.textContent=next;
+        await fetch('/api/sealed-watchlist/quantity',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({product_id:s.dataset.productId,marketplace:s.dataset.marketplace,quantity:next})});
       });
     });
   }
@@ -591,6 +615,12 @@ def watchlist_page(request):
             cls=f"wl-tab {'wl-tab-active-gold' if section == 'cards' else ''}"
         ),
         ft.A(
+            ft.I(cls="fas fa-box"),
+            "SEALED",
+            href="?section=sealed",
+            cls=f"wl-tab {'wl-tab-active-gold' if section == 'sealed' else ''}"
+        ),
+        ft.A(
             ft.I(cls="fas fa-layer-group"),
             "DECKLISTS",
             href="?section=decklists",
@@ -598,6 +628,30 @@ def watchlist_page(request):
         ),
         cls="flex items-center gap-2"
     )
+
+    if section == 'sealed':
+        sealed_count = len(get_sealed_watchlist(user_id))
+        return ft.Div(
+            _wl_styles(),
+            _sealed_qty_script(),
+            ft.Div(
+                ft.Div(
+                    ft.H1("MY WATCHLIST",
+                          style="font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:.06em;color:#f1f5f9;line-height:1;"),
+                    section_switcher,
+                    cls="flex flex-wrap justify-between items-center gap-y-3 mb-6"
+                ),
+                ft.Div(
+                    id="sealed-watchlist-content",
+                    hx_get="/api/watchlist/sealed-items",
+                    hx_trigger="load",
+                    hx_indicator="#sealed-loading",
+                ),
+                create_loading_spinner(id="sealed-loading", size="w-6 h-6", container_classes="py-20"),
+                cls="container mx-auto px-4 py-8"
+            ),
+            cls="wl-page bg-deep-navy"
+        )
 
     if section == 'decklists':
         return ft.Div(
@@ -699,6 +753,21 @@ def watchlist_page(request):
     total_usd = sum(i['latest_usd'] * i['quantity'] for i in prepared_items)
     total_copies = sum(i['quantity'] for i in prepared_items)
     card_count = len(prepared_items)
+
+    # Add sealed product values to totals (tag filter doesn't apply to sealed)
+    sealed_wl_entries = get_sealed_watchlist(user_id)
+    sealed_count = len(sealed_wl_entries)
+    if sealed_wl_entries:
+        s_eur = {(p['id'], p.get('marketplace', 'cardmarket')): p.get('from_price') or 0.0
+                 for p in get_sealed_product_prices(CardCurrency.EURO) if p.get('id')}
+        s_usd = {(p['id'], p.get('marketplace', 'cardmarket')): p.get('from_price') or 0.0
+                 for p in get_sealed_product_prices(CardCurrency.US_DOLLAR) if p.get('id')}
+        for entry in sealed_wl_entries:
+            pid = entry.get('product_id', '')
+            mkt = entry.get('marketplace', 'cardmarket')
+            qty = max(1, int(entry.get('quantity', 1)))
+            total_eur += s_eur.get((pid, mkt), 0.0) * qty
+            total_usd += s_usd.get((pid, mkt), 0.0) * qty
 
     reverse = (sort_order == 'desc')
     if sort_by == 'price':
@@ -1123,6 +1192,13 @@ def watchlist_page(request):
                 ft.Span(str(total_copies), cls="wl-stat-val"),
                 cls="flex flex-col"
             ),
+            _stat_divider(),
+            ft.Div(
+                ft.Span("SEALED", cls="wl-stat-label"),
+                ft.A(str(sealed_count), href="?section=sealed",
+                     style="font-family:'Share Tech Mono',monospace;font-size:1.5rem;color:#f59e0b;line-height:1;text-decoration:none;"),
+                cls="flex flex-col"
+            ),
             ft.Div(
                 ft.Span("COLLECTION", cls="wl-stat-label"),
                 ft.Span(collection_label,
@@ -1148,15 +1224,43 @@ def watchlist_page(request):
                     hx_target="#portfolio-aggregate-chart-container",
                     hx_swap="innerHTML",
                     hx_indicator="#portfolio-chart-loading",
-                    hx_vals=f'{{"tag": "{tag_filter}"}}',
+                    hx_vals='js:{"tag":"' + tag_filter + '","segment":document.getElementById("portfolio-segment").value}',
                     hx_on__before_request="document.getElementById('portfolio-aggregate-chart-container').innerHTML=''; document.getElementById('portfolio-chart-loading').classList.remove('hidden');"
                 ),
                 cls="flex items-center justify-between mb-3"
             ),
+            ft.Input(type="hidden", id="portfolio-segment", value="combined"),
+            ft.Div(
+                *[
+                    ft.Button(
+                        label,
+                        type="button",
+                        cls="wl-tab " + ("wl-tab-active-gold" if seg == "combined" else ""),
+                        style="font-size:.65rem;",
+                        onclick=f"""
+                            document.getElementById('portfolio-segment').value='{seg}';
+                            this.closest('.portfolio-seg-chips').querySelectorAll('.wl-tab').forEach(b=>b.classList.remove('wl-tab-active-gold'));
+                            this.classList.add('wl-tab-active-gold');
+                            document.getElementById('portfolio-aggregate-chart-container').innerHTML='';
+                            document.getElementById('portfolio-chart-loading').classList.remove('hidden');
+                            var days=document.querySelector('[name=days]').value;
+                            fetch('/api/watchlist/aggregate-chart?days='+days+'&segment={seg}{tag_param}')
+                              .then(r=>r.text()).then(html=>{{
+                                var c=document.getElementById('portfolio-aggregate-chart-container');
+                                c.innerHTML=html;
+                                c.querySelectorAll('script').forEach(function(old){{var s=document.createElement('script');s.textContent=old.textContent;old.parentNode.replaceChild(s,old);}});
+                                document.getElementById('portfolio-chart-loading').classList.add('hidden');
+                              }});
+                        """,
+                    )
+                    for label, seg in [("CARDS + SEALED", "combined"), ("CARDS", "cards"), ("SEALED", "sealed")]
+                ],
+                cls="flex flex-wrap gap-2 mb-3 portfolio-seg-chips",
+            ),
             ft.Div(
                 ft.Div(
                     id="portfolio-aggregate-chart-container",
-                    hx_get=f"/api/watchlist/aggregate-chart?days=90{tag_param}",
+                    hx_get=f"/api/watchlist/aggregate-chart?days=90&segment=combined{tag_param}",
                     hx_trigger="load",
                     hx_indicator="#portfolio-chart-loading",
                     hx_on__after_request="document.getElementById('portfolio-chart-loading').classList.add('hidden');",
@@ -1176,6 +1280,7 @@ def watchlist_page(request):
     return ft.Div(
         _wl_styles(),
         _qty_script(),
+        _sealed_qty_script(),
         _table_time_range_script() if view_mode == 'table' else ft.Span(),
         ft.Div(
             ft.Div(

@@ -131,7 +131,7 @@ def get_watchlist(user_id: str):
     return [doc.to_dict() for doc in docs]
 
 
-def add_to_sealed_watchlist(user_id: str, product_id: str, marketplace: str = "cardmarket"):
+def add_to_sealed_watchlist(user_id: str, product_id: str, marketplace: str = "cardmarket", quantity: int = 1):
     """Adds a sealed product to the user's sealed watchlist."""
     db = get_db()
     if not db:
@@ -140,8 +140,20 @@ def add_to_sealed_watchlist(user_id: str, product_id: str, marketplace: str = "c
     db.collection('users').document(user_id).collection('sealed_watchlist').document(doc_id).set({
         'product_id': product_id,
         'marketplace': marketplace,
+        'quantity': max(1, quantity),
         'added_at': firestore.SERVER_TIMESTAMP,
     })
+
+
+def update_sealed_watchlist_quantity(user_id: str, product_id: str, marketplace: str = "cardmarket", quantity: int = 1):
+    """Updates the quantity of a sealed product in the user's sealed watchlist."""
+    db = get_db()
+    if not db:
+        return
+    doc_id = f"{product_id}__{marketplace}"
+    db.collection('users').document(user_id).collection('sealed_watchlist').document(doc_id).update(
+        {'quantity': max(1, quantity)}
+    )
 
 
 def remove_from_sealed_watchlist(user_id: str, product_id: str, marketplace: str = "cardmarket"):
