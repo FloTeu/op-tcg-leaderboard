@@ -495,3 +495,16 @@ class PriceOverviewParams(BaseModel):
             return None
         return value
 
+
+class SealedProductsParams(BaseModel):
+    """Parameters for sealed products overview requests"""
+    currency: CardCurrency = CardCurrency.EURO
+
+    @field_validator('currency', mode='before')
+    def validate_currency(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if isinstance(value, str):
+            return CardCurrency(value)
+        return value
+

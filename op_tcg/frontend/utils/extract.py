@@ -559,3 +559,53 @@ def get_watchlist_aggregate_price_data(card_versions: list[tuple[str, int, int]]
             })
 
     return result
+
+
+def get_sealed_product_prices(currency: CardCurrency) -> list[dict]:
+    from op_tcg.backend.models.sealed import SealedProduct, SealedProductPrice
+    product_tbl = get_bq_table_id(SealedProduct).replace(":", ".")
+    price_tbl = get_bq_table_id(SealedProductPrice).replace(":", ".")
+
+    query = f"""
+    WITH ranked AS (
+        SELECT
+            product_id,
+            marketplace,
+            price_type,
+            price,
+            ROW_NUMBER() OVER(
+                PARTITION BY product_id, marketplace, price_type
+                ORDER BY create_timestamp DESC
+            ) AS rn
+        FROM `{price_tbl}`
+        WHERE currency = '{currency}'
+    ),
+    latest_prices AS (
+        SELECT
+            product_id,
+            marketplace,
+            MAX(CASE WHEN price_type = 'from'  THEN price END) AS from_price,
+            MAX(CASE WHEN price_type = 'trend' THEN price END) AS trend_price
+        FROM ranked
+        WHERE rn = 1
+        GROUP BY product_id, marketplace
+    )
+    SELECT
+        p.id,
+        p.name,
+        p.product_type,
+        p.language,
+        p.url,
+        p.image_url,
+        p.gcs_image_url,
+        p.release_date,
+        p.marketplace,
+        lp.from_price,
+        lp.trend_price
+    FROM `{product_tbl}` p
+    LEFT JOIN latest_prices lp
+        ON p.id = lp.product_id
+        AND p.marketplace = lp.marketplace
+    ORDER BY p.product_type, COALESCE(p.release_date, DATE('2000-01-01')) DESC
+    """
+    return run_bq_query(query, ttl_hours=1.0)

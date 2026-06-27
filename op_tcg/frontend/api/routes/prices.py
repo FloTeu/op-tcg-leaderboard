@@ -3,13 +3,14 @@ from starlette.requests import Request
 import time
 from datetime import datetime, timedelta
 
-from op_tcg.frontend.api.models import PriceOverviewParams
+from op_tcg.frontend.api.models import PriceOverviewParams, SealedProductsParams
 from op_tcg.frontend.utils.api import get_query_params_as_dict
 from op_tcg.frontend.utils.extract import (
     get_price_change_data,
+    get_sealed_product_prices,
 )
 from op_tcg.backend.models.cards import CardCurrency
-from op_tcg.frontend.components.prices import price_tiles
+from op_tcg.frontend.components.prices import price_tiles, sealed_product_tiles
 from op_tcg.frontend.utils.extract import get_card_id_card_data_lookup, get_card_lookup_by_id_and_aa
 from op_tcg.frontend.components.loading import create_loading_spinner, create_skeleton_cards_indicator
 
@@ -30,6 +31,13 @@ def _header(currency: CardCurrency, start_date: int, end_date: int) -> ft.Div:
 
 
 def setup_api_routes(rt):
+
+    @rt("/api/sealed-products")
+    def sealed_products_overview(request: Request):
+        params = SealedProductsParams(**get_query_params_as_dict(request))
+        items = get_sealed_product_prices(params.currency)
+        return sealed_product_tiles(items, params.currency)
+
     @rt("/api/price-overview")
     def price_overview(request: Request):
         params = PriceOverviewParams(**get_query_params_as_dict(request))

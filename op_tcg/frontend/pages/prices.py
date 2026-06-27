@@ -67,6 +67,25 @@ def _styles() -> ft.Style:
     cursor: pointer;
     flex-shrink: 0;
 }
+
+.price-tab {
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 0.1em;
+    font-size: 0.8rem;
+    padding: 6px 16px;
+    border-radius: 20px;
+    border: 1px solid #1a2540;
+    background: #0d1424;
+    color: #475569;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.price-tab:hover { color: #94a3b8; border-color: #2d3f5a; }
+.price-tab-active {
+    background: rgba(245,158,11,0.12);
+    color: #f59e0b;
+    border-color: rgba(245,158,11,0.35);
+}
 """)
 
 
@@ -224,6 +243,40 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
     )
 
 
+def _tab_switcher() -> ft.Div:
+    return ft.Div(
+        ft.Button(
+            "Cards",
+            id="tab-cards",
+            cls="price-tab price-tab-active",
+            hx_get="/api/price-overview",
+            hx_target="#price-overview",
+            hx_swap="innerHTML",
+            hx_include=HX_INCLUDE,
+            hx_indicator="#price-loading-indicator",
+            onclick="setPriceTab('cards')",
+        ),
+        ft.Button(
+            "Sealed Products",
+            id="tab-sealed",
+            cls="price-tab",
+            hx_get="/api/sealed-products",
+            hx_target="#price-overview",
+            hx_swap="innerHTML",
+            hx_include="[name='currency']",
+            hx_indicator="#price-loading-indicator",
+            onclick="setPriceTab('sealed')",
+        ),
+        ft.Script("""
+function setPriceTab(tab) {
+  document.querySelectorAll('.price-tab').forEach(function(el) { el.classList.remove('price-tab-active'); });
+  document.getElementById('tab-' + tab).classList.add('price-tab-active');
+}
+"""),
+        cls="flex gap-2 mb-4",
+    )
+
+
 def prices_page():
     return ft.Div(
         _styles(),
@@ -240,6 +293,7 @@ def prices_page():
             ),
             create_mobile_filter_button(),
             ft.Div(id="prices-header-container"),
+            _tab_switcher(),
             ft.Div(
                 ft.Span("Search Cards", style=_LABEL_STYLE),
                 ft.Input(
