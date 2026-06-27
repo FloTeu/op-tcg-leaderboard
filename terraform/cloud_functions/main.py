@@ -127,8 +127,8 @@ def run_crawl_op_top_decks(event, context):
     })
     meta_formats = MetaFormat.to_list(only_after_release=False)
     latest_meta_format = MetaFormat.latest_meta_format(only_after_release=True)
-    # crawl only the last 3 meta formats
-    meta_formats_to_crawl = meta_formats[meta_formats.index(latest_meta_format)-2:]
+    # crawl only the last 2 meta formats
+    meta_formats_to_crawl = meta_formats[meta_formats.index(latest_meta_format)-1:]
 
     print("Crawl op top decks with meta_formats", meta_formats_to_crawl)
     process.crawl(OPTopDeckDecklistSpider, meta_formats=meta_formats_to_crawl)

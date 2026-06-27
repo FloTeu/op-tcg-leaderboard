@@ -3,14 +3,17 @@ from starlette.requests import Request
 import time
 from datetime import datetime, timedelta
 
-from op_tcg.frontend.api.models import PriceOverviewParams
+from op_tcg.frontend.api.models import PriceOverviewParams, SealedProductsParams
 from op_tcg.frontend.utils.api import get_query_params_as_dict
 from op_tcg.frontend.utils.extract import (
     get_price_change_data,
+    get_sealed_product_prices,
 )
+from op_tcg.backend.db import get_sealed_watchlist
 from op_tcg.backend.models.cards import CardCurrency
-from op_tcg.frontend.components.prices import price_tiles
-from op_tcg.frontend.utils.extract import get_card_id_card_data_lookup, get_card_lookup_by_id_and_aa
+from op_tcg.backend.models.sealed import SealedProductOrderBy
+from op_tcg.frontend.components.prices import price_tiles, sealed_product_tiles, create_sealed_product_modal
+from op_tcg.frontend.utils.extract import get_card_lookup_by_id_and_aa
 from op_tcg.frontend.components.loading import create_loading_spinner, create_skeleton_cards_indicator
 
 
@@ -29,9 +32,77 @@ def _header(currency: CardCurrency, start_date: int, end_date: int) -> ft.Div:
     )
 
 
+_PRICE = lambda i: i.get('from_price') or 0.0
+_NAME  = lambda i: (i.get('name') or '').lower()
+_DATE  = lambda i: str(i.get('release_date') or '')
+
+_SEALED_SORT_CFG = {
+    SealedProductOrderBy.PRICE_DESC:   (_PRICE, True),
+    SealedProductOrderBy.PRICE_ASC:    (_PRICE, False),
+    SealedProductOrderBy.NAME_ASC:     (_NAME,  False),
+    SealedProductOrderBy.NAME_DESC:    (_NAME,  True),
+    SealedProductOrderBy.RELEASE_DESC: (_DATE,  True),
+}
+
+
+def _sealed_products_response(request: Request):
+    """Apply search/filter/sort to sealed products and return rendered tiles."""
+    params = SealedProductsParams(**get_query_params_as_dict(request))
+    query = request.query_params.get("query", "").strip().lower()
+    items = get_sealed_product_prices(params.currency)
+
+    if query:
+        items = [i for i in items if query in (i.get('name') or '').lower()]
+    if params.min_latest_price > 0:
+        items = [i for i in items if (i.get('from_price') or 0) >= params.min_latest_price]
+    if params.max_latest_price < 10000:
+        items = [i for i in items if (i.get('from_price') or 0) <= params.max_latest_price]
+
+    sort_cfg = _SEALED_SORT_CFG.get(params.order_by)
+    if sort_cfg:
+        items = sorted(items, key=sort_cfg[0], reverse=sort_cfg[1])
+
+    return sealed_product_tiles(items, params.currency)
+
+
 def setup_api_routes(rt):
+
+    @rt("/api/sealed-product-modal")
+    def sealed_product_modal(request: Request):
+        product_id = request.query_params.get("product_id")
+        currency_str = request.query_params.get("currency", "eur")
+        try:
+            currency = CardCurrency(currency_str)
+        except ValueError:
+            currency = CardCurrency.EURO
+
+        if not product_id:
+            return ft.Div()
+
+        items = get_sealed_product_prices(currency)
+        item = next((i for i in items if i.get('id') == product_id), None)
+        if not item:
+            return ft.Div()
+
+        user = request.session.get('user')
+        is_logged_in = bool(user)
+        is_in_watchlist = False
+        if user:
+            sealed_wl = get_sealed_watchlist(user.get('sub'))
+            marketplace = item.get('marketplace', 'cardmarket')
+            is_in_watchlist = any(
+                e.get('product_id') == product_id and e.get('marketplace') == marketplace
+                for e in sealed_wl
+            )
+
+        return create_sealed_product_modal(item, currency, is_in_watchlist=is_in_watchlist, is_logged_in=is_logged_in)
+
     @rt("/api/price-overview")
     def price_overview(request: Request):
+        if request.query_params.get("price_tab") == "sealed":
+            return _sealed_products_response(request)
+
+        # ── Cards branch ──────────────────────────────────────────────────────
         params = PriceOverviewParams(**get_query_params_as_dict(request))
 
         # Default dates if not provided

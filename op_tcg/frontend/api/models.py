@@ -3,6 +3,7 @@ from typing import List, Optional, Any
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 from op_tcg.backend.models.leader import LeaderboardSortBy
 from op_tcg.backend.models.cards import OPTcgColor, OPTcgCardCatagory, OPTcgAbility, CardCurrency, OPTcgAttribute, OPTcgCardRarity
+from op_tcg.backend.models.sealed import SealedProductOrderBy
 
 
 class MetaFormatParams(BaseModel):
@@ -493,5 +494,38 @@ class PriceOverviewParams(BaseModel):
             value = value[0]
         if value == "All":
             return None
+        return value
+
+
+class SealedProductsParams(BaseModel):
+    """Parameters for sealed products overview requests"""
+    currency: CardCurrency = CardCurrency.EURO
+    order_by: SealedProductOrderBy = SealedProductOrderBy.PRICE_DESC
+    min_latest_price: float = 0.0
+    max_latest_price: float = 1000.0
+
+    @field_validator('currency', mode='before')
+    def validate_currency(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if isinstance(value, str):
+            return CardCurrency(value)
+        return value
+
+    @field_validator('order_by', mode='before')
+    def validate_order_by(cls, value):
+        if isinstance(value, list) and value:
+            value = value[0]
+        if isinstance(value, str):
+            try:
+                return SealedProductOrderBy(value)
+            except ValueError:
+                return SealedProductOrderBy.PRICE_DESC
+        return value
+
+    @field_validator('min_latest_price', 'max_latest_price', mode='before')
+    def coerce_list(cls, value):
+        if isinstance(value, list) and value:
+            return value[0]
         return value
 

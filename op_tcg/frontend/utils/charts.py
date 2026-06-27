@@ -998,3 +998,24 @@ def create_price_development_chart(container_id: str, price_data: dict[str, list
         _create_chart_script('createPriceDevelopmentChart', container_id, config),
         cls="bg-gray-800/30 rounded-lg p-0 h-full w-full"
     )
+
+
+def create_sealed_price_development_chart(container_id: str, price_data: dict[str, list[dict]], symbol: str = "€") -> ft.Div:
+    """Creates a FROM/TREND price chart for sealed products using Chart.js."""
+    from_data = price_data.get('from', [])
+    trend_data = price_data.get('trend', [])
+
+    all_dates = sorted({item['date'] for item in from_data + trend_data})
+
+    from_map = {item['date']: item['price'] for item in from_data}
+    trend_map = {item['date']: item['price'] for item in trend_data}
+
+    chart_data = [{'date': d, 'from_price': from_map.get(d), 'trend_price': trend_map.get(d)} for d in all_dates]
+
+    config = {'data': chart_data, 'symbol': symbol}
+
+    return ft.Div(
+        ft.Div(ft.Canvas(id=container_id, style="width:100%; height:100%; display:block;"), cls="h-full w-full"),
+        _create_chart_script('createSealedPriceChart', container_id, config),
+        cls="bg-gray-800/30 rounded-lg p-0 h-full w-full"
+    )

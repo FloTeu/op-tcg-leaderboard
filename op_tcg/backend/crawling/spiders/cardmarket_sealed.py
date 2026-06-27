@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup, Tag
 
 from op_tcg.backend.models.cards import OPTcgLanguage, OPTcgMarketplace, CardCurrency
 from op_tcg.backend.models.common import DataSource
-from op_tcg.backend.models.sealed import SealedProduct, SealedProductPrice, SealedProductType, SealedPriceType
+from op_tcg.backend.models.sealed import SealedProduct, SealedProductPrice, SealedProductType, SealedPriceType, sealed_product_gcs_path
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +27,13 @@ PRODUCT_TYPE_URLS: dict[SealedProductType, str] = {
         f"{CARDMARKET_BASE}/en/OnePiece/Products/Booster-Boxes"
         f"?mode=gallery&searchMode=v1&idCategory=1624&idExpansion=0&sortBy=date_desc&perSite={ITEMS_PER_SITE}"
     ),
-    SealedProductType.SEALED: (
+    SealedProductType.PROMO: (
         f"{CARDMARKET_BASE}/en/OnePiece/Products/Promo-Products"
         f"?searchMode=v1&idCategory=1628&idExpansion=0&sortBy=date_desc&perSite={ITEMS_PER_SITE}"
+    ),
+    SealedProductType.PRECONSTRUCTED_DECK: (
+        f"{CARDMARKET_BASE}/en/OnePiece/Products/Preconstructed-Decks"
+        f"?searchMode=v1&sortBy=date_desc"
     ),
 }
 
@@ -149,7 +153,7 @@ def parse_gallery_page(html: str, product_type: SealedProductType) -> list[tuple
     product_links: list[Tag] = soup.select(
         "a[href*='/Products/Booster-Box'], "
         "a[href*='/Products/Booster-Case'], "
-        "a[href*='/Products/Starter-Deck'], "
+        "a[href*='/Products/Preconstructed-Decks'], "
         "a[href*='/Products/Promo-Products']"
     )
 
@@ -196,11 +200,15 @@ def parse_gallery_page(html: str, product_type: SealedProductType) -> list[tuple
         if trend_price is None and from_price is None:
             logger.debug("No prices found for %s", product_id)
 
+        current_product_type = product_type
+        if current_product_type == SealedProductType.BOOSTER_BOX and "case" in name.lower():
+            current_product_type = SealedProductType.BOOSTER_CASE
+
         product = SealedProduct(
             id=product_id,
             marketplace=OPTcgMarketplace.CARDMARKET,
             name=name,
-            product_type=product_type,
+            product_type=current_product_type,
             language=language,
             url=full_url,
             image_url=image_url,
@@ -276,6 +284,19 @@ def _extract_image_url(tile: Tag) -> str | None:
     return None
 
 
+def _upload_image_to_gcs(image_bytes: bytes, blob_path: str, bucket_name: str, gcs_client) -> str:
+    """Convert image bytes to WebP, upload to GCS, and return the public https URL."""
+    import io
+    from PIL import Image
+    img = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
+    buf = io.BytesIO()
+    img.save(buf, format="WEBP", quality=85, method=6)
+    bucket = gcs_client.bucket(bucket_name)
+    blob = bucket.blob(blob_path)
+    blob.upload_from_string(buf.getvalue(), content_type="image/webp")
+    return f"https://storage.googleapis.com/{bucket_name}/{blob_path}"
+
+
 class CloudflareBlockedError(RuntimeError):
     """Raised when Cloudflare's challenge did not resolve within the timeout.
 
@@ -283,6 +304,74 @@ class CloudflareBlockedError(RuntimeError):
     the Cloud Run Job exits with a non-zero status code, making the failure visible
     in Cloud Run monitoring instead of silently succeeding with 0 data.
     """
+
+
+async def _fetch_with_retry(
+    browser, url: str, max_retries: int = 3, cf_wait_ms: int = 30_000,
+    skip_image_urls: set[str] | None = None,
+) -> tuple[str, dict[str, bytes]]:
+    """
+    Fetch *url* via a fresh browser page, retrying up to *max_retries* times on
+    CloudflareBlockedError. Each retry opens a new page so the rotating proxy
+    assigns a different exit IP.
+
+    When *skip_image_urls* is provided (not None), image responses from the Cardmarket
+    CDN are intercepted and returned alongside the HTML — except for URLs already in
+    *skip_image_urls* (already uploaded to GCS with the same source URL).
+
+    Returns (html, image_bytes_map) where image_bytes_map is empty when
+    skip_image_urls is None.
+    """
+    capture_images = skip_image_urls is not None
+    last_exc: CloudflareBlockedError | None = None
+    for attempt in range(1, max_retries + 1):
+        image_bytes_map: dict[str, bytes] = {}
+        page = await browser.new_page()
+
+        if capture_images:
+            async def _on_response(response, _map=image_bytes_map, _skip=skip_image_urls):
+                if "product-images.s3.cardmarket.com" in response.url:
+                    if response.url in _skip:
+                        return
+                    try:
+                        body = await response.body()
+                        if body:
+                            _map[response.url] = body
+                    except Exception as exc:
+                        logger.debug("image capture failed %s: %s", response.url, exc)
+            page.on("response", _on_response)
+
+        try:
+            html = await _fetch_page_html(page, url, cf_wait_ms=cf_wait_ms)
+            if capture_images:
+                # Scroll gradually so Intersection Observer triggers lazy-loaded images.
+                # Page height grows as images load, so we scroll until the height has
+                # been stable rather than targeting a fixed endpoint calculated upfront.
+                await page.evaluate("""
+                    async () => {
+                        const step = 600;
+                        const delay = ms => new Promise(r => setTimeout(r, ms));
+                        while (true) {
+                            window.scrollBy(0, step);
+                            await delay(1500);
+                            const atBottom =
+                                window.scrollY + window.innerHeight >= document.body.scrollHeight - 10;
+                            if (atBottom) {
+                                const heightBefore = document.body.scrollHeight;
+                                await delay(1500);
+                                if (document.body.scrollHeight === heightBefore) break;
+                            }
+                        }
+                    }
+                """)
+                await page.wait_for_load_state("networkidle", timeout=10_000)
+            return html, image_bytes_map
+        except CloudflareBlockedError as exc:
+            last_exc = exc
+            logger.warning("CF blocked (attempt %d/%d) for %s — rotating IP", attempt, max_retries, url)
+        finally:
+            await page.close()
+    raise last_exc  # type: ignore[misc]
 
 
 async def _fetch_page_html(browser_page, url: str, cf_wait_ms: int = 30_000) -> str:
@@ -302,14 +391,20 @@ async def _fetch_page_html(browser_page, url: str, cf_wait_ms: int = 30_000) -> 
         logger.debug("Cloudflare challenge active, waiting... (%dms elapsed)", elapsed)
         await browser_page.wait_for_timeout(poll_interval)
         elapsed += poll_interval
+    try:
+        page_title = await browser_page.title()
+    except Exception as title_exc:  # noqa: BLE001
+        page_title = f"<error: {title_exc}>"
     raise CloudflareBlockedError(
         f"Cloudflare challenge was not resolved within {cf_wait_ms / 1000:.0f}s for {url}. "
+        f"Page title at timeout: '{page_title}'. "
         f"Ensure SCRAPER_PROXY is set to a residential proxy with valid credentials."
     )
 
 
 async def crawl_cardmarket_sealed(
     product_types: list[SealedProductType] | None = None,
+    upload_images: bool = False,
 ) -> list[tuple[SealedProduct, list[SealedProductPrice]]]:
     """
     Crawl Cardmarket gallery pages for the given product types and return
@@ -321,14 +416,58 @@ async def crawl_cardmarket_sealed(
 
         poetry add camoufox[geoip]
         python -m camoufox fetch
+
+    Args:
+        upload_images: If True, download each product image via the browser session and
+            upload to GCS. Only downloads when the image_url has changed since the last run
+            (detected via URL hash in the GCS blob name). Requires GOOGLE_CLOUD_PROJECT.
     """
     from camoufox.async_api import AsyncCamoufox
 
     if product_types is None:
         product_types = list(PRODUCT_TYPE_URLS.keys())
 
-    proxy_config = _build_proxy_config(os.environ.get("SCRAPER_PROXY"))
+    proxy_url = os.environ.get("SCRAPER_PROXY")
+    proxy_config = _build_proxy_config(proxy_url)
     headless = os.environ.get("CAMOUFOX_HEADLESS", "true").lower() != "false"
+
+    if proxy_config:
+        logger.info("Proxy configured: %s | username: %s", proxy_config.get("server"), proxy_config.get("username"))
+    else:
+        logger.warning("No SCRAPER_PROXY set — Cloudflare will likely block requests")
+
+    # Pre-load existing gcs_image_url values so we can skip unchanged images
+    existing_gcs_urls: dict[str, str] = {}
+    already_uploaded_image_urls: set[str] = set()
+    gcs_client = None
+    bucket_name: str = ""
+    if upload_images:
+        from google.cloud import bigquery as _bq
+        from google.cloud import storage as _gcs
+        _bq_client = _bq.Client(location="europe-west1")
+        bucket_name = f"{_bq_client.project}-public"
+        gcs_client = _gcs.Client()
+        table_ref = f"{_bq_client.project}.{SealedProduct.get_dataset_id()}.{SealedProduct.__tablename__}"
+        try:
+            df = _bq_client.query_and_wait(
+                f"SELECT id, marketplace, language, image_url, gcs_image_url FROM `{table_ref}` WHERE gcs_image_url IS NOT NULL"
+            ).to_dataframe()
+            for _, row in df.iterrows():
+                key = f"{row['id']}_{row['marketplace']}_{row['language']}"
+                gcs_url = row["gcs_image_url"] or ""
+                src_url = row["image_url"] or ""
+                existing_gcs_urls[key] = gcs_url
+                # Mark this source URL as already uploaded if the hash still matches
+                if src_url and gcs_url:
+                    expected_path = sealed_product_gcs_path(row["id"], src_url)
+                    if expected_path in gcs_url:
+                        already_uploaded_image_urls.add(src_url)
+            logger.info(
+                "Loaded %d existing GCS URLs; %d source URLs already current — will skip their captures",
+                len(existing_gcs_urls), len(already_uploaded_image_urls),
+            )
+        except Exception as exc:
+            logger.warning("Could not load existing gcs_image_url values: %s", exc)
 
     all_results: list[tuple[SealedProduct, list[SealedProductPrice]]] = []
 
@@ -338,8 +477,6 @@ async def crawl_cardmarket_sealed(
         os=["windows", "macos", "linux"],
         geoip=True,
     ) as browser:
-        page = await browser.new_page()
-
         for product_type in product_types:
             base_url = PRODUCT_TYPE_URLS.get(product_type)
             if not base_url:
@@ -353,9 +490,12 @@ async def crawl_cardmarket_sealed(
                 logger.info("Crawling %s (page %d)", product_type, page_num + 1)
 
                 try:
-                    html = await _fetch_page_html(page, url)
+                    html, image_bytes_map = await _fetch_with_retry(
+                        browser, url,
+                        skip_image_urls=already_uploaded_image_urls if upload_images else None,
+                    )
                 except CloudflareBlockedError:
-                    raise  # propagate — Cloud Run Job must exit non-zero
+                    raise  # all retries exhausted — Cloud Run Job must exit non-zero
                 except Exception as exc:
                     logger.error("Crawl failed for %s page %d: %s", product_type, page_num + 1, exc)
                     break
@@ -375,12 +515,56 @@ async def crawl_cardmarket_sealed(
                 for product, _ in new_results:
                     seen_ids.add(product.id)
 
+                if upload_images:
+                    await _process_images(new_results, existing_gcs_urls, image_bytes_map, gcs_client, bucket_name)
+
                 all_results.extend(new_results)
                 logger.info("Found %d new products on page %d for %s", len(new_results), page_num + 1, product_type)
 
-                # if len(page_results) < ITEMS_PER_SITE:
-                #     break
                 page_num += 1
 
     logger.info("Total products scraped: %d", len(all_results))
     return all_results
+
+
+async def _process_images(
+    results: list[tuple[SealedProduct, list[SealedProductPrice]]],
+    existing_gcs_urls: dict[str, str],
+    image_bytes_map: dict[str, bytes],
+    gcs_client,
+    bucket_name: str,
+) -> None:
+    """Upload product images captured during page load to GCS.
+
+    Images are pre-captured via network interception in _fetch_with_retry so that
+    the browser's Referer header (cardmarket.com) satisfies the CDN access policy.
+    Skips products whose image_url has not changed since the last run.
+    """
+    uploaded = skipped = missing = 0
+    for product, _ in results:
+        if not product.image_url:
+            continue
+        blob_path = sealed_product_gcs_path(product.id, product.image_url)
+        cache_key = f"{product.id}_{product.marketplace}_{product.language}"
+        existing = existing_gcs_urls.get(cache_key, "")
+
+        if existing and blob_path in existing:
+            product.gcs_image_url = existing
+            skipped += 1
+            continue
+
+        image_bytes = image_bytes_map.get(product.image_url)
+        if not image_bytes:
+            logger.warning("no captured bytes for %s (%s) — image may be lazy-loaded off-screen", product.id, product.image_url)
+            missing += 1
+            continue
+
+        try:
+            gcs_url = _upload_image_to_gcs(image_bytes, blob_path, bucket_name, gcs_client)
+            product.gcs_image_url = gcs_url
+            existing_gcs_urls[cache_key] = gcs_url
+            uploaded += 1
+            logger.info("uploaded image %s → %s", product.id, gcs_url)
+        except Exception as exc:
+            logger.error("failed to upload image for %s: %s", product.id, exc)
+    logger.info("images: %d uploaded, %d skipped (unchanged), %d missing from capture", uploaded, skipped, missing)

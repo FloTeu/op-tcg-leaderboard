@@ -1,3 +1,4 @@
+import hashlib
 from datetime import datetime, date
 from enum import StrEnum
 
@@ -10,10 +11,10 @@ from op_tcg.backend.models.common import DataSource
 
 
 class SealedProductType(StrEnum):
-    BOOSTER_BOX = "booster_box"
-    BOOSTER_CASE = "booster_case"
-    STARTER_DECK = "starter_deck"
-    SEALED = "sealed"
+    BOOSTER_BOX = "Booster Box"
+    BOOSTER_CASE = "Booster Case"
+    PRECONSTRUCTED_DECK = "Preconstructed Deck"
+    PROMO = "Promo Product"
 
 
 class SealedProduct(BQTableBaseModel):
@@ -27,12 +28,43 @@ class SealedProduct(BQTableBaseModel):
     language: OPTcgLanguage = Field(description="Language of the product print", primary_key=True)
     url: str = Field(description="Full product URL on the marketplace")
     image_url: str | None = Field(default=None, description="Product image URL from the marketplace")
+    gcs_image_url: str | None = Field(default=None, description="GCS URL of the locally cached product image")
     release_date: date | None = Field(default=None, description="Product release date if available")
+
+
+def sealed_product_gcs_path(product_id: str, image_url: str) -> str:
+    """Compute the GCS blob path for a sealed product image.
+
+    The URL hash is embedded in the filename so that if the source image_url
+    changes the path changes too, enabling change detection without a separate field.
+    Images are always stored as WebP regardless of the source format.
+    """
+    url_hash = hashlib.md5(image_url.encode()).hexdigest()[:8]
+    return f"sealed/images/{product_id}_{url_hash}.webp"
 
 
 class SealedPriceType(StrEnum):
     TREND = "trend"   # 30-day rolling average
     FROM = "from"     # lowest available listing price
+
+
+class SealedProductOrderBy(StrEnum):
+    """Sort order options for sealed product listings."""
+    PRICE_DESC = "price_desc"
+    PRICE_ASC = "price_asc"
+    NAME_ASC = "name_asc"
+    NAME_DESC = "name_desc"
+    RELEASE_DESC = "release_desc"
+
+    @property
+    def label(self) -> str:
+        return {
+            SealedProductOrderBy.PRICE_DESC: "Price: High to Low",
+            SealedProductOrderBy.PRICE_ASC: "Price: Low to High",
+            SealedProductOrderBy.NAME_ASC: "Name: A to Z",
+            SealedProductOrderBy.NAME_DESC: "Name: Z to A",
+            SealedProductOrderBy.RELEASE_DESC: "Newest First",
+        }[self]
 
 
 class SealedProductPrice(BQTableBaseModel):

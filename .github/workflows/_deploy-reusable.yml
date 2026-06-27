@@ -73,11 +73,12 @@ jobs:
           IMAGE="${{ steps.build-crawler.outputs.image }}"
           PROJECT="${{ secrets.PROJECT }}"
           SA="cloud-function-sa@${PROJECT}.iam.gserviceaccount.com"
-          # Create the job if it doesn't exist yet, otherwise update the image.
+          ENV_VARS="GOOGLE_CLOUD_PROJECT=${PROJECT},CAMOUFOX_HEADLESS=true,SCRAPER_PROXY=${{ secrets.SCRAPER_PROXY_RESIDENTIAL }}"
           if gcloud run jobs describe crawl-sealed-products \
                --region=${{ env.REGION }} --project="${PROJECT}" &>/dev/null; then
             gcloud run jobs update crawl-sealed-products \
               --image="${IMAGE}" \
+              --set-env-vars="${ENV_VARS}" \
               --region=${{ env.REGION }} \
               --project="${PROJECT}"
           else
@@ -86,7 +87,7 @@ jobs:
               --region=${{ env.REGION }} \
               --project="${PROJECT}" \
               --service-account="${SA}" \
-              --set-env-vars="GOOGLE_CLOUD_PROJECT=${PROJECT},CAMOUFOX_HEADLESS=true,SCRAPER_PROXY=${{ secrets.SCRAPER_PROXY }}" \
+              --set-env-vars="${ENV_VARS}" \
               --tasks=1 \
               --max-retries=1 \
               --task-timeout=1800 \

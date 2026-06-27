@@ -98,8 +98,10 @@ jobs:
   terraform-dev:
     needs: prepare
     if: |
-      needs.prepare.result == 'success' &&
-      github.event.comment.body == '/terraform dev'
+      needs.prepare.result == 'success' && (
+        github.event_name == 'pull_request' ||
+        github.event.comment.body == '/terraform dev'
+      )
     uses: ./.github/workflows/_terraform-reusable.yml
     with:
       environment: dev

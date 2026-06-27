@@ -1,9 +1,19 @@
+from collections import defaultdict
+
 from fasthtml import ft
 from op_tcg.backend.models.cards import CardCurrency, ExtendedCardData
 from typing import List, Dict
 from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.sealed import SealedProductType
 from op_tcg.frontend.utils.card_price import get_marketplace_link
 
+_SEALED_TYPE_CONFIG = {
+    SealedProductType.BOOSTER_BOX: {'label': 'Booster Box', 'color': '#f59e0b', 'bg': 'rgba(245,158,11,0.12)', 'border': 'rgba(245,158,11,0.35)'},
+    SealedProductType.BOOSTER_CASE: {'label': 'Booster Case', 'color': '#a855f7', 'bg': 'rgba(168,85,247,0.12)', 'border': 'rgba(168,85,247,0.35)'},
+    SealedProductType.PRECONSTRUCTED_DECK: {'label': 'Starter Deck', 'color': '#38bdf8', 'bg': 'rgba(56,189,248,0.10)', 'border': 'rgba(56,189,248,0.30)'},
+    SealedProductType.PROMO: {'label': 'Sealed', 'color': '#475569', 'bg': 'rgba(71,85,105,0.12)', 'border': 'rgba(71,85,105,0.35)'},
+}
+_SEALED_TYPE_ORDER = [SealedProductType.BOOSTER_BOX, SealedProductType.BOOSTER_CASE, SealedProductType.PRECONSTRUCTED_DECK, SealedProductType.PROMO]
 
 def price_tile(item: dict, currency: CardCurrency, card_id2card_data: Dict[str, Dict[int, ExtendedCardData]] | None = None) -> ft.Div:
     symbol = "€" if currency == CardCurrency.EURO else "$"
@@ -87,3 +97,328 @@ def price_tiles(items: List[dict], currency: CardCurrency, card_id2card_data: Di
             cls="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3",
         )
     )
+
+
+def create_sealed_product_modal(item: dict, currency: CardCurrency, is_in_watchlist: bool = False, is_logged_in: bool = False) -> ft.Div:
+    """Full-screen modal for a sealed product with price chart."""
+    symbol = "€" if currency == CardCurrency.EURO else "$"
+    name = item.get('name', '')
+    product_type = SealedProductType(item.get('product_type', SealedProductType.PROMO))
+    from_price = item.get('from_price')
+    trend_price = item.get('trend_price')
+    image_url = item.get('gcs_image_url') or item.get('image_url')
+    url = item.get('url', '#')
+    language = str(item.get('language', 'en')).upper()
+    release_date = item.get('release_date')
+    marketplace = item.get('marketplace', 'cardmarket')
+    product_id = item.get('id', '')
+
+    cfg = _SEALED_TYPE_CONFIG.get(product_type, _SEALED_TYPE_CONFIG[SealedProductType.PROMO])
+    from_str = f"{symbol}{from_price:.2f}" if from_price is not None else "—"
+    trend_str = f"{symbol}{trend_price:.2f}" if trend_price is not None else "—"
+    release_str = str(release_date) if release_date else "—"
+    currency_val = currency.value
+
+    modal_id = f"sealed-modal-{product_id}"
+    wl_btn_id = f"sealed-wl-btn-{product_id}"
+
+    _label = "font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:0.65rem; color:#475569; text-transform:uppercase;"
+    _value = "font-family:'Share Tech Mono',monospace; font-size:0.8rem; color:#f1f5f9;"
+    _row = "display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #1a2540;"
+
+    def info_row(label, value):
+        return ft.Div(ft.Span(label, style=_label), ft.Span(value, style=_value), style=_row)
+
+    chart_container_id = f"sealed-price-chart-container-{product_id}"
+    chart_loading_id = f"sealed-price-chart-loading-{product_id}"
+
+    wl_active_cls = "text-red-500"
+    wl_inactive_cls = "text-gray-400 hover:text-red-400"
+    wl_btn_cls = f"inline-flex items-center justify-center w-9 h-9 rounded-full z-30 transition absolute top-4 right-16 {'%s' % wl_active_cls if is_in_watchlist else wl_inactive_cls}"
+    wl_title = "Remove from Watchlist" if is_in_watchlist else "Add to Watchlist"
+    heart_fill = "currentColor" if is_in_watchlist else "none"
+
+    heart_svg = f'<svg viewBox="0 0 24 24" width="22" height="22" fill="{heart_fill}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>'
+
+    wl_script = ft.Script(f"""
+        (function() {{
+            window._toggleSealedWatchlist = function(btn) {{
+                if (btn.dataset.loggedIn === 'false') {{
+                    window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+                    return;
+                }}
+                const inWl = btn.dataset.inWatchlist === 'true';
+                const endpoint = inWl ? '/api/sealed-watchlist/remove' : '/api/sealed-watchlist/add';
+                const newState = !inWl;
+                btn.dataset.inWatchlist = newState ? 'true' : 'false';
+                btn.title = newState ? 'Remove from Watchlist' : 'Add to Watchlist';
+                const svg = btn.querySelector('svg');
+                if (svg) svg.setAttribute('fill', newState ? 'currentColor' : 'none');
+                btn.className = btn.className.replace(inWl ? 'text-red-500' : 'text-gray-400 hover:text-red-400', newState ? 'text-red-500' : 'text-gray-400 hover:text-red-400');
+                fetch(endpoint, {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{product_id: btn.dataset.productId, marketplace: btn.dataset.marketplace}})
+                }});
+            }};
+        }})();
+    """)
+
+    return ft.Div(
+        wl_script,
+        ft.Div(
+            # Close button — matches card modal style
+            ft.Button(
+                ft.Span("×", style="font-size:1.2rem; line-height:1;"),
+                type="button",
+                cls="absolute top-4 right-4 inline-flex items-center justify-center w-9 h-9 rounded-full z-30 transition",
+                style="background:rgba(8,14,28,0.9); border:1px solid #1a2540; color:#94a3b8;",
+                onclick=f"event.stopPropagation(); document.getElementById('{modal_id}').remove();",
+            ),
+
+            # Watchlist toggle button
+            ft.Button(
+                ft.Safe(heart_svg),
+                id=wl_btn_id,
+                type="button",
+                cls=wl_btn_cls,
+                style="background:rgba(8,14,28,0.9); border:1px solid #1a2540;",
+                title=wl_title,
+                onclick="event.stopPropagation(); window._toggleSealedWatchlist(this);",
+                data_product_id=product_id,
+                data_marketplace=marketplace,
+                data_in_watchlist="true" if is_in_watchlist else "false",
+                data_logged_in="true" if is_logged_in else "false",
+            ),
+
+            # Content layout: image left, details right
+            ft.Div(
+                # Image column
+                ft.Div(
+                    ft.Img(
+                        src=image_url,
+                        alt=name,
+                        style="width:100%; height:auto; object-fit:contain; border-radius:8px; display:block;",
+                    ) if image_url else ft.Div(
+                        ft.Span("📦", style="font-size:3rem; opacity:0.2;"),
+                        style="display:flex; align-items:center; justify-content:center; background:#080e1c; border-radius:8px; min-height:200px;",
+                    ),
+                    cls="w-full md:w-2/5 flex-shrink-0",
+                ),
+
+                # Details column
+                ft.Div(
+                    # Name + type badge
+                    ft.Div(
+                        ft.Span(
+                            cfg['label'],
+                            style=f"font-family:'Bebas Neue',sans-serif; font-size:0.6rem; letter-spacing:0.12em; color:{cfg['color']}; background:{cfg['bg']}; border:1px solid {cfg['border']}; border-radius:4px; padding:2px 6px; display:inline-block; margin-bottom:8px;",
+                        ),
+                        ft.Div(
+                            ft.Span(name, style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.08em; font-size:1.4rem; color:#f1f5f9; line-height:1.15;"),
+                            style="",
+                        ),
+                        style="padding-bottom:12px; border-bottom:1px solid #1a2540; margin-bottom:4px;",
+                    ),
+
+                    # Info rows
+                    info_row("Language", language),
+                    info_row("Marketplace", marketplace.capitalize()),
+                    # info_row("Released", release_str),
+
+                    # Prices
+                    ft.Div(
+                        ft.Span("FROM", style=_label),
+                        ft.Span(from_str, style="font-family:'Share Tech Mono',monospace; font-size:1rem; color:#10b981; font-weight:700;"),
+                        style=_row,
+                    ),
+                    # ft.Div(
+                    #     ft.Span("TREND (30d)", style=_label),
+                    #     ft.Span(trend_str, style="font-family:'Share Tech Mono',monospace; font-size:1rem; color:#f59e0b; font-weight:700;"),
+                    #     style=_row,
+                    # ),
+
+                    # Marketplace link
+                    ft.Div(
+                        ft.A(
+                            f"View on {marketplace.capitalize()} →",
+                            href=url, target="_blank", rel="noopener",
+                            style="font-family:'Barlow',sans-serif; font-size:0.8rem; color:#38bdf8; text-decoration:none; transition:opacity 0.12s;",
+                            onmouseover="this.style.opacity='0.75'",
+                            onmouseout="this.style.opacity='1'",
+                        ),
+                        style="padding-top:12px;",
+                    ),
+
+                    cls="flex-1 min-w-0",
+                ),
+
+                cls="flex flex-col md:flex-row gap-6 mb-6",
+            ),
+
+            # Price development section
+            ft.Div(
+                ft.Div(
+                    ft.Span("Price Development",
+                            style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:1rem; color:#f1f5f9;"),
+                    ft.Div(
+                        *[
+                            ft.Button(
+                                label,
+                                type="button",
+                                cls="sealed-period-chip",
+                                style=(
+                                    "font-family:'Barlow',sans-serif; font-size:0.75rem; padding:3px 10px;"
+                                    "border:1px solid; border-radius:20px; cursor:pointer;"
+                                    "transition:background .15s,color .15s,border-color .15s;"
+                                    + ("background:rgba(245,158,11,0.12);color:#f59e0b;border-color:rgba(245,158,11,0.35);"
+                                       if days_val == "90" else
+                                       "background:#0d1424;color:#475569;border-color:#1a2540;")
+                                ),
+                                hx_get="/api/sealed-product-price-chart",
+                                hx_target=f"#{chart_container_id}",
+                                hx_indicator=f"#{chart_loading_id}",
+                                hx_vals=f'{{"product_id":"{product_id}","currency":"{currency_val}","days":"{days_val}"}}',
+                                **{"hx-on::before-request": f"document.getElementById('{chart_container_id}').innerHTML='';"},
+                                onclick=(
+                                    f"this.closest('.sealed-period-chips').querySelectorAll('.sealed-period-chip')"
+                                    ".forEach(function(b){b.style.background='#0d1424';b.style.color='#475569';b.style.borderColor='#1a2540';});"
+                                    "this.style.background='rgba(245,158,11,0.12)';this.style.color='#f59e0b';this.style.borderColor='rgba(245,158,11,0.35)';"
+                                ),
+                            )
+                            for label, days_val in [("30d", "30"), ("60d", "60"), ("90d", "90"), ("180d", "180"), ("1yr", "365")]
+                        ],
+                        cls="flex gap-1.5 flex-wrap sealed-period-chips",
+                    ),
+                    cls="flex justify-between items-center gap-4 mb-4 flex-wrap",
+                ),
+                ft.Div(
+                    ft.Div(
+                        id=chart_container_id,
+                        hx_get=f"/api/sealed-product-price-chart?product_id={product_id}&currency={currency_val}&days=90",
+                        hx_trigger="load",
+                        hx_indicator=f"#{chart_loading_id}",
+                        cls="w-full h-full",
+                    ),
+                    ft.Div(
+                        ft.Div(style="width:28px; height:28px; border:2px solid #1a2540; border-top-color:#38bdf8; border-radius:50%; animation:rotate 0.65s linear infinite;"),
+                        id=chart_loading_id,
+                        cls="htmx-indicator absolute inset-0 flex items-center justify-center",
+                        style="opacity:0;",
+                    ),
+                    cls="relative h-52",
+                ),
+                style="padding-top:20px; border-top:1px solid #1a2540;",
+            ),
+
+            style="background:#0d1424; border:1px solid #1a2540; border-radius:12px; padding:24px; max-width:52rem; width:100%; margin:0 1rem; position:relative;",
+            onclick="event.stopPropagation();",
+        ),
+        ft.Style("@keyframes rotate { to { transform: rotate(360deg); } }"),
+        id=modal_id,
+        cls="fixed inset-0 flex items-center justify-center overflow-y-auto py-4",
+        style="z-index:10000; background:rgba(0,0,0,0.8);",
+        onclick=f"document.getElementById('{modal_id}').remove();",
+    )
+
+
+def sealed_product_tile(item: dict, symbol: str, currency: CardCurrency = CardCurrency.EURO) -> ft.Div:
+    name = item.get('name', '')
+    product_type = SealedProductType(item.get('product_type', SealedProductType.PROMO))
+    from_price = item.get('from_price')
+    trend_price = item.get('trend_price')
+    image_url = item.get('gcs_image_url')
+    url = item.get('url', '#')
+    language = str(item.get('language', 'en')).upper()[:2]
+    product_id = item.get('id', '')
+    currency_val = currency.value
+
+    cfg = _SEALED_TYPE_CONFIG.get(product_type)
+    from_str = f"{symbol}{from_price:.2f}" if from_price is not None else "—"
+    trend_str = f"{symbol}{trend_price:.2f}" if trend_price is not None else "—"
+
+    img_child = ft.Img(
+        src=image_url, alt=name,
+        style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:contain; display:block; padding:4px;",
+    ) if image_url else ft.Div(
+        ft.Span("📦", style="font-size:2.5rem; opacity:0.2;"),
+        style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#080e1c;",
+    )
+
+    return ft.Div(
+        ft.Div(
+            img_child,
+            ft.Span(
+                language,
+                style="position:absolute; top:6px; right:6px; font-family:'Bebas Neue',sans-serif; font-size:0.6rem; letter-spacing:0.1em; color:#94a3b8; background:rgba(7,11,20,0.75); border:1px solid #1a2540; border-radius:3px; padding:1px 5px; z-index:1;",
+            ),
+            style="position:relative; padding-top:65%; overflow:hidden; background:#080e1c;",
+        ),
+        ft.Div(
+            ft.Span(
+                cfg['label'],
+                style=f"font-family:'Bebas Neue',sans-serif; font-size:0.6rem; letter-spacing:0.12em; color:{cfg['color']}; background:{cfg['bg']}; border:1px solid {cfg['border']}; border-radius:4px; padding:2px 6px; display:inline-block; margin-bottom:6px;",
+            ),
+            ft.P(
+                name,
+                title=name,
+                style="font-family:'Barlow',sans-serif; font-size:0.8rem; font-weight:600; color:#f1f5f9; margin-bottom:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;",
+            ),
+            ft.Div(
+                ft.Div(
+                    ft.Span("FROM", style="font-family:'Bebas Neue',sans-serif; font-size:0.55rem; letter-spacing:0.1em; color:#475569; display:block; margin-bottom:1px;"),
+                    ft.Span(from_str, style="font-family:'Share Tech Mono',monospace; font-size:0.9rem; color:#10b981; font-weight:700;"),
+                ),
+                ft.Div(
+                    ft.Span("TREND", style="font-family:'Bebas Neue',sans-serif; font-size:0.55rem; letter-spacing:0.1em; color:#475569; display:block; margin-bottom:1px;"),
+                    ft.Span(trend_str, style="font-family:'Share Tech Mono',monospace; font-size:0.9rem; color:#f59e0b; font-weight:700;"),
+                ),
+                cls="flex justify-between mb-3",
+            ),
+            ft.Span(
+                "View details →",
+                style="font-family:'Barlow',sans-serif; font-size:0.7rem; color:#38bdf8; opacity:0.75; cursor:pointer;",
+            ),
+            cls="p-2",
+        ),
+        hx_get=f"/api/sealed-product-modal?product_id={product_id}&currency={currency_val}",
+        hx_target="body",
+        hx_swap="beforeend",
+        style="background:#0d1424; border:1px solid #1a2540; border-radius:8px; overflow:hidden; transition:border-color 0.15s, transform 0.15s; cursor:pointer;",
+        onmouseover="this.style.borderColor='#2d3f5a'; this.style.transform='translateY(-2px)';",
+        onmouseout="this.style.borderColor='#1a2540'; this.style.transform='translateY(0)';",
+    )
+
+
+def sealed_product_tiles(items: List[dict], currency: CardCurrency) -> ft.Div:
+    symbol = "€" if currency == CardCurrency.EURO else "$"
+    grouped: dict[str, list] = defaultdict(list)
+    for item in items:
+        grouped[item.get('product_type', 'sealed')].append(item)
+
+    if not items:
+        return ft.Div(
+            ft.P("No sealed products found.", style="font-family:'Barlow',sans-serif; color:#475569; text-align:center; padding:40px 0;"),
+        )
+
+    sections = []
+    for pt in _SEALED_TYPE_ORDER:
+        group = grouped.get(pt, [])
+        if not group:
+            continue
+        label = SealedProductType(pt).value
+        sections.append(
+            ft.Div(
+                ft.H3(
+                    label,
+                    style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.12em; font-size:1.1rem; color:#475569; margin-bottom:12px; padding-top:16px; border-top:1px solid #111d30;",
+                ),
+                ft.Div(
+                    *[sealed_product_tile(item, symbol, currency) for item in group],
+                    cls="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3",
+                ),
+                cls="mb-8",
+            )
+        )
+
+    return ft.Div(*sections, cls="p-4")
