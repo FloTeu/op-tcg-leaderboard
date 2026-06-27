@@ -200,14 +200,15 @@ def parse_gallery_page(html: str, product_type: SealedProductType) -> list[tuple
         if trend_price is None and from_price is None:
             logger.debug("No prices found for %s", product_id)
 
-        if product_type == SealedProductType.BOOSTER_BOX and "case" in name.lower():
-            product_type = SealedProductType.BOOSTER_CASE
+        current_product_type = product_type
+        if current_product_type == SealedProductType.BOOSTER_BOX and "case" in name.lower():
+            current_product_type = SealedProductType.BOOSTER_CASE
 
         product = SealedProduct(
             id=product_id,
             marketplace=OPTcgMarketplace.CARDMARKET,
             name=name,
-            product_type=product_type,
+            product_type=current_product_type,
             language=language,
             url=full_url,
             image_url=image_url,
