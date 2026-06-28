@@ -208,6 +208,15 @@ def _table_time_range_script() -> ft.Script:
         })
         .catch(function(){if(loadingEl) loadingEl.classList.add('hidden');});
     });
+    document.querySelectorAll('.table-price-change-container').forEach(function(el){
+      var cardId=el.dataset.cardId;
+      var aaVersion=el.dataset.aaVersion;
+      el.style.opacity='0.4';
+      fetch('/api/card-price-change?card_id='+cardId+'&aa_version='+aaVersion+'&days='+days)
+        .then(function(r){return r.text();})
+        .then(function(html){el.innerHTML=html;el.style.opacity='';})
+        .catch(function(){el.style.opacity='';});
+    });
   }
   window.updateAllTableCharts=updateAllTableCharts;
 })();
@@ -241,6 +250,23 @@ def _qty_script() -> ft.Script:
   }
   document.addEventListener('DOMContentLoaded',init);
   document.addEventListener('htmx:afterSwap',init);
+})();
+""")
+
+
+def _price_change_script() -> ft.Script:
+    return ft.Script("""
+(function(){
+  if(window.wlFetchPriceChange) return;
+  window.wlFetchPriceChange=function(cardId,aaVersion,days,containerId){
+    var c=document.getElementById(containerId);
+    if(!c) return;
+    c.style.opacity='0.4';
+    fetch('/api/card-price-change?card_id='+cardId+'&aa_version='+aaVersion+'&days='+days)
+      .then(function(r){return r.text();})
+      .then(function(html){c.innerHTML=html;c.style.opacity='';})
+      .catch(function(){c.style.opacity='';});
+  };
 })();
 """)
 
@@ -911,6 +937,15 @@ def watchlist_page(request):
                                 href=tcg_url, target="_blank",
                                 cls="flex items-center justify-end gap-2 py-1 px-2 rounded hover:bg-blue-900/10 transition-colors"
                             ),
+                            ft.Div(
+                                id=f"pc-table-{card_id}-{aa_version}-{language}",
+                                hx_get=f"/api/card-price-change?card_id={card_id}&aa_version={aa_version}&days=90",
+                                hx_trigger="revealed",
+                                hx_swap="innerHTML",
+                                cls="flex flex-col items-end gap-0 mt-1 table-price-change-container min-h-[28px]",
+                                data_card_id=card_id,
+                                data_aa_version=str(aa_version),
+                            ),
                             cls="flex flex-col items-end min-w-[110px]"
                         ),
                         cls="wl-td whitespace-nowrap"
@@ -1098,9 +1133,17 @@ def watchlist_page(request):
                                 hx_target=f"#{chart_id}",
                                 hx_indicator=f"#{chart_id}-loading",
                                 hx_vals=f'{{"card_id": "{card_id}", "aa_version": "{aa_version}", "include_alt_art": "false", "location": "watchlist"}}',
-                                hx_on__before_request=f"document.getElementById('{chart_id}').innerHTML = ''; document.getElementById('{chart_id}-loading').classList.remove('hidden');"
+                                hx_on__before_request=f"document.getElementById('{chart_id}').innerHTML = ''; document.getElementById('{chart_id}-loading').classList.remove('hidden');",
+                                onchange=f"wlFetchPriceChange('{card_id}',{aa_version},this.value,'pc-{chart_id}')"
                             ),
-                            cls="flex items-center justify-between mb-3"
+                            cls="flex items-center justify-between mb-2"
+                        ),
+                        ft.Div(
+                            id=f"pc-{chart_id}",
+                            hx_get=f"/api/card-price-change?card_id={card_id}&aa_version={aa_version}&days=90",
+                            hx_trigger="revealed",
+                            hx_swap="innerHTML",
+                            cls="flex items-center gap-3 mb-2 min-h-[14px]"
                         ),
                         ft.Div(
                             ft.Div(
@@ -1280,6 +1323,7 @@ def watchlist_page(request):
     return ft.Div(
         _wl_styles(),
         _qty_script(),
+        _price_change_script(),
         _sealed_qty_script(),
         _table_time_range_script() if view_mode == 'table' else ft.Span(),
         ft.Div(
