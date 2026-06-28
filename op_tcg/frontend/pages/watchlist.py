@@ -5,6 +5,7 @@ from op_tcg.frontend.components.watchlist_toggle import create_watchlist_toggle
 from op_tcg.frontend.components.decklist_watchlist_toggle import create_decklist_watchlist_toggle
 from op_tcg.frontend.utils.card_price import get_marketplace_link
 from op_tcg.frontend.utils.extract import get_card_lookup_by_id_and_aa, get_card_id_card_data_lookup, get_sealed_product_prices, get_watchlist_price_changes
+from op_tcg.frontend.api.routes.watchlist import _pp_display
 from op_tcg.frontend.components.loading import create_loading_spinner
 from op_tcg.backend.models.cards import CardCurrency
 
@@ -774,12 +775,14 @@ def watchlist_page(request):
 
         tags = item.get('tags', ['my collection']) or ['my collection']
         quantity = max(1, int(item.get('quantity', 1)))
+        pp_raw = item.get('purchase_price')
+        purchase_price = float(pp_raw) if pp_raw not in (None, '') else None
 
         prepared_items.append({
             'card_id': card_id, 'aa_version': aa_version, 'language': language,
             'quantity': quantity, 'card_details': card_details, 'card_name': card_name,
             'image_url': image_url, 'latest_eur': latest_eur, 'latest_usd': latest_usd,
-            'tags': tags,
+            'tags': tags, 'purchase_price': purchase_price,
         })
 
     total_eur = sum(i['latest_eur'] * i['quantity'] for i in prepared_items)
@@ -956,6 +959,7 @@ def watchlist_page(request):
                                 href=tcg_url, target="_blank",
                                 cls="flex items-center justify-end gap-2 py-1 px-2 rounded hover:bg-blue-900/10 transition-colors"
                             ),
+                            _pp_display(card_id, aa_version, language, item['purchase_price'], item['latest_eur']),
                             ft.Div(
                                 id=f"pc-table-{card_id}-{aa_version}-{language}",
                                 hx_get=f"/api/card-price-change?card_id={card_id}&aa_version={aa_version}&days=90",
@@ -1141,6 +1145,7 @@ def watchlist_page(request):
                                         data_price_usd=True),
                                 cls="mt-2"
                             ),
+                            _pp_display(card_id, aa_version, language, item['purchase_price'], item['latest_eur']),
                             tag_chips,
                             cls="flex-1 min-w-0",
                             hx_get=f"/api/card-modal?card_id={card_id}&meta_format=latest&aa_version={aa_version}",

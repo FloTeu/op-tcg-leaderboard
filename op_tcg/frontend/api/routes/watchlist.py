@@ -5,13 +5,14 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from op_tcg.backend.db import (
     add_to_watchlist, remove_from_watchlist, update_watchlist_tags, update_watchlist_quantity, get_watchlist,
+    update_watchlist_purchase_price,
     add_decklist_to_watchlist, remove_decklist_from_watchlist, update_decklist_watchlist_tags,
     create_custom_decklist, get_custom_decklists, update_custom_decklist, delete_custom_decklist,
     add_to_sealed_watchlist, remove_from_sealed_watchlist, update_sealed_watchlist_quantity, get_sealed_watchlist,
     DEFAULT_WATCHLIST_TAG,
 )
 from op_tcg.frontend.utils.extract import (
-    get_watchlist_aggregate_price_data, get_card_id_card_data_lookup,
+    get_watchlist_aggregate_price_data, get_card_id_card_data_lookup, get_card_lookup_by_id_and_aa,
     get_all_tournament_decklist_data, get_card_popularity_data,
     get_sealed_watchlist_aggregate_price_data, get_sealed_product_prices,
 )
@@ -110,6 +111,131 @@ def _tag_editor_component(card_id: str, card_version: int, language: str, tags: 
         hx_target=f"#{target_id}",
         hx_swap="outerHTML",
         cls="flex items-start mt-1",
+        onclick="event.stopPropagation();"
+    )
+
+
+def _resolve_latest_eur(card_id: str, card_version: int) -> float | None:
+    """Look up the EUR price for the specific aa_version of a card."""
+    lookup = get_card_lookup_by_id_and_aa()
+    versions = lookup.get(card_id, {})
+    card_data = versions.get(card_version) or versions.get(0) or (next(iter(versions.values()), None) if versions else None)
+    return getattr(card_data, 'latest_eur_price', None) if card_data else None
+
+
+def _pp_target_id(card_id: str, card_version: int, language: str) -> str:
+    return f"pp-{card_id}-{card_version}-{language}"
+
+
+def _pp_display(card_id: str, card_version: int, language: str, purchase_price: float | None, latest_eur: float | None = None):
+    """Purchase-price display chip (shown when not editing)."""
+    target_id = _pp_target_id(card_id, card_version, language)
+    editor_url = f"/api/watchlist/purchase-price-editor?card_id={card_id}&card_version={card_version}&language={language}"
+    if purchase_price is not None:
+        editor_url += f"&purchase_price={purchase_price}"
+
+    if purchase_price is None:
+        return ft.Div(
+            ft.Button(
+                ft.I(cls="fas fa-tag text-xs mr-1"),
+                "Set cost",
+                type="button",
+                cls="wl-btn-ghost",
+                style="font-size:.62rem;padding:2px 8px;",
+                hx_get=editor_url,
+                hx_target=f"#{target_id}",
+                hx_swap="outerHTML",
+            ),
+            id=target_id,
+            cls="mt-1",
+            onclick="event.stopPropagation();"
+        )
+
+    pnl_str = ""
+    pnl_color = "#475569"
+    if latest_eur and purchase_price > 0:
+        diff = latest_eur - purchase_price
+        pct = diff / purchase_price * 100
+        sign = "+" if diff >= 0 else ""
+        pnl_color = "#10b981" if diff >= 0 else "#ef4444"
+        pnl_str = f" · {sign}€{abs(diff):.2f} ({sign}{pct:.1f}%)"
+
+    return ft.Div(
+        ft.Span(f"PAID €{purchase_price:.2f}",
+                style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:#475569;"),
+        *(
+            [ft.Span(pnl_str, style=f"font-family:'Share Tech Mono',monospace;font-size:.6rem;color:{pnl_color};")]
+            if pnl_str else []
+        ),
+        ft.Button(
+            ft.I(cls="fas fa-pen text-xs"),
+            type="button",
+            cls="wl-btn-ghost ml-2",
+            style="padding:2px 5px;",
+            hx_get=editor_url,
+            hx_target=f"#{target_id}",
+            hx_swap="outerHTML",
+        ),
+        id=target_id,
+        cls="flex items-center mt-1",
+        onclick="event.stopPropagation();"
+    )
+
+
+def _pp_editor(card_id: str, card_version: int, language: str, purchase_price: float | None):
+    """Inline form for editing the purchase price."""
+    target_id = _pp_target_id(card_id, card_version, language)
+    pp_str = f"{purchase_price:.2f}" if purchase_price is not None else ""
+    cancel_url = (
+        f"/api/watchlist/purchase-price-display?card_id={card_id}&card_version={card_version}&language={language}"
+        + (f"&purchase_price={purchase_price}" if purchase_price is not None else "")
+    )
+    return ft.Form(
+        ft.Input(type="hidden", name="card_id", value=card_id),
+        ft.Input(type="hidden", name="card_version", value=str(card_version)),
+        ft.Input(type="hidden", name="language", value=language),
+        ft.Div(
+            ft.Span("€", style="font-family:'Share Tech Mono',monospace;font-size:.75rem;color:#475569;margin-right:3px;"),
+            ft.Input(
+                type="number",
+                name="purchase_price",
+                value=pp_str,
+                placeholder="0.00",
+                min="0",
+                step="0.01",
+                cls="wl-input",
+                style="font-size:.72rem;padding:3px 8px;width:80px;",
+                autofocus=True,
+                onkeydown="event.stopPropagation();",
+                onkeyup="event.stopPropagation();",
+            ),
+            ft.Button("Save", type="submit", cls="wl-btn-primary", style="font-size:.68rem;padding:3px 10px;margin-left:4px;"),
+            ft.Button(
+                "Clear",
+                type="button",
+                cls="wl-btn-ghost",
+                style="font-size:.68rem;padding:3px 8px;margin-left:3px;",
+                hx_post="/api/watchlist/purchase-price",
+                hx_target=f"#{target_id}",
+                hx_swap="outerHTML",
+                hx_vals=f'{{"card_id":"{card_id}","card_version":{card_version},"language":"{language}","purchase_price":""}}',
+            ),
+            ft.Button(
+                "Cancel",
+                type="button",
+                cls="wl-btn-ghost",
+                style="font-size:.68rem;padding:3px 8px;margin-left:3px;",
+                hx_get=cancel_url,
+                hx_target=f"#{target_id}",
+                hx_swap="outerHTML",
+            ),
+            cls="flex items-center flex-wrap gap-1 mt-1"
+        ),
+        id=target_id,
+        hx_post="/api/watchlist/purchase-price",
+        hx_target=f"#{target_id}",
+        hx_swap="outerHTML",
+        cls="flex items-center mt-1",
         onclick="event.stopPropagation();"
     )
 
@@ -431,6 +557,54 @@ def setup_watchlist_routes(rt):
         tags = _parse_tags(request.query_params.get('tags', DEFAULT_WATCHLIST_TAG))
 
         return _tag_chips_component(card_id, card_version, language, tags)
+
+    @rt("/api/watchlist/purchase-price-editor", methods=["GET"])
+    async def purchase_price_editor(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        p = request.query_params
+        card_id = p.get('card_id', '')
+        card_version = int(p.get('card_version', 0))
+        language = p.get('language', 'en')
+        pp_raw = p.get('purchase_price', '')
+        purchase_price = float(pp_raw) if pp_raw else None
+        return _pp_editor(card_id, card_version, language, purchase_price)
+
+    @rt("/api/watchlist/purchase-price-display", methods=["GET"])
+    async def purchase_price_display(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        p = request.query_params
+        card_id = p.get('card_id', '')
+        card_version = int(p.get('card_version', 0))
+        language = p.get('language', 'en')
+        pp_raw = p.get('purchase_price', '')
+        purchase_price = float(pp_raw) if pp_raw else None
+        latest_eur = _resolve_latest_eur(card_id, card_version)
+        return _pp_display(card_id, card_version, language, purchase_price, latest_eur)
+
+    @rt("/api/watchlist/purchase-price", methods=["POST"])
+    async def update_purchase_price(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        try:
+            data = await request.json()
+        except Exception:
+            form = await request.form()
+            data = dict(form)
+        card_id = data.get('card_id', '')
+        card_version = 0 if data.get('card_version') in (None, 'Base', 0) else int(data.get('card_version', 0))
+        language = data.get('language', 'en')
+        pp_raw = data.get('purchase_price', '')
+        purchase_price = float(pp_raw) if pp_raw not in (None, '', 'null') else None
+        if not card_id:
+            return JSONResponse({"error": "Missing card_id"}, status_code=400)
+        update_watchlist_purchase_price(user.get('sub'), card_id, card_version, language, purchase_price)
+        latest_eur = _resolve_latest_eur(card_id, card_version)
+        return _pp_display(card_id, card_version, language, purchase_price, latest_eur)
 
     @rt("/api/watchlist/aggregate-chart", methods=["GET"])
     async def aggregate_chart(request: Request):
