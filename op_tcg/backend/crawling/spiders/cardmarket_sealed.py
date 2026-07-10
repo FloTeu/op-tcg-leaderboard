@@ -476,6 +476,34 @@ async def _process_images(
     logger.info("images: %d uploaded, %d skipped (unchanged), %d missing from capture", uploaded, skipped, missing)
 
 
+async def get_already_uploaded_image_urls(bq_client: BigQueryClient ) -> tuple[dict[str, str], set[str]]:
+    existing_gcs_urls: dict[str, str] = {}
+    already_uploaded_image_urls: set[str] = set()
+
+    table_ref = f"{bq_client.project}.{SealedProduct.get_dataset_id()}.{SealedProduct.__tablename__}"
+    try:
+        df = bq_client.query_and_wait(
+            f"SELECT id, marketplace, language, image_url, gcs_image_url FROM `{table_ref}` WHERE gcs_image_url IS NOT NULL"
+        ).to_dataframe()
+        for _, row in df.iterrows():
+            key = f"{row['id']}_{row['marketplace']}_{row['language']}"
+            gcs_url = row["gcs_image_url"] or ""
+            src_url = row["image_url"] or ""
+            existing_gcs_urls[key] = gcs_url
+            # Mark this source URL as already uploaded if the hash still matches
+            if src_url and gcs_url:
+                expected_path = sealed_product_gcs_path(row["id"], src_url)
+                if expected_path in gcs_url:
+                    already_uploaded_image_urls.add(src_url)
+        logger.info(
+            "Loaded %d existing GCS URLs; %d source URLs already current — will skip their captures",
+            len(existing_gcs_urls), len(already_uploaded_image_urls),
+        )
+    except Exception as exc:
+        logger.warning("Could not load existing gcs_image_url values: %s", exc)
+    return existing_gcs_urls, already_uploaded_image_urls
+
+
 async def crawl_cardmarket_sealed(
     product_types: list[SealedProductType] | None = None,
     upload_images: bool = False,
@@ -596,32 +624,4 @@ async def crawl_cardmarket_sealed(
 
     logger.info("Total products scraped: %d", len(all_results))
     return all_results
-
-
-async def get_already_uploaded_image_urls(bq_client: BigQueryClient ) -> tuple[dict[str, str], set[str]]:
-    existing_gcs_urls: dict[str, str] = {}
-    already_uploaded_image_urls: set[str] = set()
-
-    table_ref = f"{bq_client.project}.{SealedProduct.get_dataset_id()}.{SealedProduct.__tablename__}"
-    try:
-        df = bq_client.query_and_wait(
-            f"SELECT id, marketplace, language, image_url, gcs_image_url FROM `{table_ref}` WHERE gcs_image_url IS NOT NULL"
-        ).to_dataframe()
-        for _, row in df.iterrows():
-            key = f"{row['id']}_{row['marketplace']}_{row['language']}"
-            gcs_url = row["gcs_image_url"] or ""
-            src_url = row["image_url"] or ""
-            existing_gcs_urls[key] = gcs_url
-            # Mark this source URL as already uploaded if the hash still matches
-            if src_url and gcs_url:
-                expected_path = sealed_product_gcs_path(row["id"], src_url)
-                if expected_path in gcs_url:
-                    already_uploaded_image_urls.add(src_url)
-        logger.info(
-            "Loaded %d existing GCS URLs; %d source URLs already current — will skip their captures",
-            len(existing_gcs_urls), len(already_uploaded_image_urls),
-        )
-    except Exception as exc:
-        logger.warning("Could not load existing gcs_image_url values: %s", exc)
-    return existing_gcs_urls, already_uploaded_image_urls
 
