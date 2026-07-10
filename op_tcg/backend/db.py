@@ -173,6 +173,22 @@ def update_sealed_watchlist_quantity(user_id: str, product_id: str, marketplace:
     )
 
 
+def update_sealed_watchlist_purchase_price(
+    user_id: str,
+    product_id: str,
+    marketplace: str = "cardmarket",
+    purchase_price: float | None = None,
+):
+    """Sets or clears the per-unit purchase price (cost basis) for a sealed watchlist product."""
+    db = get_db()
+    if not db:
+        return
+    doc_id = f"{product_id}__{marketplace}"
+    db.collection('users').document(user_id).collection('sealed_watchlist').document(doc_id).update(
+        {'purchase_price': purchase_price}
+    )
+
+
 def remove_from_sealed_watchlist(user_id: str, product_id: str, marketplace: str = "cardmarket"):
     """Removes a sealed product from the user's sealed watchlist."""
     db = get_db()

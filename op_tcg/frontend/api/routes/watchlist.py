@@ -9,6 +9,7 @@ from op_tcg.backend.db import (
     add_decklist_to_watchlist, remove_decklist_from_watchlist, update_decklist_watchlist_tags,
     create_custom_decklist, get_custom_decklists, update_custom_decklist, delete_custom_decklist,
     add_to_sealed_watchlist, remove_from_sealed_watchlist, update_sealed_watchlist_quantity, get_sealed_watchlist,
+    update_sealed_watchlist_purchase_price,
     DEFAULT_WATCHLIST_TAG,
 )
 from op_tcg.frontend.utils.extract import (
@@ -123,17 +124,22 @@ def _resolve_latest_eur(card_id: str, card_version: int) -> float | None:
     return getattr(card_data, 'latest_eur_price', None) if card_data else None
 
 
+def _resolve_latest_sealed_price(product_id: str) -> float | None:
+    """Look up the latest EUR from_price for a sealed product."""
+    from op_tcg.backend.models.cards import CardCurrency
+    products = get_sealed_product_prices(CardCurrency.EURO)
+    for p in products:
+        if p.get('id') == product_id:
+            return p.get('from_price')
+    return None
+
+
 def _pp_target_id(card_id: str, card_version: int, language: str) -> str:
     return f"pp-{card_id}-{card_version}-{language}"
 
 
-def _pp_display(card_id: str, card_version: int, language: str, purchase_price: float | None, latest_eur: float | None = None):
-    """Purchase-price display chip (shown when not editing)."""
-    target_id = _pp_target_id(card_id, card_version, language)
-    editor_url = f"/api/watchlist/purchase-price-editor?card_id={card_id}&card_version={card_version}&language={language}"
-    if purchase_price is not None:
-        editor_url += f"&purchase_price={purchase_price}"
-
+def _pp_display_inner(target_id: str, editor_url: str, purchase_price: float | None, latest_price: float | None = None):
+    """Generic purchase-price display chip (shared by cards and sealed)."""
     if purchase_price is None:
         return ft.Div(
             ft.Button(
@@ -153,8 +159,8 @@ def _pp_display(card_id: str, card_version: int, language: str, purchase_price: 
 
     pnl_str = ""
     pnl_color = "#475569"
-    if latest_eur and purchase_price > 0:
-        diff = latest_eur - purchase_price
+    if latest_price and purchase_price > 0:
+        diff = latest_price - purchase_price
         pct = diff / purchase_price * 100
         sign = "+" if diff >= 0 else ""
         pnl_color = "#10b981" if diff >= 0 else "#ef4444"
@@ -182,18 +188,18 @@ def _pp_display(card_id: str, card_version: int, language: str, purchase_price: 
     )
 
 
-def _pp_editor(card_id: str, card_version: int, language: str, purchase_price: float | None):
-    """Inline form for editing the purchase price."""
-    target_id = _pp_target_id(card_id, card_version, language)
+def _pp_editor_inner(
+    target_id: str,
+    hidden_fields: list[tuple[str, str]],
+    save_url: str,
+    cancel_url: str,
+    clear_vals: str,
+    purchase_price: float | None,
+):
+    """Generic inline form for editing the purchase price (shared by cards and sealed)."""
     pp_str = f"{purchase_price:.2f}" if purchase_price is not None else ""
-    cancel_url = (
-        f"/api/watchlist/purchase-price-display?card_id={card_id}&card_version={card_version}&language={language}"
-        + (f"&purchase_price={purchase_price}" if purchase_price is not None else "")
-    )
     return ft.Form(
-        ft.Input(type="hidden", name="card_id", value=card_id),
-        ft.Input(type="hidden", name="card_version", value=str(card_version)),
-        ft.Input(type="hidden", name="language", value=language),
+        *[ft.Input(type="hidden", name=k, value=v) for k, v in hidden_fields],
         ft.Div(
             ft.Span("€", style="font-family:'Share Tech Mono',monospace;font-size:.75rem;color:#475569;margin-right:3px;"),
             ft.Input(
@@ -215,10 +221,10 @@ def _pp_editor(card_id: str, card_version: int, language: str, purchase_price: f
                 type="button",
                 cls="wl-btn-ghost",
                 style="font-size:.68rem;padding:3px 8px;margin-left:3px;",
-                hx_post="/api/watchlist/purchase-price",
+                hx_post=save_url,
                 hx_target=f"#{target_id}",
                 hx_swap="outerHTML",
-                hx_vals=f'{{"card_id":"{card_id}","card_version":{card_version},"language":"{language}","purchase_price":""}}',
+                hx_vals=clear_vals,
             ),
             ft.Button(
                 "Cancel",
@@ -232,11 +238,67 @@ def _pp_editor(card_id: str, card_version: int, language: str, purchase_price: f
             cls="flex items-center flex-wrap gap-1 mt-1"
         ),
         id=target_id,
-        hx_post="/api/watchlist/purchase-price",
+        hx_post=save_url,
         hx_target=f"#{target_id}",
         hx_swap="outerHTML",
         cls="flex items-center mt-1",
         onclick="event.stopPropagation();"
+    )
+
+
+def _pp_display(card_id: str, card_version: int, language: str, purchase_price: float | None, latest_eur: float | None = None):
+    """Purchase-price display chip for a card watchlist entry."""
+    target_id = _pp_target_id(card_id, card_version, language)
+    editor_url = f"/api/watchlist/purchase-price-editor?card_id={card_id}&card_version={card_version}&language={language}"
+    if purchase_price is not None:
+        editor_url += f"&purchase_price={purchase_price}"
+    return _pp_display_inner(target_id, editor_url, purchase_price, latest_eur)
+
+
+def _pp_editor(card_id: str, card_version: int, language: str, purchase_price: float | None):
+    """Inline form for editing the purchase price of a card watchlist entry."""
+    target_id = _pp_target_id(card_id, card_version, language)
+    cancel_url = (
+        f"/api/watchlist/purchase-price-display?card_id={card_id}&card_version={card_version}&language={language}"
+        + (f"&purchase_price={purchase_price}" if purchase_price is not None else "")
+    )
+    return _pp_editor_inner(
+        target_id=target_id,
+        hidden_fields=[("card_id", card_id), ("card_version", str(card_version)), ("language", language)],
+        save_url="/api/watchlist/purchase-price",
+        cancel_url=cancel_url,
+        clear_vals=f'{{"card_id":"{card_id}","card_version":{card_version},"language":"{language}","purchase_price":""}}',
+        purchase_price=purchase_price,
+    )
+
+
+def _sealed_pp_target_id(product_id: str, marketplace: str) -> str:
+    return f"spp-{product_id}-{marketplace}"
+
+
+def _sealed_pp_display(product_id: str, marketplace: str, purchase_price: float | None, latest_price: float | None = None):
+    """Purchase-price display chip for a sealed watchlist entry."""
+    target_id = _sealed_pp_target_id(product_id, marketplace)
+    editor_url = f"/api/sealed-watchlist/purchase-price-editor?product_id={product_id}&marketplace={marketplace}"
+    if purchase_price is not None:
+        editor_url += f"&purchase_price={purchase_price}"
+    return _pp_display_inner(target_id, editor_url, purchase_price, latest_price)
+
+
+def _sealed_pp_editor(product_id: str, marketplace: str, purchase_price: float | None):
+    """Inline form for editing the purchase price of a sealed watchlist entry."""
+    target_id = _sealed_pp_target_id(product_id, marketplace)
+    cancel_url = (
+        f"/api/sealed-watchlist/purchase-price-display?product_id={product_id}&marketplace={marketplace}"
+        + (f"&purchase_price={purchase_price}" if purchase_price is not None else "")
+    )
+    return _pp_editor_inner(
+        target_id=target_id,
+        hidden_fields=[("product_id", product_id), ("marketplace", marketplace)],
+        save_url="/api/sealed-watchlist/purchase-price",
+        cancel_url=cancel_url,
+        clear_vals=f'{{"product_id":"{product_id}","marketplace":"{marketplace}","purchase_price":""}}',
+        purchase_price=purchase_price,
     )
 
 
@@ -334,6 +396,8 @@ def setup_watchlist_routes(rt):
             product_id = entry.get('product_id', '')
             marketplace = entry.get('marketplace', 'cardmarket')
             quantity = max(1, int(entry.get('quantity', 1)))
+            pp_raw = entry.get('purchase_price')
+            purchase_price = float(pp_raw) if pp_raw not in (None, '') else None
             product = all_products.get(product_id, {})
             name = product.get('name', product_id)
             image_url = product.get('gcs_image_url') or product.get('image_url')
@@ -369,6 +433,7 @@ def setup_watchlist_routes(rt):
                             ft.Span(f"× {quantity} = {from_total}", style="font-family:'Share Tech Mono',monospace;font-size:.7rem;color:#475569;margin-left:6px;"),
                             cls="flex items-center flex-wrap gap-1"
                         ),
+                        _sealed_pp_display(product_id, marketplace, purchase_price, from_price),
                         cls="flex-1 min-w-0"
                     ),
                     ft.Div(
@@ -482,6 +547,51 @@ def setup_watchlist_routes(rt):
             return JSONResponse({"error": "Missing product_id"}, status_code=400)
         remove_from_sealed_watchlist(user.get('sub'), product_id, marketplace)
         return JSONResponse({"status": "success"})
+
+    @rt("/api/sealed-watchlist/purchase-price-editor", methods=["GET"])
+    async def sealed_purchase_price_editor(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        p = request.query_params
+        product_id = p.get('product_id', '')
+        marketplace = p.get('marketplace', 'cardmarket')
+        pp_raw = p.get('purchase_price', '')
+        purchase_price = float(pp_raw) if pp_raw else None
+        return _sealed_pp_editor(product_id, marketplace, purchase_price)
+
+    @rt("/api/sealed-watchlist/purchase-price-display", methods=["GET"])
+    async def sealed_purchase_price_display(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        p = request.query_params
+        product_id = p.get('product_id', '')
+        marketplace = p.get('marketplace', 'cardmarket')
+        pp_raw = p.get('purchase_price', '')
+        purchase_price = float(pp_raw) if pp_raw else None
+        latest_price = _resolve_latest_sealed_price(product_id)
+        return _sealed_pp_display(product_id, marketplace, purchase_price, latest_price)
+
+    @rt("/api/sealed-watchlist/purchase-price", methods=["POST"])
+    async def update_sealed_purchase_price(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        try:
+            data = await request.json()
+        except Exception:
+            form = await request.form()
+            data = dict(form)
+        product_id = data.get('product_id', '')
+        marketplace = data.get('marketplace', 'cardmarket')
+        pp_raw = data.get('purchase_price', '')
+        purchase_price = float(pp_raw) if pp_raw not in (None, '', 'null') else None
+        if not product_id:
+            return JSONResponse({"error": "Missing product_id"}, status_code=400)
+        update_sealed_watchlist_purchase_price(user.get('sub'), product_id, marketplace, purchase_price)
+        latest_price = _resolve_latest_sealed_price(product_id)
+        return _sealed_pp_display(product_id, marketplace, purchase_price, latest_price)
 
     @rt("/api/watchlist/quantity", methods=["POST"])
     async def update_quantity(request: Request):
