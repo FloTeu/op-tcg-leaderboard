@@ -11,6 +11,8 @@ import re
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup, Tag
+from google.cloud.storage import Client as StorageClient
+from google.cloud.bigquery import Client as BigQueryClient
 
 from op_tcg.backend.models.cards import OPTcgLanguage, OPTcgMarketplace, CardCurrency
 from op_tcg.backend.models.common import DataSource
@@ -319,6 +321,7 @@ async def _create_warmed_context(browser, cf_wait_ms: int = 60_000):
         warm_url = f"{CARDMARKET_BASE}/en/OnePiece"
         logger.info("Warming context — navigating to %s to seed cf_clearance", warm_url)
         await _fetch_page_html(page, warm_url, cf_wait_ms=cf_wait_ms)
+        await asyncio.sleep(2)
         logger.info("Context warm-up complete — cf_clearance acquired")
     except Exception as exc:
         logger.warning("Context warm-up failed (%s) — proceeding without cf_clearance", exc)
@@ -508,37 +511,11 @@ async def crawl_cardmarket_sealed(
         logger.warning("No SCRAPER_PROXY set — Cloudflare will likely block requests")
 
     # Pre-load existing gcs_image_url values so we can skip unchanged images
-    existing_gcs_urls: dict[str, str] = {}
-    already_uploaded_image_urls: set[str] = set()
-    gcs_client = None
-    bucket_name: str = ""
+    bq_client = BigQueryClient(location="europe-west1")
+    bucket_name = f"{bq_client.project}-public"
+    gcs_client = StorageClient()
     if upload_images:
-        from google.cloud import bigquery as _bq
-        from google.cloud import storage as _gcs
-        _bq_client = _bq.Client(location="europe-west1")
-        bucket_name = f"{_bq_client.project}-public"
-        gcs_client = _gcs.Client()
-        table_ref = f"{_bq_client.project}.{SealedProduct.get_dataset_id()}.{SealedProduct.__tablename__}"
-        try:
-            df = _bq_client.query_and_wait(
-                f"SELECT id, marketplace, language, image_url, gcs_image_url FROM `{table_ref}` WHERE gcs_image_url IS NOT NULL"
-            ).to_dataframe()
-            for _, row in df.iterrows():
-                key = f"{row['id']}_{row['marketplace']}_{row['language']}"
-                gcs_url = row["gcs_image_url"] or ""
-                src_url = row["image_url"] or ""
-                existing_gcs_urls[key] = gcs_url
-                # Mark this source URL as already uploaded if the hash still matches
-                if src_url and gcs_url:
-                    expected_path = sealed_product_gcs_path(row["id"], src_url)
-                    if expected_path in gcs_url:
-                        already_uploaded_image_urls.add(src_url)
-            logger.info(
-                "Loaded %d existing GCS URLs; %d source URLs already current — will skip their captures",
-                len(existing_gcs_urls), len(already_uploaded_image_urls),
-            )
-        except Exception as exc:
-            logger.warning("Could not load existing gcs_image_url values: %s", exc)
+        existing_gcs_urls, already_uploaded_image_urls = await get_already_uploaded_image_urls(bq_client)
 
     all_results: list[tuple[SealedProduct, list[SealedProductPrice]]] = []
 
@@ -551,7 +528,6 @@ async def crawl_cardmarket_sealed(
         # Create one shared context so the cf_clearance cookie persists across all
         # product-page navigations without Cloudflare re-challenging each time.
         context = await _create_warmed_context(browser)
-        await asyncio.sleep(2)
         try:
             for product_type in product_types:
                 base_url = PRODUCT_TYPE_URLS.get(product_type)
@@ -620,4 +596,32 @@ async def crawl_cardmarket_sealed(
 
     logger.info("Total products scraped: %d", len(all_results))
     return all_results
+
+
+async def get_already_uploaded_image_urls(bq_client: BigQueryClient ) -> tuple[dict[str, str], set[str]]:
+    existing_gcs_urls: dict[str, str] = {}
+    already_uploaded_image_urls: set[str] = set()
+
+    table_ref = f"{bq_client.project}.{SealedProduct.get_dataset_id()}.{SealedProduct.__tablename__}"
+    try:
+        df = bq_client.query_and_wait(
+            f"SELECT id, marketplace, language, image_url, gcs_image_url FROM `{table_ref}` WHERE gcs_image_url IS NOT NULL"
+        ).to_dataframe()
+        for _, row in df.iterrows():
+            key = f"{row['id']}_{row['marketplace']}_{row['language']}"
+            gcs_url = row["gcs_image_url"] or ""
+            src_url = row["image_url"] or ""
+            existing_gcs_urls[key] = gcs_url
+            # Mark this source URL as already uploaded if the hash still matches
+            if src_url and gcs_url:
+                expected_path = sealed_product_gcs_path(row["id"], src_url)
+                if expected_path in gcs_url:
+                    already_uploaded_image_urls.add(src_url)
+        logger.info(
+            "Loaded %d existing GCS URLs; %d source URLs already current — will skip their captures",
+            len(existing_gcs_urls), len(already_uploaded_image_urls),
+        )
+    except Exception as exc:
+        logger.warning("Could not load existing gcs_image_url values: %s", exc)
+    return existing_gcs_urls, already_uploaded_image_urls
 
