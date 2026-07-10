@@ -4,7 +4,8 @@ from op_tcg.backend.db import get_watchlist, get_user_settings, get_decklist_wat
 from op_tcg.frontend.components.watchlist_toggle import create_watchlist_toggle
 from op_tcg.frontend.components.decklist_watchlist_toggle import create_decklist_watchlist_toggle
 from op_tcg.frontend.utils.card_price import get_marketplace_link
-from op_tcg.frontend.utils.extract import get_card_lookup_by_id_and_aa, get_card_id_card_data_lookup, get_sealed_product_prices
+from op_tcg.frontend.utils.extract import get_card_lookup_by_id_and_aa, get_card_id_card_data_lookup, get_sealed_product_prices, get_watchlist_price_changes
+from op_tcg.frontend.api.routes.watchlist import _pp_display
 from op_tcg.frontend.components.loading import create_loading_spinner
 from op_tcg.backend.models.cards import CardCurrency
 
@@ -208,6 +209,15 @@ def _table_time_range_script() -> ft.Script:
         })
         .catch(function(){if(loadingEl) loadingEl.classList.add('hidden');});
     });
+    document.querySelectorAll('.table-price-change-container').forEach(function(el){
+      var cardId=el.dataset.cardId;
+      var aaVersion=el.dataset.aaVersion;
+      el.style.opacity='0.4';
+      fetch('/api/card-price-change?card_id='+cardId+'&aa_version='+aaVersion+'&days='+days)
+        .then(function(r){return r.text();})
+        .then(function(html){el.innerHTML=html;el.style.opacity='';})
+        .catch(function(){el.style.opacity='';});
+    });
   }
   window.updateAllTableCharts=updateAllTableCharts;
 })();
@@ -241,6 +251,23 @@ def _qty_script() -> ft.Script:
   }
   document.addEventListener('DOMContentLoaded',init);
   document.addEventListener('htmx:afterSwap',init);
+})();
+""")
+
+
+def _price_change_script() -> ft.Script:
+    return ft.Script("""
+(function(){
+  if(window.wlFetchPriceChange) return;
+  window.wlFetchPriceChange=function(cardId,aaVersion,days,containerId){
+    var c=document.getElementById(containerId);
+    if(!c) return;
+    c.style.opacity='0.4';
+    fetch('/api/card-price-change?card_id='+cardId+'&aa_version='+aaVersion+'&days='+days)
+      .then(function(r){return r.text();})
+      .then(function(html){c.innerHTML=html;c.style.opacity='';})
+      .catch(function(){c.style.opacity='';});
+  };
 })();
 """)
 
@@ -698,20 +725,27 @@ def watchlist_page(request):
     sort_by = request.query_params.get("sort", "price")
     sort_order = request.query_params.get("order", "desc")
     tag_filter = request.query_params.get("tag", "")
+    try:
+        sort_days = int(request.query_params.get("change_days", "30"))
+    except (ValueError, TypeError):
+        sort_days = 30
 
     all_tags = sorted({tag for item in watchlist for tag in item.get('tags', ['my collection'])})
 
     if tag_filter:
         watchlist = [item for item in watchlist if tag_filter in item.get('tags', ['my collection'])]
 
-    def build_url(view=None, sort=None, order=None, tag=None):
+    def build_url(view=None, sort=None, order=None, tag=None, change_days=None):
         v = view or view_mode
         s = sort or sort_by
         o = order or sort_order
         t = tag if tag is not None else tag_filter
+        cd = change_days if change_days is not None else sort_days
         params = f"view={v}&sort={s}&order={o}"
         if t:
             params += f"&tag={t}"
+        if s == 'change':
+            params += f"&change_days={cd}"
         return f"?{params}"
 
     prepared_items = []
@@ -741,12 +775,14 @@ def watchlist_page(request):
 
         tags = item.get('tags', ['my collection']) or ['my collection']
         quantity = max(1, int(item.get('quantity', 1)))
+        pp_raw = item.get('purchase_price')
+        purchase_price = float(pp_raw) if pp_raw not in (None, '') else None
 
         prepared_items.append({
             'card_id': card_id, 'aa_version': aa_version, 'language': language,
             'quantity': quantity, 'card_details': card_details, 'card_name': card_name,
             'image_url': image_url, 'latest_eur': latest_eur, 'latest_usd': latest_usd,
-            'tags': tags,
+            'tags': tags, 'purchase_price': purchase_price,
         })
 
     total_eur = sum(i['latest_eur'] * i['quantity'] for i in prepared_items)
@@ -774,6 +810,18 @@ def watchlist_page(request):
         user_settings = get_user_settings(user_id)
         price_key = 'latest_eur' if user_settings.get('currency') == CardCurrency.EURO else 'latest_usd'
         prepared_items.sort(key=lambda x: x[price_key], reverse=reverse)
+    elif sort_by == 'change':
+        card_changes: dict = {}
+        try:
+            cv_pairs = [(item['card_id'], item['aa_version']) for item in prepared_items]
+            if cv_pairs:
+                card_changes = get_watchlist_price_changes(cv_pairs, days=sort_days)
+        except Exception:
+            pass
+        prepared_items.sort(
+            key=lambda x: card_changes.get((x['card_id'], x['aa_version']), {}).get('eur_pct') or 0.0,
+            reverse=reverse,
+        )
     else:
         prepared_items.sort(key=lambda x: x['card_name'], reverse=reverse)
 
@@ -807,19 +855,19 @@ def watchlist_page(request):
     content = None
 
     if view_mode == 'table':
-        def sort_link(label, column):
+        def sort_link(label, column, extra_kw=None):
             if sort_by == column:
                 icon = "fa-sort-up" if sort_order == "asc" else "fa-sort-down"
                 new_order = "desc" if sort_order == "asc" else "asc"
                 cls = "wl-sort-link wl-sort-active"
             else:
                 icon = "fa-sort"
-                new_order = "desc" if column == "price" else "asc"
+                new_order = "desc" if column in ("price", "change") else "asc"
                 cls = "wl-sort-link"
             return ft.A(
                 ft.Span(label),
                 ft.I(cls=f"fas {icon} ml-1 text-xs opacity-60"),
-                href=build_url(view="table", sort=column, order=new_order),
+                href=build_url(view="table", sort=column, order=new_order, **(extra_kw or {})),
                 cls=cls
             )
 
@@ -911,6 +959,16 @@ def watchlist_page(request):
                                 href=tcg_url, target="_blank",
                                 cls="flex items-center justify-end gap-2 py-1 px-2 rounded hover:bg-blue-900/10 transition-colors"
                             ),
+                            _pp_display(card_id, aa_version, language, item['purchase_price'], item['latest_eur']),
+                            ft.Div(
+                                id=f"pc-table-{card_id}-{aa_version}-{language}",
+                                hx_get=f"/api/card-price-change?card_id={card_id}&aa_version={aa_version}&days=90",
+                                hx_trigger="revealed",
+                                hx_swap="innerHTML",
+                                cls="flex flex-col items-end gap-0 mt-1 table-price-change-container min-h-[28px]",
+                                data_card_id=card_id,
+                                data_aa_version=str(aa_version),
+                            ),
                             cls="flex flex-col items-end min-w-[110px]"
                         ),
                         cls="wl-td whitespace-nowrap"
@@ -954,13 +1012,35 @@ def watchlist_page(request):
                 )
             )
 
+        _change_period_chips = ft.Div(
+            ft.Span("SORT PERIOD",
+                    style="font-family:'Bebas Neue',sans-serif;letter-spacing:.1em;font-size:.58rem;color:#475569;margin-right:8px;"),
+            *[
+                ft.A(f"{d}d",
+                     href=build_url(view="table", sort="change", order=sort_order, change_days=d),
+                     cls=f"wl-tab {'wl-tab-active-cyan' if sort_days == d else ''}")
+                for d in [30, 90, 180, 365]
+            ],
+            cls="flex items-center gap-2 mb-3"
+        ) if sort_by == 'change' else ft.Span()
+
         content = ft.Div(
+            _change_period_chips,
             ft.Div(
             ft.Table(
                 ft.Thead(
                     ft.Tr(
                         ft.Th(sort_link("CARD", "name"), cls="wl-th w-1/3 min-w-[250px]"),
-                        ft.Th(sort_link("PRICE", "price"), cls="wl-th w-28"),
+                        ft.Th(
+                            ft.Div(
+                                sort_link("PRICE", "price"),
+                                ft.Span("/", style="color:#2d3f5a;font-size:.55rem;margin:0 3px;"),
+                                sort_link(f"CHANGE {sort_days}D" if sort_by == "change" else "CHANGE", "change",
+                                          extra_kw={"change_days": sort_days}),
+                                cls="flex items-center"
+                            ),
+                            cls="wl-th w-36"
+                        ),
                         ft.Th("VERSION", cls="wl-th w-24"),
                         ft.Th("QTY", cls="wl-th w-24"),
                         ft.Th("", cls="wl-th w-16"),
@@ -1065,6 +1145,7 @@ def watchlist_page(request):
                                         data_price_usd=True),
                                 cls="mt-2"
                             ),
+                            _pp_display(card_id, aa_version, language, item['purchase_price'], item['latest_eur']),
                             tag_chips,
                             cls="flex-1 min-w-0",
                             hx_get=f"/api/card-modal?card_id={card_id}&meta_format=latest&aa_version={aa_version}",
@@ -1098,9 +1179,17 @@ def watchlist_page(request):
                                 hx_target=f"#{chart_id}",
                                 hx_indicator=f"#{chart_id}-loading",
                                 hx_vals=f'{{"card_id": "{card_id}", "aa_version": "{aa_version}", "include_alt_art": "false", "location": "watchlist"}}',
-                                hx_on__before_request=f"document.getElementById('{chart_id}').innerHTML = ''; document.getElementById('{chart_id}-loading').classList.remove('hidden');"
+                                hx_on__before_request=f"document.getElementById('{chart_id}').innerHTML = ''; document.getElementById('{chart_id}-loading').classList.remove('hidden');",
+                                onchange=f"wlFetchPriceChange('{card_id}',{aa_version},this.value,'pc-{chart_id}')"
                             ),
-                            cls="flex items-center justify-between mb-3"
+                            cls="flex items-center justify-between mb-2"
+                        ),
+                        ft.Div(
+                            id=f"pc-{chart_id}",
+                            hx_get=f"/api/card-price-change?card_id={card_id}&aa_version={aa_version}&days=90",
+                            hx_trigger="revealed",
+                            hx_swap="innerHTML",
+                            cls="flex items-center gap-3 mb-2 min-h-[14px]"
                         ),
                         ft.Div(
                             ft.Div(
@@ -1150,9 +1239,28 @@ def watchlist_page(request):
                 ft.I(cls=f"fas fa-sort-{'up' if sort_order == 'asc' else 'down'} ml-1 text-xs"
                          if sort_by == 'price' else "fas fa-sort ml-1 text-xs opacity-40"),
                 href=build_url(view="list", sort="price", order="asc" if sort_by == "price" and sort_order == "desc" else "desc"),
-                cls=f"wl-sort-link {'wl-sort-active' if sort_by == 'price' else ''}"
+                cls=f"wl-sort-link mr-4 {'wl-sort-active' if sort_by == 'price' else ''}"
             ),
-            cls="flex items-center mb-4 justify-end"
+            ft.A(
+                ft.Span("Change"),
+                ft.I(cls=f"fas fa-sort-{'up' if sort_order == 'asc' else 'down'} ml-1 text-xs"
+                         if sort_by == 'change' else "fas fa-sort ml-1 text-xs opacity-40"),
+                href=build_url(view="list", sort="change", order="asc" if sort_by == "change" and sort_order == "desc" else "desc"),
+                cls=f"wl-sort-link {'wl-sort-active' if sort_by == 'change' else ''}"
+            ),
+            *(
+                [
+                    ft.Span(style="width:1px;height:14px;background:#1a2540;margin:0 6px;align-self:center;display:inline-block;"),
+                    *[
+                        ft.A(f"{d}d",
+                             href=build_url(view="list", sort="change", order=sort_order, change_days=d),
+                             cls=f"wl-tab {'wl-tab-active-cyan' if sort_days == d else ''}")
+                        for d in [30, 90, 180, 365]
+                    ]
+                ]
+                if sort_by == 'change' else []
+            ),
+            cls="flex flex-wrap items-center mb-4 justify-end gap-y-2"
         )
 
         content = ft.Div(
@@ -1280,6 +1388,7 @@ def watchlist_page(request):
     return ft.Div(
         _wl_styles(),
         _qty_script(),
+        _price_change_script(),
         _sealed_qty_script(),
         _table_time_range_script() if view_mode == 'table' else ft.Span(),
         ft.Div(

@@ -1,7 +1,6 @@
 import logging
 import re
 import os
-from contextlib import suppress
 from datetime import datetime, timedelta
 from dateutil import parser
 
@@ -262,8 +261,11 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
             host = cells[_index_of_header_name("host", 10)].text.strip()
             num_players = None
             if '(' in host:
-                with suppress(ValueError):
-                    num_players = int(host.split('(')[-1].split(')')[0].strip("+"))
+                raw_num = host.split('(')[-1].split(')')[0].strip("+")
+                try:
+                    num_players = int(raw_num)
+                except ValueError:
+                    self.logger.warning("Could not parse num_players from host=%r (extracted=%r)", host, raw_num)
                 host = host.split("(")[0]
 
             tournament_name = f"{host} {tournament}"

@@ -104,6 +104,23 @@ def update_watchlist_tags(user_id: str, card_id: str, card_version: int = 0, lan
         {'tags': tags or [DEFAULT_WATCHLIST_TAG]}
     )
 
+def update_watchlist_purchase_price(
+    user_id: str,
+    card_id: str,
+    card_version: int = 0,
+    language: OPTcgLanguage = OPTcgLanguage.EN,
+    purchase_price: float | None = None,
+):
+    """Sets or clears the per-unit purchase price (cost basis) for a watchlist card."""
+    db = get_db()
+    if not db:
+        return
+    doc_id = f"{card_id}_{card_version}_{language}"
+    db.collection('users').document(user_id).collection('watchlist').document(doc_id).update(
+        {'purchase_price': purchase_price}
+    )
+
+
 def remove_from_watchlist(user_id: str, card_id: str, card_version: int  = 0, language: OPTcgLanguage = OPTcgLanguage.EN):
     """
     Removes a card from the user's watchlist.
@@ -153,6 +170,22 @@ def update_sealed_watchlist_quantity(user_id: str, product_id: str, marketplace:
     doc_id = f"{product_id}__{marketplace}"
     db.collection('users').document(user_id).collection('sealed_watchlist').document(doc_id).update(
         {'quantity': max(1, quantity)}
+    )
+
+
+def update_sealed_watchlist_purchase_price(
+    user_id: str,
+    product_id: str,
+    marketplace: str = "cardmarket",
+    purchase_price: float | None = None,
+):
+    """Sets or clears the per-unit purchase price (cost basis) for a sealed watchlist product."""
+    db = get_db()
+    if not db:
+        return
+    doc_id = f"{product_id}__{marketplace}"
+    db.collection('users').document(user_id).collection('sealed_watchlist').document(doc_id).update(
+        {'purchase_price': purchase_price}
     )
 
 

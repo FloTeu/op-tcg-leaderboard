@@ -450,6 +450,70 @@ def get_card_price_development_data(card_id: str, days: int = 90, include_alt_ar
     return result
 
 
+def get_watchlist_price_changes(
+    card_versions: list[tuple[str, int]], days: int = 30
+) -> dict[tuple, dict]:
+    """
+    Batch-fetch first-to-last price change for each (card_id, aa_version) over the
+    given number of days, in a single BigQuery query.
+
+    Returns:
+        {(card_id, aa_version): {'eur_change': float|None, 'eur_pct': float|None,
+                                  'usd_change': float|None, 'usd_pct': float|None}}
+    """
+    if not card_versions:
+        return {}
+
+    history_tbl = get_bq_table_id(CardPrice).replace(":", ".")
+    pair_filters = " OR ".join(
+        f"(card_id = '{cid}' AND aa_version = {aav})"
+        for cid, aav in card_versions
+    )
+
+    query = f"""
+    WITH daily AS (
+      SELECT
+        card_id,
+        aa_version,
+        currency,
+        DATE(create_timestamp) AS price_date,
+        AVG(price) AS avg_price
+      FROM `{history_tbl}`
+      WHERE ({pair_filters})
+        AND language = 'en'
+        AND currency IN ('eur', 'usd')
+        AND create_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)
+      GROUP BY card_id, aa_version, currency, price_date
+    )
+    SELECT
+      card_id,
+      aa_version,
+      currency,
+      ARRAY_AGG(avg_price ORDER BY price_date ASC  LIMIT 1)[OFFSET(0)] AS first_price,
+      ARRAY_AGG(avg_price ORDER BY price_date DESC LIMIT 1)[OFFSET(0)] AS last_price
+    FROM daily
+    GROUP BY card_id, aa_version, currency
+    """
+
+    rows = run_bq_query(query, ttl_hours=1.0)
+
+    result: dict[tuple, dict] = {}
+    for row in rows:
+        key = (row["card_id"], int(row["aa_version"]))
+        currency = row["currency"]
+        fp, lp = row["first_price"], row["last_price"]
+        if fp and lp and fp != 0:
+            change = float(lp) - float(fp)
+            pct = change / float(fp) * 100
+        else:
+            change = pct = None
+        entry = result.setdefault(key, {})
+        entry[f"{currency}_change"] = change
+        entry[f"{currency}_pct"] = pct
+
+    return result
+
+
 def get_watchlist_aggregate_price_data(card_versions: list[tuple[str, int, int]], days: int = 90) -> dict[str, list[dict]]:
     """
     Get aggregated daily portfolio value and per-card release dates for a set of

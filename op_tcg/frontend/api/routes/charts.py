@@ -411,6 +411,55 @@ def setup_api_routes(rt):
         except Exception as e:
             return ft.Div(f"Error loading price chart: {str(e)}", cls="text-red-400")
 
+    @rt("/api/card-price-change")
+    def get_card_price_change_badge(request: Request):
+        card_id = request.query_params.get("card_id")
+        if not card_id:
+            return ft.Span()
+        try:
+            days = int(request.query_params.get("days", "90"))
+        except (ValueError, TypeError):
+            days = 90
+        try:
+            aa_version = int(request.query_params.get("aa_version", "0"))
+        except (ValueError, TypeError):
+            aa_version = 0
+
+        try:
+            price_data = get_card_price_development_data(card_id, days, aa_version=aa_version)
+        except Exception:
+            return ft.Span()
+
+        def _calc(prices):
+            pts = [p for p in prices if p.get("price") is not None]
+            if len(pts) < 2 or not pts[0]["price"]:
+                return None, None
+            change = pts[-1]["price"] - pts[0]["price"]
+            pct = change / pts[0]["price"] * 100
+            return change, pct
+
+        def _badge(change, pct, symbol):
+            if change is None:
+                return ft.Span(
+                    f"{symbol} —",
+                    style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:#475569;"
+                )
+            color = "#10b981" if change >= 0 else "#ef4444"
+            sign = "+" if change >= 0 else ""
+            return ft.Span(
+                f"{sign}{symbol}{abs(change):.2f} ({sign}{pct:.1f}%)",
+                style=f"font-family:'Share Tech Mono',monospace;font-size:.6rem;color:{color};"
+            )
+
+        eur_change, eur_pct = _calc(price_data.get("eur", []))
+        usd_change, usd_pct = _calc(price_data.get("usd", []))
+
+        return ft.Div(
+            _badge(eur_change, eur_pct, "€"),
+            _badge(usd_change, usd_pct, "$"),
+            cls="flex items-center gap-3"
+        )
+
     @rt("/api/sealed-product-price-chart")
     def get_sealed_product_price_chart(request: Request):
         product_id = request.query_params.get("product_id")
