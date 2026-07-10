@@ -307,7 +307,7 @@ class CloudflareBlockedError(RuntimeError):
 
 
 async def _fetch_with_retry(
-    browser, url: str, max_retries: int = 3, cf_wait_ms: int = 30_000,
+    browser, url: str, max_retries: int = 3, cf_wait_ms: int = 60000,
     skip_image_urls: set[str] | None = None,
 ) -> tuple[str, dict[str, bytes]]:
     """
@@ -387,7 +387,14 @@ async def _fetch_page_html(browser_page, url: str, cf_wait_ms: int = 30_000) -> 
     while elapsed < cf_wait_ms:
         html = await browser_page.content()
         if not _is_cloudflare_challenge(html):
-            return html
+            # Cloudflare cleared — let JS finish rendering before capturing HTML.
+            # Some pages (e.g. Promo Products) build the entire body via JavaScript
+            # after DOMContentLoaded, so we wait for network activity to settle.
+            try:
+                await browser_page.wait_for_load_state("networkidle", timeout=15_000)
+            except Exception:
+                logger.debug("networkidle timeout on %s — returning current HTML", url)
+            return await browser_page.content()
         logger.debug("Cloudflare challenge active, waiting... (%dms elapsed)", elapsed)
         await browser_page.wait_for_timeout(poll_interval)
         elapsed += poll_interval
@@ -400,6 +407,49 @@ async def _fetch_page_html(browser_page, url: str, cf_wait_ms: int = 30_000) -> 
         f"Page title at timeout: '{page_title}'. "
         f"Ensure SCRAPER_PROXY is set to a residential proxy with valid credentials."
     )
+
+
+async def _process_images(
+    results: list[tuple[SealedProduct, list[SealedProductPrice]]],
+    existing_gcs_urls: dict[str, str],
+    image_bytes_map: dict[str, bytes],
+    gcs_client,
+    bucket_name: str,
+) -> None:
+    """Upload product images captured during page load to GCS.
+
+    Images are pre-captured via network interception in _fetch_with_retry so that
+    the browser's Referer header (cardmarket.com) satisfies the CDN access policy.
+    Skips products whose image_url has not changed since the last run.
+    """
+    uploaded = skipped = missing = 0
+    for product, _ in results:
+        if not product.image_url:
+            continue
+        blob_path = sealed_product_gcs_path(product.id, product.image_url)
+        cache_key = f"{product.id}_{product.marketplace}_{product.language}"
+        existing = existing_gcs_urls.get(cache_key, "")
+
+        if existing and blob_path in existing:
+            product.gcs_image_url = existing
+            skipped += 1
+            continue
+
+        image_bytes = image_bytes_map.get(product.image_url)
+        if not image_bytes:
+            logger.warning("no captured bytes for %s (%s) — image may be lazy-loaded off-screen", product.id, product.image_url)
+            missing += 1
+            continue
+
+        try:
+            gcs_url = _upload_image_to_gcs(image_bytes, blob_path, bucket_name, gcs_client)
+            product.gcs_image_url = gcs_url
+            existing_gcs_urls[cache_key] = gcs_url
+            uploaded += 1
+            logger.info("uploaded image %s → %s", product.id, gcs_url)
+        except Exception as exc:
+            logger.error("failed to upload image for %s: %s", product.id, exc)
+    logger.info("images: %d uploaded, %d skipped (unchanged), %d missing from capture", uploaded, skipped, missing)
 
 
 async def crawl_cardmarket_sealed(
@@ -526,45 +576,3 @@ async def crawl_cardmarket_sealed(
     logger.info("Total products scraped: %d", len(all_results))
     return all_results
 
-
-async def _process_images(
-    results: list[tuple[SealedProduct, list[SealedProductPrice]]],
-    existing_gcs_urls: dict[str, str],
-    image_bytes_map: dict[str, bytes],
-    gcs_client,
-    bucket_name: str,
-) -> None:
-    """Upload product images captured during page load to GCS.
-
-    Images are pre-captured via network interception in _fetch_with_retry so that
-    the browser's Referer header (cardmarket.com) satisfies the CDN access policy.
-    Skips products whose image_url has not changed since the last run.
-    """
-    uploaded = skipped = missing = 0
-    for product, _ in results:
-        if not product.image_url:
-            continue
-        blob_path = sealed_product_gcs_path(product.id, product.image_url)
-        cache_key = f"{product.id}_{product.marketplace}_{product.language}"
-        existing = existing_gcs_urls.get(cache_key, "")
-
-        if existing and blob_path in existing:
-            product.gcs_image_url = existing
-            skipped += 1
-            continue
-
-        image_bytes = image_bytes_map.get(product.image_url)
-        if not image_bytes:
-            logger.warning("no captured bytes for %s (%s) — image may be lazy-loaded off-screen", product.id, product.image_url)
-            missing += 1
-            continue
-
-        try:
-            gcs_url = _upload_image_to_gcs(image_bytes, blob_path, bucket_name, gcs_client)
-            product.gcs_image_url = gcs_url
-            existing_gcs_urls[cache_key] = gcs_url
-            uploaded += 1
-            logger.info("uploaded image %s → %s", product.id, gcs_url)
-        except Exception as exc:
-            logger.error("failed to upload image for %s: %s", product.id, exc)
-    logger.info("images: %d uploaded, %d skipped (unchanged), %d missing from capture", uploaded, skipped, missing)
