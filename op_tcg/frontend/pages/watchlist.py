@@ -1284,13 +1284,13 @@ def watchlist_page(request):
         ft.Div(
             ft.Div(
                 ft.Span("TOTAL EUR", cls="wl-stat-label"),
-                ft.Span(f"€{total_eur:.2f}", cls="wl-stat-val"),
+                ft.Span(f"€{total_eur:.2f}", cls="wl-stat-val", id="portfolio-total-eur"),
                 cls="flex flex-col"
             ),
             _stat_divider(),
             ft.Div(
                 ft.Span("TOTAL USD", cls="wl-stat-label"),
-                ft.Span(f"${total_usd:.2f}", cls="wl-stat-val"),
+                ft.Span(f"${total_usd:.2f}", cls="wl-stat-val", id="portfolio-total-usd"),
                 cls="flex flex-col"
             ),
             _stat_divider(),
@@ -1363,6 +1363,11 @@ def watchlist_page(request):
                                 c.innerHTML=html;
                                 c.querySelectorAll('script').forEach(function(old){{var s=document.createElement('script');s.textContent=old.textContent;old.parentNode.replaceChild(s,old);}});
                                 document.getElementById('portfolio-chart-loading').classList.add('hidden');
+                              }});
+                            fetch('/api/watchlist/portfolio-stats?segment={seg}{tag_param}')
+                              .then(r=>r.json()).then(data=>{{
+                                document.getElementById('portfolio-total-eur').textContent='€'+data.eur.toFixed(2);
+                                document.getElementById('portfolio-total-usd').textContent='$'+data.usd.toFixed(2);
                               }});
                         """,
                     )

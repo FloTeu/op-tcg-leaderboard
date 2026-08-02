@@ -19,7 +19,7 @@ from op_tcg.frontend.utils.extract import (
 )
 from op_tcg.frontend.api.models import CardPopularityParams
 from op_tcg.frontend.utils.api import get_query_params_as_dict
-from op_tcg.backend.models.cards import OPTcgCardCatagory
+from op_tcg.backend.models.cards import OPTcgCardCatagory, CardCurrency
 from op_tcg.frontend.utils.charts import create_price_development_chart
 from op_tcg.frontend.components.loading import create_loading_spinner
 from op_tcg.frontend.utils.decklist import DecklistViewMode, decklist_to_export_str, ensure_leader_id
@@ -823,6 +823,59 @@ def setup_watchlist_routes(rt):
         update_watchlist_purchase_price(user.get('sub'), card_id, card_version, language, purchase_price)
         latest_eur = _resolve_latest_eur(card_id, card_version)
         return _pp_display(card_id, card_version, language, purchase_price, latest_eur)
+
+    @rt("/api/watchlist/portfolio-stats", methods=["GET"])
+    async def portfolio_stats(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
+        tag_filter = request.query_params.get('tag', '')
+        segment = request.query_params.get('segment', 'combined')
+        user_id = user.get('sub')
+
+        total_eur = 0.0
+        total_usd = 0.0
+
+        if segment in ('cards', 'combined'):
+            watchlist = get_watchlist(user_id)
+            if tag_filter:
+                watchlist = [item for item in watchlist if tag_filter in item.get('tags', [DEFAULT_WATCHLIST_TAG])]
+            card_lookup = get_card_lookup_by_id_and_aa()
+            for item in watchlist:
+                card_id = item.get('card_id')
+                if not card_id:
+                    continue
+                version_val = item.get('card_version', 0)
+                try:
+                    aa_version = int(version_val) if version_val not in (None, 'Base') else 0
+                except (ValueError, TypeError):
+                    aa_version = 0
+                quantity = max(1, int(item.get('quantity', 1)))
+                card_versions = card_lookup.get(card_id, {})
+                card_details = (card_versions.get(aa_version) or card_versions.get(0)
+                                or (next(iter(card_versions.values())) if card_versions else None))
+                if card_details:
+                    total_eur += (getattr(card_details, 'latest_eur_price', 0.0) or 0.0) * quantity
+                    total_usd += (getattr(card_details, 'latest_usd_price', 0.0) or 0.0) * quantity
+
+        if segment in ('sealed', 'combined'):
+            sealed_wl = get_sealed_watchlist(user_id)
+            if tag_filter:
+                sealed_wl = [e for e in sealed_wl if tag_filter in e.get('tags', [DEFAULT_WATCHLIST_TAG])]
+            if sealed_wl:
+                s_eur = {(p['id'], p.get('marketplace', 'cardmarket')): p.get('from_price') or 0.0
+                         for p in get_sealed_product_prices(CardCurrency.EURO) if p.get('id')}
+                s_usd = {(p['id'], p.get('marketplace', 'cardmarket')): p.get('from_price') or 0.0
+                         for p in get_sealed_product_prices(CardCurrency.US_DOLLAR) if p.get('id')}
+                for entry in sealed_wl:
+                    pid = entry.get('product_id', '')
+                    mkt = entry.get('marketplace', 'cardmarket')
+                    qty = max(1, int(entry.get('quantity', 1)))
+                    total_eur += s_eur.get((pid, mkt), 0.0) * qty
+                    total_usd += s_usd.get((pid, mkt), 0.0) * qty
+
+        return JSONResponse({"eur": total_eur, "usd": total_usd})
 
     @rt("/api/watchlist/aggregate-chart", methods=["GET"])
     async def aggregate_chart(request: Request):
