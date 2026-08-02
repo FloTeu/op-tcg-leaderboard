@@ -9,7 +9,7 @@ from op_tcg.backend.db import (
     add_decklist_to_watchlist, remove_decklist_from_watchlist, update_decklist_watchlist_tags,
     create_custom_decklist, get_custom_decklists, update_custom_decklist, delete_custom_decklist,
     add_to_sealed_watchlist, remove_from_sealed_watchlist, update_sealed_watchlist_quantity, get_sealed_watchlist,
-    update_sealed_watchlist_purchase_price,
+    update_sealed_watchlist_purchase_price, update_sealed_watchlist_tags,
     DEFAULT_WATCHLIST_TAG,
 )
 from op_tcg.frontend.utils.extract import (
@@ -109,6 +109,78 @@ def _tag_editor_component(card_id: str, card_version: int, language: str, tags: 
         ),
         id=target_id,
         hx_post="/api/watchlist/tags",
+        hx_target=f"#{target_id}",
+        hx_swap="outerHTML",
+        cls="flex items-start mt-1",
+        onclick="event.stopPropagation();"
+    )
+
+
+def _sealed_tag_target_id(product_id: str, marketplace: str) -> str:
+    return f"tags-sealed-{product_id}-{marketplace}"
+
+
+def _sealed_tag_chips_component(product_id: str, marketplace: str, tags: list):
+    target_id = _sealed_tag_target_id(product_id, marketplace)
+    tags_str = ",".join(tags)
+    return ft.Div(
+        *[ft.Span(tag, cls="wl-tag") for tag in tags],
+        ft.Button(
+            ft.I(cls="fas fa-pen text-xs"),
+            type="button",
+            style=_EDIT_BTN_STYLE,
+            title="Edit tags",
+            hx_get=f"/api/sealed-watchlist/tag-editor?product_id={product_id}&marketplace={marketplace}&tags={tags_str}",
+            hx_target=f"#{target_id}",
+            hx_swap="outerHTML",
+        ),
+        id=target_id,
+        cls="flex flex-wrap items-center mt-1",
+        onclick="event.stopPropagation();"
+    )
+
+
+def _sealed_tag_editor_component(product_id: str, marketplace: str, tags: list):
+    target_id = _sealed_tag_target_id(product_id, marketplace)
+    tags_str = ",".join(tags)
+    return ft.Form(
+        ft.Input(type="hidden", name="product_id", value=product_id),
+        ft.Input(type="hidden", name="marketplace", value=marketplace),
+        ft.Div(
+            ft.Input(
+                type="text",
+                name="tags",
+                value=tags_str,
+                placeholder="my collection",
+                cls="wl-input",
+                style="font-size:.75rem;padding:4px 8px;",
+                autofocus=True,
+                onkeydown="event.stopPropagation();",
+                onkeyup="event.stopPropagation();",
+                onkeypress="event.stopPropagation();",
+            ),
+            ft.Div(
+                ft.Button(
+                    "Save",
+                    type="submit",
+                    cls="wl-btn-primary",
+                    style="font-size:.75rem;padding:4px 10px;",
+                ),
+                ft.Button(
+                    "Cancel",
+                    type="button",
+                    cls="wl-btn-ghost",
+                    style="font-size:.75rem;padding:4px 10px;margin-left:4px;",
+                    hx_get=f"/api/sealed-watchlist/tag-chips?product_id={product_id}&marketplace={marketplace}&tags={tags_str}",
+                    hx_target=f"#{target_id}",
+                    hx_swap="outerHTML",
+                ),
+                cls="flex items-center mt-1"
+            ),
+            cls="flex flex-col w-full max-w-xs"
+        ),
+        id=target_id,
+        hx_post="/api/sealed-watchlist/tags",
         hx_target=f"#{target_id}",
         hx_swap="outerHTML",
         cls="flex items-start mt-1",
@@ -413,6 +485,7 @@ def setup_watchlist_routes(rt):
             from_total = f"{symbol}{from_price * quantity:.2f}" if from_price is not None else "—"
             lang = str(product.get('language', '')).upper()[:2]
             url = product.get('url', '#')
+            tags = entry.get('tags', [DEFAULT_WATCHLIST_TAG]) or [DEFAULT_WATCHLIST_TAG]
 
             items_html.append(ft.Div(
                 # Header: image + info + remove
@@ -434,6 +507,7 @@ def setup_watchlist_routes(rt):
                             cls="flex items-center flex-wrap gap-1"
                         ),
                         _sealed_pp_display(product_id, marketplace, purchase_price, from_price),
+                        _sealed_tag_chips_component(product_id, marketplace, tags),
                         cls="flex-1 min-w-0"
                     ),
                     ft.Div(
@@ -592,6 +666,40 @@ def setup_watchlist_routes(rt):
         update_sealed_watchlist_purchase_price(user.get('sub'), product_id, marketplace, purchase_price)
         latest_price = _resolve_latest_sealed_price(product_id)
         return _sealed_pp_display(product_id, marketplace, purchase_price, latest_price)
+
+    @rt("/api/sealed-watchlist/tags", methods=["POST"])
+    async def update_sealed_tags(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        form = await request.form()
+        product_id = form.get('product_id', '')
+        marketplace = form.get('marketplace', 'cardmarket')
+        tags = _parse_tags(form.get('tags', DEFAULT_WATCHLIST_TAG))
+        if not product_id:
+            return JSONResponse({"error": "Missing product_id"}, status_code=400)
+        update_sealed_watchlist_tags(user.get('sub'), product_id, marketplace, tags)
+        return _sealed_tag_chips_component(product_id, marketplace, tags)
+
+    @rt("/api/sealed-watchlist/tag-editor", methods=["GET"])
+    async def sealed_tag_editor(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        product_id = request.query_params.get('product_id', '')
+        marketplace = request.query_params.get('marketplace', 'cardmarket')
+        tags = _parse_tags(request.query_params.get('tags', DEFAULT_WATCHLIST_TAG))
+        return _sealed_tag_editor_component(product_id, marketplace, tags)
+
+    @rt("/api/sealed-watchlist/tag-chips", methods=["GET"])
+    async def sealed_tag_chips_view(request: Request):
+        user = request.session.get('user')
+        if not user:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        product_id = request.query_params.get('product_id', '')
+        marketplace = request.query_params.get('marketplace', 'cardmarket')
+        tags = _parse_tags(request.query_params.get('tags', DEFAULT_WATCHLIST_TAG))
+        return _sealed_tag_chips_component(product_id, marketplace, tags)
 
     @rt("/api/watchlist/quantity", methods=["POST"])
     async def update_quantity(request: Request):
@@ -758,6 +866,8 @@ def setup_watchlist_routes(rt):
         sealed_price_data: dict[str, list[dict]] = {'eur': [], 'usd': []}
         if segment in ('sealed', 'combined'):
             sealed_wl = get_sealed_watchlist(user_id)
+            if tag_filter:
+                sealed_wl = [e for e in sealed_wl if tag_filter in e.get('tags', [DEFAULT_WATCHLIST_TAG])]
             product_qty_pairs = [
                 (e['product_id'], e.get('marketplace', 'cardmarket'), max(1, int(e.get('quantity', 1))))
                 for e in sealed_wl if e.get('product_id')
