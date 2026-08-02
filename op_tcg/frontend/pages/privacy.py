@@ -20,7 +20,7 @@ def privacy_page():
 
     return ft.Div(
         ft.H1("Privacy Policy", cls="text-3xl font-bold text-white mb-2"),
-        ft.P("Last updated: May 2026", cls="text-gray-500 text-sm mb-8"),
+        ft.P("Last updated: August 2026", cls="text-gray-500 text-sm mb-8"),
 
         ft.Div(
             section(
@@ -43,6 +43,12 @@ def privacy_page():
                     "We also store any data you voluntarily create on this site, such as your watchlist "
                     "and your preference settings (default region and currency)."
                 ),
+                p(
+                    "For signed-in users we additionally record per-day activity data: which top-level pages "
+                    "you visited (e.g. 'leader', 'tournaments'), the time of your first and last page view "
+                    "for that day, and a total page-view count. No query parameters, card or deck details, "
+                    "or any other content you interact with is recorded."
+                ),
                 p("We do not collect payment information, precise location data, or any sensitive personal data."),
             ),
             section(
@@ -51,6 +57,8 @@ def privacy_page():
                     "To identify your account across sessions",
                     "To persist your watchlist and settings between visits",
                     "To allow you to delete your account and all associated data",
+                    "To understand how the site is used and improve it (per-user activity data, processed "
+                    "under our legitimate interest in operating and improving the service — Art. 6(1)(f) GDPR)",
                 ),
                 p("We do not sell, rent, or share your personal data with third parties for marketing purposes."),
             ),
@@ -95,9 +103,14 @@ def privacy_page():
             section(
                 "6. Data Retention",
                 p(
-                    "Your data is stored for as long as your account exists. "
-                    "You can permanently delete your account — including your watchlist, settings, "
-                    "and all stored profile data — at any time from the Settings page."
+                    "Your profile, watchlist, and settings are stored for as long as your account exists. "
+                    "You can permanently delete your account — including all associated data — "
+                    "at any time from the Settings page."
+                ),
+                p(
+                    "Per-day activity records (pages visited, first/last seen, page-view count) are "
+                    "automatically deleted after 90 days via a Firestore TTL policy. "
+                    "They are also removed immediately when you delete your account."
                 ),
             ),
             section(
