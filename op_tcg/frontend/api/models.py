@@ -241,7 +241,7 @@ class CardPopularityParams(BaseModel):
     card_abilities: Optional[List[OPTcgAbility]] = None
     card_rarity: Optional[List[OPTcgCardRarity]] = None
     ability_text: Optional[str] = None
-    filter_operator: str = "OR"
+    filter_operator: str = "ANY"
     page: int = 1
     search_term: Optional[str] = None
     release_meta_format: Optional[MetaFormat] = None
@@ -359,8 +359,8 @@ class CardPopularityParams(BaseModel):
     def validate_filter_operator(cls, value):
         if isinstance(value, list) and value:
             value = value[0]
-        if value not in ["OR", "AND"]:
-            return "OR"
+        if value not in ["ALL", "ANY"]:
+            return "ANY"
         return value
 
     @field_validator('page', mode='before')

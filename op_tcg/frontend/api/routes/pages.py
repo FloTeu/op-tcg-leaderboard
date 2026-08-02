@@ -96,11 +96,11 @@ def filter_cards(cards_data: list, params: CardPopularityParams) -> list:
                 
         # Filter by abilities
         if params.card_abilities or params.ability_text:
-            if params.filter_operator == "OR":
+            if params.filter_operator == "ANY":
                 if not (any(ability in card.ability for ability in (params.card_abilities or [])) or 
                        (params.ability_text and params.ability_text.lower() in card.ability.lower())):
                     continue
-            else:  # AND
+            else:  # ALL
                 if not (all(ability in card.ability for ability in (params.card_abilities or [])) and 
                        (not params.ability_text or params.ability_text.lower() in card.ability.lower())):
                     continue
