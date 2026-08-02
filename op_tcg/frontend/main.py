@@ -37,7 +37,10 @@ from op_tcg.frontend.utils.og_images import (
     get_leader_og_image_bytes, warm_leader_og_image,
 )
 from op_tcg.frontend.utils.middleware import canonical_redirect_middleware
+from op_tcg.backend.db import upsert_user_activity
+from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
+import asyncio
 import os
 import logging
 
@@ -220,6 +223,29 @@ class _CanonicalHostMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(_CanonicalHostMiddleware)
+
+
+class _ActivityTrackingMiddleware(BaseHTTPMiddleware):
+    _SKIP_PREFIXES = ('/api/', '/auth/', '/login', '/logout', '/register', '/og/', '/public/')
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+
+        if (request.method == 'GET'
+                and response.status_code == 200
+                and not request.headers.get('HX-Request')
+                and not any(request.url.path.startswith(p) for p in self._SKIP_PREFIXES)
+                and '.' not in request.url.path.rsplit('/', 1)[-1]):
+            user = request.session.get('user')
+            if user:
+                page = request.url.path.strip('/').split('/')[0] or 'home'
+                asyncio.create_task(run_in_threadpool(upsert_user_activity, user['sub'], page))
+
+        return response
+
+
+app.add_middleware(_ActivityTrackingMiddleware)
+
 
 def _user_setting_defaults(request: Request) -> dict:
     """Return the logged-in user's saved settings, or empty dict if not logged in / no settings."""

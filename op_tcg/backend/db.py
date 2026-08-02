@@ -1,3 +1,4 @@
+from datetime import date, datetime, timedelta, timezone
 from google.cloud import firestore
 from op_tcg.backend.models.cards import OPTcgLanguage, CardCurrency
 from op_tcg.backend.models.input import MetaFormatRegion
@@ -64,6 +65,45 @@ def update_user_login(user_info: dict):
         data['created_at'] = existing_data.get('last_login') or firestore.SERVER_TIMESTAMP
 
     user_ref.set(data, merge=True)
+
+
+_ACTIVITY_RETENTION_DAYS = 90
+
+def upsert_user_activity(user_id: str, page: str) -> None:
+    """Record a page visit in the user's daily activity document.
+
+    Creates one document per day under users/{user_id}/activity/{YYYY-MM-DD}.
+    expire_at drives the Firestore TTL policy (90-day retention, no Cloud Function needed).
+    """
+    try:
+        db = get_db()
+        if not db:
+            return
+
+        today = date.today().isoformat()
+        doc_ref = db.collection('users').document(user_id).collection('activity').document(today)
+
+        doc = doc_ref.get()
+        if doc.exists:
+            doc_ref.update({
+                'pages': firestore.ArrayUnion([page]),
+                'page_views': firestore.Increment(1),
+                'last_seen': firestore.SERVER_TIMESTAMP,
+            })
+        else:
+            expire_at = datetime.now(timezone.utc) + timedelta(days=_ACTIVITY_RETENTION_DAYS)
+            doc_ref.set({
+                'date': today,
+                'pages': [page],
+                'page_views': 1,
+                'first_seen': firestore.SERVER_TIMESTAMP,
+                'last_seen': firestore.SERVER_TIMESTAMP,
+                'expire_at': expire_at,
+            })
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to record user activity: %s", e)
+
 
 def add_to_watchlist(user_id: str, card_id: str, card_version: int = 0, language: OPTcgLanguage = OPTcgLanguage.EN, tags: list = None):
     """
