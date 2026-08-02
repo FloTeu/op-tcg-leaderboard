@@ -61,6 +61,43 @@ def _styles() -> ft.Style:
     color: #38bdf8;
 }
 
+.fo-tip-row {
+    position: relative;
+    cursor: default;
+}
+.fo-tip-icon { cursor: help; }
+.fo-tip-box {
+    visibility: hidden;
+    opacity: 0;
+    background-color: #374151;
+    color: white;
+    text-align: center;
+    padding: 8px 12px;
+    border-radius: 6px;
+    position: absolute;
+    z-index: 9999;
+    width: 220px;
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    transition: opacity 0.3s;
+    font-size: 0.875rem;
+    font-weight: normal;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    pointer-events: none;
+}
+.fo-tip-box::before {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent transparent #374151 transparent;
+}
+.fo-tip-icon:hover ~ .fo-tip-box { visibility: visible; opacity: 1; }
+
 /* Card item */
 .cp-card-item {
     border-radius: 8px;
@@ -262,10 +299,21 @@ def create_filter_components(selected_meta_format: MetaFormat | None = None, cur
     )
 
     filter_operator_select = ft.Div(
-        ft.Span("Filter Operator", cls="meta-section-label"),
+        ft.Div(
+            ft.Span("Filter Operator", cls="meta-section-label"),
+            ft.Span("ⓘ", cls="fo-tip-icon",
+                    style="font-size:.7rem;color:#475569;margin-left:4px;"),
+            ft.Span(
+                "Applies to multi-select filters (Colors, Abilities, etc.). "
+                "ALL: card must match all selected values. "
+                "ANY: card must match at least one.",
+                cls="fo-tip-box",
+            ),
+            cls="flex items-center fo-tip-row",
+        ),
         ft.Select(
-            ft.Option("AND", value="AND", selected=True),
-            ft.Option("OR", value="OR"),
+            ft.Option("ALL", value="ALL", selected=True),
+            ft.Option("ANY", value="ANY"),
             id="filter-operator-select",
             name="filter_operator",
             cls="meta-select styled-select",

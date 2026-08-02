@@ -1,3 +1,4 @@
+from datetime import date, datetime, timedelta, timezone
 from google.cloud import firestore
 from op_tcg.backend.models.cards import OPTcgLanguage, CardCurrency
 from op_tcg.backend.models.input import MetaFormatRegion
@@ -46,19 +47,63 @@ def update_user_login(user_info: dict):
     if not user_id:
         return
 
-    # Prepare data to store
-    # Green coding: Only store essential data
+    user_ref = db.collection('users').document(user_id)
+
     data = {
         'id': user_id,
         'name': user_info.get('name'),
         'picture': user_info.get('picture'),
         'email': user_info.get('email'),
         'provider': user_info.get('provider'),
-        'last_login': firestore.SERVER_TIMESTAMP
+        'last_login': firestore.SERVER_TIMESTAMP,
     }
 
-    # Use merge=True to update fields without overwriting the entire document
-    db.collection('users').document(user_id).set(data, merge=True)
+    existing_doc = user_ref.get()
+    existing_data = existing_doc.to_dict() if existing_doc.exists else {}
+    if not existing_data.get('created_at'):
+        # New user → SERVER_TIMESTAMP; existing user without created_at → cold-start via last_login
+        data['created_at'] = existing_data.get('last_login') or firestore.SERVER_TIMESTAMP
+
+    user_ref.set(data, merge=True)
+
+
+_ACTIVITY_RETENTION_DAYS = 90
+
+def upsert_user_activity(user_id: str, page: str) -> None:
+    """Record a page visit in the user's daily activity document.
+
+    Creates one document per day under users/{user_id}/activity/{YYYY-MM-DD}.
+    expire_at drives the Firestore TTL policy (90-day retention, no Cloud Function needed).
+    """
+    try:
+        db = get_db()
+        if not db:
+            return
+
+        today = date.today().isoformat()
+        doc_ref = db.collection('users').document(user_id).collection('activity').document(today)
+
+        doc = doc_ref.get()
+        if doc.exists:
+            doc_ref.update({
+                'pages': firestore.ArrayUnion([page]),
+                'page_views': firestore.Increment(1),
+                'last_seen': firestore.SERVER_TIMESTAMP,
+            })
+        else:
+            expire_at = datetime.now(timezone.utc) + timedelta(days=_ACTIVITY_RETENTION_DAYS)
+            doc_ref.set({
+                'date': today,
+                'pages': [page],
+                'page_views': 1,
+                'first_seen': firestore.SERVER_TIMESTAMP,
+                'last_seen': firestore.SERVER_TIMESTAMP,
+                'expire_at': expire_at,
+            })
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to record user activity: %s", e)
+
 
 def add_to_watchlist(user_id: str, card_id: str, card_version: int = 0, language: OPTcgLanguage = OPTcgLanguage.EN, tags: list = None):
     """
@@ -148,7 +193,7 @@ def get_watchlist(user_id: str):
     return [doc.to_dict() for doc in docs]
 
 
-def add_to_sealed_watchlist(user_id: str, product_id: str, marketplace: str = "cardmarket", quantity: int = 1):
+def add_to_sealed_watchlist(user_id: str, product_id: str, marketplace: str = "cardmarket", quantity: int = 1, tags: list = None):
     """Adds a sealed product to the user's sealed watchlist."""
     db = get_db()
     if not db:
@@ -158,8 +203,20 @@ def add_to_sealed_watchlist(user_id: str, product_id: str, marketplace: str = "c
         'product_id': product_id,
         'marketplace': marketplace,
         'quantity': max(1, quantity),
+        'tags': tags if tags is not None else [DEFAULT_WATCHLIST_TAG],
         'added_at': firestore.SERVER_TIMESTAMP,
     })
+
+
+def update_sealed_watchlist_tags(user_id: str, product_id: str, marketplace: str = "cardmarket", tags: list = None):
+    """Updates the tags of a sealed watchlist item."""
+    db = get_db()
+    if not db:
+        return
+    doc_id = f"{product_id}__{marketplace}"
+    db.collection('users').document(user_id).collection('sealed_watchlist').document(doc_id).update(
+        {'tags': tags or [DEFAULT_WATCHLIST_TAG]}
+    )
 
 
 def update_sealed_watchlist_quantity(user_id: str, product_id: str, marketplace: str = "cardmarket", quantity: int = 1):

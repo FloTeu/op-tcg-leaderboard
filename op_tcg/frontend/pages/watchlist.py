@@ -730,10 +730,16 @@ def watchlist_page(request):
     except (ValueError, TypeError):
         sort_days = 30
 
-    all_tags = sorted({tag for item in watchlist for tag in item.get('tags', ['my collection'])})
+    sealed_wl_entries = get_sealed_watchlist(user_id)
+
+    all_tags = sorted(
+        {tag for item in watchlist for tag in item.get('tags', ['my collection'])}
+        | {tag for item in sealed_wl_entries for tag in item.get('tags', ['my collection'])}
+    )
 
     if tag_filter:
         watchlist = [item for item in watchlist if tag_filter in item.get('tags', ['my collection'])]
+        sealed_wl_entries = [e for e in sealed_wl_entries if tag_filter in e.get('tags', ['my collection'])]
 
     def build_url(view=None, sort=None, order=None, tag=None, change_days=None):
         v = view or view_mode
@@ -790,8 +796,7 @@ def watchlist_page(request):
     total_copies = sum(i['quantity'] for i in prepared_items)
     card_count = len(prepared_items)
 
-    # Add sealed product values to totals (tag filter doesn't apply to sealed)
-    sealed_wl_entries = get_sealed_watchlist(user_id)
+    # Add sealed product values to totals (tag filter applied to sealed too)
     sealed_count = len(sealed_wl_entries)
     if sealed_wl_entries:
         s_eur = {(p['id'], p.get('marketplace', 'cardmarket')): p.get('from_price') or 0.0
@@ -1279,13 +1284,13 @@ def watchlist_page(request):
         ft.Div(
             ft.Div(
                 ft.Span("TOTAL EUR", cls="wl-stat-label"),
-                ft.Span(f"€{total_eur:.2f}", cls="wl-stat-val"),
+                ft.Span(f"€{total_eur:.2f}", cls="wl-stat-val", id="portfolio-total-eur"),
                 cls="flex flex-col"
             ),
             _stat_divider(),
             ft.Div(
                 ft.Span("TOTAL USD", cls="wl-stat-label"),
-                ft.Span(f"${total_usd:.2f}", cls="wl-stat-val"),
+                ft.Span(f"${total_usd:.2f}", cls="wl-stat-val", id="portfolio-total-usd"),
                 cls="flex flex-col"
             ),
             _stat_divider(),
@@ -1358,6 +1363,11 @@ def watchlist_page(request):
                                 c.innerHTML=html;
                                 c.querySelectorAll('script').forEach(function(old){{var s=document.createElement('script');s.textContent=old.textContent;old.parentNode.replaceChild(s,old);}});
                                 document.getElementById('portfolio-chart-loading').classList.add('hidden');
+                              }});
+                            fetch('/api/watchlist/portfolio-stats?segment={seg}{tag_param}')
+                              .then(r=>r.json()).then(data=>{{
+                                document.getElementById('portfolio-total-eur').textContent='€'+data.eur.toFixed(2);
+                                document.getElementById('portfolio-total-usd').textContent='$'+data.usd.toFixed(2);
                               }});
                         """,
                     )
