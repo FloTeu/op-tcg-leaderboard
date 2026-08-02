@@ -70,12 +70,18 @@ class OPTcgCardRarity(EnumBase, StrEnum):
 
 
 class OPTcgAbility(EnumBase, StrEnum):
+    ON_PLAY = "On Play"
     RUSH = "Rush"
     RUSH_CHARACTER = "Rush: Character"
-    BLOCKER = "Blocker"
-    BANISH = "Banish"
-    TRIGGER = "Trigger"
+    WHEN_ATTACKING = "When Attacking"
     DOUBLE_ATTACK = "Double Attack"
+    BANISH = "Banish"
+    BLOCKER = "Blocker"
+    UNBLOCKABLE = "Unblockable"
+    ACTIVATE_MAIN = "Activate: Main"
+    DON_MINUS = "DON!! −"
+    TRIGGER = "Trigger"
+    COUNTER = "Counter"
 
 
 class OPTcgCardSetType(EnumBase, StrEnum):
