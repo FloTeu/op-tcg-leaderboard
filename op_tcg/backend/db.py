@@ -46,19 +46,24 @@ def update_user_login(user_info: dict):
     if not user_id:
         return
 
-    # Prepare data to store
-    # Green coding: Only store essential data
+    user_ref = db.collection('users').document(user_id)
+
     data = {
         'id': user_id,
         'name': user_info.get('name'),
         'picture': user_info.get('picture'),
         'email': user_info.get('email'),
         'provider': user_info.get('provider'),
-        'last_login': firestore.SERVER_TIMESTAMP
+        'last_login': firestore.SERVER_TIMESTAMP,
     }
 
-    # Use merge=True to update fields without overwriting the entire document
-    db.collection('users').document(user_id).set(data, merge=True)
+    existing_doc = user_ref.get()
+    existing_data = existing_doc.to_dict() if existing_doc.exists else {}
+    if not existing_data.get('created_at'):
+        # New user → SERVER_TIMESTAMP; existing user without created_at → cold-start via last_login
+        data['created_at'] = existing_data.get('last_login') or firestore.SERVER_TIMESTAMP
+
+    user_ref.set(data, merge=True)
 
 def add_to_watchlist(user_id: str, card_id: str, card_version: int = 0, language: OPTcgLanguage = OPTcgLanguage.EN, tags: list = None):
     """
