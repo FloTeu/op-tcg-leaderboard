@@ -374,6 +374,49 @@ def _sealed_pp_editor(product_id: str, marketplace: str, purchase_price: float |
     )
 
 
+def _copy_decklist_sim_script() -> ft.Script:
+    """Defines window._copyDecklistSim, used by the "Copy for Sim" button on both saved and
+    custom watchlist decklists. Idempotent (guarded) so it's safe to include in every partial
+    that renders such a button, regardless of which decklist type the user expands first.
+    """
+    return ft.Script("""
+(function() {
+    if (window._copyDecklistSim) return;
+    window._copyDecklistSim = function(btnId, preId) {
+        var btn = document.getElementById(btnId);
+        var pre = document.getElementById(preId);
+        if (!btn || !pre) return;
+        var text = pre.textContent;
+        var done = function() {
+            var orig = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check mr-1"></i>Copied!';
+            btn.style.background = 'rgba(16,185,129,.15)';
+            btn.style.color = '#10b981';
+            btn.style.borderColor = 'rgba(16,185,129,.35)';
+            setTimeout(function() {
+                btn.innerHTML = orig;
+                btn.style.background = '';
+                btn.style.color = '';
+                btn.style.borderColor = '';
+            }, 2000);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done).catch(function() { _copyFallback(text, done); });
+        } else {
+            _copyFallback(text, done);
+        }
+    };
+    function _copyFallback(text, done) {
+        var ta = document.createElement('textarea');
+        ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        try { document.execCommand('copy'); done(); } catch(e) {}
+        document.body.removeChild(ta);
+    }
+})();
+""")
+
+
 def setup_watchlist_routes(rt):
 
     @rt("/api/watchlist/add", methods=["POST"])
@@ -1319,42 +1362,7 @@ def setup_watchlist_routes(rt):
                 cls="flex flex-wrap items-center justify-between gap-y-2 mb-3"
             ),
             decklist_view,
-            ft.Script("""
-(function() {
-    if (window._copyDecklistSim) return;
-    window._copyDecklistSim = function(btnId, preId) {
-        var btn = document.getElementById(btnId);
-        var pre = document.getElementById(preId);
-        if (!btn || !pre) return;
-        var text = pre.textContent;
-        var done = function() {
-            var orig = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-check mr-1"></i>Copied!';
-            btn.style.background = 'rgba(16,185,129,.15)';
-            btn.style.color = '#10b981';
-            btn.style.borderColor = 'rgba(16,185,129,.35)';
-            setTimeout(function() {
-                btn.innerHTML = orig;
-                btn.style.background = '';
-                btn.style.color = '';
-                btn.style.borderColor = '';
-            }, 2000);
-        };
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(done).catch(function() { _copyFallback(text, done); });
-        } else {
-            _copyFallback(text, done);
-        }
-    };
-    function _copyFallback(text, done) {
-        var ta = document.createElement('textarea');
-        ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px';
-        document.body.appendChild(ta); ta.focus(); ta.select();
-        try { document.execCommand('copy'); done(); } catch(e) {}
-        document.body.removeChild(ta);
-    }
-})();
-"""),
+            _copy_decklist_sim_script(),
             style="padding:12px 16px 16px;border-top:1px solid #1a2540;"
         )
 
@@ -1608,5 +1616,6 @@ def setup_watchlist_routes(rt):
                 view_mode=view_mode,
                 unique_id=unique_id,
             ),
+            _copy_decklist_sim_script(),
             style="padding:12px 16px 16px;border-top:1px solid #1a2540;"
         )
