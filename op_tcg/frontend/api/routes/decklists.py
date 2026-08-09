@@ -17,6 +17,34 @@ from op_tcg.frontend.components.decklist_export import create_decklist_export_co
 from op_tcg.backend.db import get_decklist_watchlist
 
 
+def _filter_by_placing(tournament_decklists: list, placing_param: str | None) -> list:
+    """Keep only decklists that placed at or above (i.e. numerically <=) the given rank."""
+    if not placing_param or placing_param == "all":
+        return tournament_decklists
+    try:
+        max_placing = int(placing_param)
+    except (TypeError, ValueError):
+        return tournament_decklists
+    return [d for d in tournament_decklists if d.placing is not None and d.placing <= max_placing]
+
+
+def _filter_by_date_range(tournament_decklists: list, date_from_param: str | None, date_to_param: str | None) -> list:
+    """Keep only decklists whose tournament date falls within the given [date_from, date_to] unix timestamps."""
+    if date_from_param:
+        try:
+            date_from = datetime.fromtimestamp(int(date_from_param), tz=timezone.utc)
+            tournament_decklists = [d for d in tournament_decklists if d.tournament_timestamp >= date_from]
+        except (TypeError, ValueError):
+            pass
+    if date_to_param:
+        try:
+            date_to = datetime.fromtimestamp(int(date_to_param), tz=timezone.utc)
+            tournament_decklists = [d for d in tournament_decklists if d.tournament_timestamp <= date_to]
+        except (TypeError, ValueError):
+            pass
+    return tournament_decklists
+
+
 def setup_api_routes(rt):
     @rt("/api/leader-decklist")
     async def get_leader_decklist(request: Request):
@@ -31,14 +59,9 @@ def setup_api_routes(rt):
             meta_format_region=params.region
         )
 
-        # Apply optional min tournament placing filter (more filters expected here in the future)
-        placing_param = params_dict.get("placing", "all")
-        if placing_param != "all":
-            try:
-                max_placing = int(placing_param)
-                tournament_decklists = [d for d in tournament_decklists if d.placing is not None and d.placing <= max_placing]
-            except (TypeError, ValueError):
-                pass
+        # Apply optional filters (more filters expected here in the future)
+        tournament_decklists = _filter_by_placing(tournament_decklists, params_dict.get("placing"))
+        tournament_decklists = _filter_by_date_range(tournament_decklists, params_dict.get("date_from"), params_dict.get("date_to"))
 
         card_id2card_data = get_card_id_card_data_lookup()
 
@@ -55,14 +78,16 @@ def setup_api_routes(rt):
         # Get additional tournament-specific parameters
         days_param = params_dict.get("days", "all")
         placing_param = params_dict.get("placing", "all")
-        
+        date_from_param = params_dict.get("date_from")
+        date_to_param = params_dict.get("date_to")
+
         # Get tournament decklist data
         tournament_decklists = get_tournament_decklist_data(
-            meta_formats=params.meta_format, 
+            meta_formats=params.meta_format,
             leader_ids=[params.lid],
             meta_format_region=params.region
         )
-        
+
         # Apply tournament-specific filters if provided
         if days_param != "all":
             try:
@@ -73,16 +98,11 @@ def setup_api_routes(rt):
                 # If parsing fails, use all decklists
                 pass
 
-        if placing_param != "all":
-            try:
-                max_placing = int(placing_param)
-                tournament_decklists = [d for d in tournament_decklists if d.placing is not None and d.placing <= max_placing]
-            except (TypeError, ValueError):
-                # If parsing fails, use all decklists
-                pass
-        
+        tournament_decklists = _filter_by_placing(tournament_decklists, placing_param)
+        tournament_decklists = _filter_by_date_range(tournament_decklists, date_from_param, date_to_param)
+
         card_id2card_data = get_card_id_card_data_lookup()
-        
+
         if not tournament_decklists:
             # Create filter description for error message
             filter_desc = []
@@ -90,6 +110,8 @@ def setup_api_routes(rt):
                 filter_desc.append(f"last {days_param} days")
             if placing_param != "all":
                 filter_desc.append(f"Top {placing_param}")
+            if date_from_param or date_to_param:
+                filter_desc.append("selected date range")
             if params.region != MetaFormatRegion.ALL:
                 filter_desc.append(f"region: {params.region.value}")
             
@@ -136,6 +158,8 @@ def setup_api_routes(rt):
             selected_currency=selected_currency,
             days=days_param if days_param != "14" else None,  # Only pass if not default
             placing=placing_param if placing_param != "all" else None,  # Only pass if not default
+            date_from=date_from_param,
+            date_to=date_to_param,
             is_logged_in=is_logged_in,
             watchlisted_decklists=watchlisted_decklists,
         )

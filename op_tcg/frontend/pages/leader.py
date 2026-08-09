@@ -1,14 +1,14 @@
 from fasthtml import ft
 from op_tcg.backend.models.leader import LeaderExtended
-from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion, meta_formats2date_range
 from op_tcg.frontend.components.loading import create_loading_spinner
 from op_tcg.frontend.components.filters import create_leader_select_component
 from op_tcg.frontend.components.effect_text import render_effect_text
 
 # Common HTMX attributes for filter components
 HX_INCLUDE = "[name='meta_format'],[name='lid'],[name='region']"
-# Decklist Analysis section filters (min tournament placing, more to come) live alongside the base filters
-DECKLIST_HX_INCLUDE = HX_INCLUDE + ",[name='placing']"
+# Decklist Analysis section filters (min tournament placing, tournament date range, more to come) live alongside the base filters
+DECKLIST_HX_INCLUDE = HX_INCLUDE + ",[name='placing'],[name='date_from'],[name='date_to']"
 FILTER_HX_ATTRS = {
     "hx_get": "/api/leader-data",
     "hx_trigger": "change",
@@ -296,8 +296,11 @@ def create_filter_components(selected_meta_formats=None, selected_leader_id=None
     return ft.Div(*components, cls="space-y-4")
 
 
-def create_tab_view(has_match_data: bool = True):
+def create_tab_view(has_match_data: bool = True, meta_formats: list[MetaFormat] | None = None, region: MetaFormatRegion = MetaFormatRegion.ALL):
     """Create a tabbed interface for the leader page content."""
+    meta_formats = meta_formats or [MetaFormat.latest_meta_format()]
+    date_range_start, date_range_end = meta_formats2date_range(meta_formats, region)
+    date_range_start_ts, date_range_end_ts = int(date_range_start.timestamp()), int(date_range_end.timestamp())
 
     tab_buttons = [
         ft.Button(
@@ -374,7 +377,49 @@ def create_tab_view(has_match_data: bool = True):
                             ),
                             cls="flex-1",
                         ),
-                        cls="flex flex-col md:flex-row gap-3 mb-4",
+                        cls="flex flex-col md:flex-row gap-3 mb-3",
+                    ),
+                    ft.Div(
+                        ft.Div("Tournament Date Range", cls="lp-section-label"),
+                        ft.Div(
+                            ft.Div(
+                                ft.Div(cls="slider-track"),
+                                ft.Input(
+                                    type="range", min=str(date_range_start_ts), max=str(date_range_end_ts),
+                                    step="86400", value=str(date_range_start_ts),
+                                    name="date_from", cls="slider-range min-range",
+                                    hx_get="/api/leader-decklist",
+                                    hx_trigger="change",
+                                    hx_sync="closest .double-range-slider:queue last",
+                                    hx_target="#leader-decklist-container",
+                                    hx_include=DECKLIST_HX_INCLUDE,
+                                    hx_indicator="#decklist-loading-indicator",
+                                ),
+                                ft.Input(
+                                    type="range", min=str(date_range_start_ts), max=str(date_range_end_ts),
+                                    step="86400", value=str(date_range_end_ts),
+                                    name="date_to", cls="slider-range max-range",
+                                    hx_get="/api/leader-decklist",
+                                    hx_trigger="change",
+                                    hx_sync="closest .double-range-slider:queue last",
+                                    hx_target="#leader-decklist-container",
+                                    hx_include=DECKLIST_HX_INCLUDE,
+                                    hx_indicator="#decklist-loading-indicator",
+                                ),
+                                ft.Div(
+                                    ft.Span(cls="min-value", style="font-family:'Share Tech Mono',monospace; font-size:0.75rem; color:#94a3b8;"),
+                                    ft.Span(" – ", style="color:#475569; margin:0 4px;"),
+                                    ft.Span(cls="max-value", style="font-family:'Share Tech Mono',monospace; font-size:0.75rem; color:#94a3b8;"),
+                                    cls="slider-values",
+                                ),
+                                cls="double-range-slider",
+                                id="decklist-date-range-slider",
+                                data_double_range_slider="true",
+                                data_type="date",
+                            ),
+                            cls="relative w-full",
+                        ),
+                        cls="mb-4",
                     ),
                     create_loading_spinner(id="decklist-loading-indicator", size="w-8 h-8", container_classes="min-h-[100px]"),
                     ft.Div(
@@ -441,7 +486,7 @@ def create_tab_view(has_match_data: bool = True):
     )
 
 
-def create_leader_content(leader_id: str, leader_name: str, aa_image_url: str, total_matches: int | None = None, ability: str | None = None, attributes: list[str] | None = None):
+def create_leader_content(leader_id: str, leader_name: str, aa_image_url: str, total_matches: int | None = None, ability: str | None = None, attributes: list[str] | None = None, meta_formats: list[MetaFormat] | None = None, region: MetaFormatRegion = MetaFormatRegion.ALL):
     """Create the content for a leader page."""
     has_match_data = total_matches is not None and total_matches > 0
 
@@ -539,7 +584,7 @@ def create_leader_content(leader_id: str, leader_name: str, aa_image_url: str, t
             cls="lp-layout-main", style="display:flex; flex-direction:column; gap:16px; margin-bottom:20px;"
         ),
         # Tab view
-        ft.Div(create_tab_view(has_match_data)),
+        ft.Div(create_tab_view(has_match_data, meta_formats=meta_formats, region=region)),
         id="leader-content-inner",
         data_leader_id=leader_id,
         cls="lp-page"
@@ -591,7 +636,8 @@ def leader_page(leader_id: str | None = None, filtered_leader_data: LeaderExtend
         aa_image_url=leader_data.aa_image_url,
         total_matches=leader_data.total_matches,
         ability=leader_data.ability if hasattr(leader_data, "ability") else None,
-        attributes=[str(a) for a in getattr(leader_data, "attributes", [])] if hasattr(leader_data, "attributes") else None
+        attributes=[str(a) for a in getattr(leader_data, "attributes", [])] if hasattr(leader_data, "attributes") else None,
+        meta_formats=selected_meta_format or [leader_data.meta_format]
     )
 
     return ft.Div(

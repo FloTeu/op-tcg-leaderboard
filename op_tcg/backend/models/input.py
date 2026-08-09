@@ -1,6 +1,6 @@
 import datetime
 from enum import StrEnum, auto
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from pydantic import BaseModel, Field
 
@@ -197,6 +197,34 @@ def meta_format2side_meta_format(meta_format: MetaFormat, region: MetaFormatRegi
         mapping = mappings_both
 
     return mapping.get(meta_format, None)
+
+def meta_formats2date_range(meta_formats: list[MetaFormat], region: MetaFormatRegion = MetaFormatRegion.ALL) -> tuple[datetime, datetime]:
+    """
+    Returns the (start, end) datetime bounds covering the active period of the given meta formats:
+    from the earliest selected meta format's release date until the release date of the next
+    meta format after the latest selected one (or now, if that format isn't released/known yet).
+
+    E.g. selecting only OP16 (with OP17 still in the future) returns (OP16 release date, now).
+    """
+    now = datetime.now()
+    release_dates = [d for mf in meta_formats if (d := meta_format2release_datetime(mf, region)) is not None]
+    if not release_dates:
+        return now - timedelta(days=365), now
+    start = min(release_dates)
+
+    all_meta_formats = MetaFormat.to_list(only_after_release=False, region=region)
+    latest_selected = max(meta_formats, key=lambda mf: all_meta_formats.index(mf))
+    latest_idx = all_meta_formats.index(latest_selected)
+
+    next_release = None
+    for future_meta_format in all_meta_formats[latest_idx + 1:]:
+        next_release = meta_format2release_datetime(future_meta_format, region)
+        if next_release is not None:
+            break
+
+    end = min(next_release, now) if next_release else now
+    return start, max(end, start)
+
 
 def get_meta_format_by_datetime(dt: datetime, region: MetaFormatRegion = MetaFormatRegion.WEST) -> MetaFormat:
     """

@@ -197,6 +197,8 @@ def create_decklist_modal(
     selected_currency: str = CardCurrency.EURO,
     days: str | None = None,
     placing: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
     view_mode: str = DecklistViewMode.GRID,
     is_logged_in: bool = False,
     watchlisted_decklists: list[tuple[str, str]] | None = None,
@@ -243,13 +245,17 @@ def create_decklist_modal(
             hidden_inputs.append(ft.Input(type="hidden", name="days", value=days))
         if placing is not None:
             hidden_inputs.append(ft.Input(type="hidden", name="placing", value=placing))
+        if date_from is not None:
+            hidden_inputs.append(ft.Input(type="hidden", name="date_from", value=date_from))
+        if date_to is not None:
+            hidden_inputs.append(ft.Input(type="hidden", name="date_to", value=date_to))
 
         hidden_inputs.append(
             ft.Input(
                 type="hidden", name="view_mode", id="view-mode-input", value=view_mode,
                 hx_get="/api/decklist/tournament-decklist-modal",
                 hx_target="#selected-tournament-decklist-content-modal",
-                hx_include="#tournament-decklist-select-modal, #currency-select-modal, [name='lid'], [name='meta_format'], [name='days'], [name='placing']",
+                hx_include="#tournament-decklist-select-modal, #currency-select-modal, [name='lid'], [name='meta_format'], [name='days'], [name='placing'], [name='date_from'], [name='date_to']",
                 hx_trigger="change",
                 hx_vals='''js:{
                     "tournament_id": document.getElementById("tournament-decklist-select-modal").value.split(":")[0],
@@ -279,7 +285,7 @@ def create_decklist_modal(
                         cls="meta-select styled-select",
                         hx_get="/api/decklist/tournament-decklist-modal",
                         hx_target="#selected-tournament-decklist-content-modal",
-                        hx_include="[name='lid'], [name='meta_format'], [name='days'], [name='placing'], #currency-select-modal, #view-mode-input",
+                        hx_include="[name='lid'], [name='meta_format'], [name='days'], [name='placing'], [name='date_from'], [name='date_to'], #currency-select-modal, #view-mode-input",
                         hx_trigger="change",
                         hx_swap="innerHTML",
                         hx_vals='''js:{
@@ -301,7 +307,7 @@ def create_decklist_modal(
                         cls="meta-select styled-select",
                         hx_get="/api/decklist/tournament-decklist-modal",
                         hx_target="#selected-tournament-decklist-content-modal",
-                        hx_include="#tournament-decklist-select-modal, [name='lid'], [name='meta_format'], [name='days'], [name='placing'], #view-mode-input",
+                        hx_include="#tournament-decklist-select-modal, [name='lid'], [name='meta_format'], [name='days'], [name='placing'], [name='date_from'], [name='date_to'], #view-mode-input",
                         hx_trigger="change",
                         hx_swap="innerHTML",
                         hx_vals='''js:{
@@ -401,7 +407,7 @@ def create_decklist_modal(
                         title="Copy shareable link",
                         cls="ml-2 inline-flex items-center gap-2 rounded-full px-4 py-2 font-semibold shadow-sm active:translate-y-px transition",
                         style="font-family:'Bebas Neue',sans-serif; letter-spacing:0.08em; font-size:0.75rem; background:#f59e0b; color:#000; border:none; cursor:pointer;",
-                        onclick='(function(evt){evt.preventDefault();var btn=evt.currentTarget; (async function(){ try{function buildShareURL(){const p=new URLSearchParams(window.location.search);const lidInput=document.querySelector("[name=lid]");if(lidInput&&lidInput.value){p.set("lid",lidInput.value);}const daysInput=document.querySelector("[name=days]");if(daysInput&&daysInput.value){p.set("days",daysInput.value);}const placingInput=document.querySelector("[name=placing]");if(placingInput&&placingInput.value){p.set("placing",placingInput.value);}const sel=document.getElementById("tournament-decklist-select-modal");if(sel&&sel.value){const v=sel.value.split(":");p.set("tournament_id",v[0]);p.set("player_id",v[1]);}const c=document.getElementById("currency-select-modal");if(c&&c.value){p.set("currency",c.value)}p.set("modal","decklist");return window.location.origin+window.location.pathname+"?"+p.toString();}const url=buildShareURL(); try{ if(navigator.clipboard&&navigator.clipboard.writeText){ await navigator.clipboard.writeText(url); } else { throw new Error("no-async-clipboard"); } } catch(e){ var ta=document.createElement("textarea"); ta.value=url; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); } if(!btn) return; var orig=btn.getAttribute("data-orig-html"); if(!orig){orig=btn.innerHTML; btn.setAttribute("data-orig-html", orig);} btn.innerHTML = "<span class=\"inline-flex items-center gap-2\">✅ <span class=\"hidden sm:inline\">Copied!</span></span>"; btn.classList.add("ring-2","ring-green-400"); setTimeout(function(){btn.innerHTML=orig; btn.classList.remove("ring-2","ring-green-400");}, 1500); } catch(e){} })(); })(event)'
+                        onclick='(function(evt){evt.preventDefault();var btn=evt.currentTarget; (async function(){ try{function buildShareURL(){const p=new URLSearchParams(window.location.search);const lidInput=document.querySelector("[name=lid]");if(lidInput&&lidInput.value){p.set("lid",lidInput.value);}const daysInput=document.querySelector("[name=days]");if(daysInput&&daysInput.value){p.set("days",daysInput.value);}const placingInput=document.querySelector("[name=placing]");if(placingInput&&placingInput.value){p.set("placing",placingInput.value);}const dateFromInput=document.querySelector("[name=date_from]");if(dateFromInput&&dateFromInput.value){p.set("date_from",dateFromInput.value);}const dateToInput=document.querySelector("[name=date_to]");if(dateToInput&&dateToInput.value){p.set("date_to",dateToInput.value);}const sel=document.getElementById("tournament-decklist-select-modal");if(sel&&sel.value){const v=sel.value.split(":");p.set("tournament_id",v[0]);p.set("player_id",v[1]);}const c=document.getElementById("currency-select-modal");if(c&&c.value){p.set("currency",c.value)}p.set("modal","decklist");return window.location.origin+window.location.pathname+"?"+p.toString();}const url=buildShareURL(); try{ if(navigator.clipboard&&navigator.clipboard.writeText){ await navigator.clipboard.writeText(url); } else { throw new Error("no-async-clipboard"); } } catch(e){ var ta=document.createElement("textarea"); ta.value=url; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); } if(!btn) return; var orig=btn.getAttribute("data-orig-html"); if(!orig){orig=btn.innerHTML; btn.setAttribute("data-orig-html", orig);} btn.innerHTML = "<span class=\"inline-flex items-center gap-2\">✅ <span class=\"hidden sm:inline\">Copied!</span></span>"; btn.classList.add("ring-2","ring-green-400"); setTimeout(function(){btn.innerHTML=orig; btn.classList.remove("ring-2","ring-green-400");}, 1500); } catch(e){} })(); })(event)'
                     ),
                     *(
                         [create_decklist_watchlist_toggle(
@@ -595,6 +601,16 @@ def create_decklist_modal(
                                 const placingInput = document.querySelector('[name="placing"]');
                                 if (placingInput && placingInput.value) {{
                                     p.set('placing', placingInput.value);
+                                }}
+
+                                const dateFromInput = document.querySelector('[name="date_from"]');
+                                if (dateFromInput && dateFromInput.value) {{
+                                    p.set('date_from', dateFromInput.value);
+                                }}
+
+                                const dateToInput = document.querySelector('[name="date_to"]');
+                                if (dateToInput && dateToInput.value) {{
+                                    p.set('date_to', dateToInput.value);
                                 }}
 
                                 // Always try to get selected decklist if available
