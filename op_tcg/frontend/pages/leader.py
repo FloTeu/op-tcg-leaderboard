@@ -7,6 +7,8 @@ from op_tcg.frontend.components.effect_text import render_effect_text
 
 # Common HTMX attributes for filter components
 HX_INCLUDE = "[name='meta_format'],[name='lid'],[name='region']"
+# Decklist Analysis section filters (min tournament placing, more to come) live alongside the base filters
+DECKLIST_HX_INCLUDE = HX_INCLUDE + ",[name='placing']"
 FILTER_HX_ATTRS = {
     "hx_get": "/api/leader-data",
     "hx_trigger": "change",
@@ -346,18 +348,39 @@ def create_tab_view(has_match_data: bool = True):
                     hx_get="/api/decklist-modal",
                     hx_target="body",
                     hx_swap="beforeend",
-                    hx_include=HX_INCLUDE
+                    hx_include=DECKLIST_HX_INCLUDE
                 ),
                 style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:20px;"
             ),
             ft.Div(
                 # Left — Decklist
                 ft.Div(
+                    ft.Div(
+                        ft.Div(
+                            ft.Div("Tournament Placing", cls="lp-section-label"),
+                            ft.Select(
+                                ft.Option("All", value="all", selected=True),
+                                ft.Option("Top 1", value="1"),
+                                ft.Option("Top 4", value="4"),
+                                ft.Option("Top 8", value="8"),
+                                ft.Option("Top 16", value="16"),
+                                name="placing",
+                                cls="lp-select styled-select",
+                                hx_get="/api/leader-decklist",
+                                hx_trigger="change",
+                                hx_target="#leader-decklist-container",
+                                hx_include=DECKLIST_HX_INCLUDE,
+                                hx_indicator="#decklist-loading-indicator",
+                            ),
+                            cls="flex-1",
+                        ),
+                        cls="flex flex-col md:flex-row gap-3 mb-4",
+                    ),
                     create_loading_spinner(id="decklist-loading-indicator", size="w-8 h-8", container_classes="min-h-[100px]"),
                     ft.Div(
                         hx_get="/api/leader-decklist",
                         hx_trigger="load",
-                        hx_include=HX_INCLUDE,
+                        hx_include=DECKLIST_HX_INCLUDE,
                         hx_target="#leader-decklist-container",
                         hx_indicator="#decklist-loading-indicator",
                         id="leader-decklist-container",
