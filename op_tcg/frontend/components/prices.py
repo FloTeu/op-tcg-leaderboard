@@ -314,9 +314,26 @@ def create_sealed_product_modal(item: dict, currency: CardCurrency, is_in_watchl
             style="background:#0d1424; border:1px solid #1a2540; border-radius:12px; padding:24px; max-width:52rem; width:100%; margin:0 1rem; position:relative;",
             onclick="event.stopPropagation();",
         ),
-        ft.Style("@keyframes rotate { to { transform: rotate(360deg); } }"),
+        ft.Style("""
+            @keyframes rotate { to { transform: rotate(360deg); } }
+
+            @media (max-width: 768px) {
+                .sealed-modal-backdrop { align-items: flex-start !important; padding: 1rem 0; }
+                .sealed-modal-backdrop > div {
+                    margin: 0 1rem;
+                    max-height: none;
+                    min-height: calc(100vh - 2rem);
+                    width: calc(100% - 2rem);
+                }
+            }
+
+            @media (min-width: 769px) {
+                .sealed-modal-backdrop { align-items: center; justify-content: center; }
+                .sealed-modal-backdrop > div { max-height: 90vh; overflow-y: auto; }
+            }
+        """),
         id=modal_id,
-        cls="fixed inset-0 flex items-center justify-center overflow-y-auto py-4",
+        cls="sealed-modal-backdrop fixed inset-0 flex items-center justify-center overflow-y-auto py-4",
         style="z-index:10000; background:rgba(0,0,0,0.8);",
         onclick=f"document.getElementById('{modal_id}').remove();",
     )
