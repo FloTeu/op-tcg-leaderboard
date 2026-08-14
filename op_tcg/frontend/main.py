@@ -547,12 +547,14 @@ def prices(request: Request):
     user_defaults = _user_setting_defaults(request)
     selected_currency = request.query_params.get("currency") or user_defaults.get("currency")
     selected_currency_enum = CardCurrency(selected_currency) if selected_currency else CardCurrency.EURO
+    initial_price_tab = request.query_params.get("price_tab")
+    initial_price_tab = initial_price_tab if initial_price_tab in ("cards", "sealed") else "cards"
 
     user = request.session.get('user')
 
     return (
         *page_head(title, description, canonical_url, keywords, base, "One Piece TCG Card Prices"),
-        layout(prices_page(), filter_component=prices_filters(selected_currency=selected_currency_enum), current_path="/prices", user=user)
+        layout(prices_page(initial_tab=initial_price_tab), filter_component=prices_filters(selected_currency=selected_currency_enum), current_path="/prices", user=user)
     )
 
 # Support pages
