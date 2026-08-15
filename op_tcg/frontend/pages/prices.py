@@ -254,12 +254,12 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
     )
 
 
-def _tab_switcher() -> ft.Div:
+def _tab_switcher(active_tab: str = "cards") -> ft.Div:
     return ft.Div(
         ft.Button(
             "Cards",
             id="tab-cards",
-            cls="price-tab price-tab-active",
+            cls="price-tab price-tab-active" if active_tab == "cards" else "price-tab",
             hx_get="/api/price-overview",
             hx_target="#price-overview",
             hx_swap="innerHTML",
@@ -270,7 +270,7 @@ def _tab_switcher() -> ft.Div:
         ft.Button(
             "Sealed Products",
             id="tab-sealed",
-            cls="price-tab",
+            cls="price-tab price-tab-active" if active_tab == "sealed" else "price-tab",
             hx_get="/api/price-overview",
             hx_target="#price-overview",
             hx_swap="innerHTML",
@@ -373,12 +373,16 @@ def _price_tab_script() -> ft.Script:
       tab = (input && input.value) || 'cards';
     }}
     window.applyPriceTab(tab);
+
+    var url = new URLSearchParams(window.location.search);
+    url.set('price_tab', tab);
+    window.history.replaceState({{}}, '', window.location.pathname + '?' + url.toString());
   }});
 }})();
 """)
 
 
-def prices_page():
+def prices_page(initial_tab: str = "cards"):
     return ft.Div(
         _styles(),
         _price_tab_script(),
@@ -394,9 +398,9 @@ def prices_page():
                 style="padding-bottom:16px; border-bottom:1px solid #111d30;",
             ),
             create_mobile_filter_button(),
-            ft.Input(type="hidden", id="active-price-tab", name="price_tab", value="cards"),
+            ft.Input(type="hidden", id="active-price-tab", name="price_tab", value=initial_tab),
             ft.Div(id="prices-header-container"),
-            _tab_switcher(),
+            _tab_switcher(initial_tab),
             ft.Div(
                 ft.Span("Search Cards", id="price-search-label", style=_LABEL_STYLE),
                 ft.Input(

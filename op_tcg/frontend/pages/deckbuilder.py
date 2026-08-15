@@ -5,6 +5,7 @@ from fasthtml.common import NotStr
 from op_tcg.frontend.utils.extract import get_card_id_card_data_lookup, get_all_tournament_decklist_data
 from op_tcg.backend.models.cards import OPTcgCardCatagory
 from op_tcg.backend.db import get_custom_decklists, get_decklist_watchlist
+from op_tcg.frontend.components.loading import create_loading_spinner
 
 _CIRC = round(2 * math.pi * 36, 2)
 
@@ -956,7 +957,7 @@ def deckbuilder_page(request):
             placeholder="Search by name, type, set… (e.g. OP09 Luffy)",
             cls="db-search mb-3",
             hx_get="/api/decklist-builder/card-search",
-            hx_trigger="keyup changed delay:350ms, db-search",
+            hx_trigger="load, keyup changed delay:350ms, db-search",
             hx_target="#cdb-search-results",
             hx_swap="innerHTML",
             hx_include=hx_include,
@@ -964,8 +965,7 @@ def deckbuilder_page(request):
         ),
         ft.Div(
             ft.Div(
-                ft.P("Type to search for cards.", cls="text-center db-body",
-                     style="color:#1e2d45;font-size:.8rem;padding:40px 0;"),
+                create_loading_spinner(size="w-6 h-6", container_classes="py-10", is_htmx_indicator=False),
                 id="cdb-search-results",
                 cls="db-scroll overflow-y-auto",
                 style="max-height:calc(100vh - 230px); min-height:120px;",

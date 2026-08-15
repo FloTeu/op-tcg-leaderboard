@@ -256,7 +256,9 @@ def setup_api_routes(rt):
             aa_image_url=leader_data_result.aa_image_url,
             total_matches=leader_data_result.total_matches if match_data_exists else None,
             ability=getattr(leader_data_result, "ability", None),
-            attributes=[str(a) for a in getattr(leader_data_result, "attributes", [])]
+            attributes=[str(a) for a in getattr(leader_data_result, "attributes", [])],
+            meta_formats=params.meta_format,
+            region=params.region
         )
 
     @rt("/api/card-popularity")

@@ -374,6 +374,49 @@ def _sealed_pp_editor(product_id: str, marketplace: str, purchase_price: float |
     )
 
 
+def _copy_decklist_sim_script() -> ft.Script:
+    """Defines window._copyDecklistSim, used by the "Copy for Sim" button on both saved and
+    custom watchlist decklists. Idempotent (guarded) so it's safe to include in every partial
+    that renders such a button, regardless of which decklist type the user expands first.
+    """
+    return ft.Script("""
+(function() {
+    if (window._copyDecklistSim) return;
+    window._copyDecklistSim = function(btnId, preId) {
+        var btn = document.getElementById(btnId);
+        var pre = document.getElementById(preId);
+        if (!btn || !pre) return;
+        var text = pre.textContent;
+        var done = function() {
+            var orig = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check mr-1"></i>Copied!';
+            btn.style.background = 'rgba(16,185,129,.15)';
+            btn.style.color = '#10b981';
+            btn.style.borderColor = 'rgba(16,185,129,.35)';
+            setTimeout(function() {
+                btn.innerHTML = orig;
+                btn.style.background = '';
+                btn.style.color = '';
+                btn.style.borderColor = '';
+            }, 2000);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done).catch(function() { _copyFallback(text, done); });
+        } else {
+            _copyFallback(text, done);
+        }
+    };
+    function _copyFallback(text, done) {
+        var ta = document.createElement('textarea');
+        ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        try { document.execCommand('copy'); done(); } catch(e) {}
+        document.body.removeChild(ta);
+    }
+})();
+""")
+
+
 def setup_watchlist_routes(rt):
 
     @rt("/api/watchlist/add", methods=["POST"])
@@ -1319,42 +1362,7 @@ def setup_watchlist_routes(rt):
                 cls="flex flex-wrap items-center justify-between gap-y-2 mb-3"
             ),
             decklist_view,
-            ft.Script("""
-(function() {
-    if (window._copyDecklistSim) return;
-    window._copyDecklistSim = function(btnId, preId) {
-        var btn = document.getElementById(btnId);
-        var pre = document.getElementById(preId);
-        if (!btn || !pre) return;
-        var text = pre.textContent;
-        var done = function() {
-            var orig = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-check mr-1"></i>Copied!';
-            btn.style.background = 'rgba(16,185,129,.15)';
-            btn.style.color = '#10b981';
-            btn.style.borderColor = 'rgba(16,185,129,.35)';
-            setTimeout(function() {
-                btn.innerHTML = orig;
-                btn.style.background = '';
-                btn.style.color = '';
-                btn.style.borderColor = '';
-            }, 2000);
-        };
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(done).catch(function() { _copyFallback(text, done); });
-        } else {
-            _copyFallback(text, done);
-        }
-    };
-    function _copyFallback(text, done) {
-        var ta = document.createElement('textarea');
-        ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px';
-        document.body.appendChild(ta); ta.focus(); ta.select();
-        try { document.execCommand('copy'); done(); } catch(e) {}
-        document.body.removeChild(ta);
-    }
-})();
-"""),
+            _copy_decklist_sim_script(),
             style="padding:12px 16px 16px;border-top:1px solid #1a2540;"
         )
 
@@ -1437,8 +1445,6 @@ def setup_watchlist_routes(rt):
         from op_tcg.frontend.api.routes.pages import filter_cards
 
         params = CardPopularityParams(**get_query_params_as_dict(request))
-        if not params.search_term:
-            return ft.P("Type to search for cards.", style="color:#475569;font-size:.875rem;text-align:center;padding:16px 0;")
 
         card_lookup = get_card_id_card_data_lookup()
         filtered = filter_cards(list(card_lookup.values()), params)
@@ -1454,9 +1460,15 @@ def setup_watchlist_routes(rt):
                 if cp.card_id not in popularity_dict or cp.popularity > popularity_dict[cp.card_id]:
                     popularity_dict[cp.card_id] = cp.popularity
         filtered.sort(key=lambda c: popularity_dict.get(c.id, 0), reverse=True)
-        filtered = filtered[:24]
 
-        return ft.Div(
+        CARDS_PER_PAGE = 24
+        page = params.page
+        start_idx = (page - 1) * CARDS_PER_PAGE
+        end_idx = start_idx + CARDS_PER_PAGE
+        page_cards = filtered[start_idx:end_idx]
+        has_more = end_idx < len(filtered)
+
+        card_grid = ft.Div(
             *[
                 ft.Div(
                     ft.Img(src=c.image_url, cls="w-full h-auto block", alt=c.name),
@@ -1479,12 +1491,28 @@ def setup_watchlist_routes(rt):
                     data_card_type=c.card_category.value,
                     data_card_counter=str(c.counter or 0),
                     data_card_trigger="1" if '[Trigger]' in c.ability else "0",
-                    onclick="if(window._cdb){window._cdb.addFromBtn(this);window._dbCardFlash(this);}",
+                    onclick="if(window._cdb){if(event.metaKey||event.ctrlKey){window._cdb.decFromBtn(this);}else{window._cdb.addFromBtn(this);}window._dbCardFlash(this);}",
+                    title=f"{c.name} — click to add · ⌘/Ctrl+click to remove",
                 )
-                for c in filtered
+                for c in page_cards
             ],
             cls="db-card-grid"
         )
+
+        batch_loading = create_loading_spinner(id="cdb-search-batch-loading", size="w-6 h-6", container_classes="py-4") if has_more else None
+
+        scroll_trigger = ft.Div(
+            id="cdb-search-scroll-trigger",
+            hx_get=f"/api/decklist-builder/card-search?page={page + 1}",
+            hx_trigger="intersect once root:#cdb-search-results",
+            hx_target="#cdb-search-results",
+            hx_swap="beforeend",
+            hx_include="#cdb-search, #cdb-color-filters, #cdb-category-filters",
+            hx_indicator="#cdb-search-batch-loading",
+            cls="h-8",
+        ) if has_more else None
+
+        return ft.Div(card_grid, scroll_trigger, batch_loading)
 
     @rt("/api/watchlist/custom-decklist/save", methods=["POST"])
     async def custom_decklist_save(request: Request):
@@ -1505,7 +1533,8 @@ def setup_watchlist_routes(rt):
             return JSONResponse({"error": "name and leader_id are required"}, status_code=400)
 
         user_id = user.get('sub')
-        if custom_id:
+        existing = next((d for d in get_custom_decklists(user_id) if d.get('id') == custom_id), None) if custom_id else None
+        if existing and existing.get('name') == name:
             update_custom_decklist(user_id, custom_id, name=name, leader_id=leader_id, decklist=decklist)
         else:
             create_custom_decklist(user_id, name=name, leader_id=leader_id, decklist=decklist)
@@ -1608,5 +1637,6 @@ def setup_watchlist_routes(rt):
                 view_mode=view_mode,
                 unique_id=unique_id,
             ),
+            _copy_decklist_sim_script(),
             style="padding:12px 16px 16px;border-top:1px solid #1a2540;"
         )

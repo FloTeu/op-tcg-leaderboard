@@ -158,7 +158,30 @@ def _wl_styles() -> ft.Style:
 }
 .wl-price-eur .wl-price-badge { background: rgba(16,185,129,.15); color: #10b981; }
 .wl-price-usd .wl-price-badge { background: rgba(56,189,248,.12); color: #38bdf8; }
+
+.wl-watch-more { display: flex; justify-content: center; margin-top: 28px; padding-top: 20px; border-top: 1px solid #1a2540; }
+.wl-watch-more-link {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 22px; border-radius: 8px;
+    background: transparent; color: #94a3b8;
+    font-family: 'Bebas Neue', sans-serif; letter-spacing: .06em; font-size: .8rem;
+    border: 1px solid #1a2540; cursor: pointer; text-decoration: none; transition: all .15s;
+}
+.wl-watch-more-link:hover { color: #f59e0b; border-color: rgba(245,158,11,.35); background: rgba(245,158,11,.06); }
 """)
+
+
+def _watch_more_cta(href: str, label: str) -> ft.Div:
+    """Footer CTA linking off the watchlist to a page for discovering more of the same item type."""
+    return ft.Div(
+        ft.A(
+            ft.Span(label),
+            ft.I(cls="fas fa-arrow-right", style="font-size:.7rem;"),
+            href=href,
+            cls="wl-watch-more-link",
+        ),
+        cls="wl-watch-more",
+    )
 
 
 def _qty_stepper(card_id: str, aa_version: int, language: str, quantity: int) -> ft.Div:
@@ -675,6 +698,7 @@ def watchlist_page(request):
                     hx_indicator="#sealed-loading",
                 ),
                 create_loading_spinner(id="sealed-loading", size="w-6 h-6", container_classes="py-20"),
+                _watch_more_cta("/card-prices?price_tab=sealed", "Discover More Sealed Products") if sealed_count else "",
                 cls="container mx-auto px-4 py-8"
             ),
             cls="wl-page bg-deep-navy"
@@ -714,6 +738,7 @@ def watchlist_page(request):
                          style="font-family:'Barlow',sans-serif;font-size:.85rem;color:#475569;"),
                     cls="flex flex-col items-center justify-center py-20 text-center"
                 ),
+                _watch_more_cta("/card-popularity", "Discover More Cards"),
                 cls="container mx-auto px-4 py-8"
             ),
             cls="wl-page bg-deep-navy"
@@ -1411,6 +1436,7 @@ def watchlist_page(request):
             tag_filter_bar,
             portfolio_section,
             content,
+            _watch_more_cta("/card-popularity", "Discover More Cards"),
             cls="container mx-auto px-4 py-8"
         ),
         cls="wl-page bg-deep-navy"

@@ -616,6 +616,12 @@
         else          { this.addCard(id, name, img, cost, type, counter, has_trigger); }
       },
 
+      decFromBtn: function (btn) {
+        var isLeader = btn.dataset.isLeader === '1';
+        if (isLeader) return;
+        this.removeCard(btn.dataset.cardId);
+      },
+
       addCard: function (id, name, img, cost, type, counter, has_trigger) {
         if (!(id in this.cards)) {
           this.cards[id] = { count: 0, name: name, img: img, is_leader: false, cost: cost || 0, type: type || '', counter: counter || 0, has_trigger: !!has_trigger };
