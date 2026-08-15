@@ -91,12 +91,15 @@ def cardnexus_sync_catalog(game_id: str) -> None:
 @click.option("--max-requests", "-n", type=int, default=500,
              help="Max CardNexus API calls to spend this run. Stay under 600/hour across "
                   "scheduled invocations, since /prices is rate-limited at 600 requests/hour.")
-def cardnexus_update_prices(max_requests: int) -> None:
+@click.option("--sealed-only", is_flag=True, default=False,
+             help="Only update prices for sealed products (booster boxes, cases, decks, ...), "
+                  "skipping cards entirely.")
+def cardnexus_update_prices(max_requests: int, sealed_only: bool) -> None:
     """
     Pulls current prices for CardNexus products already matched to our cards, prioritizing
     never-priced products and then the ones priced longest ago. Run 'sync-catalog' first.
     """
-    etl_job = CardNexusPriceUpdateEtlJob(max_requests=max_requests)
+    etl_job = CardNexusPriceUpdateEtlJob(max_requests=max_requests, sealed_only=sealed_only)
     etl_job.run()
 
 

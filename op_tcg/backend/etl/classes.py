@@ -414,9 +414,10 @@ class CardNexusPriceUpdateEtlJob(AbstractETLJob[list, list]):
     full catalog. Run CardNexusCatalogSyncEtlJob first to populate the candidate tables.
     """
 
-    def __init__(self, max_requests: int = 500, cardnexus_client: CardNexusClient | None = None):
+    def __init__(self, max_requests: int = 500, sealed_only: bool = False, cardnexus_client: CardNexusClient | None = None):
         self.bq_client = bigquery.Client(location="europe-west1")
         self.max_requests = max_requests
+        self.sealed_only = sealed_only
         self.cardnexus_client = cardnexus_client or CardNexusClient()
 
     def validate(self, extracted_data: list) -> bool:
@@ -426,11 +427,14 @@ class CardNexusPriceUpdateEtlJob(AbstractETLJob[list, list]):
         mapping_table = f"{CardNexusProductMapping.get_dataset_id()}.{CardNexusProductMapping.__tablename__}"
         sealed_table = f"{CardNexusSealedProduct.get_dataset_id()}.{CardNexusSealedProduct.__tablename__}"
         snapshot_table = f"{CardNexusPriceSnapshot.get_dataset_id()}.{CardNexusPriceSnapshot.__tablename__}"
-        candidates_cte = f"""
-        SELECT product_id FROM `{mapping_table}` WHERE matched
-        UNION DISTINCT
-        SELECT product_id FROM `{sealed_table}`
-        """
+        if self.sealed_only:
+            candidates_cte = f"SELECT product_id FROM `{sealed_table}`"
+        else:
+            candidates_cte = f"""
+            SELECT product_id FROM `{mapping_table}` WHERE matched
+            UNION DISTINCT
+            SELECT product_id FROM `{sealed_table}`
+            """
         query = f"""
         SELECT c.product_id
         FROM ({candidates_cte}) c
