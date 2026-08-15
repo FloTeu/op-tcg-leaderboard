@@ -1462,9 +1462,15 @@ def setup_watchlist_routes(rt):
                 if cp.card_id not in popularity_dict or cp.popularity > popularity_dict[cp.card_id]:
                     popularity_dict[cp.card_id] = cp.popularity
         filtered.sort(key=lambda c: popularity_dict.get(c.id, 0), reverse=True)
-        filtered = filtered[:24]
 
-        return ft.Div(
+        CARDS_PER_PAGE = 24
+        page = params.page
+        start_idx = (page - 1) * CARDS_PER_PAGE
+        end_idx = start_idx + CARDS_PER_PAGE
+        page_cards = filtered[start_idx:end_idx]
+        has_more = end_idx < len(filtered)
+
+        card_grid = ft.Div(
             *[
                 ft.Div(
                     ft.Img(src=c.image_url, cls="w-full h-auto block", alt=c.name),
@@ -1489,10 +1495,25 @@ def setup_watchlist_routes(rt):
                     data_card_trigger="1" if '[Trigger]' in c.ability else "0",
                     onclick="if(window._cdb){window._cdb.addFromBtn(this);window._dbCardFlash(this);}",
                 )
-                for c in filtered
+                for c in page_cards
             ],
             cls="db-card-grid"
         )
+
+        batch_loading = create_loading_spinner(id="cdb-search-batch-loading", size="w-6 h-6", container_classes="py-4") if has_more else None
+
+        scroll_trigger = ft.Div(
+            id="cdb-search-scroll-trigger",
+            hx_get=f"/api/decklist-builder/card-search?page={page + 1}",
+            hx_trigger="intersect once root:#cdb-search-results",
+            hx_target="#cdb-search-results",
+            hx_swap="beforeend",
+            hx_include="#cdb-search, #cdb-color-filters, #cdb-category-filters",
+            hx_indicator="#cdb-search-batch-loading",
+            cls="h-8",
+        ) if has_more else None
+
+        return ft.Div(card_grid, scroll_trigger, batch_loading)
 
     @rt("/api/watchlist/custom-decklist/save", methods=["POST"])
     async def custom_decklist_save(request: Request):
