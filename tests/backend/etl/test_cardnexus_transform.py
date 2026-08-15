@@ -3,7 +3,8 @@ import json
 import pytest
 
 from op_tcg.backend.etl.transform import (
-    parse_catalog_product,
+    parse_card_product,
+    parse_sealed_product,
     compute_expansion_release_set_matches,
     resolve_product_language_mapping,
     flatten_price_snapshot,
@@ -11,9 +12,9 @@ from op_tcg.backend.etl.transform import (
 from op_tcg.backend.models.cards import OPTcgLanguage, OPTcgMarketplace
 
 
-# --- parse_catalog_product ---
+# --- parse_card_product ---
 
-def test_parse_catalog_product_full_record():
+def test_parse_card_product_full_record():
     product = {
         "id": 12345,
         "printNumber": "OP03-099",
@@ -21,7 +22,7 @@ def test_parse_catalog_product_full_record():
         "expansionId": 7,
         "expansionSlug": "op03-pillars-of-strength",
     }
-    result = parse_catalog_product(product, feed_checksum="abc123")
+    result = parse_card_product(product, feed_checksum="abc123")
     assert result.product_id == "12345"
     assert result.print_number == "OP03-099"
     assert result.name == "Charlotte Katakuri"
@@ -31,9 +32,9 @@ def test_parse_catalog_product_full_record():
     assert json.loads(result.raw_json) == product
 
 
-def test_parse_catalog_product_missing_optional_fields():
+def test_parse_card_product_missing_optional_fields():
     product = {"id": 42}
-    result = parse_catalog_product(product, feed_checksum="abc123")
+    result = parse_card_product(product, feed_checksum="abc123")
     assert result.product_id == "42"
     assert result.print_number is None
     assert result.name is None
@@ -41,9 +42,51 @@ def test_parse_catalog_product_missing_optional_fields():
     assert result.expansion_slug is None
 
 
-def test_parse_catalog_product_missing_id_raises():
+def test_parse_card_product_missing_id_raises():
     with pytest.raises(KeyError):
-        parse_catalog_product({"name": "no id here"}, feed_checksum="abc123")
+        parse_card_product({"name": "no id here"}, feed_checksum="abc123")
+
+
+# --- parse_sealed_product ---
+
+# Real CardNexus catalog sample for a sealed booster box
+_BOOSTER_BOX_PRODUCT = {
+    "id": 152375, "productType": "sealed", "name": "Pillars of Strength - Booster Box",
+    "nameSlug": "pillars-of-strength-booster-box", "slug": "op03-pillars-of-strength-booster-box",
+    "expansionId": 17, "expansionSlug": "pillars-of-strength", "printNumber": None, "variant": None,
+    "rarity": None, "finishes": ["Standard"], "languages": ["en", "fr", "ja", "ko", "zh-cn"],
+    "imageUrl": "https://ik.imagekit.io/cardnexus/production/onepiece/477176boosterbox.png",
+    "imageBackUrl": None, "productCategory": "booster_box",
+    "externalIds": {"cardmarket": [{"finish": "Standard", "id": 714443}], "tcgplayer": [{"finish": "Standard", "id": 477176}]},
+    "translations": {"fr": {"name": "Boîte de Boosters Pillars of Strength"}},
+    "attributes": {},
+}
+
+
+def test_parse_sealed_product_full_record():
+    result = parse_sealed_product(_BOOSTER_BOX_PRODUCT, feed_checksum="abc123")
+    assert result.product_id == "152375"
+    assert result.name == "Pillars of Strength - Booster Box"
+    assert result.expansion_id == "17"
+    assert result.expansion_slug == "pillars-of-strength"
+    assert result.product_category == "booster_box"
+    assert result.image_url == _BOOSTER_BOX_PRODUCT["imageUrl"]
+    assert result.feed_checksum == "abc123"
+    assert json.loads(result.raw_json) == _BOOSTER_BOX_PRODUCT
+
+
+def test_parse_sealed_product_missing_optional_fields():
+    result = parse_sealed_product({"id": 1}, feed_checksum="abc123")
+    assert result.product_id == "1"
+    assert result.name is None
+    assert result.expansion_id is None
+    assert result.product_category is None
+    assert result.image_url is None
+
+
+def test_parse_sealed_product_missing_id_raises():
+    with pytest.raises(KeyError):
+        parse_sealed_product({"name": "no id here"}, feed_checksum="abc123")
 
 
 # --- compute_expansion_release_set_matches ---
@@ -58,10 +101,12 @@ def test_compute_expansion_release_set_matches_identical_sets():
 
 def test_compute_expansion_release_set_matches_below_threshold_is_unmatched():
     base = {f"OP01-{i:03d}" for i in range(1, 21)}
-    # Only half overlap -> Jaccard well below default 0.8
+    # Only half overlap -> Jaccard of 0.5, below an explicit 0.8 threshold
     expansion_to_card_ids = {"exp-romance-dawn": {f"OP01-{i:03d}" for i in range(1, 11)}}
     release_set_to_card_ids = {"OP01": base}
-    result = compute_expansion_release_set_matches(expansion_to_card_ids, release_set_to_card_ids, min_set_size=5)
+    result = compute_expansion_release_set_matches(
+        expansion_to_card_ids, release_set_to_card_ids, min_jaccard=0.8, min_set_size=5,
+    )
     assert result == {}
 
 

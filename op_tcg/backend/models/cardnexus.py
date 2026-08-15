@@ -7,8 +7,9 @@ from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.cards import OPTcgLanguage, OPTcgMarketplace
 
 
-class CardNexusCatalogProduct(BQTableBaseModel):
-    """Raw catalog feed record from the CardNexus 'onepiece' catalog feed.
+class CardNexusCardProduct(BQTableBaseModel):
+    """Raw catalog feed record for a card (CardNexus's `productType: "card"`) from
+    the CardNexus 'onepiece' catalog feed.
 
     Only a handful of convenience columns are extracted; `raw_json` keeps the
     full record verbatim since the CardNexus API is still under active
@@ -25,6 +26,31 @@ class CardNexusCatalogProduct(BQTableBaseModel):
     raw_json: str = Field(description="Full raw catalog record as JSON, preserved in case of upstream schema changes")
 
 
+class CardNexusSealedProduct(BQTableBaseModel):
+    """Raw catalog feed record for a non-card CardNexus product (booster boxes,
+    cases, starter decks, promo bundles, etc — CardNexus's `productType: "sealed"`).
+
+    Kept separate from CardNexusCardProduct and never matched against our own
+    Card table (sealed products don't have a print_number to match on, and
+    CardNexus's own catalog is already well-organized enough — name, expansionSlug,
+    productCategory — to stand on its own). Prices reuse CardNexusPriceSnapshot,
+    whose schema is already product-type-agnostic. See op_tcg.backend.etl.views for
+    a forward-looking view reshaping this into SealedProduct-like columns — not
+    wired into the app yet, since it isn't reconciled against our existing
+    cardmarket-scraped SealedProduct table.
+    """
+    _dataset_id: str = BQDataset.CARDNEXUS_RAW
+
+    product_id: str = Field(description="CardNexus stable product id (their 'id' field)", primary_key=True)
+    name: str | None = Field(default=None, description="Product name from the catalog feed")
+    expansion_id: str | None = Field(default=None, description="CardNexus expansion id")
+    expansion_slug: str | None = Field(default=None, description="CardNexus expansion slug")
+    product_category: str | None = Field(default=None, description="CardNexus product category, e.g. 'booster_box'")
+    image_url: str | None = Field(default=None, description="Product image URL")
+    feed_checksum: str = Field(description="Checksum of the catalog feed this record was parsed from, used for change detection")
+    raw_json: str = Field(description="Full raw catalog record as JSON, preserved in case of upstream schema changes")
+
+
 class CardNexusPriceSnapshot(BQTableBaseModel):
     """Append-only raw pull of /products/{id}/prices, one row per marketplace block per finish.
 
@@ -34,7 +60,7 @@ class CardNexusPriceSnapshot(BQTableBaseModel):
     """
     _dataset_id: str = BQDataset.CARDNEXUS_RAW
 
-    product_id: str = Field(description="CardNexus product id, FK to CardNexusCatalogProduct.product_id", primary_key=True)
+    product_id: str = Field(description="CardNexus product id, FK to CardNexusCardProduct.product_id or CardNexusSealedProduct.product_id", primary_key=True)
     finish: str = Field(description="Card finish reported by CardNexus, e.g. 'Standard' or 'Foil'", primary_key=True)
     marketplace: OPTcgMarketplace = Field(description="Pricing source reported for this block: cardmarket, tcgplayer, or cardnexus", primary_key=True)
     create_timestamp: datetime = Field(default_factory=datetime.now, description="Timestamp when this snapshot was pulled", primary_key=True)

@@ -9,7 +9,8 @@ from op_tcg.backend.models.input import LimitlessMatch, MetaFormat, AllLeaderMet
 from op_tcg.backend.models.matches import BQMatches, Match, MatchResult
 from op_tcg.backend.models.common import DataSource
 from op_tcg.backend.models.cards import OPTcgLanguage, OPTcgMarketplace
-from op_tcg.backend.models.cardnexus import CardNexusCatalogProduct, CardNexusPriceSnapshot, CardNexusProductMapping
+from op_tcg.backend.models.cardnexus import CardNexusCardProduct, CardNexusPriceSnapshot, CardNexusProductMapping, \
+    CardNexusSealedProduct
 from op_tcg.backend.models.transform import Transform2BQMatch
 
 logger = logging.getLogger(__name__)
@@ -195,8 +196,8 @@ def distribute_matches(match_pool: list[Transform2BQMatch]) -> list[Transform2BQ
     return result_transform_bq_match
 
 
-def parse_catalog_product(product: dict, feed_checksum: str) -> CardNexusCatalogProduct:
-    """Parse one raw CardNexus catalog feed record.
+def parse_card_product(product: dict, feed_checksum: str) -> CardNexusCardProduct:
+    """Parse one raw CardNexus catalog feed record for a card.
 
     Only `id` is required; every other field is read defensively since the feed
     schema is still evolving. Raises KeyError if `id` is missing so the caller can
@@ -204,12 +205,33 @@ def parse_catalog_product(product: dict, feed_checksum: str) -> CardNexusCatalog
     """
     product_id = product["id"]
     expansion_id = product.get("expansionId")
-    return CardNexusCatalogProduct(
+    return CardNexusCardProduct(
         product_id=str(product_id),
         print_number=product.get("printNumber"),
         name=product.get("name"),
         expansion_id=None if expansion_id is None else str(expansion_id),
         expansion_slug=product.get("expansionSlug"),
+        feed_checksum=feed_checksum,
+        raw_json=json.dumps(product, default=str),
+    )
+
+
+def parse_sealed_product(product: dict, feed_checksum: str) -> CardNexusSealedProduct:
+    """Parse one raw CardNexus catalog feed record for a non-card (sealed) product.
+
+    Unlike cards, sealed products aren't matched against our own tables — CardNexus's
+    own catalog fields (name, expansionSlug, productCategory) are kept largely as-is.
+    Only `id` is required; raises KeyError if missing so the caller can skip the record.
+    """
+    product_id = product["id"]
+    expansion_id = product.get("expansionId")
+    return CardNexusSealedProduct(
+        product_id=str(product_id),
+        name=product.get("name"),
+        expansion_id=None if expansion_id is None else str(expansion_id),
+        expansion_slug=product.get("expansionSlug"),
+        product_category=product.get("productCategory"),
+        image_url=product.get("imageUrl"),
         feed_checksum=feed_checksum,
         raw_json=json.dumps(product, default=str),
     )
