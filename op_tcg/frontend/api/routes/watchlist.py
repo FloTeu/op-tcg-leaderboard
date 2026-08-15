@@ -1493,7 +1493,8 @@ def setup_watchlist_routes(rt):
                     data_card_type=c.card_category.value,
                     data_card_counter=str(c.counter or 0),
                     data_card_trigger="1" if '[Trigger]' in c.ability else "0",
-                    onclick="if(window._cdb){window._cdb.addFromBtn(this);window._dbCardFlash(this);}",
+                    onclick="if(window._cdb){if(event.metaKey||event.ctrlKey){window._cdb.decFromBtn(this);}else{window._cdb.addFromBtn(this);}window._dbCardFlash(this);}",
+                    title=f"{c.name} — click to add · ⌘/Ctrl+click to remove",
                 )
                 for c in page_cards
             ],
