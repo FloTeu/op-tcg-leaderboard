@@ -1445,8 +1445,6 @@ def setup_watchlist_routes(rt):
         from op_tcg.frontend.api.routes.pages import filter_cards
 
         params = CardPopularityParams(**get_query_params_as_dict(request))
-        if not params.search_term:
-            return ft.P("Type to search for cards.", style="color:#475569;font-size:.875rem;text-align:center;padding:16px 0;")
 
         card_lookup = get_card_id_card_data_lookup()
         filtered = filter_cards(list(card_lookup.values()), params)
