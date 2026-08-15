@@ -115,9 +115,35 @@ def ensure_json_serializability(row_to_insert):
                     row_to_insert[col_name][i] = str(col_value_i)
 
 
+# BigQuery's tabledata.insertAll caps a single request at 10MB and 10,000 rows.
+# Batches are kept comfortably under the byte limit since row sizes here are
+# estimated from a single json.dumps of the whole batch, not summed per-row.
+_BQ_INSERT_MAX_BYTES = 9_000_000
+_BQ_INSERT_MAX_ROWS = 10_000
+
+
+def _batch_rows_for_insert(rows: list[dict[str, Any]], max_bytes: int = _BQ_INSERT_MAX_BYTES,
+                          max_rows: int = _BQ_INSERT_MAX_ROWS) -> list[list[dict[str, Any]]]:
+    """Splits rows into batches that stay under BigQuery's per-request insert limits."""
+    batches: list[list[dict[str, Any]]] = []
+    current: list[dict[str, Any]] = []
+    current_bytes = 0
+    for row in rows:
+        row_bytes = len(json.dumps(row, default=str).encode("utf-8"))
+        if current and (current_bytes + row_bytes > max_bytes or len(current) >= max_rows):
+            batches.append(current)
+            current = []
+            current_bytes = 0
+        current.append(row)
+        current_bytes += row_bytes
+    if current:
+        batches.append(current)
+    return batches
+
+
 def bq_insert_rows(rows_to_insert: list[dict[str, Any]], table: bigquery.Table,
                    client: bigquery.Client | None = None) -> None:
-    """Adds a new row to BigQuery"""
+    """Adds new rows to BigQuery, batching to stay under the streaming insert size/row limits"""
     if len(rows_to_insert) == 0:
         _logger.warning(f"Skip bq insert in table {table}, as no rows are provided.")
         return None
@@ -126,11 +152,12 @@ def bq_insert_rows(rows_to_insert: list[dict[str, Any]], table: bigquery.Table,
         ensure_json_serializability(row)
     table_id = f"{table.project}.{table.dataset_id}.{table.table_id}"
 
-    errors = client.insert_rows_json(table_id, rows_to_insert)  # Make an API request.
-    if errors == []:
-        _logger.debug("New rows have been added.")
-    else:
-        raise ValueError("Encountered errors while inserting rows: {}".format(errors))
+    batches = _batch_rows_for_insert(rows_to_insert)
+    for i, batch in enumerate(batches):
+        errors = client.insert_rows_json(table_id, batch)  # Make an API request.
+        if errors:
+            raise ValueError("Encountered errors while inserting rows: {}".format(errors))
+        _logger.debug(f"Inserted batch {i + 1}/{len(batches)} ({len(batch)} rows) into {table_id}")
 
 
 def generate_merge_statement(bq_model: SQLTableBaseModel) -> str:
@@ -230,14 +257,15 @@ def bq_upsert_rows(rows: list[SQLTableBaseModel], client: bigquery.Client | None
         return
 
     try:
-        # Insert rows into temp table
+        # Insert rows into temp table, batched to stay under the streaming insert size/row limits
         rows_dicts = [json.loads(row.model_dump_json()) for row in rows]
         for row in rows_dicts:
             ensure_json_serializability(row)
 
-        errors = client.insert_rows_json(temp_table, rows_dicts)
-        if errors:
-             raise ValueError(f"Encountered errors while inserting rows into temp table: {errors}")
+        for batch in _batch_rows_for_insert(rows_dicts):
+            errors = client.insert_rows_json(temp_table, batch)
+            if errors:
+                 raise ValueError(f"Encountered errors while inserting rows into temp table: {errors}")
 
         # Generate MERGE statement
         primary_keys = [field for field, value in model_class.model_fields.items() if

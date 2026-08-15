@@ -215,33 +215,136 @@ def parse_catalog_product(product: dict, feed_checksum: str) -> CardNexusCatalog
     )
 
 
-def match_catalog_product_to_card(product_id: str, print_number: str | None,
-                                  cards_by_id: dict[str, list[tuple[OPTcgLanguage, int]]]) -> CardNexusProductMapping:
-    """Match a CardNexus product to our own Card table via print_number == Card.id.
+# CardNexus language codes -> our tracked OPTcgLanguage. CardNexus lists several
+# languages we don't track (fr, ko, zh-cn) on the same product — those are ignored.
+CARDNEXUS_LANGUAGE_MAP: dict[str, OPTcgLanguage] = {
+    "en": OPTcgLanguage.EN,
+    "ja": OPTcgLanguage.JP,
+}
 
-    `cards_by_id` maps Card.id -> list of (language, aa_version) of every existing
-    Card row sharing that id. CardNexus does not expose language/aa_version
-    directly, so if more than one (language, aa_version) shares the same id, the
-    match is kept but marked ambiguous rather than guessed.
+
+def compute_expansion_release_set_matches(
+    expansion_to_card_ids: dict[str, set[str]],
+    release_set_to_card_ids: dict[str, set[str]],
+    min_jaccard: float = 0.5,
+    min_set_size: int = 5,
+) -> dict[str, tuple[str, float]]:
+    """Match CardNexus expansionIds to our release_set_ids by comparing card id sets.
+
+    Set *composition* (which card ids belong to the release), not name/slug, since
+    naming isn't guaranteed to align between the two catalogs — e.g. CardNexus lumps
+    many distinct promo products into a single "one-piece-promotion-cards" expansion,
+    which has no clean 1:1 counterpart on our side at all.
+
+    Jaccard (intersection / union) is used rather than one-directional containment:
+    a containment-style score would let a small release_set "match" that giant promo
+    bucket at ~100% (since our ids are a subset of it), which is a false positive.
+    Jaccard correctly scores that pairing low (huge union, small intersection), so
+    such expansions are correctly left unmatched rather than assigned an arbitrary
+    release_set_id.
+
+    min_set_size guards against small releases matching by coincidental overlap.
+
+    Returns expansion_id -> (release_set_id, jaccard_score) only for matches that
+    clear both thresholds; callers should treat any other expansion_id as unmatched.
     """
+    # Inverted index avoids a full expansion x release_set cross product — only
+    # pairs that share at least one card id are ever scored.
+    card_id_to_expansions: dict[str, set[str]] = {}
+    for expansion_id, card_ids in expansion_to_card_ids.items():
+        for card_id in card_ids:
+            card_id_to_expansions.setdefault(card_id, set()).add(expansion_id)
+
+    card_id_to_release_sets: dict[str, set[str]] = {}
+    for release_set_id, card_ids in release_set_to_card_ids.items():
+        for card_id in card_ids:
+            card_id_to_release_sets.setdefault(card_id, set()).add(release_set_id)
+
+    intersection_counts: dict[tuple[str, str], int] = {}
+    for card_id, expansions in card_id_to_expansions.items():
+        for release_set_id in card_id_to_release_sets.get(card_id, ()):
+            for expansion_id in expansions:
+                key = (expansion_id, release_set_id)
+                intersection_counts[key] = intersection_counts.get(key, 0) + 1
+
+    best_by_expansion: dict[str, tuple[str, float]] = {}
+    for (expansion_id, release_set_id), intersection in intersection_counts.items():
+        expansion_size = len(expansion_to_card_ids[expansion_id])
+        release_set_size = len(release_set_to_card_ids[release_set_id])
+        if expansion_size < min_set_size or release_set_size < min_set_size:
+            continue
+        union = expansion_size + release_set_size - intersection
+        score = intersection / union if union else 0.0
+        if score < min_jaccard:
+            continue
+        current_best = best_by_expansion.get(expansion_id)
+        if current_best is None or score > current_best[1]:
+            best_by_expansion[expansion_id] = (release_set_id, score)
+
+    return best_by_expansion
+
+
+def resolve_product_language_mapping(
+    product: dict,
+    expansion_to_release_set: dict[str, str],
+    candidates_lookup: dict[tuple[str, str, OPTcgLanguage], list[int]],
+) -> list[CardNexusProductMapping]:
+    """Resolve one CardNexus catalog product to zero or more CardNexusProductMapping rows.
+
+    One row is produced per language the product lists that we track (see
+    CARDNEXUS_LANGUAGE_MAP) — a product with no recognized language yields no rows.
+
+    `candidates_lookup` maps (card_id, release_set_id, language) -> list of aa_version
+    values sharing that combination. Narrowing by release_set_id (resolved from the
+    product's expansionId via `expansion_to_release_set`) is what keeps this from
+    degenerating into "5 candidates for print_number OP01-025" — most releases have
+    exactly one card per (release_set_id, language) print number. If more than one
+    candidate remains (e.g. a base print and its "Alternate Art" parallel from the
+    same set), CardNexus's `variant` field disambiguates: null/empty variant is the
+    base (lowest aa_version), any other variant text is the other one — this only
+    resolves the common 2-candidate case; 3+ remaining candidates are left ambiguous
+    rather than guessed, since variant text alone doesn't establish an ordering.
+    """
+    product_id = str(product.get("id"))
+    languages = [CARDNEXUS_LANGUAGE_MAP[lang] for lang in product.get("languages") or [] if lang in CARDNEXUS_LANGUAGE_MAP]
+    if not languages:
+        return []
+
+    print_number = product.get("printNumber")
     if not print_number:
-        return CardNexusProductMapping(product_id=product_id, matched=False, match_method="no_print_number")
+        return [
+            CardNexusProductMapping(product_id=product_id, language=language, matched=False, match_method="no_print_number")
+            for language in languages
+        ]
 
-    candidates = cards_by_id.get(print_number, [])
-    if len(candidates) == 0:
-        return CardNexusProductMapping(product_id=product_id, matched=False, match_method="no_match")
-    if len(candidates) > 1:
-        return CardNexusProductMapping(product_id=product_id, matched=False, match_method="ambiguous_print_number")
+    expansion_id = product.get("expansionId")
+    release_set_id = expansion_to_release_set.get(str(expansion_id)) if expansion_id is not None else None
+    if release_set_id is None:
+        return [
+            CardNexusProductMapping(product_id=product_id, language=language, matched=False, match_method="no_release_match")
+            for language in languages
+        ]
 
-    language, aa_version = candidates[0]
-    return CardNexusProductMapping(
-        product_id=product_id,
-        card_id=print_number,
-        language=language,
-        aa_version=aa_version,
-        matched=True,
-        match_method="print_number_unique",
-    )
+    variant = product.get("variant")
+    mappings: list[CardNexusProductMapping] = []
+    for language in languages:
+        candidates = sorted(candidates_lookup.get((print_number, release_set_id, language), []))
+        if len(candidates) == 0:
+            mappings.append(CardNexusProductMapping(product_id=product_id, language=language, matched=False, match_method="no_match"))
+        elif len(candidates) == 1:
+            mappings.append(CardNexusProductMapping(
+                product_id=product_id, language=language, card_id=print_number, aa_version=candidates[0],
+                matched=True, match_method="unique",
+            ))
+        elif len(candidates) == 2:
+            aa_version = candidates[0] if not variant else candidates[1]
+            mappings.append(CardNexusProductMapping(
+                product_id=product_id, language=language, card_id=print_number, aa_version=aa_version,
+                matched=True, match_method="variant_pair",
+            ))
+        else:
+            mappings.append(CardNexusProductMapping(product_id=product_id, language=language, matched=False, match_method="ambiguous_variant"))
+    return mappings
 
 
 def _extract_price_block_fields(marketplace: str, block: dict) -> dict:

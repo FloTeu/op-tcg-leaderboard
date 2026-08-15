@@ -11,8 +11,8 @@ from google.api_core.exceptions import NotFound
 from op_tcg.backend.elo import EloCreator
 from op_tcg.backend.etl.base import AbstractETLJob, E, T
 from op_tcg.backend.etl.load import get_or_create_table, bq_insert_rows, bq_upsert_rows, upload2gcp_storage
-from op_tcg.backend.etl.transform import BQMatchCreator, parse_catalog_product, match_catalog_product_to_card, \
-    flatten_price_snapshot
+from op_tcg.backend.etl.transform import BQMatchCreator, parse_catalog_product, compute_expansion_release_set_matches, \
+    resolve_product_language_mapping, flatten_price_snapshot
 from op_tcg.backend.etl.views import ensure_cardnexus_price_view
 from op_tcg.backend.crawling.cardnexus_client import CardNexusClient
 from op_tcg.backend.models.bq_enums import BQDataset
@@ -20,7 +20,8 @@ from op_tcg.backend.models.input import AllLeaderMetaDocs, MetaFormat, Limitless
 from op_tcg.backend.models.matches import BQMatches, Match
 from op_tcg.backend.models.leader import LeaderElo
 from op_tcg.backend.models.cards import Card, OPTcgLanguage
-from op_tcg.backend.models.cardnexus import CardNexusCatalogProduct, CardNexusPriceSnapshot, CardNexusProductMapping
+from op_tcg.backend.models.cardnexus import CardNexusCatalogProduct, CardNexusPriceSnapshot, CardNexusProductMapping, \
+    CardNexusExpansionMapping
 from op_tcg.backend.etl.extract import read_json_files
 from pathlib import Path
 from google.cloud import bigquery, storage
@@ -268,7 +269,13 @@ class CardImageUpdateToGCPEtlJob(AbstractETLJob[list[Card], list[Card]]):
 
 class CardNexusCatalogSyncEtlJob(AbstractETLJob[dict, tuple]):
     """Syncs the CardNexus 'onepiece' catalog feed into BigQuery and (re)derives the
-    product_id -> card_id/language/aa_version mapping used by CardNexusPriceUpdateEtlJob.
+    product_id/language -> card_id/aa_version mapping used by CardNexusPriceUpdateEtlJob.
+
+    Matching is two-stage: (1) CardNexus expansionIds are matched to our release_set_ids
+    by comparing card id set composition (Jaccard similarity — see
+    compute_expansion_release_set_matches), not by name/slug; (2) within a resolved
+    release_set, CardNexus's `variant` field disambiguates a base print from its
+    alternate-art parallel where both exist (see resolve_product_language_mapping).
 
     Skips the (expensive) feed download/parse entirely if the feed checksum hasn't
     changed since the last successful sync.
@@ -299,15 +306,17 @@ class CardNexusCatalogSyncEtlJob(AbstractETLJob[dict, tuple]):
         feed_meta["last_checksum"] = self._get_last_checksum()
         return feed_meta
 
-    def transform(self, feed_meta: dict) -> tuple[list[CardNexusCatalogProduct], list[CardNexusProductMapping]]:
+    def transform(self, feed_meta: dict) -> tuple[list[CardNexusCatalogProduct], list[CardNexusExpansionMapping], list[CardNexusProductMapping]]:
         checksum = feed_meta.get("checksum") or ""
         if checksum and checksum == feed_meta.get("last_checksum"):
             _logger.info("CardNexus catalog feed checksum unchanged — skipping catalog sync")
-            return [], []
+            return [], [], []
 
+        raw_products: list[dict] = []
         catalog_products: list[CardNexusCatalogProduct] = []
         skipped = 0
         for raw_product in self.cardnexus_client.iter_catalog_products(self.game_id):
+            raw_products.append(raw_product)
             try:
                 catalog_products.append(parse_catalog_product(raw_product, feed_checksum=checksum))
             except (KeyError, TypeError) as e:
@@ -316,32 +325,61 @@ class CardNexusCatalogSyncEtlJob(AbstractETLJob[dict, tuple]):
         if skipped:
             _logger.warning(f"Skipped {skipped} malformed CardNexus catalog product record(s)")
 
+        # Group CardNexus card ids by expansionId, for the release-set Jaccard match
+        expansion_to_card_ids: dict[str, set[str]] = {}
+        for raw_product in raw_products:
+            expansion_id = raw_product.get("expansionId")
+            print_number = raw_product.get("printNumber")
+            if expansion_id is None or not print_number:
+                continue
+            expansion_to_card_ids.setdefault(str(expansion_id), set()).add(print_number)
+
         cards_df = self.bq_client.query_and_wait(
-            f"SELECT id, language, aa_version FROM {BQDataset.CARDS}.{Card.__tablename__}"
+            f"SELECT id, language, aa_version, release_set_id FROM {BQDataset.CARDS}.{Card.__tablename__}"
         ).to_dataframe()
-        cards_by_id: dict[str, list[tuple[OPTcgLanguage, int]]] = {}
+        release_set_to_card_ids: dict[str, set[str]] = {}
+        candidates_lookup: dict[tuple[str, str, OPTcgLanguage], list[int]] = {}
         for _, row in cards_df.iterrows():
-            cards_by_id.setdefault(row["id"], []).append((OPTcgLanguage(row["language"]), int(row["aa_version"])))
+            release_set_to_card_ids.setdefault(row["release_set_id"], set()).add(row["id"])
+            key = (row["id"], row["release_set_id"], OPTcgLanguage(row["language"]))
+            candidates_lookup.setdefault(key, []).append(int(row["aa_version"]))
 
-        mappings = [
-            match_catalog_product_to_card(p.product_id, p.print_number, cards_by_id)
-            for p in catalog_products
+        best_matches = compute_expansion_release_set_matches(expansion_to_card_ids, release_set_to_card_ids)
+        expansion_to_release_set = {expansion_id: release_set_id for expansion_id, (release_set_id, _) in best_matches.items()}
+        expansion_mappings = [
+            CardNexusExpansionMapping(
+                expansion_id=expansion_id,
+                release_set_id=best_matches[expansion_id][0] if expansion_id in best_matches else None,
+                jaccard_score=best_matches[expansion_id][1] if expansion_id in best_matches else None,
+                matched=expansion_id in best_matches,
+            )
+            for expansion_id in expansion_to_card_ids
         ]
-        matched_count = sum(1 for m in mappings if m.matched)
         _logger.info(
-            f"CardNexus catalog sync: {len(catalog_products)} products, {matched_count} matched, "
-            f"{len(mappings) - matched_count} unmatched/ambiguous"
+            f"CardNexus release matching: {len(best_matches)}/{len(expansion_to_card_ids)} expansions matched to a release_set_id"
         )
-        return catalog_products, mappings
 
-    def load(self, transformed_data: tuple[list[CardNexusCatalogProduct], list[CardNexusProductMapping]]) -> None:
-        catalog_products, mappings = transformed_data
+        product_mappings: list[CardNexusProductMapping] = []
+        for raw_product in raw_products:
+            product_mappings.extend(resolve_product_language_mapping(raw_product, expansion_to_release_set, candidates_lookup))
+        matched_count = sum(1 for m in product_mappings if m.matched)
+        _logger.info(
+            f"CardNexus catalog sync: {len(catalog_products)} products, {len(product_mappings)} product/language rows, "
+            f"{matched_count} matched, {len(product_mappings) - matched_count} unmatched/ambiguous"
+        )
+        return catalog_products, expansion_mappings, product_mappings
+
+    def load(self, transformed_data: tuple[list[CardNexusCatalogProduct], list[CardNexusExpansionMapping], list[CardNexusProductMapping]]) -> None:
+        catalog_products, expansion_mappings, product_mappings = transformed_data
         if catalog_products:
             bq_upsert_rows(catalog_products, client=self.bq_client)
-        if mappings:
-            bq_upsert_rows(mappings, client=self.bq_client)
+        if expansion_mappings:
+            bq_upsert_rows(expansion_mappings, client=self.bq_client)
+        if product_mappings:
+            bq_upsert_rows(product_mappings, client=self.bq_client)
         # Ensure raw tables exist even on a skipped/empty run, then (re)create the view
         get_or_create_table(CardNexusCatalogProduct, client=self.bq_client)
+        get_or_create_table(CardNexusExpansionMapping, client=self.bq_client)
         get_or_create_table(CardNexusProductMapping, client=self.bq_client)
         ensure_cardnexus_price_view(self.bq_client)
 
@@ -367,7 +405,7 @@ class CardNexusPriceUpdateEtlJob(AbstractETLJob[list, list]):
         mapping_table = f"{CardNexusProductMapping.get_dataset_id()}.{CardNexusProductMapping.__tablename__}"
         snapshot_table = f"{CardNexusPriceSnapshot.get_dataset_id()}.{CardNexusPriceSnapshot.__tablename__}"
         query = f"""
-        SELECT m.product_id
+        SELECT DISTINCT m.product_id
         FROM `{mapping_table}` m
         LEFT JOIN (
             SELECT product_id, MAX(create_timestamp) AS last_priced
@@ -385,7 +423,7 @@ class CardNexusPriceUpdateEtlJob(AbstractETLJob[list, list]):
             _logger.warning(f"Prioritized candidate query failed (likely first run): {e}")
         try:
             df = self.bq_client.query_and_wait(
-                f"SELECT product_id FROM `{mapping_table}` WHERE matched LIMIT {self.max_requests}"
+                f"SELECT DISTINCT product_id FROM `{mapping_table}` WHERE matched LIMIT {self.max_requests}"
             ).to_dataframe()
             return df["product_id"].tolist()
         except Exception as e:
