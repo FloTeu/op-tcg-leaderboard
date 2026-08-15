@@ -2,7 +2,7 @@ from pathlib import Path
 
 import click
 from op_tcg.backend.etl.classes import LocalMatchesToBigQueryEtlJob, EloUpdateToBigQueryEtlJob, \
-    CardImageUpdateToGCPEtlJob
+    CardImageUpdateToGCPEtlJob, CardNexusCatalogSyncEtlJob, CardNexusPriceUpdateEtlJob
 from op_tcg.backend.models.input import MetaFormat
 
 
@@ -69,6 +69,35 @@ def update_card_images(
     etl_job = CardImageUpdateToGCPEtlJob(meta_formats=meta_formats)
     etl_job.run()
 
+
+@etl_group.group("cardnexus", help="ETL jobs for CardNexus catalog/price data")
+def cardnexus_group() -> None:
+    pass
+
+
+@cardnexus_group.command("sync-catalog")
+@click.option("--game-id", default="onepiece", help="CardNexus game id for the catalog feed")
+def cardnexus_sync_catalog(game_id: str) -> None:
+    """
+    Syncs the CardNexus catalog feed into BigQuery (raw + product_id -> card_id mapping)
+    and (re)creates the cards.card_nexus_price_view. Skips the feed download entirely if
+    unchanged since the last run (via the feed checksum).
+    """
+    etl_job = CardNexusCatalogSyncEtlJob(game_id=game_id)
+    etl_job.run()
+
+
+@cardnexus_group.command("update-prices")
+@click.option("--max-requests", "-n", type=int, default=500,
+             help="Max CardNexus API calls to spend this run. Stay under 600/hour across "
+                  "scheduled invocations, since /prices is rate-limited at 600 requests/hour.")
+def cardnexus_update_prices(max_requests: int) -> None:
+    """
+    Pulls current prices for CardNexus products already matched to our cards, prioritizing
+    never-priced products and then the ones priced longest ago. Run 'sync-catalog' first.
+    """
+    etl_job = CardNexusPriceUpdateEtlJob(max_requests=max_requests)
+    etl_job.run()
 
 
 if __name__ == "__main__":

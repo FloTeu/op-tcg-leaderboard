@@ -10,13 +10,17 @@ from google.api_core.exceptions import NotFound
 
 from op_tcg.backend.elo import EloCreator
 from op_tcg.backend.etl.base import AbstractETLJob, E, T
-from op_tcg.backend.etl.load import get_or_create_table, bq_insert_rows, upload2gcp_storage
-from op_tcg.backend.etl.transform import BQMatchCreator
+from op_tcg.backend.etl.load import get_or_create_table, bq_insert_rows, bq_upsert_rows, upload2gcp_storage
+from op_tcg.backend.etl.transform import BQMatchCreator, parse_catalog_product, match_catalog_product_to_card, \
+    flatten_price_snapshot
+from op_tcg.backend.etl.views import ensure_cardnexus_price_view
+from op_tcg.backend.crawling.cardnexus_client import CardNexusClient
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.input import AllLeaderMetaDocs, MetaFormat, LimitlessLeaderMetaDoc
 from op_tcg.backend.models.matches import BQMatches, Match
 from op_tcg.backend.models.leader import LeaderElo
-from op_tcg.backend.models.cards import Card
+from op_tcg.backend.models.cards import Card, OPTcgLanguage
+from op_tcg.backend.models.cardnexus import CardNexusCatalogProduct, CardNexusPriceSnapshot, CardNexusProductMapping
 from op_tcg.backend.etl.extract import read_json_files
 from pathlib import Path
 from google.cloud import bigquery, storage
@@ -260,3 +264,154 @@ class CardImageUpdateToGCPEtlJob(AbstractETLJob[list[Card], list[Card]]):
 
             # delete tmp table
             self.bq_client.delete_table(f"{card_tmp_table.full_table_id.replace(':', '.')}", not_found_ok=True)
+
+
+class CardNexusCatalogSyncEtlJob(AbstractETLJob[dict, tuple]):
+    """Syncs the CardNexus 'onepiece' catalog feed into BigQuery and (re)derives the
+    product_id -> card_id/language/aa_version mapping used by CardNexusPriceUpdateEtlJob.
+
+    Skips the (expensive) feed download/parse entirely if the feed checksum hasn't
+    changed since the last successful sync.
+    """
+
+    def __init__(self, game_id: str = "onepiece", cardnexus_client: CardNexusClient | None = None):
+        self.bq_client = bigquery.Client(location="europe-west1")
+        self.game_id = game_id
+        self.cardnexus_client = cardnexus_client or CardNexusClient()
+
+    def validate(self, extracted_data: dict) -> bool:
+        return True
+
+    def _get_last_checksum(self) -> str | None:
+        try:
+            query = (
+                f"SELECT feed_checksum FROM {CardNexusCatalogProduct.get_dataset_id()}."
+                f"{CardNexusCatalogProduct.__tablename__} ORDER BY create_timestamp DESC LIMIT 1"
+            )
+            df = self.bq_client.query_and_wait(query).to_dataframe()
+            return df.iloc[0]["feed_checksum"] if len(df) > 0 else None
+        except Exception as e:
+            _logger.warning(f"Could not read last CardNexus feed checksum (likely first run): {e}")
+            return None
+
+    def extract(self) -> dict:
+        feed_meta = self.cardnexus_client.get_catalog_feed_meta(self.game_id)
+        feed_meta["last_checksum"] = self._get_last_checksum()
+        return feed_meta
+
+    def transform(self, feed_meta: dict) -> tuple[list[CardNexusCatalogProduct], list[CardNexusProductMapping]]:
+        checksum = feed_meta.get("checksum") or ""
+        if checksum and checksum == feed_meta.get("last_checksum"):
+            _logger.info("CardNexus catalog feed checksum unchanged — skipping catalog sync")
+            return [], []
+
+        catalog_products: list[CardNexusCatalogProduct] = []
+        skipped = 0
+        for raw_product in self.cardnexus_client.iter_catalog_products(self.game_id):
+            try:
+                catalog_products.append(parse_catalog_product(raw_product, feed_checksum=checksum))
+            except (KeyError, TypeError) as e:
+                skipped += 1
+                _logger.warning(f"Skipping malformed CardNexus catalog product record: {e}")
+        if skipped:
+            _logger.warning(f"Skipped {skipped} malformed CardNexus catalog product record(s)")
+
+        cards_df = self.bq_client.query_and_wait(
+            f"SELECT id, language, aa_version FROM {BQDataset.CARDS}.{Card.__tablename__}"
+        ).to_dataframe()
+        cards_by_id: dict[str, list[tuple[OPTcgLanguage, int]]] = {}
+        for _, row in cards_df.iterrows():
+            cards_by_id.setdefault(row["id"], []).append((OPTcgLanguage(row["language"]), int(row["aa_version"])))
+
+        mappings = [
+            match_catalog_product_to_card(p.product_id, p.print_number, cards_by_id)
+            for p in catalog_products
+        ]
+        matched_count = sum(1 for m in mappings if m.matched)
+        _logger.info(
+            f"CardNexus catalog sync: {len(catalog_products)} products, {matched_count} matched, "
+            f"{len(mappings) - matched_count} unmatched/ambiguous"
+        )
+        return catalog_products, mappings
+
+    def load(self, transformed_data: tuple[list[CardNexusCatalogProduct], list[CardNexusProductMapping]]) -> None:
+        catalog_products, mappings = transformed_data
+        if catalog_products:
+            bq_upsert_rows(catalog_products, client=self.bq_client)
+        if mappings:
+            bq_upsert_rows(mappings, client=self.bq_client)
+        # Ensure raw tables exist even on a skipped/empty run, then (re)create the view
+        get_or_create_table(CardNexusCatalogProduct, client=self.bq_client)
+        get_or_create_table(CardNexusProductMapping, client=self.bq_client)
+        ensure_cardnexus_price_view(self.bq_client)
+
+
+class CardNexusPriceUpdateEtlJob(AbstractETLJob[list, list]):
+    """Pulls current prices for already-matched CardNexus products, prioritizing
+    never-priced products and then the ones priced longest ago.
+
+    Bounded by max_requests per run so repeated scheduled invocations stay within
+    CardNexus's 600/hour current-prices rate limit while eventually covering the
+    full catalog. Run CardNexusCatalogSyncEtlJob first to populate the mapping table.
+    """
+
+    def __init__(self, max_requests: int = 500, cardnexus_client: CardNexusClient | None = None):
+        self.bq_client = bigquery.Client(location="europe-west1")
+        self.max_requests = max_requests
+        self.cardnexus_client = cardnexus_client or CardNexusClient()
+
+    def validate(self, extracted_data: list) -> bool:
+        return True
+
+    def extract(self) -> list[str]:
+        mapping_table = f"{CardNexusProductMapping.get_dataset_id()}.{CardNexusProductMapping.__tablename__}"
+        snapshot_table = f"{CardNexusPriceSnapshot.get_dataset_id()}.{CardNexusPriceSnapshot.__tablename__}"
+        query = f"""
+        SELECT m.product_id
+        FROM `{mapping_table}` m
+        LEFT JOIN (
+            SELECT product_id, MAX(create_timestamp) AS last_priced
+            FROM `{snapshot_table}`
+            GROUP BY product_id
+        ) s ON m.product_id = s.product_id
+        WHERE m.matched
+        ORDER BY s.last_priced IS NULL DESC, s.last_priced ASC
+        LIMIT {self.max_requests}
+        """
+        try:
+            df = self.bq_client.query_and_wait(query).to_dataframe()
+            return df["product_id"].tolist()
+        except Exception as e:
+            _logger.warning(f"Prioritized candidate query failed (likely first run): {e}")
+        try:
+            df = self.bq_client.query_and_wait(
+                f"SELECT product_id FROM `{mapping_table}` WHERE matched LIMIT {self.max_requests}"
+            ).to_dataframe()
+            return df["product_id"].tolist()
+        except Exception as e:
+            _logger.error(f"Could not find any CardNexus product mappings — run sync-catalog first: {e}")
+            return []
+
+    def transform(self, product_ids: list[str]) -> list[CardNexusPriceSnapshot]:
+        snapshots: list[CardNexusPriceSnapshot] = []
+        failed = 0
+        for product_id in product_ids:
+            try:
+                prices_response = self.cardnexus_client.get_current_prices(product_id)
+                snapshots.extend(flatten_price_snapshot(product_id, prices_response))
+            except Exception as e:
+                failed += 1
+                _logger.error(f"Failed to fetch/parse CardNexus prices for product {product_id}: {e}")
+        _logger.info(
+            f"CardNexus price update: {len(product_ids)} products requested, {failed} failed, "
+            f"{len(snapshots)} price rows produced"
+        )
+        return snapshots
+
+    def load(self, snapshots: list[CardNexusPriceSnapshot]) -> None:
+        if not snapshots:
+            return
+        table = get_or_create_table(CardNexusPriceSnapshot, client=self.bq_client)
+        rows_to_insert = [json.loads(s.model_dump_json()) for s in snapshots]
+        bq_insert_rows(rows_to_insert, table=table, client=self.bq_client)
+        _logger.info(f"Inserted {len(snapshots)} CardNexus price snapshot rows")

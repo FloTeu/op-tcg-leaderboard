@@ -93,6 +93,7 @@ class OPTcgCardSetType(EnumBase, StrEnum):
 class OPTcgMarketplace(EnumBase, StrEnum):
     CARDMARKET = "cardmarket"
     TCGPLAYER = "tcgplayer"
+    CARD_NEXUS = "cardnexus"
 
 
 class CardCurrency(EnumBase, StrEnum):

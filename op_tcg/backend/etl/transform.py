@@ -1,4 +1,6 @@
 import copy
+import json
+import logging
 import random
 from datetime import timedelta, datetime
 from uuid import uuid4
@@ -6,7 +8,11 @@ from uuid import uuid4
 from op_tcg.backend.models.input import LimitlessMatch, MetaFormat, AllLeaderMetaDocs, meta_format2release_datetime
 from op_tcg.backend.models.matches import BQMatches, Match, MatchResult
 from op_tcg.backend.models.common import DataSource
+from op_tcg.backend.models.cards import OPTcgLanguage, OPTcgMarketplace
+from op_tcg.backend.models.cardnexus import CardNexusCatalogProduct, CardNexusPriceSnapshot, CardNexusProductMapping
 from op_tcg.backend.models.transform import Transform2BQMatch
+
+logger = logging.getLogger(__name__)
 
 
 class BQMatchCreator:
@@ -187,3 +193,105 @@ def distribute_matches(match_pool: list[Transform2BQMatch]) -> list[Transform2BQ
                     last_results[chosen_leader_id] = MatchResult.LOSE
 
     return result_transform_bq_match
+
+
+def parse_catalog_product(product: dict, feed_checksum: str) -> CardNexusCatalogProduct:
+    """Parse one raw CardNexus catalog feed record.
+
+    Only `id` is required; every other field is read defensively since the feed
+    schema is still evolving. Raises KeyError if `id` is missing so the caller can
+    skip the record — a record without a stable id can't be stored or matched.
+    """
+    product_id = product["id"]
+    expansion_id = product.get("expansionId")
+    return CardNexusCatalogProduct(
+        product_id=str(product_id),
+        print_number=product.get("printNumber"),
+        name=product.get("name"),
+        expansion_id=None if expansion_id is None else str(expansion_id),
+        expansion_slug=product.get("expansionSlug"),
+        feed_checksum=feed_checksum,
+        raw_json=json.dumps(product, default=str),
+    )
+
+
+def match_catalog_product_to_card(product_id: str, print_number: str | None,
+                                  cards_by_id: dict[str, list[tuple[OPTcgLanguage, int]]]) -> CardNexusProductMapping:
+    """Match a CardNexus product to our own Card table via print_number == Card.id.
+
+    `cards_by_id` maps Card.id -> list of (language, aa_version) of every existing
+    Card row sharing that id. CardNexus does not expose language/aa_version
+    directly, so if more than one (language, aa_version) shares the same id, the
+    match is kept but marked ambiguous rather than guessed.
+    """
+    if not print_number:
+        return CardNexusProductMapping(product_id=product_id, matched=False, match_method="no_print_number")
+
+    candidates = cards_by_id.get(print_number, [])
+    if len(candidates) == 0:
+        return CardNexusProductMapping(product_id=product_id, matched=False, match_method="no_match")
+    if len(candidates) > 1:
+        return CardNexusProductMapping(product_id=product_id, matched=False, match_method="ambiguous_print_number")
+
+    language, aa_version = candidates[0]
+    return CardNexusProductMapping(
+        product_id=product_id,
+        card_id=print_number,
+        language=language,
+        aa_version=aa_version,
+        matched=True,
+        match_method="print_number_unique",
+    )
+
+
+def _extract_price_block_fields(marketplace: str, block: dict) -> dict:
+    """Extract low/mid/high/market_value/currency from a marketplace price block.
+
+    The 'cardnexus' marketplace block has a different shape (low is a
+    {amount, currency} object, no mid/high/marketValue) than cardmarket/tcgplayer.
+    """
+    if marketplace == OPTcgMarketplace.CARD_NEXUS.value:
+        low_obj = block.get("low") or {}
+        return {
+            "currency": low_obj.get("currency"),
+            "low": low_obj.get("amount"),
+            "mid": None,
+            "high": None,
+            "market_value": None,
+        }
+    return {
+        "currency": block.get("currency"),
+        "low": block.get("low"),
+        "mid": block.get("mid"),
+        "high": block.get("high"),
+        "market_value": block.get("marketValue"),
+    }
+
+
+def flatten_price_snapshot(product_id: str, prices_response: dict) -> list[CardNexusPriceSnapshot]:
+    """Flatten a raw /products/{id}/prices response into one row per finish/marketplace.
+
+    Unknown marketplace keys are logged and skipped rather than raising, since the
+    CardNexus API may add new pricing sources without notice.
+    """
+    snapshots: list[CardNexusPriceSnapshot] = []
+    prices_by_finish = prices_response.get("pricesByFinish") or {}
+    for finish, marketplaces in prices_by_finish.items():
+        if not isinstance(marketplaces, dict):
+            continue
+        for marketplace, block in marketplaces.items():
+            if not block:
+                continue
+            try:
+                marketplace_enum = OPTcgMarketplace(marketplace)
+            except ValueError:
+                logger.warning("Unknown CardNexus marketplace '%s' for product %s — skipping", marketplace, product_id)
+                continue
+            snapshots.append(CardNexusPriceSnapshot(
+                product_id=product_id,
+                finish=finish,
+                marketplace=marketplace_enum,
+                raw_json=json.dumps(block, default=str),
+                **_extract_price_block_fields(marketplace, block),
+            ))
+    return snapshots
