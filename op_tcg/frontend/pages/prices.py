@@ -373,6 +373,10 @@ def _price_tab_script() -> ft.Script:
       tab = (input && input.value) || 'cards';
     }}
     window.applyPriceTab(tab);
+
+    var url = new URLSearchParams(window.location.search);
+    url.set('price_tab', tab);
+    window.history.replaceState({{}}, '', window.location.pathname + '?' + url.toString());
   }});
 }})();
 """)

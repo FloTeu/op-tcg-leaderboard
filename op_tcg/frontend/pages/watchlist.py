@@ -698,7 +698,7 @@ def watchlist_page(request):
                     hx_indicator="#sealed-loading",
                 ),
                 create_loading_spinner(id="sealed-loading", size="w-6 h-6", container_classes="py-20"),
-                _watch_more_cta("/card-prices?price_tab=sealed", "Discover More Sealed Products"),
+                _watch_more_cta("/card-prices?price_tab=sealed", "Discover More Sealed Products") if sealed_count else "",
                 cls="container mx-auto px-4 py-8"
             ),
             cls="wl-page bg-deep-navy"
