@@ -1534,7 +1534,8 @@ def setup_watchlist_routes(rt):
             return JSONResponse({"error": "name and leader_id are required"}, status_code=400)
 
         user_id = user.get('sub')
-        if custom_id:
+        existing = next((d for d in get_custom_decklists(user_id) if d.get('id') == custom_id), None) if custom_id else None
+        if existing and existing.get('name') == name:
             update_custom_decklist(user_id, custom_id, name=name, leader_id=leader_id, decklist=decklist)
         else:
             create_custom_decklist(user_id, name=name, leader_id=leader_id, decklist=decklist)
