@@ -773,3 +773,65 @@ def get_sealed_product_prices(currency: CardCurrency) -> list[dict]:
     ORDER BY p.product_type, COALESCE(p.release_date, DATE('2000-01-01')) DESC
     """
     return run_bq_query(query, ttl_hours=1.0)
+
+
+def get_cardnexus_sealed_product_prices(currency: CardCurrency) -> list[dict]:
+    """Sealed-product price grid, backed by CardNexus data instead of the cardmarket
+    scraper. Current prices only — no historical price data is sourced from CardNexus
+    yet, so the sealed-product detail modal's price chart still reads the old
+    cardmarket-scraped SealedProductPrice table and will show no data for these
+    CardNexus-sourced product ids.
+
+    'from' price maps to CardNexus's `low` (lowest available listing price); 'trend'
+    maps to `market_value`, the closest available stand-in for the old 30-day
+    rolling average (CardNexus doesn't expose an exact equivalent). The marketplace
+    block used is picked by currency: cardmarket reports EUR, tcgplayer reports USD.
+    """
+    from op_tcg.backend.models.cardnexus import CardNexusSealedProduct, CardNexusPriceSnapshot, \
+        CardNexusSealedPriceGridItem
+    from op_tcg.backend.models.cards import OPTcgMarketplace
+    default_marketplace = OPTcgMarketplace.CARDMARKET if currency == CardCurrency.EURO else OPTcgMarketplace.TCGPLAYER
+    product_tbl = get_bq_table_id(CardNexusSealedProduct).replace(":", ".")
+    snapshot_tbl = get_bq_table_id(CardNexusPriceSnapshot).replace(":", ".")
+
+    query = f"""
+    WITH ranked AS (
+        SELECT
+            product_id,
+            marketplace,
+            low,
+            market_value,
+            ROW_NUMBER() OVER(
+                PARTITION BY product_id, marketplace
+                ORDER BY create_timestamp DESC
+            ) AS rn
+        FROM `{snapshot_tbl}`
+        WHERE currency = '{currency.upper()}'
+    ),
+    latest AS (
+        SELECT product_id, marketplace, low AS from_price, market_value AS trend_price
+        FROM ranked
+        WHERE rn = 1
+    )
+    SELECT
+        p.product_id AS id,
+        p.name,
+        p.product_category AS product_type,
+        p.image_url,
+        l.marketplace,
+        l.from_price,
+        l.trend_price
+    FROM `{product_tbl}` p
+    LEFT JOIN latest l
+        ON p.product_id = l.product_id
+    """
+    rows = run_bq_query(query, ttl_hours=1.0)
+    items: list[dict] = []
+    for row in rows:
+        if row.get("marketplace") is None:
+            row["marketplace"] = default_marketplace
+        try:
+            items.append(CardNexusSealedPriceGridItem(**row).model_dump())
+        except Exception as e:
+            logging.getLogger(__name__).warning(f"Skipping malformed CardNexus sealed grid row {row.get('id')}: {e}")
+    return items

@@ -502,7 +502,7 @@ class SealedProductsParams(BaseModel):
     currency: CardCurrency = CardCurrency.EURO
     order_by: SealedProductOrderBy = SealedProductOrderBy.PRICE_DESC
     min_latest_price: float = 0.0
-    max_latest_price: float = 1000.0
+    max_latest_price: float | None = 1000.0
 
     @field_validator('currency', mode='before')
     def validate_currency(cls, value):
@@ -510,6 +510,12 @@ class SealedProductsParams(BaseModel):
             value = value[0]
         if isinstance(value, str):
             return CardCurrency(value)
+        return value
+
+    @field_validator('max_latest_price', mode='before')
+    def validate_max_price(cls, value):
+        if value == "1000" or value == 1000:
+            return None
         return value
 
     @field_validator('order_by', mode='before')

@@ -1,10 +1,12 @@
 from datetime import datetime
+from typing import ClassVar
 
-from pydantic import Field
+from pydantic import BaseModel, Field, field_validator
 
 from op_tcg.backend.models.bq_classes import BQTableBaseModel
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.cards import OPTcgLanguage, OPTcgMarketplace
+from op_tcg.backend.models.sealed import SealedProductType
 
 
 class CardNexusCardProduct(BQTableBaseModel):
@@ -70,6 +72,41 @@ class CardNexusPriceSnapshot(BQTableBaseModel):
     high: float | None = Field(default=None, description="High price reported for this marketplace block")
     market_value: float | None = Field(default=None, description="Market value price reported for this marketplace block")
     raw_json: str = Field(description="Full raw block for this marketplace/finish, preserved verbatim since the CardNexus API is still under active development")
+
+
+class CardNexusSealedPriceGridItem(BaseModel):
+    """One row of the frontend sealed-product price grid, backed by CardNexus data.
+
+    `product_type` accepts CardNexus's raw `product_category` string (e.g.
+    'booster_box') and maps it into our own SealedProductType inherently via a
+    field_validator, so callers (the BQ row -> grid item construction) never need a
+    separate mapping step. Unrecognized categories fall back to PROMO rather than
+    raising, since the CardNexus API is still under active development and new
+    categories may appear.
+    """
+    id: str
+    name: str
+    product_type: SealedProductType
+    marketplace: OPTcgMarketplace
+    image_url: str | None = None
+    from_price: float | None = None
+    trend_price: float | None = None
+
+    _PRODUCT_CATEGORY_TO_TYPE: ClassVar[dict[str, SealedProductType]] = {
+        "booster_box": SealedProductType.BOOSTER_BOX,
+        "booster_case": SealedProductType.BOOSTER_CASE,
+        "starter_deck": SealedProductType.PRECONSTRUCTED_DECK,
+        "preconstructed_deck": SealedProductType.PRECONSTRUCTED_DECK,
+        "promo": SealedProductType.PROMO,
+    }
+
+    @field_validator("product_type", mode="before")
+    @classmethod
+    def _map_product_category(cls, value):
+        if isinstance(value, SealedProductType):
+            return value
+        key = str(value).strip().lower() if value else ""
+        return cls._PRODUCT_CATEGORY_TO_TYPE.get(key, SealedProductType.PROMO)
 
 
 class CardNexusExpansionMapping(BQTableBaseModel):
