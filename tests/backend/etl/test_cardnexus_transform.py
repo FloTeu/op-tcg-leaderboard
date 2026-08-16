@@ -2,12 +2,15 @@ import json
 
 import pytest
 
+from datetime import date
+
 from op_tcg.backend.etl.transform import (
     parse_card_product,
     parse_sealed_product,
     compute_expansion_release_set_matches,
     resolve_product_language_mapping,
     flatten_price_snapshot,
+    flatten_price_history,
 )
 from op_tcg.backend.models.cards import OPTcgLanguage, OPTcgMarketplace
 
@@ -308,3 +311,63 @@ def test_flatten_price_snapshot_missing_prices_by_finish():
 def test_flatten_price_snapshot_null_block_is_skipped():
     response = {"pricesByFinish": {"Standard": {"cardmarket": None}}}
     assert flatten_price_snapshot("12345", response) == []
+
+
+def test_flatten_price_snapshot_defaults_date_to_today():
+    response = {"pricesByFinish": {"Standard": {"cardmarket": {"currency": "EUR", "low": 1.0}}}}
+    rows = flatten_price_snapshot("12345", response)
+    assert rows[0].date == date.today()
+
+
+def test_flatten_price_snapshot_accepts_explicit_as_of():
+    response = {"pricesByFinish": {"Standard": {"cardmarket": {"currency": "EUR", "low": 1.0}}}}
+    explicit_date = date(2026, 1, 1)
+    rows = flatten_price_snapshot("12345", response, as_of=explicit_date)
+    assert rows[0].date == explicit_date
+
+
+# --- flatten_price_history ---
+
+def test_flatten_price_history_parses_days():
+    response = {
+        "productId": 12345,
+        "from": "2026-01-01",
+        "to": "2026-01-02",
+        "data": [
+            {"date": "2026-01-01", "marketplace": "cardmarket", "finish": "Standard", "low": 1.0, "mid": 2.0, "high": 3.0, "marketValue": 2.5},
+            {"date": "2026-01-02", "marketplace": "tcgplayer", "finish": "Standard", "low": 1.5, "mid": None, "high": None, "marketValue": 2.0},
+        ],
+    }
+    rows = flatten_price_history("12345", response)
+    assert len(rows) == 2
+
+    cm = next(r for r in rows if r.marketplace == OPTcgMarketplace.CARDMARKET)
+    assert cm.date == date(2026, 1, 1)
+    assert cm.currency == "EUR"
+    assert cm.low == 1.0
+    assert cm.market_value == 2.5
+
+    tcg = next(r for r in rows if r.marketplace == OPTcgMarketplace.TCGPLAYER)
+    assert tcg.date == date(2026, 1, 2)
+    assert tcg.currency == "USD"
+    assert tcg.mid is None
+
+
+def test_flatten_price_history_missing_data_key():
+    assert flatten_price_history("12345", {}) == []
+
+
+def test_flatten_price_history_skips_unknown_marketplace():
+    response = {"data": [{"date": "2026-01-01", "marketplace": "some_new_source", "low": 1.0}]}
+    assert flatten_price_history("12345", response) == []
+
+
+def test_flatten_price_history_skips_malformed_date():
+    response = {"data": [{"date": "not-a-date", "marketplace": "cardmarket", "low": 1.0}]}
+    assert flatten_price_history("12345", response) == []
+
+
+def test_flatten_price_history_defaults_finish_to_standard():
+    response = {"data": [{"date": "2026-01-01", "marketplace": "cardmarket", "low": 1.0}]}
+    rows = flatten_price_history("12345", response)
+    assert rows[0].finish == "Standard"

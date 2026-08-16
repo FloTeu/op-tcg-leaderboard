@@ -2,7 +2,7 @@ from pathlib import Path
 
 import click
 from op_tcg.backend.etl.classes import LocalMatchesToBigQueryEtlJob, EloUpdateToBigQueryEtlJob, \
-    CardImageUpdateToGCPEtlJob, CardNexusCatalogSyncEtlJob, CardNexusPriceUpdateEtlJob
+    CardImageUpdateToGCPEtlJob, CardNexusCatalogSyncEtlJob, CardNexusPriceUpdateEtlJob, CardNexusPriceHistoryEtlJob
 from op_tcg.backend.models.input import MetaFormat
 
 
@@ -100,6 +100,25 @@ def cardnexus_update_prices(max_requests: int, sealed_only: bool) -> None:
     never-priced products and then the ones priced longest ago. Run 'sync-catalog' first.
     """
     etl_job = CardNexusPriceUpdateEtlJob(max_requests=max_requests, sealed_only=sealed_only)
+    etl_job.run()
+
+
+@cardnexus_group.command("update-price-history")
+@click.option("--max-requests", "-n", type=int, default=100,
+             help="Max CardNexus API calls to spend this run. Stay under 120/hour across "
+                  "scheduled invocations, since /prices/history is rate-limited at 120 requests/hour.")
+@click.option("--days", type=int, default=365,
+             help="Days of history to request per product (CardNexus caps a single request at 365).")
+@click.option("--sealed-only", is_flag=True, default=False,
+             help="Only backfill history for sealed products (booster boxes, cases, decks, ...), "
+                  "skipping cards entirely.")
+def cardnexus_update_price_history(max_requests: int, days: int, sealed_only: bool) -> None:
+    """
+    Backfills historical daily prices for CardNexus products into the same table
+    CardNexusPriceUpdateEtlJob keeps current going forward, prioritizing products with
+    the least history recorded so far. Run 'sync-catalog' first.
+    """
+    etl_job = CardNexusPriceHistoryEtlJob(max_requests=max_requests, days=days, sealed_only=sealed_only)
     etl_job.run()
 
 

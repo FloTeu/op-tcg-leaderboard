@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date as date_type, datetime
 
 from pydantic import Field
 
@@ -33,7 +33,7 @@ class CardNexusSealedProduct(BQTableBaseModel):
     Kept separate from CardNexusCardProduct and never matched against our own
     Card table (sealed products don't have a print_number to match on, and
     CardNexus's own catalog is already well-organized enough — name, expansionSlug,
-    productCategory — to stand on its own). Prices reuse CardNexusPriceSnapshot,
+    productCategory — to stand on its own). Prices reuse CardNexusPriceHistory,
     whose schema is already product-type-agnostic. See op_tcg.backend.etl.views for
     a forward-looking view reshaping this into SealedProduct-like columns — not
     wired into the app yet, since it isn't reconciled against our existing
@@ -51,25 +51,35 @@ class CardNexusSealedProduct(BQTableBaseModel):
     raw_json: str = Field(description="Full raw catalog record as JSON, preserved in case of upstream schema changes")
 
 
-class CardNexusPriceSnapshot(BQTableBaseModel):
-    """Append-only raw pull of /products/{id}/prices, one row per marketplace block per finish.
+class CardNexusPrice(BQTableBaseModel):
+    """Unified daily price table for a CardNexus product/marketplace/finish.
+
+    One row per (product_id, marketplace, finish, date) — upserted, not appended.
+    Populated by two ETL jobs writing into the same table: CardNexusPriceHistoryEtlJob
+    backfills past dates from /products/{id}/prices/history; CardNexusPriceUpdateEtlJob
+    upserts today's row from /products/{id}/prices (the current-price endpoint),
+    keeping the table current going forward from wherever the historical backfill
+    left off. Repeated same-day snapshot pulls overwrite today's row rather than
+    accumulating duplicates.
 
     Common fields (low/mid/high/market_value/currency) are flattened for convenience;
-    `raw_json` keeps the full block verbatim since the nested by-condition/by-region
-    data (and the schema in general) is still evolving upstream.
+    `raw_json` keeps the full source block/record verbatim since the nested
+    by-condition/by-region data (and the schema in general) is still evolving upstream.
+
+    Replaces the old append-only, timestamp-keyed CardNexusPriceSnapshot table.
     """
     _dataset_id: str = BQDataset.CARDNEXUS_RAW
 
     product_id: str = Field(description="CardNexus product id, FK to CardNexusCardProduct.product_id or CardNexusSealedProduct.product_id", primary_key=True)
-    finish: str = Field(description="Card finish reported by CardNexus, e.g. 'Standard' or 'Foil'", primary_key=True)
     marketplace: OPTcgMarketplace = Field(description="Pricing source reported for this block: cardmarket, tcgplayer, or cardnexus", primary_key=True)
-    create_timestamp: datetime = Field(default_factory=datetime.now, description="Timestamp when this snapshot was pulled", primary_key=True)
+    finish: str = Field(description="Card finish reported by CardNexus, e.g. 'Standard' or 'Foil'", primary_key=True)
+    date: date_type = Field(description="Calendar date this price applies to", primary_key=True)
     currency: str | None = Field(default=None, description="Currency code reported for this marketplace block")
     low: float | None = Field(default=None, description="Lowest price reported for this marketplace block")
     mid: float | None = Field(default=None, description="Mid price reported for this marketplace block")
     high: float | None = Field(default=None, description="High price reported for this marketplace block")
     market_value: float | None = Field(default=None, description="Market value price reported for this marketplace block")
-    raw_json: str = Field(description="Full raw block for this marketplace/finish, preserved verbatim since the CardNexus API is still under active development")
+    raw_json: str = Field(description="Full raw block/record this row was derived from, preserved verbatim since the CardNexus API is still under active development")
 
 
 class CardNexusExpansionMapping(BQTableBaseModel):

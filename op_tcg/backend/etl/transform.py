@@ -2,14 +2,14 @@ import copy
 import json
 import logging
 import random
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, date
 from uuid import uuid4
 
 from op_tcg.backend.models.input import LimitlessMatch, MetaFormat, AllLeaderMetaDocs, meta_format2release_datetime
 from op_tcg.backend.models.matches import BQMatches, Match, MatchResult
 from op_tcg.backend.models.common import DataSource
 from op_tcg.backend.models.cards import OPTcgLanguage, OPTcgMarketplace
-from op_tcg.backend.models.cardnexus import CardNexusCardProduct, CardNexusPriceSnapshot, CardNexusProductMapping, \
+from op_tcg.backend.models.cardnexus import CardNexusCardProduct, CardNexusPrice, CardNexusProductMapping, \
     CardNexusSealedProduct
 from op_tcg.backend.models.transform import Transform2BQMatch
 
@@ -393,13 +393,18 @@ def _extract_price_block_fields(marketplace: str, block: dict) -> dict:
     }
 
 
-def flatten_price_snapshot(product_id: str, prices_response: dict) -> list[CardNexusPriceSnapshot]:
-    """Flatten a raw /products/{id}/prices response into one row per finish/marketplace.
+def flatten_price_snapshot(product_id: str, prices_response: dict, as_of: date | None = None) -> list[CardNexusPrice]:
+    """Flatten a raw /products/{id}/prices (current-price) response into one row per
+    finish/marketplace, dated `as_of` (defaults to today).
 
-    Unknown marketplace keys are logged and skipped rather than raising, since the
-    CardNexus API may add new pricing sources without notice.
+    This is the "keep it current going forward" half of CardNexusPriceHistory: rows
+    are upserted by the caller, so repeated same-day pulls overwrite today's row
+    rather than accumulating duplicates. Unknown marketplace keys are logged and
+    skipped rather than raising, since the CardNexus API may add new pricing
+    sources without notice.
     """
-    snapshots: list[CardNexusPriceSnapshot] = []
+    as_of = as_of or date.today()
+    rows: list[CardNexusPrice] = []
     prices_by_finish = prices_response.get("pricesByFinish") or {}
     for finish, marketplaces in prices_by_finish.items():
         if not isinstance(marketplaces, dict):
@@ -412,11 +417,56 @@ def flatten_price_snapshot(product_id: str, prices_response: dict) -> list[CardN
             except ValueError:
                 logger.warning("Unknown CardNexus marketplace '%s' for product %s — skipping", marketplace, product_id)
                 continue
-            snapshots.append(CardNexusPriceSnapshot(
+            rows.append(CardNexusPrice(
                 product_id=product_id,
                 finish=finish,
                 marketplace=marketplace_enum,
+                date=as_of,
                 raw_json=json.dumps(block, default=str),
                 **_extract_price_block_fields(marketplace, block),
             ))
-    return snapshots
+    return rows
+
+
+# CardNexus's /prices/history marketplace values -> the currency that marketplace
+# always reports in (per docs). History day-records don't include currency directly.
+_HISTORY_MARKETPLACE_CURRENCY: dict[str, str] = {
+    "cardmarket": "EUR",
+    "tcgplayer": "USD",
+}
+
+
+def flatten_price_history(product_id: str, history_response: dict) -> list[CardNexusPrice]:
+    """Flatten a raw /products/{id}/prices/history response into one row per day.
+
+    This is the "backfill past dates" half of CardNexusPriceHistory. Unlike the
+    current-price endpoint, history rows are already flat ({date, marketplace,
+    finish, low, mid, high, marketValue}) — only cardmarket/tcgplayer are ever
+    returned here (no 'cardnexus' marketplace for history, per the API docs).
+    """
+    rows: list[CardNexusPrice] = []
+    for day in history_response.get("data") or []:
+        marketplace_raw = day.get("marketplace")
+        try:
+            marketplace_enum = OPTcgMarketplace(marketplace_raw)
+        except ValueError:
+            logger.warning("Unknown CardNexus marketplace '%s' for product %s history — skipping", marketplace_raw, product_id)
+            continue
+        try:
+            day_date = datetime.strptime(day["date"], "%Y-%m-%d").date()
+        except (KeyError, ValueError) as e:
+            logger.warning("Skipping malformed CardNexus history day for product %s: %s", product_id, e)
+            continue
+        rows.append(CardNexusPrice(
+            product_id=product_id,
+            marketplace=marketplace_enum,
+            finish=day.get("finish") or "Standard",
+            date=day_date,
+            currency=_HISTORY_MARKETPLACE_CURRENCY.get(marketplace_raw),
+            low=day.get("low"),
+            mid=day.get("mid"),
+            high=day.get("high"),
+            market_value=day.get("marketValue"),
+            raw_json=json.dumps(day, default=str),
+        ))
+    return rows
