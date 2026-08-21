@@ -95,6 +95,39 @@ jobs:
               --memory=2Gi
           fi
 
+      - name: Deploy crawl-prices Cloud Run Job
+        run: |
+          # Reuses the crawler image built above — the limitless price spider is plain
+          # Scrapy (no Camoufox) so no separate image is needed, just a different entrypoint.
+          IMAGE="${{ steps.build-crawler.outputs.image }}"
+          PROJECT="${{ secrets.PROJECT }}"
+          SA="cloud-function-sa@${PROJECT}.iam.gserviceaccount.com"
+          ENV_VARS="GOOGLE_CLOUD_PROJECT=${PROJECT}"
+          if gcloud run jobs describe crawl-prices \
+               --region=${{ env.REGION }} --project="${PROJECT}" &>/dev/null; then
+            gcloud run jobs update crawl-prices \
+              --image="${IMAGE}" \
+              --command="optcg" \
+              --args="crawl,limitless,crawl-prices" \
+              --set-env-vars="${ENV_VARS}" \
+              --region=${{ env.REGION }} \
+              --project="${PROJECT}"
+          else
+            gcloud run jobs create crawl-prices \
+              --image="${IMAGE}" \
+              --command="optcg" \
+              --args="crawl,limitless,crawl-prices" \
+              --region=${{ env.REGION }} \
+              --project="${PROJECT}" \
+              --service-account="${SA}" \
+              --set-env-vars="${ENV_VARS}" \
+              --tasks=1 \
+              --max-retries=1 \
+              --task-timeout=1800 \
+              --cpu=1 \
+              --memory=1Gi
+          fi
+
       - name: Deploy to Cloud Run
         id: deploy
         uses: google-github-actions/deploy-cloudrun@v2
