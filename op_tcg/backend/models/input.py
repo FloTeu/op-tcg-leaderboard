@@ -203,16 +203,17 @@ def meta_format2side_meta_format(meta_format: MetaFormat, region: MetaFormatRegi
 def meta_formats2date_range(meta_formats: list[MetaFormat], region: MetaFormatRegion = MetaFormatRegion.ALL) -> tuple[datetime, datetime]:
     """
     Returns the (start, end) datetime bounds covering the active period of the given meta formats:
-    from the earliest selected meta format's release date until the release date of the next
-    meta format after the latest selected one (or now, if that format isn't released/known yet).
+    from 2 weeks before the earliest selected meta format's release date until the release date of
+    the next meta format after the latest selected one (or now, if that format isn't released/known yet).
+    The 2-week pull-back accounts for tournament decklists that appear before the official release date.
 
-    E.g. selecting only OP16 (with OP17 still in the future) returns (OP16 release date, now).
+    E.g. selecting only OP16 (with OP17 still in the future) returns (OP16 release date - 2 weeks, now).
     """
     now = datetime.now()
     release_dates = [d for mf in meta_formats if (d := meta_format2release_datetime(mf, region)) is not None]
     if not release_dates:
         return now - timedelta(days=365), now
-    start = min(release_dates)
+    start = min(release_dates) - timedelta(days=14)
 
     all_meta_formats = MetaFormat.to_list(only_after_release=False, region=region)
     latest_selected = max(meta_formats, key=lambda mf: all_meta_formats.index(mf))
