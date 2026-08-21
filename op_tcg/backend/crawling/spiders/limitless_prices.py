@@ -201,8 +201,9 @@ class LimitlessPricesSpider(scrapy.Spider):
                 # if row_data["Name"].get_text(strip=True)[-2:] == "JP" or (
                 #         release_datetime and (release_datetime > datetime.now())):
                 #     continue
-                is_jp_set = row_data["Name"].get_text(strip=True)[-2:] == "JP"
-                release_set_name = row_data["Name"].get_text(strip=True).strip("JP")
+                raw_release_set_name = row_data["Name"].get_text(strip=True)
+                is_jp_set = raw_release_set_name[-2:] == "JP"
+                release_set_name = raw_release_set_name.removesuffix("JP").strip() if is_jp_set else raw_release_set_name
                 id = LimitlessPricesSpider.get_release_set_id(release_set_name, code, release_datetime)
                 release_sets.append(CardReleaseSet(
                     id=id,
