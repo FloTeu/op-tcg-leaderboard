@@ -75,6 +75,7 @@ class SideMetaFormat(EnumBase, StrEnum):
     PRB02 = "PRB02"
     EB03 = "EB03"
     EB04 = "EB04"
+    EB05 = "EB05"
 
 
 class LimitlessMatch(BaseModel):
@@ -132,6 +133,7 @@ def meta_format2release_datetime(meta_format: MetaFormat, region: MetaFormatRegi
         MetaFormat.OP14: datetime(2025, 11, 21),    # 3 months earlier
         MetaFormat.OP15: datetime(2026, 3, 4),
         MetaFormat.OP16: datetime(2026, 5, 29),
+        MetaFormat.OP17: datetime(2026, 8, 21),
         MetaFormat.OP18: datetime(2026, 11, 20),
     }
     
