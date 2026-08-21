@@ -250,7 +250,12 @@ class CardMarketplaceUrl(BQTableBaseModel):
 
 
 class ExtendedCardData(LatestCardPrice, CardReleaseSet):
+    # release set fields are re-declared as optional here because the release set is joined in
+    # via LEFT JOIN in get_card_data() and may not exist (e.g. orphaned release_set_id)
     release_set_name: str | None = Field(description="Name of the release set")
+    card_count: int | None = Field(default=None, description="Number of card in set")
+    url: str | None = Field(default=None, description="Url with all card and price information")
+    source: DataSource | None = Field(default=None, description="Source of url")
     marketplace_url_cardmarket: str | None = Field(default=None, description="Url to cardmarket")
     marketplace_url_tcg_player: str | None = Field(default=None, description="Url to tcgplayer")
 
