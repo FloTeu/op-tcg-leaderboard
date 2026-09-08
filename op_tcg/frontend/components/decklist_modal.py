@@ -430,6 +430,7 @@ def create_decklist_modal(
                         onclick='event.stopPropagation();(function(){try{const p=new URLSearchParams(window.location.search);p.delete("tournament_id");p.delete("player_id");p.delete("currency");p.delete("modal");const u=window.location.pathname+(p.toString()?"?"+p.toString():"");window.history.replaceState({},"",u);}catch(e){};var el=document.getElementById("decklist-modal-backdrop");if(el)el.remove();})()'
                     ),
                     cls="absolute top-4 right-4 flex items-center gap-2",
+                    style="z-index:20;",
                 ),
 
                 # ── Header ────────────────────────────────────────────────────
