@@ -46,6 +46,7 @@ class OPTcgAttribute(EnumBase, StrEnum):
 class OPTcgTournamentStatus(EnumBase, StrEnum):
     BANNED="banned"
     LEGAL="legal"
+    NOT_LEGAL="not legal"
     UNRELEASED="unreleased"
 
 
@@ -67,6 +68,15 @@ class OPTcgCardRarity(EnumBase, StrEnum):
     SECRET_RARE="Secret Rare"
     LEADER="Leader"
     PROMO="Promo"
+    SPECIAL_CARD="Special Card"
+    ALTERNATE_ART="Alternate Art"
+    MANGA_ART="Manga Art"
+    TREASURE_RARE="Treasure Rare"
+    TEXTURED_FOIL="Textured Foil"
+    PIRATE_FOIL="Pirate Foil"
+    FULL_ART="Full Art"
+    SERIAL_CARD="Serial Card"
+    CARD_STYLE_PANDA="card.style.panda"
 
 
 class OPTcgAbility(EnumBase, StrEnum):
