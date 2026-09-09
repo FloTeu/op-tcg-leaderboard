@@ -248,9 +248,11 @@ def bq_upsert_rows(rows: list[SQLTableBaseModel], client: bigquery.Client | None
              # Fallback to insert?
              return
 
-        # Columns to update (all except PKs)
+        # Columns to update (all except PKs). create_timestamp is excluded so an
+        # existing row keeps its original insert time instead of drifting forward
+        # on every re-crawl.
         all_columns = list(rows_dicts[0].keys())
-        update_columns = [col for col in all_columns if col not in primary_keys]
+        update_columns = [col for col in all_columns if col not in primary_keys and col != 'create_timestamp']
 
         on_clause = ' AND '.join(f"target.`{pk}` = source.`{pk}`" for pk in primary_keys)
 
