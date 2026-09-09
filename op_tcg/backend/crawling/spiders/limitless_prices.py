@@ -223,17 +223,21 @@ class LimitlessPricesSpider(scrapy.Spider):
             card_id2blocks.setdefault(id_span.text.strip(), []).append(card_block)
 
         for card_id, blocks in card_id2blocks.items():
-            own_aa_versions = [self._block_aa_version(block) for block in blocks]
             representative_block = blocks[0]
+            own_aa_versions = [self._block_aa_version(block) for block in blocks]
             try:
+                # the prints-versions/price table is identical on every block for this card id,
+                # so any one block's copy of it is fine for price/marketplace extraction
                 all_prices = extract_card_prices(card_id, release_set_language, representative_block)
                 prices.extend(price for price in all_prices if price.aa_version in own_aa_versions)
 
-                for aa_version in own_aa_versions:
-                    base_card = limitless_soup2base_card(card_id, release_set_language, representative_block,
+                # but rarity (e.g. "Common" vs "Alternate Art") is print-specific, so each
+                # aa_version must be read from its own block, not the representative one
+                for aa_version, own_block in zip(own_aa_versions, blocks):
+                    base_card = limitless_soup2base_card(card_id, release_set_language, own_block,
                                                           aa_version=aa_version)
                     base_card.release_set_id = release_set.id
-                    cards.append(base_card2bq_card(base_card, representative_block))
+                    cards.append(base_card2bq_card(base_card, own_block))
 
                 marketplace_urls.extend(extract_marketplace_urls(representative_block, card_id, release_set_language,
                                                                   own_aa_versions))
