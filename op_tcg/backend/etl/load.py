@@ -227,7 +227,7 @@ def bq_upsert_rows(rows: list[SQLTableBaseModel], client: bigquery.Client | None
         temp_table = client.create_table(temp_table)
     except Exception as e:
         _logger.error(f"Failed to create temp table {temp_table_ref}: {e}")
-        return
+        raise
 
     try:
         # Insert rows into temp table
@@ -244,9 +244,11 @@ def bq_upsert_rows(rows: list[SQLTableBaseModel], client: bigquery.Client | None
                         value.json_schema_extra and value.json_schema_extra.get('primary_key', False)]
 
         if not primary_keys:
-             _logger.warning(f"No primary keys found for {model_class.__name__}, falling back to append-only insert.")
-             # Fallback to insert?
-             return
+             # Without primary keys there is no ON clause to MERGE on, so the rows staged in
+             # the temp table would be silently discarded. Fail loudly instead of losing them.
+             raise ValueError(
+                 f"Cannot upsert {model_class.__name__}: no primary_key fields defined on the model."
+             )
 
         # Columns to update (all except PKs). create_timestamp is excluded so an
         # existing row keeps its original insert time instead of drifting forward
@@ -286,10 +288,19 @@ def bq_upsert_rows(rows: list[SQLTableBaseModel], client: bigquery.Client | None
 
         query_job = client.query(merge_sql)
         query_job.result()
-        _logger.info(f"Upserted {len(rows)} rows into {target_table_id}")
+        affected = query_job.num_dml_affected_rows
+        _logger.info(f"Upserted {affected} of {len(rows)} staged rows into {target_table_id}")
+        if not affected:
+            # Every staged row should either UPDATE a match or INSERT, so 0 means the MERGE
+            # read an empty source - typically the streaming buffer not yet being visible.
+            _logger.warning(
+                f"MERGE into {target_table_id} affected 0 rows although {len(rows)} were staged; "
+                "temp table may not have been visible to the query yet."
+            )
 
     except Exception as e:
-        _logger.exception(f"An error occurred during upsert: {e}")
+        _logger.exception(f"An error occurred during upsert into {target_table_id}: {e}")
+        raise
     finally:
         # Delete temp table
         client.delete_table(temp_table, not_found_ok=True)
