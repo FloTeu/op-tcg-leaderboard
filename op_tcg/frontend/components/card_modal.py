@@ -57,15 +57,17 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
         )
 
     artist_fact = None
-    if card.artist:
-        artist_url = f"/card-prices?artist={quote(card.artist)}&include_alt_art=true"
+    if any(c.artist for c in [card, *card_versions]):
+        initial_artist = selected_card.artist or ""
+        artist_url = f"/card-prices?artist={quote(initial_artist)}&include_alt_art=true"
         artist_fact = ft.Div(
             ft.Span("Artist", style=_LABEL_STYLE),
-            ft.A(card.artist, href=artist_url,
-                 title=f"View all designs by {card.artist}",
-                 style=_VALUE_STYLE + " text-decoration:underline; text-underline-offset:2px;"),
+            ft.A(initial_artist, href=artist_url, id="card-artist-link",
+                 title=f"View all designs by {initial_artist}",
+                 style=_VALUE_STYLE + " text-decoration:underline; text-underline-offset:2px; position:relative; z-index:25;"),
+            id="card-artist-row",
             cls=_ROW_CLS,
-            style=_ROW_STYLE,
+            style=_ROW_STYLE + ("" if selected_card.artist else " display:none;"),
         )
 
     is_base_active = (card.aa_version == selected_aa_version)
@@ -100,7 +102,8 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
             data_eur_price=f"{card.latest_eur_price:.2f}" if card.latest_eur_price else "N/A",
             data_usd_price=f"{card.latest_usd_price:.2f}" if card.latest_usd_price else "N/A",
             data_cm_url=cm_url,
-            data_tcg_url=tcg_url
+            data_tcg_url=tcg_url,
+            data_artist=card.artist or ""
         )
     ]
 
@@ -139,7 +142,8 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 data_eur_price=f"{version.latest_eur_price:.2f}" if version.latest_eur_price else "N/A",
                 data_usd_price=f"{version.latest_usd_price:.2f}" if version.latest_usd_price else "N/A",
                 data_cm_url=v_cm_url,
-                data_tcg_url=v_tcg_url
+                data_tcg_url=v_tcg_url,
+                data_artist=version.artist or ""
             )
         )
 
