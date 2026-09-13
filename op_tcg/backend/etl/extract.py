@@ -63,6 +63,15 @@ def parse_standard_legality_status(soup: BeautifulSoup) -> OPTcgTournamentStatus
     raise ValueError("Could not find Standard legality badge")
 
 
+def parse_artist(soup: BeautifulSoup) -> str | None:
+    """Reads the illustrator, e.g. <div class="card-text-section card-text-artist">Illustrated by <a>BISAI</a></div>"""
+    artist_section = soup.find("div", {"class": "card-text-artist"})
+    if artist_section is None:
+        return None
+    artist_link = artist_section.find("a")
+    return artist_link.text.strip() if artist_link else None
+
+
 def limitless_soup2base_card(card_id: str, language: OPTcgLanguage, soup: BeautifulSoup, aa_version: int=0) -> BaseCard:
     # extract text data
     card_name = soup.find('span', {'class': 'card-text-name'}).text
@@ -78,6 +87,7 @@ def limitless_soup2base_card(card_id: str, language: OPTcgLanguage, soup: Beauti
     ability = replace_linebreak_whitespace(text_section.text).strip()
     fractions = soup.findAll('div', {'class': 'card-text-section'})[2].text.strip().split("/")
     tournament_status = parse_standard_legality_status(soup)
+    artist = parse_artist(soup)
     release_set_details = soup.find("div", {'class': 'card-prints-current'})
     if card_id.startswith("P-") :
         rarity = OPTcgCardRarity.PROMO
@@ -97,6 +107,7 @@ def limitless_soup2base_card(card_id: str, language: OPTcgLanguage, soup: Beauti
         tournament_status=tournament_status,
         types=fractions,
         rarity=rarity,
+        artist=artist,
         language=language,
         card_category=card_category,
         release_set_id=""
