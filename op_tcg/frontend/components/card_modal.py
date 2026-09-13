@@ -38,6 +38,23 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
     cm_url, _ = get_marketplace_link(card, CardCurrency.EURO)
     tcg_url, _ = get_marketplace_link(card, CardCurrency.US_DOLLAR)
 
+    _LEGAL_STATUS_COLORS = {
+        "legal": "#10b981",
+        "banned": "#ef4444",
+        "not legal": "#ef4444",
+        "unreleased": "#475569",
+    }
+    legal_status_fact = None
+    if card.tournament_status is not None:
+        legal_status_color = _LEGAL_STATUS_COLORS.get(card.tournament_status, "#f1f5f9")
+        legal_status_fact = ft.Div(
+            ft.Span("Legal Status", style=_LABEL_STYLE),
+            ft.Span(card.tournament_status.title(),
+                    style=f"font-family:'Share Tech Mono',monospace; font-size:0.8rem; color:{legal_status_color};"),
+            cls=_ROW_CLS,
+            style=_ROW_STYLE,
+        )
+
     is_base_active = (card.aa_version == selected_aa_version)
     base_cls = "carousel-item active relative" if is_base_active else "carousel-item relative"
     base_in_watchlist = card.aa_version in watched_versions
@@ -394,6 +411,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                         ft.Div(
                             create_key_fact("Type", card.card_category),
                             create_key_fact("Subtype", ", ".join(card.types) if card.types else None),
+                            legal_status_fact,
                             create_key_fact("Colors", ", ".join(card.colors)),
                             create_key_fact("Attributes", ", ".join(card.attributes) if card.attributes else None),
                             create_key_fact("Cost", str(card.cost) if card.cost is not None else None),

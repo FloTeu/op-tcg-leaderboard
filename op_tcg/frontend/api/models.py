@@ -245,6 +245,7 @@ class CardPopularityParams(BaseModel):
     page: int = 1
     search_term: Optional[str] = None
     release_meta_format: Optional[MetaFormat] = None
+    tournament_legal_only: bool = False
 
     @field_validator('search_term', mode='before')
     def validate_search_term(cls, value):
@@ -381,6 +382,15 @@ class CardPopularityParams(BaseModel):
         if isinstance(value, list):
             return value
         return [value]
+
+    @field_validator('tournament_legal_only', mode='before')
+    def validate_tournament_legal_only(cls, value):
+        if isinstance(value, list) and value:
+            # If both hidden(false) and checkbox(true) are sent, take the last occurrence
+            value = value[-1]
+        if isinstance(value, str):
+            return value.lower() in ("true", "on", "1", "yes")
+        return bool(value)
 
 
 class PriceOverviewParams(BaseModel):
