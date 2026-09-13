@@ -71,6 +71,10 @@ def filter_cards(cards_data: list, params: CardPopularityParams) -> list:
         if params.tournament_legal_only and card.tournament_status != OPTcgTournamentStatus.LEGAL:
             continue
 
+        # Filter by artist
+        if params.card_artist and card.artist not in params.card_artist:
+            continue
+
         # Filter by counter
         if params.card_counter == 0 and card.counter not in [None, 0]:
             continue

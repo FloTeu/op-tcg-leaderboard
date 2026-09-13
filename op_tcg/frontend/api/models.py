@@ -246,6 +246,7 @@ class CardPopularityParams(BaseModel):
     search_term: Optional[str] = None
     release_meta_format: Optional[MetaFormat] = None
     tournament_legal_only: bool = False
+    card_artist: Optional[List[str]] = None
 
     @field_validator('search_term', mode='before')
     def validate_search_term(cls, value):
@@ -392,6 +393,14 @@ class CardPopularityParams(BaseModel):
             return value.lower() in ("true", "on", "1", "yes")
         return bool(value)
 
+    @field_validator('card_artist', mode='before')
+    def validate_card_artist(cls, value):
+        if value is None or value == "" or value == "Any":
+            return None
+        if isinstance(value, list):
+            return value
+        return [value]
+
 
 class PriceOverviewParams(BaseModel):
     """Parameters for card price overview requests"""
@@ -403,6 +412,7 @@ class PriceOverviewParams(BaseModel):
     max_results: int = 20
     include_alt_art: bool = False
     rarity: Optional[str] = None
+    artist: Optional[List[str]] = None
     order_by: str = "rising"  # rising | fallers | expensive
     change_metric: str = "absolute"  # absolute | relative
     page: int = 1
@@ -505,6 +515,14 @@ class PriceOverviewParams(BaseModel):
         if value == "All":
             return None
         return value
+
+    @field_validator('artist', mode='before')
+    def validate_artist(cls, value):
+        if value is None or value == "" or value == "Any":
+            return None
+        if isinstance(value, list):
+            return value
+        return [value]
 
 
 class SealedProductsParams(BaseModel):

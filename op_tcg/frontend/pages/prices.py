@@ -4,10 +4,11 @@ from op_tcg.backend.models.cards import CardCurrency, OPTcgCardRarity
 from op_tcg.backend.models.sealed import SealedProductOrderBy
 from op_tcg.frontend.components.loading import create_loading_spinner
 from op_tcg.frontend.components.layout import create_mobile_filter_button
+from op_tcg.frontend.utils.extract import get_card_artists
 import time
 from datetime import datetime, timedelta
 
-HX_INCLUDE = "[name='currency'],[name='start_date'],[name='end_date'],[name='min_latest_price'],[name='max_latest_price'],[name='order_by'],[name='include_alt_art'],[name='change_metric'],[name='query'],[name='rarity'],[name='price_tab']"
+HX_INCLUDE = "[name='currency'],[name='start_date'],[name='end_date'],[name='min_latest_price'],[name='max_latest_price'],[name='order_by'],[name='include_alt_art'],[name='change_metric'],[name='query'],[name='rarity'],[name='artist'],[name='price_tab']"
 
 _LABEL_STYLE = "font-family:'Bebas Neue',sans-serif; letter-spacing:0.1em; font-size:0.65rem; color:#475569; text-transform:uppercase; display:block; margin-bottom:6px;"
 
@@ -174,6 +175,22 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
             id="filter-section-rarity",
             cls="mb-4",
         ),
+        # Artist
+        ft.Div(
+            ft.Span("Artist", style=_LABEL_STYLE),
+            ft.Select(
+                *[ft.Option(artist, value=artist) for artist in get_card_artists()],
+                id="price-artist-select",
+                name="artist",
+                multiple=True,
+                size=1,
+                cls="meta-select multiselect",
+                data_pr_filter="true",
+                **_hx,
+            ),
+            id="filter-section-artist",
+            cls="mb-4",
+        ),
         # Currency
         ft.Div(
             ft.Span("Currency", style=_LABEL_STYLE),
@@ -299,7 +316,7 @@ def _price_tab_script() -> ft.Script:
 (function() {{
   var CARD_OPTS = {card_opts_json};
   var SEALED_OPTS = {sealed_opts_json};
-  var SEALED_ONLY_SECTIONS = ['filter-section-alt-art','filter-section-change-metric','filter-section-rarity','filter-section-date-range'];
+  var SEALED_ONLY_SECTIONS = ['filter-section-alt-art','filter-section-change-metric','filter-section-rarity','filter-section-artist','filter-section-date-range'];
 
   function rebuildOrderBy(opts) {{
     var sel = document.getElementById('price-order-by-select');
