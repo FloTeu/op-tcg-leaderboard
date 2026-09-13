@@ -1,3 +1,4 @@
+from urllib.parse import quote
 from fasthtml import ft
 from op_tcg.backend.models.cards import CardCurrency, ExtendedCardData
 from op_tcg.frontend.components.loading import create_loading_spinner
@@ -51,6 +52,18 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
             ft.Span("Legal Status", style=_LABEL_STYLE),
             ft.Span(card.tournament_status.title(),
                     style=f"font-family:'Share Tech Mono',monospace; font-size:0.8rem; color:{legal_status_color};"),
+            cls=_ROW_CLS,
+            style=_ROW_STYLE,
+        )
+
+    artist_fact = None
+    if card.artist:
+        artist_url = f"/card-prices?artist={quote(card.artist)}&include_alt_art=true"
+        artist_fact = ft.Div(
+            ft.Span("Artist", style=_LABEL_STYLE),
+            ft.A(card.artist, href=artist_url,
+                 title=f"View all designs by {card.artist}",
+                 style=_VALUE_STYLE + " text-decoration:underline; text-underline-offset:2px;"),
             cls=_ROW_CLS,
             style=_ROW_STYLE,
         )
@@ -412,6 +425,7 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                             create_key_fact("Type", card.card_category),
                             create_key_fact("Subtype", ", ".join(card.types) if card.types else None),
                             legal_status_fact,
+                            artist_fact,
                             create_key_fact("Colors", ", ".join(card.colors)),
                             create_key_fact("Attributes", ", ".join(card.attributes) if card.attributes else None),
                             create_key_fact("Cost", str(card.cost) if card.cost is not None else None),

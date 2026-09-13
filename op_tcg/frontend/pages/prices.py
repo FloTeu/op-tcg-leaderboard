@@ -92,7 +92,8 @@ def _styles() -> ft.Style:
 """)
 
 
-def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO, start_date: int = None, end_date: int = None):
+def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO, start_date: int = None, end_date: int = None,
+                             selected_artist: str = None, selected_include_alt_art: bool = False):
     now = int(time.time())
     one_year_ago = int((datetime.now() - timedelta(days=365)).timestamp())
 
@@ -117,7 +118,7 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
                 ft.Input(
                     type="checkbox",
                     name="include_alt_art",
-                    checked=False,
+                    checked=selected_include_alt_art,
                     data_pr_filter="true",
                     **{**_hx, "hx_include": HX_INCLUDE + ",[name='include_alt_art']"},
                 ),
@@ -179,7 +180,7 @@ def create_filter_components(selected_currency: CardCurrency = CardCurrency.EURO
         ft.Div(
             ft.Span("Artist", style=_LABEL_STYLE),
             ft.Select(
-                *[ft.Option(artist, value=artist) for artist in get_card_artists()],
+                *[ft.Option(artist, value=artist, selected=(artist == selected_artist)) for artist in get_card_artists()],
                 id="price-artist-select",
                 name="artist",
                 multiple=True,
