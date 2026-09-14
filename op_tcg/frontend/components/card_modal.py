@@ -1,3 +1,4 @@
+from urllib.parse import quote
 from fasthtml import ft
 from op_tcg.backend.models.cards import CardCurrency, ExtendedCardData
 from op_tcg.frontend.components.loading import create_loading_spinner
@@ -38,6 +39,37 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
     cm_url, _ = get_marketplace_link(card, CardCurrency.EURO)
     tcg_url, _ = get_marketplace_link(card, CardCurrency.US_DOLLAR)
 
+    _LEGAL_STATUS_COLORS = {
+        "legal": "#10b981",
+        "banned": "#ef4444",
+        "not legal": "#ef4444",
+        "unreleased": "#475569",
+    }
+    legal_status_fact = None
+    if card.tournament_status is not None:
+        legal_status_color = _LEGAL_STATUS_COLORS.get(card.tournament_status, "#f1f5f9")
+        legal_status_fact = ft.Div(
+            ft.Span("Legal Status", style=_LABEL_STYLE),
+            ft.Span(card.tournament_status.title(),
+                    style=f"font-family:'Share Tech Mono',monospace; font-size:0.8rem; color:{legal_status_color};"),
+            cls=_ROW_CLS,
+            style=_ROW_STYLE,
+        )
+
+    artist_fact = None
+    if any(c.artist for c in [card, *card_versions]):
+        initial_artist = selected_card.artist or ""
+        artist_url = f"/card-prices?artist={quote(initial_artist)}&include_alt_art=true"
+        artist_fact = ft.Div(
+            ft.Span("Artist", style=_LABEL_STYLE),
+            ft.A(initial_artist, href=artist_url, id="card-artist-link",
+                 title=f"View all designs by {initial_artist}",
+                 style=_VALUE_STYLE + " text-decoration:underline; text-underline-offset:2px; position:relative; z-index:25;"),
+            id="card-artist-row",
+            cls=_ROW_CLS,
+            style=_ROW_STYLE + ("" if selected_card.artist else " display:none;"),
+        )
+
     is_base_active = (card.aa_version == selected_aa_version)
     base_cls = "carousel-item active relative" if is_base_active else "carousel-item relative"
     base_in_watchlist = card.aa_version in watched_versions
@@ -70,7 +102,8 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
             data_eur_price=f"{card.latest_eur_price:.2f}" if card.latest_eur_price else "N/A",
             data_usd_price=f"{card.latest_usd_price:.2f}" if card.latest_usd_price else "N/A",
             data_cm_url=cm_url,
-            data_tcg_url=tcg_url
+            data_tcg_url=tcg_url,
+            data_artist=card.artist or ""
         )
     ]
 
@@ -109,7 +142,8 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                 data_eur_price=f"{version.latest_eur_price:.2f}" if version.latest_eur_price else "N/A",
                 data_usd_price=f"{version.latest_usd_price:.2f}" if version.latest_usd_price else "N/A",
                 data_cm_url=v_cm_url,
-                data_tcg_url=v_tcg_url
+                data_tcg_url=v_tcg_url,
+                data_artist=version.artist or ""
             )
         )
 
@@ -394,6 +428,8 @@ def create_card_modal(card: ExtendedCardData, card_versions: list[ExtendedCardDa
                         ft.Div(
                             create_key_fact("Type", card.card_category),
                             create_key_fact("Subtype", ", ".join(card.types) if card.types else None),
+                            legal_status_fact,
+                            artist_fact,
                             create_key_fact("Colors", ", ".join(card.colors)),
                             create_key_fact("Attributes", ", ".join(card.attributes) if card.attributes else None),
                             create_key_fact("Cost", str(card.cost) if card.cost is not None else None),

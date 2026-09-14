@@ -54,6 +54,24 @@ def get_card_image_url(card_id: str, language: OPTcgLanguage, aa_version: int=0)
     else:
         return f"https://limitlesstcg.nyc3.digitaloceanspaces.com/one-piece/{card_id.split('-')[0]}/{card_id}_p{aa_version}_{language.upper()}.webp"
 
+def parse_standard_legality_status(soup: BeautifulSoup) -> OPTcgTournamentStatus:
+    """Reads the Standard-format legality badge, e.g. <div>Standard</div><div>not legal</div>"""
+    for badge in soup.find_all("div", {"class": "card-legality-badge"}):
+        badge_divs = badge.find_all("div")
+        if badge_divs and badge_divs[0].text.strip() == "Standard":
+            return OPTcgTournamentStatus(badge_divs[1].text.strip())
+    raise ValueError("Could not find Standard legality badge")
+
+
+def parse_artist(soup: BeautifulSoup) -> str | None:
+    """Reads the illustrator, e.g. <div class="card-text-section card-text-artist">Illustrated by <a>BISAI</a></div>"""
+    artist_section = soup.find("div", {"class": "card-text-artist"})
+    if artist_section is None:
+        return None
+    artist_link = artist_section.find("a")
+    return artist_link.text.strip() if artist_link else None
+
+
 def limitless_soup2base_card(card_id: str, language: OPTcgLanguage, soup: BeautifulSoup, aa_version: int=0) -> BaseCard:
     # extract text data
     card_name = soup.find('span', {'class': 'card-text-name'}).text
@@ -68,8 +86,8 @@ def limitless_soup2base_card(card_id: str, language: OPTcgLanguage, soup: Beauti
         br.replace_with('')
     ability = replace_linebreak_whitespace(text_section.text).strip()
     fractions = soup.findAll('div', {'class': 'card-text-section'})[2].text.strip().split("/")
-    tournament_status = OPTcgTournamentStatus(
-        soup.find("div", {'class': 'card-legality-badge'}).findAll("div")[1].text.strip())
+    tournament_status = parse_standard_legality_status(soup)
+    artist = parse_artist(soup)
     release_set_details = soup.find("div", {'class': 'card-prints-current'})
     if card_id.startswith("P-") :
         rarity = OPTcgCardRarity.PROMO
@@ -89,6 +107,7 @@ def limitless_soup2base_card(card_id: str, language: OPTcgLanguage, soup: Beauti
         tournament_status=tournament_status,
         types=fractions,
         rarity=rarity,
+        artist=artist,
         language=language,
         card_category=card_category,
         release_set_id=""

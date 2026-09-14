@@ -389,6 +389,21 @@ window.updatePrice = function(activeItem) {
             tcgLink.href = tcgUrl;
         }
     }
+
+    // Update artist link
+    const artistRow = document.getElementById('card-artist-row');
+    const artistLink = document.getElementById('card-artist-link');
+    if (artistRow && artistLink) {
+        const artist = activeItem.getAttribute('data-artist');
+        if (artist) {
+            artistLink.textContent = artist;
+            artistLink.href = `/card-prices?artist=${encodeURIComponent(artist)}&include_alt_art=true`;
+            artistLink.title = `View all designs by ${artist}`;
+            artistRow.style.display = '';
+        } else {
+            artistRow.style.display = 'none';
+        }
+    }
 }
 
 // Show specific carousel item

@@ -46,6 +46,7 @@ class OPTcgAttribute(EnumBase, StrEnum):
 class OPTcgTournamentStatus(EnumBase, StrEnum):
     BANNED="banned"
     LEGAL="legal"
+    NOT_LEGAL="not legal"
     UNRELEASED="unreleased"
 
 
@@ -67,6 +68,15 @@ class OPTcgCardRarity(EnumBase, StrEnum):
     SECRET_RARE="Secret Rare"
     LEADER="Leader"
     PROMO="Promo"
+    SPECIAL_CARD="Special Card"
+    ALTERNATE_ART="Alternate Art"
+    MANGA_ART="Manga Art"
+    TREASURE_RARE="Treasure Rare"
+    TEXTURED_FOIL="Textured Foil"
+    PIRATE_FOIL="Pirate Foil"
+    FULL_ART="Full Art"
+    SERIAL_CARD="Serial Card"
+    CARD_STYLE_PANDA="card.style.panda"
 
 
 class OPTcgAbility(EnumBase, StrEnum):
@@ -111,6 +121,7 @@ class BaseCard(BaseModel):
     tournament_status: OPTcgTournamentStatus | None = Field(description="Whether the card is banned for tournaments")
     types: list[str] = Field(description="List of fractions of the card, e.g. Straw Hat Crew")
     rarity: OPTcgCardRarity = Field(description="Rarity of the card, e.g. Common")
+    artist: str | None = Field(description="Illustrator of this print of the card, e.g. BISAI")
     card_category: OPTcgCardCatagory = Field(description="Category of card e.g. 'character'")
     release_set_id: str = Field(description="Id of the release set e.g. 'OP07_24'")
 
@@ -152,6 +163,7 @@ class Card(BaseCard, BQTableBaseModel):
             tournament_status=None,
             types=[],
             rarity=OPTcgCardRarity.COMMON,
+            artist=None,
             card_category=OPTcgCardCatagory.CHARACTER,
             release_set_id=""
         )

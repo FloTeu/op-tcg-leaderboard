@@ -181,6 +181,17 @@ def get_card_types() -> list[str]:
     return [d["types"] for d in latest_card_rows]
 
 
+def get_card_artists() -> list[str]:
+    """Distinct illustrator names across ALL aa_versions.
+
+    Queried directly against BQ (rather than via get_card_id_card_data_lookup, which only
+    covers aa_version=0 to save memory) since some artists only illustrate alt-art prints.
+    """
+    rows = run_bq_query(
+            f"""SELECT DISTINCT artist FROM `{get_bq_table_id(Card)}` WHERE artist IS NOT NULL ORDER BY artist""", ttl_hours=24.0)
+    return [d["artist"] for d in rows]
+
+
 @cached(cache=TTLCache(maxsize=4, ttl=60*60*24))
 def get_card_id_card_data_lookup(aa_version: int = 0, ensure_latest_price_not_null=True, default_language: OPTcgLanguage = OPTcgLanguage.EN) -> dict[str, ExtendedCardData]:
     card_data = get_card_data()
@@ -225,7 +236,7 @@ def get_tournament_match_data(tournament_id: str, leader_id: str | None = None) 
 
 # --------------- Price overview extraction helpers ---------------
 def get_price_change_data(start_date: int, end_date: int, currency: CardCurrency, min_latest_price: float, max_latest_price: float,
-                          page: int, page_size: int, order_dir: str = "DESC", include_alt_art: bool = False, change_metric: str = "absolute", query_text: str = None, sort_by: str = "change", rarity: str = None) -> list[dict]:
+                          page: int, page_size: int, order_dir: str = "DESC", include_alt_art: bool = False, change_metric: str = "absolute", query_text: str = None, sort_by: str = "change", rarity: str = None, artist: list[str] = None) -> list[dict]:
     """Return price changes over a window for cards, ordered by percentage change or price.
 
     Args:
@@ -250,6 +261,11 @@ def get_price_change_data(start_date: int, end_date: int, currency: CardCurrency
     rarity_filter = ""
     if rarity:
         rarity_filter = f"AND l.rarity = '{rarity}'"
+
+    artist_filter = ""
+    if artist:
+        safe_artists = [a.replace("'", "\\'") for a in artist]
+        artist_filter = "AND l.artist IN (" + ", ".join(f"'{a}'" for a in safe_artists) + ")"
 
     query_filter = ""
     if query_text:
@@ -311,6 +327,7 @@ def get_price_change_data(start_date: int, end_date: int, currency: CardCurrency
         {aa_filter}
         {query_filter}
         {rarity_filter}
+        {artist_filter}
         {where_extra}
     )
     SELECT l.card_id, l.language, l.aa_version, l.name, l.image_url, 
