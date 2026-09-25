@@ -126,11 +126,11 @@ def parse_price(column: str, table_cell: Tag) -> tuple[CardCurrency, float] | tu
     try:
         currency = CardCurrency(column.lower())
         if currency == CardCurrency.EURO:
-            # assumes format: '12.52€'
-            return currency, float(table_cell.text.strip()[:-1])
+            # assumes format: '12.52€', with ',' as thousands separator above 1000, e.g. '3,268.64€'
+            return currency, float(table_cell.text.strip()[:-1].replace(',', ''))
         elif currency == CardCurrency.US_DOLLAR:
-            # assumes format: '$14.40'
-            return currency, float(table_cell.text.strip()[1:])
+            # assumes format: '$14.40', with ',' as thousands separator above 1000, e.g. '$3,250.00'
+            return currency, float(table_cell.text.strip()[1:].replace(',', ''))
         else:
             raise NotImplementedError
     except ValueError:
