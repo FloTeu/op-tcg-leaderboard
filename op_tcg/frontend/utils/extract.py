@@ -540,6 +540,11 @@ def get_watchlist_aggregate_price_data(card_versions: list[tuple[str, int, int]]
     the user owns.  The date filter for totals is applied inside the query; release
     dates are derived from the full unfiltered history so they are always accurate.
 
+    Each card version is forward-filled with its last known price: if a crawl is
+    missing a card on a given day, the previous price is carried forward instead of
+    dropping the card out of the sum (which would make the portfolio total collapse
+    on days with incomplete price data).
+
     Returns:
         {
           'eur': [{'date': ..., 'price': ...}, ...],
@@ -581,26 +586,67 @@ def get_watchlist_aggregate_price_data(card_versions: list[tuple[str, int, int]]
         AND currency IN ('eur', 'usd')
       GROUP BY p.card_id, p.aa_version, p.currency, price_date
     ),
-    weighted AS (
+    -- Last known price per card/version/currency from before the window, anchored
+    -- one day before the window start so it can be carried into the window
+    anchor_prices AS (
+      SELECT card_id, aa_version, currency, anchor_date AS price_date, avg_price
+      FROM (
+        SELECT
+          card_id, aa_version, currency, avg_price,
+          DATE_SUB(DATE_SUB(CURRENT_DATE(), INTERVAL {days} DAY), INTERVAL 1 DAY) AS anchor_date,
+          ROW_NUMBER() OVER (
+            PARTITION BY card_id, aa_version, currency ORDER BY price_date DESC
+          ) AS rn
+        FROM all_prices
+        WHERE price_date < DATE_SUB(CURRENT_DATE(), INTERVAL {days} DAY)
+      )
+      WHERE rn = 1
+    ),
+    known_prices AS (
+      SELECT card_id, aa_version, currency, price_date, avg_price
+      FROM all_prices
+      WHERE price_date >= DATE_SUB(CURRENT_DATE(), INTERVAL {days} DAY)
+      UNION ALL
+      SELECT card_id, aa_version, currency, price_date, avg_price FROM anchor_prices
+    ),
+    date_spine AS (
+      SELECT DISTINCT price_date FROM known_prices
+    ),
+    -- Every card/version/currency gets a row per date so gaps can be filled
+    grid AS (
+      SELECT s.price_date, q.card_id, q.aa_version, q.quantity, cur AS currency
+      FROM date_spine s
+      CROSS JOIN quantities q
+      CROSS JOIN UNNEST(['eur', 'usd']) AS cur
+    ),
+    filled AS (
       SELECT
-        ap.currency,
-        ap.price_date,
-        ap.card_id,
-        ap.aa_version,
-        ap.avg_price * q.quantity AS weighted_price
-      FROM all_prices ap
-      JOIN quantities q ON ap.card_id = q.card_id AND ap.aa_version = q.aa_version
+        g.price_date,
+        g.currency,
+        g.quantity,
+        LAST_VALUE(kp.avg_price IGNORE NULLS) OVER (
+          PARTITION BY g.card_id, g.aa_version, g.currency
+          ORDER BY g.price_date
+          ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        ) AS price
+      FROM grid g
+      LEFT JOIN known_prices kp
+        ON kp.card_id = g.card_id
+       AND kp.aa_version = g.aa_version
+       AND kp.currency = g.currency
+       AND kp.price_date = g.price_date
     ),
     daily_totals AS (
       SELECT
         'price'    AS record_type,
         currency,
         price_date AS date,
-        SUM(weighted_price) AS value,
+        SUM(price * quantity) AS value,
         CAST(NULL AS STRING)  AS card_id,
         CAST(NULL AS INT64)   AS aa_version
-      FROM weighted
-      WHERE price_date >= DATE_SUB(CURRENT_DATE(), INTERVAL {days} DAY)
+      FROM filled
+      WHERE price IS NOT NULL
+        AND price_date >= DATE_SUB(CURRENT_DATE(), INTERVAL {days} DAY)
       GROUP BY currency, price_date
     ),
     first_dates AS (
@@ -647,6 +693,9 @@ def get_sealed_watchlist_aggregate_price_data(product_qty_pairs: list[tuple[str,
     Returns daily aggregated FROM price totals across all watched sealed products,
     weighted by quantity, for both EUR and USD.
 
+    Each product is forward-filled with its last known price, so a day with an
+    incomplete crawl does not drop products out of the total.
+
     Args:
         product_qty_pairs: list of (product_id, marketplace, quantity) tuples
         days: lookback window in days
@@ -660,11 +709,10 @@ def get_sealed_watchlist_aggregate_price_data(product_qty_pairs: list[tuple[str,
 
     price_tbl = get_bq_table_id(SealedProductPrice).replace(":", ".")
 
-    # Inline quantities CTE as a VALUES list
-    qty_rows = ", ".join(
-        f"('{pid}', '{mkt}', {qty})"
-        for pid, mkt, qty in product_qty_pairs
-    )
+    product_ids = ", ".join(f"'{pid}'" for pid, _, _ in product_qty_pairs)
+    # Look back beyond the window so a product whose last price predates it still
+    # contributes a carried-forward value
+    lookback_days = days + 365
 
     query = f"""
     WITH quantities AS (
@@ -673,7 +721,7 @@ def get_sealed_watchlist_aggregate_price_data(product_qty_pairs: list[tuple[str,
             STRUCT{f", STRUCT".join(f"('{pid}' AS product_id, '{mkt}' AS marketplace, {qty} AS quantity)" for pid, mkt, qty in product_qty_pairs)}
         ])
     ),
-    daily AS (
+    all_prices AS (
         SELECT
             spp.product_id,
             spp.marketplace,
@@ -682,16 +730,63 @@ def get_sealed_watchlist_aggregate_price_data(product_qty_pairs: list[tuple[str,
             AVG(spp.price) AS avg_price
         FROM `{price_tbl}` spp
         WHERE spp.price_type = 'from'
-          AND spp.create_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)
+          AND spp.product_id IN ({product_ids})
+          AND spp.create_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {lookback_days} DAY)
         GROUP BY spp.product_id, spp.marketplace, spp.currency, DATE(spp.create_timestamp)
     ),
-    weighted AS (
-        SELECT d.currency, d.price_date, d.avg_price * q.quantity AS weighted_price
-        FROM daily d
-        JOIN quantities q ON d.product_id = q.product_id AND d.marketplace = q.marketplace
+    -- Last known price per product/marketplace/currency from before the window,
+    -- anchored one day before the window start
+    anchor_prices AS (
+        SELECT product_id, marketplace, currency, anchor_date AS price_date, avg_price
+        FROM (
+            SELECT
+                product_id, marketplace, currency, avg_price,
+                DATE_SUB(DATE_SUB(CURRENT_DATE(), INTERVAL {days} DAY), INTERVAL 1 DAY) AS anchor_date,
+                ROW_NUMBER() OVER (
+                    PARTITION BY product_id, marketplace, currency ORDER BY price_date DESC
+                ) AS rn
+            FROM all_prices
+            WHERE price_date < DATE_SUB(CURRENT_DATE(), INTERVAL {days} DAY)
+        )
+        WHERE rn = 1
+    ),
+    known_prices AS (
+        SELECT product_id, marketplace, currency, price_date, avg_price
+        FROM all_prices
+        WHERE price_date >= DATE_SUB(CURRENT_DATE(), INTERVAL {days} DAY)
+        UNION ALL
+        SELECT product_id, marketplace, currency, price_date, avg_price FROM anchor_prices
+    ),
+    date_spine AS (
+        SELECT DISTINCT price_date FROM known_prices
+    ),
+    grid AS (
+        SELECT s.price_date, q.product_id, q.marketplace, q.quantity, cur AS currency
+        FROM date_spine s
+        CROSS JOIN quantities q
+        CROSS JOIN UNNEST(['eur', 'usd']) AS cur
+    ),
+    filled AS (
+        SELECT
+            g.price_date,
+            g.currency,
+            g.quantity,
+            LAST_VALUE(kp.avg_price IGNORE NULLS) OVER (
+                PARTITION BY g.product_id, g.marketplace, g.currency
+                ORDER BY g.price_date
+                ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+            ) AS price
+        FROM grid g
+        LEFT JOIN known_prices kp
+          ON kp.product_id = g.product_id
+         AND kp.marketplace = g.marketplace
+         AND kp.currency = g.currency
+         AND kp.price_date = g.price_date
     )
-    SELECT currency, price_date, SUM(weighted_price) AS total_price
-    FROM weighted
+    SELECT currency, price_date, SUM(price * quantity) AS total_price
+    FROM filled
+    WHERE price IS NOT NULL
+      AND price_date >= DATE_SUB(CURRENT_DATE(), INTERVAL {days} DAY)
     GROUP BY currency, price_date
     ORDER BY currency, price_date ASC
     """
