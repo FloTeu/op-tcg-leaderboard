@@ -433,16 +433,33 @@ def get_card_price_development_data(card_id: str, days: int = 90, include_alt_ar
         {aa_filter}
         AND currency IN ('eur', 'usd')
     ),
+    -- Several crawls can land on the same day; keep the newest row per version so a
+    -- same-day correction wins over the value it corrects
+    latest_per_version AS (
+      SELECT card_id, aa_version, currency, price_date, price
+      FROM (
+        SELECT
+          card_id, aa_version, currency, price_date, price,
+          ROW_NUMBER() OVER (
+            PARTITION BY card_id, aa_version, currency, price_date
+            ORDER BY create_timestamp DESC
+          ) AS rn
+        FROM price_history
+      )
+      WHERE rn = 1
+    ),
     daily_prices AS (
-      SELECT 
+      -- Averages across alt art versions only when include_alt_art is set;
+      -- with a single version this is a pass-through
+      SELECT
         card_id,
         currency,
         price_date,
         AVG(price) as avg_price
-      FROM price_history
+      FROM latest_per_version
       GROUP BY card_id, currency, price_date
     )
-    SELECT 
+    SELECT
       currency,
       price_date,
       avg_price as price
@@ -489,18 +506,27 @@ def get_watchlist_price_changes(
 
     query = f"""
     WITH daily AS (
-      SELECT
-        card_id,
-        aa_version,
-        currency,
-        DATE(create_timestamp) AS price_date,
-        AVG(price) AS avg_price
-      FROM `{history_tbl}`
-      WHERE ({pair_filters})
-        AND language = 'en'
-        AND currency IN ('eur', 'usd')
-        AND create_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)
-      GROUP BY card_id, aa_version, currency, price_date
+      -- Newest row per card/version/currency/day, so repeated crawls on one day
+      -- resolve to the latest value instead of a blend
+      SELECT card_id, aa_version, currency, price_date, price AS avg_price
+      FROM (
+        SELECT
+          card_id,
+          aa_version,
+          currency,
+          DATE(create_timestamp) AS price_date,
+          price,
+          ROW_NUMBER() OVER (
+            PARTITION BY card_id, aa_version, currency, DATE(create_timestamp)
+            ORDER BY create_timestamp DESC
+          ) AS rn
+        FROM `{history_tbl}`
+        WHERE ({pair_filters})
+          AND language = 'en'
+          AND currency IN ('eur', 'usd')
+          AND create_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)
+      )
+      WHERE rn = 1
     )
     SELECT
       card_id,
@@ -574,17 +600,27 @@ def get_watchlist_aggregate_price_data(card_versions: list[tuple[str, int, int]]
       {qty_rows}
     ),
     all_prices AS (
-      SELECT
-        p.card_id,
-        p.aa_version,
-        p.currency,
-        DATE(p.create_timestamp) AS price_date,
-        AVG(p.price) AS avg_price
-      FROM `{history_tbl}` p
-      WHERE ({pair_filters})
-        AND language = 'en'
-        AND currency IN ('eur', 'usd')
-      GROUP BY p.card_id, p.aa_version, p.currency, price_date
+      -- One row per card/version/currency/day: the newest crawl of that day.
+      -- The 1:1 shape is required by the grid join below, otherwise repeated
+      -- crawls would multiply a card's contribution to the portfolio sum.
+      SELECT card_id, aa_version, currency, price_date, price AS avg_price
+      FROM (
+        SELECT
+          p.card_id,
+          p.aa_version,
+          p.currency,
+          DATE(p.create_timestamp) AS price_date,
+          p.price,
+          ROW_NUMBER() OVER (
+            PARTITION BY p.card_id, p.aa_version, p.currency, DATE(p.create_timestamp)
+            ORDER BY p.create_timestamp DESC
+          ) AS rn
+        FROM `{history_tbl}` p
+        WHERE ({pair_filters})
+          AND language = 'en'
+          AND currency IN ('eur', 'usd')
+      )
+      WHERE rn = 1
     ),
     -- Last known price per card/version/currency from before the window, anchored
     -- one day before the window start so it can be carried into the window
@@ -722,17 +758,26 @@ def get_sealed_watchlist_aggregate_price_data(product_qty_pairs: list[tuple[str,
         ])
     ),
     all_prices AS (
-        SELECT
-            spp.product_id,
-            spp.marketplace,
-            spp.currency,
-            DATE(spp.create_timestamp) AS price_date,
-            AVG(spp.price) AS avg_price
-        FROM `{price_tbl}` spp
-        WHERE spp.price_type = 'from'
-          AND spp.product_id IN ({product_ids})
-          AND spp.create_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {lookback_days} DAY)
-        GROUP BY spp.product_id, spp.marketplace, spp.currency, DATE(spp.create_timestamp)
+        -- Newest crawl per product/marketplace/currency/day; the 1:1 shape is
+        -- required by the grid join below
+        SELECT product_id, marketplace, currency, price_date, price AS avg_price
+        FROM (
+            SELECT
+                spp.product_id,
+                spp.marketplace,
+                spp.currency,
+                DATE(spp.create_timestamp) AS price_date,
+                spp.price,
+                ROW_NUMBER() OVER (
+                    PARTITION BY spp.product_id, spp.marketplace, spp.currency, DATE(spp.create_timestamp)
+                    ORDER BY spp.create_timestamp DESC
+                ) AS rn
+            FROM `{price_tbl}` spp
+            WHERE spp.price_type = 'from'
+              AND spp.product_id IN ({product_ids})
+              AND spp.create_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {lookback_days} DAY)
+        )
+        WHERE rn = 1
     ),
     -- Last known price per product/marketplace/currency from before the window,
     -- anchored one day before the window start
@@ -809,15 +854,30 @@ def get_sealed_product_price_history(product_id: str, currency: CardCurrency, da
     price_tbl = get_bq_table_id(SealedProductPrice).replace(":", ".")
 
     query = f"""
-    WITH daily AS (
-        SELECT
-            price_type,
-            DATE(create_timestamp) AS price_date,
-            AVG(price) AS avg_price
-        FROM `{price_tbl}`
-        WHERE product_id = '{product_id}'
-          AND currency = '{currency}'
-          AND create_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)
+    WITH latest_per_marketplace AS (
+        -- Newest crawl per marketplace/price type/day
+        SELECT marketplace, price_type, price_date, price
+        FROM (
+            SELECT
+                marketplace,
+                price_type,
+                DATE(create_timestamp) AS price_date,
+                price,
+                ROW_NUMBER() OVER (
+                    PARTITION BY marketplace, price_type, DATE(create_timestamp)
+                    ORDER BY create_timestamp DESC
+                ) AS rn
+            FROM `{price_tbl}`
+            WHERE product_id = '{product_id}'
+              AND currency = '{currency}'
+              AND create_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)
+        )
+        WHERE rn = 1
+    ),
+    daily AS (
+        -- Averages across marketplaces; a single marketplace is a pass-through
+        SELECT price_type, price_date, AVG(price) AS avg_price
+        FROM latest_per_marketplace
         GROUP BY price_type, price_date
     )
     SELECT price_type, price_date, avg_price AS price
