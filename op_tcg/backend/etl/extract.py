@@ -122,6 +122,40 @@ def limitless_soup2base_cards(card_id: str, language: OPTcgLanguage, soup: Beaut
     return base_cards
 
 
+def parse_aa_version_from_href(href: str | None) -> int:
+    """
+    The aa_version a limitless card link points to.
+
+    The original design (aa_version 0) is linked *without* a ``v`` query param
+    (e.g. '/cards/en/EB01-006'), every alt art carries one (e.g. '?v=2').
+    """
+    if not href:
+        return 0
+    v_list = parse_qs(urlparse(href).query).get("v")
+    return int(v_list[0]) if v_list else 0
+
+
+def parse_print_row_aa_version(row: Tag, current_aa_version: int = 0) -> int:
+    """
+    The aa_version a ``card-prints-versions`` table row belongs to.
+
+    Every row links to its own print, except the row of the print the surrounding
+    page/block currently renders: that one is marked ``<tr class="current">`` and has no
+    href at all, so it belongs to ``current_aa_version``. Note this is distinct from a row
+    whose href simply carries no ``v`` param - that one is the original design (0).
+
+    Row order does NOT reliably encode the version numbers (a card can be printed across
+    several sets, and rows may be reordered or missing), so it is never used as a fallback.
+    """
+    first_cell = row.find("td")
+    link = first_cell.find("a") if first_cell else None
+    href = link.get("href") if link else None
+    if href is None:
+        # 'current' row - the print this block/page renders
+        return current_aa_version
+    return parse_aa_version_from_href(href)
+
+
 def parse_price(column: str, table_cell: Tag) -> tuple[CardCurrency, float] | tuple[str, str]:
     try:
         currency = CardCurrency(column.lower())
@@ -137,14 +171,23 @@ def parse_price(column: str, table_cell: Tag) -> tuple[CardCurrency, float] | tu
         # if column is not a valid currency, we return the table cell as string
         return column, table_cell.text.strip()
 
-def extract_card_prices(card_id: str, language: OPTcgLanguage, soup: BeautifulSoup) -> list[CardPrice]:
+def extract_card_prices(card_id: str, language: OPTcgLanguage, soup: BeautifulSoup,
+                        current_aa_version: int = 0) -> list[CardPrice]:
     card_prices: list[CardPrice] = []
-    columns = [col.text for col in soup.find("table", {'class': 'card-prints-versions'}).find("tr").findAll("th")]
+    prints_table = soup.find("table", {'class': 'card-prints-versions'})
+    columns = [col.text for col in prints_table.find("tr").find_all("th")]
+    seen_aa_versions: set[int] = set()
     # Note: skip header row
-    for aa_version, price_row in enumerate(soup.find("table", {'class': 'card-prints-versions'}).findAll("tr")[1:]):
-        col2value = {
-            parse_price(columns[i], cell)[0]: parse_price(columns[i], cell)[1] for i, cell in enumerate(price_row.findAll("td"))
-        }
+    for price_row in prints_table.find_all("tr")[1:]:
+        aa_version = parse_print_row_aa_version(price_row, current_aa_version=current_aa_version)
+        if aa_version in seen_aa_versions:
+            # a print maps to exactly one aa_version, so a collision means we mis-read the
+            # table (e.g. a wrong current_aa_version) - fail loudly instead of writing
+            # prices to the wrong version
+            raise ValueError(
+                f"Ambiguous print rows for {card_id}: aa_version {aa_version} resolved more than once")
+        seen_aa_versions.add(aa_version)
+        col2value = dict(parse_price(columns[i], cell) for i, cell in enumerate(price_row.find_all("td")))
         for col, value in col2value.items():
             if col in CardCurrency.to_list():
                 card_prices.append(
@@ -159,7 +202,8 @@ def extract_card_prices(card_id: str, language: OPTcgLanguage, soup: BeautifulSo
     return card_prices
 
 
-def extract_marketplace_urls(soup: BeautifulSoup, card_id: str, language: OPTcgLanguage, aa_versions: list[int]) -> list[CardMarketplaceUrl]:
+def extract_marketplace_urls(soup: BeautifulSoup, card_id: str, language: OPTcgLanguage, aa_versions: list[int],
+                             current_aa_version: int = 0) -> list[CardMarketplaceUrl]:
     marketplace_urls: list[CardMarketplaceUrl] = []
     prints_table = soup.find('table', class_='card-prints-versions')
     if prints_table:
@@ -167,13 +211,7 @@ def extract_marketplace_urls(soup: BeautifulSoup, card_id: str, language: OPTcgL
         for row in prints_table.find_all('tr')[1:]:
             try:
                 # Determine aa_version
-                aa_version = 0
-                link = row.find('td').find('a')
-                if link and link.get('href'):
-                    href = link.get('href')
-                    v_list = parse_qs(urlparse(href).query).get('v')
-                    if v_list:
-                        aa_version = int(v_list[0])
+                aa_version = parse_print_row_aa_version(row, current_aa_version=current_aa_version)
 
                 # Only process if this aa_version is in the list of versions we are crawling
                 if aa_version in aa_versions:

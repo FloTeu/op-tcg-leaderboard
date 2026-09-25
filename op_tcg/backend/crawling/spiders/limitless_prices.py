@@ -4,13 +4,13 @@ from datetime import datetime
 
 import scrapy
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse
 
 from scrapy.http import Response
 
 from op_tcg.backend.crawling.items import ReleaseSetItem, CardsItem, CardPricesItem
 from op_tcg.backend.etl.extract import extract_card_prices, limitless_soup2base_card, \
-    base_card2bq_card, extract_marketplace_urls
+    base_card2bq_card, extract_marketplace_urls, parse_aa_version_from_href
 from op_tcg.backend.etl.load import get_or_create_table
 from op_tcg.backend.models.cards import CardPrice, Card, OPTcgLanguage, CardReleaseSet, OPTcgCardSetType, \
     CardMarketplaceUrl
@@ -184,11 +184,7 @@ class LimitlessPricesSpider(scrapy.Spider):
     def _block_aa_version(card_block) -> int:
         """The aa_version a card-page-main block represents, from its own '?v=N' link."""
         name_link = card_block.find('span', class_='card-text-name').find('a')
-        if name_link and name_link.get('href'):
-            v = parse_qs(urlparse(name_link['href']).query).get('v')
-            if v:
-                return int(v[0])
-        return 0
+        return parse_aa_version_from_href(name_link.get('href') if name_link else None)
 
     def parse_price_page(self, response):
         """
@@ -226,9 +222,11 @@ class LimitlessPricesSpider(scrapy.Spider):
             representative_block = blocks[0]
             own_aa_versions = [self._block_aa_version(block) for block in blocks]
             try:
-                # the prints-versions/price table is identical on every block for this card id,
-                # so any one block's copy of it is fine for price/marketplace extraction
-                all_prices = extract_card_prices(card_id, release_set_language, representative_block)
+                # the prints-versions/price table lists the same prices on every block for this
+                # card id, so any one block's copy is fine - but it marks *that* block's print as
+                # the link-less 'current' row, so the reader needs to know which version that is
+                all_prices = extract_card_prices(card_id, release_set_language, representative_block,
+                                                 current_aa_version=own_aa_versions[0])
                 prices.extend(price for price in all_prices if price.aa_version in own_aa_versions)
 
                 # but rarity (e.g. "Common" vs "Alternate Art") is print-specific, so each
@@ -240,7 +238,8 @@ class LimitlessPricesSpider(scrapy.Spider):
                     cards.append(base_card2bq_card(base_card, own_block))
 
                 marketplace_urls.extend(extract_marketplace_urls(representative_block, card_id, release_set_language,
-                                                                  own_aa_versions))
+                                                                  own_aa_versions,
+                                                                  current_aa_version=own_aa_versions[0]))
             except Exception as e:
                 logging.error(f"Could not extract card information from limitless for {card_id}: {str(e)}")
 
