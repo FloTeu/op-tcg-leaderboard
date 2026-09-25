@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 from pathlib import Path
@@ -25,6 +26,10 @@ def replace_linebreak_whitespace(text: str) -> str:
     # Replace the matched pattern with a linebreak followed by zero whitespace
     replaced_text = re.sub(pattern, '\n', text)
     return replaced_text
+
+def normalize_whitespace(text: str | None) -> str:
+    """Collapses every whitespace run (incl. the linebreaks limitless indents its markup with) to a single space."""
+    return re.sub(r'\s+', ' ', text or '').strip()
 
 def read_json_files(data_dir: str | Path) -> AllLeaderMetaDocs:
     documents = []
@@ -133,6 +138,67 @@ def parse_aa_version_from_href(href: str | None) -> int:
         return 0
     v_list = parse_qs(urlparse(href).query).get("v")
     return int(v_list[0]) if v_list else 0
+
+
+def parse_print_row_set_name(row: Tag) -> str | None:
+    """
+    The release set name a ``card-prints-versions`` row refers to, e.g. 'Romance Dawn'.
+
+    The row's link text is the set name optionally followed by a variant suffix in a
+    ``prints-table-card-number`` span (e.g. 'One Piece The Best' + 'aa'), which is dropped.
+    """
+    first_cell = row.find("td")
+    link = first_cell.find("a") if first_cell else None
+    if link is None:
+        return None
+    # copy, so removing the suffix span does not mutate the caller's soup
+    link = BeautifulSoup(str(link), "html.parser")
+    for suffix in link.find_all("span", {"class": "prints-table-card-number"}):
+        suffix.decompose()
+    return normalize_whitespace(link.get_text(" "))
+
+
+def parse_block_set_name(soup: BeautifulSoup) -> str | None:
+    """
+    The release set name a ``card-page-main`` block belongs to, read from its
+    ``card-prints-current`` header (e.g. 'One Piece The Best (PRB01)' -> 'One Piece The Best').
+    """
+    current_section = soup.find("div", {"class": "card-prints-current"})
+    spans = current_section.find_all("span") if current_section else []
+    if not spans:
+        return None
+    # the set code is rendered as a trailing '(CODE)' inside the same span
+    return normalize_whitespace(re.sub(r"\([^)]*\)\s*$", "", normalize_whitespace(spans[0].text)))
+
+
+def block_introduced_its_print(soup: BeautifulSoup) -> bool:
+    """
+    Whether a ``card-page-main`` block renders a print that its own release set introduced.
+
+    Reprint sets (e.g. PRB01) list cards whose print limitless attributes to the *original*
+    set: the block header says 'One Piece The Best (PRB01)' while the print it renders is the
+    ``<tr class="current">`` row 'Romance Dawn' (OP01). Such a block carries no print of its
+    own - its aa_version, prices and marketplace urls all belong to the original set's print
+    and are emitted while crawling that set. Attributing them to the reprint set as well would
+    store the same card version twice.
+
+    Returns True when ownership cannot be determined, so an unexpected markup change degrades
+    into the previous (duplicating) behaviour rather than silently dropping every price.
+    """
+    prints_table = soup.find("table", {"class": "card-prints-versions"})
+    if prints_table is None:
+        return True
+    current_rows = [row for row in prints_table.find_all("tr")[1:] if "current" in (row.get("class") or [])]
+    if len(current_rows) != 1:
+        logging.warning(f"Expected exactly one current print row, got {len(current_rows)} - assuming own print")
+        return True
+    block_set_name = parse_block_set_name(soup)
+    print_set_name = parse_print_row_set_name(current_rows[0])
+    if not block_set_name or not print_set_name:
+        logging.warning(f"Could not compare print set names ({block_set_name!r} vs {print_set_name!r})"
+                        " - assuming own print")
+        return True
+    return block_set_name == print_set_name
 
 
 def parse_print_row_aa_version(row: Tag, current_aa_version: int = 0) -> int:

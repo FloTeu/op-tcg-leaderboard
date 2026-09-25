@@ -2,12 +2,17 @@ import pytest
 from bs4 import BeautifulSoup
 
 from op_tcg.backend.crawling.spiders.limitless_prices import LimitlessPricesSpider
+from op_tcg.backend.crawling.items import CardPricesItem, CardsItem
 from op_tcg.backend.etl.extract import (
+    block_introduced_its_print,
     extract_card_prices,
     extract_marketplace_urls,
+    parse_block_set_name,
     parse_price,
+    parse_print_row_set_name,
 )
-from op_tcg.backend.models.cards import CardCurrency, OPTcgLanguage, OPTcgMarketplace
+from op_tcg.backend.models.cards import CardCurrency, CardReleaseSet, OPTcgLanguage, OPTcgMarketplace
+from op_tcg.backend.models.common import DataSource
 
 # Real card-page-main block for EB01-006 (Tony Tony.Chopper), captured from limitless.
 # aa_version 2 ("manga") and aa_version 3's USD cell are both above 1000 and use a
@@ -352,3 +357,193 @@ def test_extract_marketplace_urls_attributes_current_row_to_its_own_block():
     }
     # the v=2 row's links, not v=0's
     assert all("3,2" in m.url for m in marketplace_urls)
+
+
+# --- reprint sets (PRB01, PRB02, ...) ---
+#
+# A reprint set page renders blocks for cards whose print limitless still attributes to the
+# original set: the block header says "One Piece The Best (PRB01)" while the print it shows is
+# the current row "Kingdoms of Intrigue" (OP04). Such a block owns no print of its own, so
+# emitting it would store OP04-056 v0 a second time - once per release set that reprints it.
+
+def _full_card_block(card_id: str, name_href: str, block_set: str, block_code: str,
+                     rarity: str, rows: str) -> str:
+    """A card-page-main block with every part the card/price extractors read."""
+    return f"""
+<div class="card-page-main">
+<div class="card-profile"><div class="card-details"><div class="card-details-main"><div class="card-text">
+<div class="card-text-section">
+<p class="card-text-title">
+<span class="card-text-name"><a href="{name_href}">Monkey D. Luffy</a></span>
+<span class="card-text-id">{card_id}</span>
+</p>
+<p class="card-text-type">
+<span data-tooltip="Category">Character</span> &bull; <span data-tooltip="Color">Red</span> &bull; 5 Cost
+</p>
+</div>
+<p class="card-text-section">
+6000 Power &bull; <span data-tooltip="Attribute">Strike</span> &bull; +1000 Counter </p>
+<div class="card-text-section">[DON!! x1] [When Attacking] Draw 1 card.</div>
+<div class="card-text-section"><span data-tooltip="Type">Straw Hat Crew</span></div>
+<div class="card-text-section card-text-artist">Illustrated by <a href="/cards/en?q=!artist:test">test</a></div>
+</div>
+<div class="card-legality"><div class="card-legality-group"><div class="card-legality-badge">
+<div>Standard</div><div class="legal">legal</div>
+</div></div></div>
+</div></div></div>
+<div class="card-prints">
+<div class="card-prints-current"><a href="/cards/en/{block_code.lower()}"><div class="prints-current-details">
+<span class="text-lg">
+                    {block_set}
+                     ({block_code})                 </span>
+<span> {rarity} </span>
+</div></a></div>
+<table class="card-prints-versions">
+<tr><th>Print</th><th>USD</th><th>EUR</th></tr>
+{rows}
+</table>
+</div></div>
+"""
+
+
+def _set_row(set_name: str, suffix: str, href: str | None, usd: str, eur: str,
+             is_current: bool = False) -> str:
+    link = f'<a href="{href}">' if href else "<a>"
+    tr = '<tr class="current">' if is_current else "<tr>"
+    return (
+        f"{tr}<td>{link}\n{set_name}\n"
+        f'<span class="prints-table-card-number">{suffix}</span></a></td>'
+        f'<td><a class="card-price usd" href="https://tcgplayer.example/{usd}">{usd}</a></td>'
+        f'<td><a class="card-price eur" href="https://cardmarket.example/{eur}">{eur}</a></td></tr>'
+    )
+
+
+# OP04-056's four prints: v0 from OP04, v1-v3 introduced by PRB01.
+OP04_056_ROWS_ON_OP04 = (
+    _set_row("Kingdoms of Intrigue", "", None, "$0.47", "0.61€", is_current=True)
+    + _set_row("One Piece The Best", "jr", "/cards/en/OP04-056?v=1", "$0.81", "1.01€")
+    + _set_row("One Piece The Best", "tf", "/cards/en/OP04-056?v=2", "$3.47", "3.64€")
+    + _set_row("One Piece The Best", "aa", "/cards/en/OP04-056?v=3", "$40.01", "27.77€")
+)
+OP04_056_ROWS_ON_PRB01_V0 = (
+    # the PRB01 reprint of the original art maps onto OP04's row - limitless lists no row for it
+    _set_row("Kingdoms of Intrigue", "", None, "$0.47", "0.61€", is_current=True)
+    + _set_row("One Piece The Best", "jr", "/cards/en/OP04-056?v=1", "$0.81", "1.01€")
+    + _set_row("One Piece The Best", "tf", "/cards/en/OP04-056?v=2", "$3.47", "3.64€")
+    + _set_row("One Piece The Best", "aa", "/cards/en/OP04-056?v=3", "$40.01", "27.77€")
+)
+OP04_056_ROWS_ON_PRB01_V3 = (
+    _set_row("Kingdoms of Intrigue", "", "/cards/en/OP04-056", "$0.47", "0.61€")
+    + _set_row("One Piece The Best", "jr", "/cards/en/OP04-056?v=1", "$0.81", "1.01€")
+    + _set_row("One Piece The Best", "tf", "/cards/en/OP04-056?v=2", "$3.47", "3.64€")
+    + _set_row("One Piece The Best", "aa", None, "$40.01", "27.77€", is_current=True)
+)
+
+OP04_PAGE_HTML = _full_card_block(
+    "OP04-056", "/cards/en/OP04-056", "Kingdoms of Intrigue", "OP04", "Common",
+    OP04_056_ROWS_ON_OP04,
+)
+PRB01_PAGE_HTML = (
+    _full_card_block("OP04-056", "/cards/en/OP04-056", "One Piece The Best", "PRB01", "Common",
+                     OP04_056_ROWS_ON_PRB01_V0)
+    + _full_card_block("OP04-056", "/cards/en/OP04-056?v=3", "One Piece The Best", "PRB01",
+                       "Alternate Art", OP04_056_ROWS_ON_PRB01_V3)
+)
+
+
+def _block(html: str, index: int = 0):
+    return BeautifulSoup(html, "html.parser").find_all("div", class_="card-page-main")[index]
+
+
+def test_parse_block_and_print_row_set_names_drop_decoration():
+    """The set code lives in the block header, the variant suffix in the print row - both go."""
+    block = _block(PRB01_PAGE_HTML, 1)
+    assert parse_block_set_name(block) == "One Piece The Best"
+
+    current_row = [row for row in block.find_all("tr") if "current" in (row.get("class") or [])][0]
+    assert parse_print_row_set_name(current_row) == "One Piece The Best"
+    # the copy taken for the suffix removal must leave the caller's soup intact
+    assert current_row.find("span", class_="prints-table-card-number").text == "aa"
+
+
+@pytest.mark.parametrize("html,index,expected,case", [
+    (OP04_PAGE_HTML, 0, True, "OP04 owns OP04-056 v0"),
+    (PRB01_PAGE_HTML, 0, False, "PRB01 only reprints OP04-056 v0"),
+    (PRB01_PAGE_HTML, 1, True, "PRB01 introduced OP04-056 v3"),
+    (EB04_054_OP16_BLOCK_HTML, 0, True, "OP16 introduced EB04-054 v1"),
+    (EB01_006_CARD_PAGE_HTML, 0, True, "EB01 owns EB01-006 v0"),
+])
+def test_block_introduced_its_print(html, index, expected, case):
+    assert block_introduced_its_print(_block(html, index)) is expected, case
+
+
+@pytest.mark.parametrize("html", [
+    # no prints table and an ambiguous table must not silently drop the whole set's prices
+    '<div class="card-page-main"><div class="card-prints-current"><span>Foo (OP01)</span></div></div>',
+    '<div class="card-page-main"><div class="card-prints-current"><span>Foo (OP01)</span></div>'
+    '<table class="card-prints-versions"><tr><th>Print</th></tr><tr><td><a>Bar</a></td></tr>'
+    "</table></div>",
+])
+def test_block_introduced_its_print_defaults_to_true_when_undecidable(html):
+    assert block_introduced_its_print(_block(html)) is True
+
+
+class _FakeResponse:
+    """Minimal stand-in for the scrapy response parse_price_page reads."""
+
+    def __init__(self, text: str, meta: dict):
+        self.text = text
+        self.meta = meta
+
+
+def _release_set(id: str, name: str) -> CardReleaseSet:
+    return CardReleaseSet(id=id, language=OPTcgLanguage.EN, name=name, meta_format=None,
+                          release_date=None, card_count=1, code=id, type=None,
+                          url=f"https://example.com/cards/en/{id}", source=DataSource.LIMITLESS)
+
+
+def _crawl(spider: LimitlessPricesSpider, page_html: str, release_set: CardReleaseSet):
+    return list(spider.parse_price_page(_FakeResponse(page_html, {
+        "release_set": release_set,
+        "language": OPTcgLanguage.EN,
+        "release_set_language": OPTcgLanguage.EN,
+    })))
+
+
+def test_reprint_set_does_not_store_a_card_version_twice():
+    """
+    Crawling OP04 and PRB01 must yield OP04-056 v0 exactly once (from OP04, the set that
+    introduced it) and v3 exactly once (from PRB01), for every currency.
+    """
+    spider = LimitlessPricesSpider()
+    items = _crawl(spider, OP04_PAGE_HTML, _release_set("OP04", "Kingdoms of Intrigue"))
+    items += _crawl(spider, PRB01_PAGE_HTML, _release_set("PRB01", "One Piece The Best"))
+
+    prices = [price for item in items if isinstance(item, CardPricesItem) for price in item.prices]
+    price_keys = [(p.card_id, p.language, p.aa_version, p.currency) for p in prices]
+    assert len(price_keys) == len(set(price_keys)), "a card version was stored more than once"
+    assert {(p.aa_version, p.currency): p.price for p in prices} == pytest.approx({
+        (0, CardCurrency.US_DOLLAR): 0.47,
+        (0, CardCurrency.EURO): 0.61,
+        (3, CardCurrency.US_DOLLAR): 40.01,
+        (3, CardCurrency.EURO): 27.77,
+    })
+
+    cards = [card for item in items if isinstance(item, CardsItem) for card in item.cards]
+    # v0 stays attributed to OP04 even though PRB01 reprints it
+    assert {(c.aa_version, c.release_set_id) for c in cards} == {(0, "OP04"), (3, "PRB01")}
+
+
+def test_a_card_version_is_never_crawled_twice_even_if_ownership_is_undetectable():
+    """Backstop: whichever release set reaches a version first owns it for that crawl."""
+    spider = LimitlessPricesSpider()
+    release_set = _release_set("OP04", "Kingdoms of Intrigue")
+    prices = [price
+              for _ in range(2)
+              for item in _crawl(spider, OP04_PAGE_HTML, release_set)
+              if isinstance(item, CardPricesItem)
+              for price in item.prices]
+
+    assert {(p.aa_version, p.currency) for p in prices} == {
+        (0, CardCurrency.US_DOLLAR), (0, CardCurrency.EURO),
+    }
