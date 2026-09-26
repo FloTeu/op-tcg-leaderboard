@@ -11,6 +11,11 @@ from op_tcg.backend.crawling.spiders.limitless_tournaments import LimitlessTourn
 from op_tcg.backend.crawling.spiders.op_top_decks_decklists import OPTopDeckDecklistSpider
 from op_tcg.backend.etl.classes import EloUpdateToBigQueryEtlJob, CardImageUpdateToGCPEtlJob
 from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.utils.notify import notify_job_result
+
+
+def _format_stats(stats: dict) -> str:
+    return ", ".join(f"{table}: {count}" for table, count in stats.items()) if stats else "no new data"
 
 
 def run_all_etl_elo_update(event, context):
@@ -20,17 +25,23 @@ def run_all_etl_elo_update(event, context):
     publisher = pubsub_v1.PublisherClient()
     topic_path = publisher.topic_path(os.getenv("GOOGLE_CLOUD_PROJECT"), topic_id)
 
-    for meta_format in MetaFormat.to_list():
-        # Data must be a bytestring
-        data_dict = {"meta_formats": [meta_format]}
-        data = json.dumps(data_dict)  # Convert the dictionary to a JSON string
-        data = data.encode("utf-8")  # Convert the string to bytes
-        # Add two attributes, origin and username, to the message
-        future = publisher.publish(
-            topic_path, data
-        )
-        print(meta_format, future.result(), datetime.now())
+    meta_formats = MetaFormat.to_list()
+    try:
+        for meta_format in meta_formats:
+            # Data must be a bytestring
+            data_dict = {"meta_formats": [meta_format]}
+            data = json.dumps(data_dict)  # Convert the dictionary to a JSON string
+            data = data.encode("utf-8")  # Convert the string to bytes
+            # Add two attributes, origin and username, to the message
+            future = publisher.publish(
+                topic_path, data
+            )
+            print(meta_format, future.result(), datetime.now())
+    except Exception as e:
+        notify_job_result("all-elo-update", success=False, summary="", error=str(e))
+        raise
 
+    notify_job_result("all-elo-update", success=True, summary=f"Triggered {len(meta_formats)} meta formats")
     return f"Successfully published all messages!"
 
 
@@ -56,8 +67,14 @@ def run_etl_elo_update(event, context):
     print("Call cloud function with meta_formats", meta_formats, type(meta_formats))
 
     for meta_format in meta_formats:
-        etl_job = EloUpdateToBigQueryEtlJob(meta_formats=[meta_format], matches_csv_file_path=None)
-        etl_job.run()
+        try:
+            etl_job = EloUpdateToBigQueryEtlJob(meta_formats=[meta_format], matches_csv_file_path=None)
+            etl_job.run()
+        except Exception as e:
+            # Only notify on failure - this runs once per meta format (17+ times/day),
+            # a success ping for each would spam the phone for what is one logical daily job.
+            notify_job_result("single-elo-update", success=False, summary="", error=f"{meta_format}: {e}")
+            raise
     return f"Success with meta formats {meta_formats}!"
 
 def run_crawl_tournament(event, context):
@@ -95,8 +112,11 @@ def run_crawl_tournament(event, context):
                       api_token=os.environ.get("LIMITLESS_API_TOKEN"),
                       num_tournament_limit=num_tournament_limit)
         process.start(install_signal_handlers=False)
+        stats = next(iter(process.crawlers)).spider.bq_add_data_stats
+        notify_job_result("crawl-tournaments", success=True, summary=_format_stats(stats))
     except Exception as e:
         logging.error(f"Exception {e}")
+        notify_job_result("crawl-tournaments", success=False, summary="", error=str(e))
 
     # Chain: trigger op top decks crawl in a separate Cloud Function (separate container)
     publisher = pubsub_v1.PublisherClient()
@@ -130,8 +150,14 @@ def run_crawl_op_top_decks(event, context):
     meta_formats_to_crawl = meta_formats[meta_formats.index(latest_meta_format)-1:]
 
     print("Crawl op top decks with meta_formats", meta_formats_to_crawl)
-    process.crawl(OPTopDeckDecklistSpider, meta_formats=meta_formats_to_crawl)
-    process.start(install_signal_handlers=False)
+    try:
+        process.crawl(OPTopDeckDecklistSpider, meta_formats=meta_formats_to_crawl)
+        process.start(install_signal_handlers=False)
+        stats = next(iter(process.crawlers)).spider.bq_add_data_stats
+        notify_job_result("crawl-op-top-decks", success=True, summary=_format_stats(stats))
+    except Exception as e:
+        notify_job_result("crawl-op-top-decks", success=False, summary="", error=str(e))
+        raise
 
     return f"Successfully ran op top decks crawling"
 
@@ -158,5 +184,14 @@ def run_etl_card_image_update(event, context):
     print("Call cloud function with meta_formats", meta_formats, type(meta_formats))
 
     etl_job = CardImageUpdateToGCPEtlJob(meta_formats=meta_formats)
-    etl_job.run()
+    try:
+        updated_cards = etl_job.run()
+        notify_job_result(
+            "card-image-update",
+            success=True,
+            summary=f"{len(updated_cards)} succeeded, {etl_job.failed_count} failed",
+        )
+    except Exception as e:
+        notify_job_result("card-image-update", success=False, summary="", error=str(e))
+        raise
     return f"Success with meta formats {meta_formats}!"

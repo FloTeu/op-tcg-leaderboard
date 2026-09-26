@@ -73,7 +73,7 @@ jobs:
           IMAGE="${{ steps.build-crawler.outputs.image }}"
           PROJECT="${{ secrets.PROJECT }}"
           SA="cloud-function-sa@${PROJECT}.iam.gserviceaccount.com"
-          ENV_VARS="GOOGLE_CLOUD_PROJECT=${PROJECT},CAMOUFOX_HEADLESS=true,SCRAPER_PROXY=${{ secrets.SCRAPER_PROXY_RESIDENTIAL }}"
+          ENV_VARS="GOOGLE_CLOUD_PROJECT=${PROJECT},CAMOUFOX_HEADLESS=true,SCRAPER_PROXY=${{ secrets.SCRAPER_PROXY_RESIDENTIAL }},NTFY_TOPIC=${{ secrets.NTFY_TOPIC }}"
           if gcloud run jobs describe crawl-sealed-products \
                --region=${{ env.REGION }} --project="${PROJECT}" &>/dev/null; then
             gcloud run jobs update crawl-sealed-products \
@@ -102,7 +102,7 @@ jobs:
           IMAGE="${{ steps.build-crawler.outputs.image }}"
           PROJECT="${{ secrets.PROJECT }}"
           SA="cloud-function-sa@${PROJECT}.iam.gserviceaccount.com"
-          ENV_VARS="GOOGLE_CLOUD_PROJECT=${PROJECT}"
+          ENV_VARS="GOOGLE_CLOUD_PROJECT=${PROJECT},NTFY_TOPIC=${{ secrets.NTFY_TOPIC }}"
           if gcloud run jobs describe crawl-prices \
                --region=${{ env.REGION }} --project="${PROJECT}" &>/dev/null; then
             gcloud run jobs update crawl-prices \

@@ -28,9 +28,10 @@ class AbstractETL(ABC, Generic[E, T]):
 class AbstractETLJob(AbstractETL[E, T], ABC):
     """Abstract base class to handle ETL jobs"""
 
-    def run(self) -> None:
+    def run(self) -> T:
         """Executes all components of an ETL data pipeline."""
         extracted_data = self.extract()
         self.validate(extracted_data)
         transformed_data = self.transform(extracted_data)
         self.load(transformed_data)
+        return transformed_data
