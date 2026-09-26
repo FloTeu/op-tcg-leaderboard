@@ -190,6 +190,8 @@ resource "google_cloudfunctions2_function" "all_elo" {
     # triggers redeploy
     environment_variables = {
       GOOGLE_CLOUD_PROJECT = var.project
+      NTFY_TOPIC           = var.ntfy_topic
+      SCRAPER_PROXY        = var.scraper_proxy
     }
   }
 }
@@ -226,6 +228,10 @@ resource "google_cloudfunctions2_function" "single-elo" {
     available_memory      = "1024M"
     timeout_seconds       = 540
     service_account_email = google_service_account.cloud_function_sa.email
+    environment_variables = {
+      NTFY_TOPIC    = var.ntfy_topic
+      SCRAPER_PROXY = var.scraper_proxy
+    }
   }
 }
 
@@ -265,6 +271,8 @@ resource "google_cloudfunctions2_function" "crawl-tournaments" {
     environment_variables = {
       LIMITLESS_API_TOKEN  = var.limitless_api_token
       GOOGLE_CLOUD_PROJECT = var.project
+      NTFY_TOPIC           = var.ntfy_topic
+      SCRAPER_PROXY        = var.scraper_proxy
     }
   }
 }
@@ -304,6 +312,7 @@ resource "google_cloudfunctions2_function" "crawl-op-top-decks" {
     environment_variables = {
       SCRAPER_PROXY        = var.scraper_proxy
       GOOGLE_CLOUD_PROJECT = var.project
+      NTFY_TOPIC           = var.ntfy_topic
     }
   }
 }
@@ -340,6 +349,10 @@ resource "google_cloudfunctions2_function" "card_image_update" {
     available_memory      = "512M"
     timeout_seconds       = 540
     service_account_email = google_service_account.cloud_function_sa.email
+    environment_variables = {
+      NTFY_TOPIC    = var.ntfy_topic
+      SCRAPER_PROXY = var.scraper_proxy
+    }
   }
 }
 
