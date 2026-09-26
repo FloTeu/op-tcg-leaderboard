@@ -108,12 +108,12 @@ def run_crawl_tournament(event, context):
             'ITEM_PIPELINES': {'op_tcg.backend.crawling.pipelines.TournamentPipeline': 1},
         })
         meta_formats = [MetaFormat(meta_format) for meta_format in meta_formats]
-        process.crawl(LimitlessTournamentSpider, meta_formats=meta_formats,
+        crawler = process.create_crawler(LimitlessTournamentSpider)
+        process.crawl(crawler, meta_formats=meta_formats,
                       api_token=os.environ.get("LIMITLESS_API_TOKEN"),
                       num_tournament_limit=num_tournament_limit)
         process.start(install_signal_handlers=False)
-        stats = next(iter(process.crawlers)).spider.bq_add_data_stats
-        notify_job_result("crawl-tournaments", success=True, summary=_format_stats(stats))
+        notify_job_result("crawl-tournaments", success=True, summary=_format_stats(crawler.spider.bq_add_data_stats))
     except Exception as e:
         logging.error(f"Exception {e}")
         notify_job_result("crawl-tournaments", success=False, summary="", error=str(e))
@@ -151,10 +151,10 @@ def run_crawl_op_top_decks(event, context):
 
     print("Crawl op top decks with meta_formats", meta_formats_to_crawl)
     try:
-        process.crawl(OPTopDeckDecklistSpider, meta_formats=meta_formats_to_crawl)
+        crawler = process.create_crawler(OPTopDeckDecklistSpider)
+        process.crawl(crawler, meta_formats=meta_formats_to_crawl)
         process.start(install_signal_handlers=False)
-        stats = next(iter(process.crawlers)).spider.bq_add_data_stats
-        notify_job_result("crawl-op-top-decks", success=True, summary=_format_stats(stats))
+        notify_job_result("crawl-op-top-decks", success=True, summary=_format_stats(crawler.spider.bq_add_data_stats))
     except Exception as e:
         notify_job_result("crawl-op-top-decks", success=False, summary="", error=str(e))
         raise

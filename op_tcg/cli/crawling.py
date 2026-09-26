@@ -169,9 +169,10 @@ def crawl_prices(
     })
 
     try:
-        process.crawl(LimitlessPricesSpider)
+        crawler = process.create_crawler(LimitlessPricesSpider)
+        process.crawl(crawler)
         process.start() # the script will block here until the crawling is finished
-        spider = next(iter(process.crawlers)).spider
+        spider = crawler.spider
         price_updates = sum(count for card in spider.price_count.values() for count in card.values())
         card_updates = sum(count for card in spider.card_count.values() for count in card.values())
     except Exception as e:
