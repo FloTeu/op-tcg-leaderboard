@@ -102,7 +102,7 @@ jobs:
           IMAGE="${{ steps.build-crawler.outputs.image }}"
           PROJECT="${{ secrets.PROJECT }}"
           SA="cloud-function-sa@${PROJECT}.iam.gserviceaccount.com"
-          ENV_VARS="GOOGLE_CLOUD_PROJECT=${PROJECT},NTFY_TOPIC=${{ secrets.NTFY_TOPIC }}"
+          ENV_VARS="GOOGLE_CLOUD_PROJECT=${PROJECT},NTFY_TOPIC=${{ secrets.NTFY_TOPIC }},SCRAPER_PROXY=${{ secrets.SCRAPER_PROXY_RESIDENTIAL }}"
           if gcloud run jobs describe crawl-prices \
                --region=${{ env.REGION }} --project="${PROJECT}" &>/dev/null; then
             gcloud run jobs update crawl-prices \
