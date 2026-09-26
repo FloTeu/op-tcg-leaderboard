@@ -4,13 +4,13 @@ from datetime import datetime
 
 import scrapy
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse
 
 from scrapy.http import Response
 
 from op_tcg.backend.crawling.items import ReleaseSetItem, CardsItem, CardPricesItem
 from op_tcg.backend.etl.extract import extract_card_prices, limitless_soup2base_card, \
-    base_card2bq_card, extract_marketplace_urls
+    base_card2bq_card, extract_marketplace_urls, parse_aa_version_from_href, block_introduced_its_print
 from op_tcg.backend.etl.load import get_or_create_table
 from op_tcg.backend.models.cards import CardPrice, Card, OPTcgLanguage, CardReleaseSet, OPTcgCardSetType, \
     CardMarketplaceUrl
@@ -33,6 +33,10 @@ class LimitlessPricesSpider(scrapy.Spider):
         super().__init__(*args, **kwargs)
         self.price_count: dict[str, dict[int, int]] = {}  # dict[card id, dict[aa_version, count]]
         self.card_count: dict[str, dict[int, int]] = {}  # dict[card id, dict[aa_version, count]]
+        # a card version belongs to exactly one release set, so it must be emitted exactly once
+        # per crawl - see parse_price_page
+        self.emitted_price_keys: set[tuple[str, str, int]] = set()  # {(card id, language, aa_version)}
+        self.requested_release_set_ids: set[str] = set()  # {get_id_language(...)}
 
     def get_release_sets(self) -> list[CardReleaseSet]:
         """Returns list of CardReleaseSet stored in bq"""
@@ -85,6 +89,12 @@ class LimitlessPricesSpider(scrapy.Spider):
             release_sets_to_crawl.extend(bq_release_sets)
 
         for release_set in release_sets_to_crawl:
+            # the promo and the standard crawl start concurrently and can both reach a set the
+            # other one just wrote to BQ - crawling it twice would duplicate its price rows
+            release_set_key = self.get_id_language(release_set.id, release_set.language)
+            if release_set_key in self.requested_release_set_ids:
+                continue
+            self.requested_release_set_ids.add(release_set_key)
             yield scrapy.Request(url=f"{release_set.url}?display=full&sort=id&show=all&unique=prints",
                                  callback=self.parse_price_page,
                                  errback=self.errback_httpbin,
@@ -184,11 +194,7 @@ class LimitlessPricesSpider(scrapy.Spider):
     def _block_aa_version(card_block) -> int:
         """The aa_version a card-page-main block represents, from its own '?v=N' link."""
         name_link = card_block.find('span', class_='card-text-name').find('a')
-        if name_link and name_link.get('href'):
-            v = parse_qs(urlparse(name_link['href']).query).get('v')
-            if v:
-                return int(v[0])
-        return 0
+        return parse_aa_version_from_href(name_link.get('href') if name_link else None)
 
     def parse_price_page(self, response):
         """
@@ -203,6 +209,12 @@ class LimitlessPricesSpider(scrapy.Spider):
         show up in the embedded prints-versions table for price context but must NOT be attributed
         to this release_set or re-emitted here, otherwise they'd get their release_set_id and price
         history overwritten/duplicated by every release page that happens to reference the card.
+
+        Reprint sets (PRB01, PRB02, ...) break that promise: they render a block for a card whose
+        print limitless still attributes to the original set (e.g. OP04-056 appears on the PRB01
+        page, but its print is OP04's aa_version 0). Those blocks are dropped here - the original
+        set's page emits that version already, so keeping them would store the same card version
+        twice per crawl.
         """
         release_set: CardReleaseSet = response.meta.get("release_set")
         release_set_language = response.meta.get("release_set_language")
@@ -220,15 +232,36 @@ class LimitlessPricesSpider(scrapy.Spider):
             id_span = card_block.find('span', class_='card-text-id')
             if id_span is None:
                 continue
+            if not block_introduced_its_print(card_block):
+                # reprint of a print owned by another release set - emitted while crawling that set
+                continue
             card_id2blocks.setdefault(id_span.text.strip(), []).append(card_block)
 
-        for card_id, blocks in card_id2blocks.items():
+        for card_id, all_blocks in card_id2blocks.items():
+            # backstop for the reprint case above: whatever release set got here first owns the
+            # version, so an undetected reprint costs an overwritten release_set_id at worst
+            # instead of a duplicated price row
+            blocks, own_aa_versions = [], []
+            for block in all_blocks:
+                aa_version = self._block_aa_version(block)
+                price_key = (card_id, release_set_language, aa_version)
+                if price_key in self.emitted_price_keys:
+                    logging.warning(f"Skipping already crawled card version {card_id} v{aa_version} "
+                                    f"({release_set_language}) on release set {release_set.id}")
+                    continue
+                self.emitted_price_keys.add(price_key)
+                blocks.append(block)
+                own_aa_versions.append(aa_version)
+            if not blocks:
+                continue
+
             representative_block = blocks[0]
-            own_aa_versions = [self._block_aa_version(block) for block in blocks]
             try:
-                # the prints-versions/price table is identical on every block for this card id,
-                # so any one block's copy of it is fine for price/marketplace extraction
-                all_prices = extract_card_prices(card_id, release_set_language, representative_block)
+                # the prints-versions/price table lists the same prices on every block for this
+                # card id, so any one block's copy is fine - but it marks *that* block's print as
+                # the link-less 'current' row, so the reader needs to know which version that is
+                all_prices = extract_card_prices(card_id, release_set_language, representative_block,
+                                                 current_aa_version=own_aa_versions[0])
                 prices.extend(price for price in all_prices if price.aa_version in own_aa_versions)
 
                 # but rarity (e.g. "Common" vs "Alternate Art") is print-specific, so each
@@ -240,7 +273,8 @@ class LimitlessPricesSpider(scrapy.Spider):
                     cards.append(base_card2bq_card(base_card, own_block))
 
                 marketplace_urls.extend(extract_marketplace_urls(representative_block, card_id, release_set_language,
-                                                                  own_aa_versions))
+                                                                  own_aa_versions,
+                                                                  current_aa_version=own_aa_versions[0]))
             except Exception as e:
                 logging.error(f"Could not extract card information from limitless for {card_id}: {str(e)}")
 
