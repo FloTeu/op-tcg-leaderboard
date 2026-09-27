@@ -137,6 +137,7 @@ class CardImageUpdateToGCPEtlJob(AbstractETLJob[list[Card], list[Card]]):
         self.bucket = f"{self.bq_client.project}-public"
         self.meta_formats = meta_formats or []
         self.in_meta_format_where_statement = "release_meta in ('" + "','".join(self.meta_formats) + "')"
+        self.failed_count = 0
 
     def validate(self, extracted_data: AllLeaderMetaDocs) -> bool:
         return True
@@ -202,6 +203,7 @@ class CardImageUpdateToGCPEtlJob(AbstractETLJob[list[Card], list[Card]]):
                 _logger.error(f"Failed to process card {card.id} ({card.language}, aa_version={card.aa_version}): {e}")
 
         _logger.info(f"transform: finished — {len(successful)}/{total} succeeded, {failed_count} failed")
+        self.failed_count = failed_count
         return successful
 
     def load(self, cards: list[Card]) -> None:
