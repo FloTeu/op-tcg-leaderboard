@@ -31,11 +31,13 @@ API_BASE = "https://public-api.cardnexus.com/v1"
 
 GLOBAL_BUCKET = "global"
 PRICES_BUCKET = "prices"
+HISTORY_BUCKET = "history"
 
 # (limit, window_seconds) per bucket
 _BUCKET_LIMITS: dict[str, tuple[int, float]] = {
     GLOBAL_BUCKET: (60, 60.0),
     PRICES_BUCKET: (600, 3600.0),
+    HISTORY_BUCKET: (120, 3600.0),
 }
 
 
@@ -164,3 +166,29 @@ class CardNexusClient:
 
     def get_current_prices(self, product_id: str) -> dict:
         return self._request("GET", f"/products/{product_id}/prices", bucket=PRICES_BUCKET).json()
+
+    def get_price_history(
+        self,
+        product_id: str,
+        marketplace: str | None = None,
+        finish: str | None = None,
+        from_date: str | None = None,
+        to_date: str | None = None,
+    ) -> dict:
+        """Daily price history for a product. Dates are ISO 'YYYY-MM-DD' strings.
+
+        Per CardNexus docs: range span is capped at 365 days, and days without a
+        snapshot are simply absent from the result (no need to handle gaps specially).
+        """
+        params = {}
+        if marketplace:
+            params["marketplace"] = marketplace
+        if finish:
+            params["finish"] = finish
+        if from_date:
+            params["from"] = from_date
+        if to_date:
+            params["to"] = to_date
+        return self._request(
+            "GET", f"/products/{product_id}/prices/history", params=params, bucket=HISTORY_BUCKET,
+        ).json()

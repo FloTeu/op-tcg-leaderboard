@@ -5,7 +5,7 @@ from starlette.requests import Request
 from op_tcg.backend.db import get_watchlist
 from op_tcg.backend.models.leader import LeaderExtended, LeaderboardSortBy
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
-from op_tcg.backend.models.cards import CardCurrency
+from op_tcg.backend.models.cards import CardCurrency, OPTcgTournamentStatus
 from op_tcg.frontend.utils.extract import (
     get_card_lookup_by_id_and_aa,
     get_leader_extended,
@@ -65,6 +65,14 @@ def filter_cards(cards_data: list, params: CardPopularityParams) -> list:
             
         # Filter by card rarity
         if params.card_rarity and card.rarity not in params.card_rarity:
+            continue
+
+        # Filter by tournament legal status
+        if params.tournament_legal_only and card.tournament_status != OPTcgTournamentStatus.LEGAL:
+            continue
+
+        # Filter by artist
+        if params.card_artist and card.artist not in params.card_artist:
             continue
 
         # Filter by counter

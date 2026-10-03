@@ -11,6 +11,7 @@ from op_tcg.backend.crawling.cardnexus_client import (
     CardNexusApiError,
     GLOBAL_BUCKET,
     PRICES_BUCKET,
+    HISTORY_BUCKET,
 )
 
 
@@ -180,3 +181,41 @@ def test_iter_catalog_products_skips_malformed_lines(monkeypatch):
 
     result = list(client.iter_catalog_products())
     assert result == [good_record]
+
+
+# --- get_price_history ---
+
+def test_get_price_history_builds_params_and_uses_history_bucket(monkeypatch):
+    client = _make_client(monkeypatch)
+    client.session = Mock()
+    client.session.request.return_value = _mock_response(200, {"productId": 12345, "data": []})
+
+    result = client.get_price_history("12345", marketplace="cardmarket", finish="Standard", from_date="2026-01-01", to_date="2026-01-31")
+
+    assert result == {"productId": 12345, "data": []}
+    _, kwargs = client.session.request.call_args
+    assert kwargs["params"] == {
+        "marketplace": "cardmarket", "finish": "Standard", "from": "2026-01-01", "to": "2026-01-31",
+    }
+    assert "/products/12345/prices/history" in client.session.request.call_args[0][1]
+
+
+def test_get_price_history_omits_unset_params(monkeypatch):
+    client = _make_client(monkeypatch)
+    client.session = Mock()
+    client.session.request.return_value = _mock_response(200, {"data": []})
+
+    client.get_price_history("12345")
+
+    _, kwargs = client.session.request.call_args
+    assert kwargs["params"] == {}
+
+
+def test_history_bucket_rate_limited_independently():
+    clock = FakeClock()
+    limiter = CardNexusRateLimiter(time_fn=clock.time, sleep_fn=clock.sleep)
+    for _ in range(120):
+        limiter.acquire(HISTORY_BUCKET)
+    assert clock.sleeps == []
+    limiter.acquire(HISTORY_BUCKET)
+    assert len(clock.sleeps) == 1

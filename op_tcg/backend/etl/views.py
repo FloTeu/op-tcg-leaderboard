@@ -4,20 +4,23 @@ from google.cloud import bigquery
 
 from op_tcg.backend.etl.load import get_or_create_table
 from op_tcg.backend.models.bq_enums import BQDataset
-from op_tcg.backend.models.cardnexus import CardNexusPriceSnapshot, CardNexusProductMapping, CardNexusSealedProduct
+from op_tcg.backend.models.cardnexus import CardNexusPrice, CardNexusProductMapping, CardNexusSealedProduct
 
 logger = logging.getLogger(__name__)
 
 
 def ensure_cardnexus_price_view(client: bigquery.Client) -> None:
-    """(Re-)creates the cards.card_nexus_price_view, joining raw price snapshots
-    with the product mapping into a shape aligned with our own card/price columns
-    (card_id, language, aa_version, ..., create_timestamp, source).
+    """(Re-)creates the cards.card_nexus_price_view, joining the unified price
+    history table with the product mapping into a shape aligned with our own
+    card/price columns (card_id, language, aa_version, date, ..., source).
+
+    Exposes the full daily history (not just the latest row) — consumers wanting
+    "current price" only can filter/QUALIFY on MAX(date) themselves.
 
     Idempotent — safe to call on every catalog sync. Ensures the tables it
     references exist first, since CREATE VIEW validates them at creation time.
     """
-    snapshot_table = get_or_create_table(CardNexusPriceSnapshot, client=client)
+    history_table = get_or_create_table(CardNexusPrice, client=client)
     mapping_table = get_or_create_table(CardNexusProductMapping, client=client)
 
     view_id = f"{client.project}.{BQDataset.CARDS}.card_nexus_price_view"
@@ -27,18 +30,18 @@ def ensure_cardnexus_price_view(client: bigquery.Client) -> None:
         m.card_id,
         m.language,
         m.aa_version,
-        s.marketplace,
-        s.finish,
-        s.currency,
-        s.low,
-        s.mid,
-        s.high,
-        s.market_value,
-        s.create_timestamp,
+        h.marketplace,
+        h.finish,
+        h.date,
+        h.currency,
+        h.low,
+        h.mid,
+        h.high,
+        h.market_value,
         'cardnexus' AS source
-    FROM `{snapshot_table.project}.{snapshot_table.dataset_id}.{snapshot_table.table_id}` s
+    FROM `{history_table.project}.{history_table.dataset_id}.{history_table.table_id}` h
     JOIN `{mapping_table.project}.{mapping_table.dataset_id}.{mapping_table.table_id}` m
-        ON s.product_id = m.product_id
+        ON h.product_id = m.product_id
     WHERE m.matched
     """
     client.query(query).result()
@@ -60,9 +63,9 @@ def ensure_cardnexus_sealed_views(client: bigquery.Client) -> None:
     references exist first, since CREATE VIEW validates them at creation time.
     """
     product_table = get_or_create_table(CardNexusSealedProduct, client=client)
-    snapshot_table = get_or_create_table(CardNexusPriceSnapshot, client=client)
+    history_table = get_or_create_table(CardNexusPrice, client=client)
     product_table_id = f"{product_table.project}.{product_table.dataset_id}.{product_table.table_id}"
-    snapshot_table_id = f"{snapshot_table.project}.{snapshot_table.dataset_id}.{snapshot_table.table_id}"
+    history_table_id = f"{history_table.project}.{history_table.dataset_id}.{history_table.table_id}"
 
     product_view_id = f"{client.project}.{BQDataset.CARDS}.card_nexus_sealed_product_view"
     client.query(f"""
@@ -85,17 +88,17 @@ def ensure_cardnexus_sealed_views(client: bigquery.Client) -> None:
         p.product_id,
         p.name,
         p.product_category,
-        s.marketplace,
-        s.finish,
-        s.currency,
-        s.low,
-        s.mid,
-        s.high,
-        s.market_value,
-        s.create_timestamp,
+        h.marketplace,
+        h.finish,
+        h.date,
+        h.currency,
+        h.low,
+        h.mid,
+        h.high,
+        h.market_value,
         'cardnexus' AS source
-    FROM `{snapshot_table_id}` s
+    FROM `{history_table_id}` h
     JOIN `{product_table_id}` p
-        ON s.product_id = p.product_id
+        ON h.product_id = p.product_id
     """).result()
     logger.info("Ensured views %s and %s", product_view_id, price_view_id)

@@ -3,10 +3,10 @@ from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.cards import OPTcgColor, OPTcgCardCatagory, OPTcgAbility, CardCurrency, OPTcgAttribute, OPTcgCardRarity
 from op_tcg.frontend.components.loading import create_loading_spinner, create_skeleton_cards_indicator
 from op_tcg.frontend.components.layout import create_mobile_filter_button
-from op_tcg.frontend.utils.extract import get_card_popularity_data, get_card_id_card_data_lookup
+from op_tcg.frontend.utils.extract import get_card_artists
 from op_tcg.backend.models.cards import ExtendedCardData
 
-HX_INCLUDE = "[name='meta_format'],[name='card_colors'],[name='card_attributes'],[name='card_counter'],[name='card_category'],[name='card_types'],[name='currency'],[name='min_price'],[name='max_price'],[name='min_cost'],[name='max_cost'],[name='min_power'],[name='max_power'],[name='card_abilities'],[name='card_rarity'],[name='ability_text'],[name='filter_operator'],[name='search_term'],[name='release_meta_format']"
+HX_INCLUDE = "[name='meta_format'],[name='card_colors'],[name='card_attributes'],[name='card_counter'],[name='card_category'],[name='card_types'],[name='currency'],[name='min_price'],[name='max_price'],[name='min_cost'],[name='max_cost'],[name='min_power'],[name='max_power'],[name='card_abilities'],[name='card_rarity'],[name='card_artist'],[name='ability_text'],[name='filter_operator'],[name='search_term'],[name='release_meta_format'],[name='tournament_legal_only']"
 FILTER_HX_ATTRS = {
     "hx_get": "/api/card-popularity",
     "hx_trigger": "change",
@@ -132,6 +132,26 @@ def _styles() -> ft.Style:
     padding-right: 4px;
     transition: width 0.3s ease;
     border-radius: 8px;
+}
+
+.cp-checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #080e1c;
+    border: 1px solid #1a2540;
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+.cp-checkbox-wrapper:hover { border-color: #2d3f5a; }
+.cp-checkbox-wrapper input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    accent-color: #38bdf8;
+    cursor: pointer;
+    flex-shrink: 0;
 }
 """)
 
@@ -287,6 +307,20 @@ def create_filter_components(selected_meta_format: MetaFormat | None = None, cur
         ),
     )
 
+    all_artists = get_card_artists()
+    card_artist_select = ft.Div(
+        ft.Span("Artist", cls="meta-section-label"),
+        ft.Select(
+            *[ft.Option(artist, value=artist) for artist in all_artists],
+            id="card-artist-select",
+            name="card_artist",
+            multiple=True,
+            size=1,
+            cls="meta-select multiselect",
+            **FILTER_HX_ATTRS
+        ),
+    )
+
     ability_text_input = ft.Div(
         ft.Span("Ability Text", cls="meta-section-label"),
         ft.Input(
@@ -321,6 +355,21 @@ def create_filter_components(selected_meta_format: MetaFormat | None = None, cur
         ),
     )
 
+    tournament_legal_only_toggle = ft.Div(
+        ft.Span("Tournament Legality", cls="meta-section-label"),
+        ft.Label(
+            ft.Input(
+                type="checkbox",
+                name="tournament_legal_only",
+                checked=False,
+                **FILTER_HX_ATTRS,
+            ),
+            ft.Span("Only show tournament legal cards",
+                    style="font-family:'Barlow',sans-serif; font-size:0.8rem; color:#94a3b8;"),
+            cls="cp-checkbox-wrapper",
+        ),
+    )
+
     return ft.Div(
         meta_format_select,
         release_meta_format_select,
@@ -335,8 +384,10 @@ def create_filter_components(selected_meta_format: MetaFormat | None = None, cur
         power_range_slider,
         card_abilities_select,
         card_rarity_select,
+        card_artist_select,
         ability_text_input,
         filter_operator_select,
+        tournament_legal_only_toggle,
         cls="space-y-4"
     )
 

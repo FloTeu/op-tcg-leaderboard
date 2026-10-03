@@ -46,6 +46,7 @@ class OPTcgAttribute(EnumBase, StrEnum):
 class OPTcgTournamentStatus(EnumBase, StrEnum):
     BANNED="banned"
     LEGAL="legal"
+    NOT_LEGAL="not legal"
     UNRELEASED="unreleased"
 
 
@@ -67,6 +68,15 @@ class OPTcgCardRarity(EnumBase, StrEnum):
     SECRET_RARE="Secret Rare"
     LEADER="Leader"
     PROMO="Promo"
+    SPECIAL_CARD="Special Card"
+    ALTERNATE_ART="Alternate Art"
+    MANGA_ART="Manga Art"
+    TREASURE_RARE="Treasure Rare"
+    TEXTURED_FOIL="Textured Foil"
+    PIRATE_FOIL="Pirate Foil"
+    FULL_ART="Full Art"
+    SERIAL_CARD="Serial Card"
+    CARD_STYLE_PANDA="card.style.panda"
 
 
 class OPTcgAbility(EnumBase, StrEnum):
@@ -112,6 +122,7 @@ class BaseCard(BaseModel):
     tournament_status: OPTcgTournamentStatus | None = Field(description="Whether the card is banned for tournaments")
     types: list[str] = Field(description="List of fractions of the card, e.g. Straw Hat Crew")
     rarity: OPTcgCardRarity = Field(description="Rarity of the card, e.g. Common")
+    artist: str | None = Field(description="Illustrator of this print of the card, e.g. BISAI")
     card_category: OPTcgCardCatagory = Field(description="Category of card e.g. 'character'")
     release_set_id: str = Field(description="Id of the release set e.g. 'OP07_24'")
 
@@ -153,6 +164,7 @@ class Card(BaseCard, BQTableBaseModel):
             tournament_status=None,
             types=[],
             rarity=OPTcgCardRarity.COMMON,
+            artist=None,
             card_category=OPTcgCardCatagory.CHARACTER,
             release_set_id=""
         )
@@ -251,7 +263,12 @@ class CardMarketplaceUrl(BQTableBaseModel):
 
 
 class ExtendedCardData(LatestCardPrice, CardReleaseSet):
+    # release set fields are re-declared as optional here because the release set is joined in
+    # via LEFT JOIN in get_card_data() and may not exist (e.g. orphaned release_set_id)
     release_set_name: str | None = Field(description="Name of the release set")
+    card_count: int | None = Field(default=None, description="Number of card in set")
+    url: str | None = Field(default=None, description="Url with all card and price information")
+    source: DataSource | None = Field(default=None, description="Source of url")
     marketplace_url_cardmarket: str | None = Field(default=None, description="Url to cardmarket")
     marketplace_url_tcg_player: str | None = Field(default=None, description="Url to tcgplayer")
 

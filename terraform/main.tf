@@ -73,10 +73,6 @@ resource "google_pubsub_topic" "crawl_tournaments_pubsub_topic" {
   name = "crawl-tournaments-pub-sub"
 }
 
-resource "google_pubsub_topic" "crawl_prices_pubsub_topic" {
-  name = "crawl-prices-pub-sub"
-}
-
 resource "google_pubsub_topic" "card_image_update_pubsub_topic" {
   name = "card-image-update-pub-sub"
 }
@@ -194,6 +190,8 @@ resource "google_cloudfunctions2_function" "all_elo" {
     # triggers redeploy
     environment_variables = {
       GOOGLE_CLOUD_PROJECT = var.project
+      NTFY_TOPIC           = var.ntfy_topic
+      SCRAPER_PROXY        = var.scraper_proxy
     }
   }
 }
@@ -230,6 +228,10 @@ resource "google_cloudfunctions2_function" "single-elo" {
     available_memory      = "1024M"
     timeout_seconds       = 540
     service_account_email = google_service_account.cloud_function_sa.email
+    environment_variables = {
+      NTFY_TOPIC    = var.ntfy_topic
+      SCRAPER_PROXY = var.scraper_proxy
+    }
   }
 }
 
@@ -269,6 +271,8 @@ resource "google_cloudfunctions2_function" "crawl-tournaments" {
     environment_variables = {
       LIMITLESS_API_TOKEN  = var.limitless_api_token
       GOOGLE_CLOUD_PROJECT = var.project
+      NTFY_TOPIC           = var.ntfy_topic
+      SCRAPER_PROXY        = var.scraper_proxy
     }
   }
 }
@@ -308,45 +312,10 @@ resource "google_cloudfunctions2_function" "crawl-op-top-decks" {
     environment_variables = {
       SCRAPER_PROXY        = var.scraper_proxy
       GOOGLE_CLOUD_PROJECT = var.project
+      NTFY_TOPIC           = var.ntfy_topic
     }
   }
 }
-
-resource "google_cloudfunctions2_function" "crawl-prices" {
-  name        = "crawl-prices"
-  location    = var.region
-  description = "Inserts latest prices to BQ"
-
-  build_config {
-    runtime     = "python312"
-    entry_point = "run_crawl_prices" # Set the entry point
-    source {
-      storage_source {
-        bucket = google_storage_bucket.default.name
-        object = google_storage_bucket_object.object.name
-      }
-    }
-    # triggers redeploy
-    environment_variables = {
-      DEPLOYED_AT = timestamp()
-    }
-  }
-
-  event_trigger {
-    trigger_region = var.region
-    event_type     = "google.cloud.pubsub.topic.v1.messagePublished"
-    pubsub_topic   = google_pubsub_topic.crawl_prices_pubsub_topic.id
-    retry_policy   = "RETRY_POLICY_DO_NOT_RETRY"
-  }
-
-  service_config {
-    max_instance_count    = 10
-    available_memory      = "512M"
-    timeout_seconds       = 540
-    service_account_email = google_service_account.cloud_function_sa.email
-  }
-}
-
 
 resource "google_cloudfunctions2_function" "card_image_update" {
   name        = "card-image-update"
@@ -380,6 +349,10 @@ resource "google_cloudfunctions2_function" "card_image_update" {
     available_memory      = "512M"
     timeout_seconds       = 540
     service_account_email = google_service_account.cloud_function_sa.email
+    environment_variables = {
+      NTFY_TOPIC    = var.ntfy_topic
+      SCRAPER_PROXY = var.scraper_proxy
+    }
   }
 }
 
@@ -482,10 +455,12 @@ resource "google_cloud_scheduler_job" "crawl-tournament-job" {
   }
 }
 
+# The crawl-prices Cloud Run Job (like crawl-sealed-products above) is NOT managed by
+# Terraform — it is created/updated by the CI deploy workflow via `gcloud run jobs create/update`.
 resource "google_cloud_scheduler_job" "crawl-prices-job" {
   name             = "crawl-prices-job"
   region           = var.region
-  description      = "run cloud function pub/sub job to start price update"
+  description      = "Triggers the crawl-prices Cloud Run Job to crawl limitless card prices"
   schedule         = "0 23 * * 1"
   time_zone        = "Europe/Berlin"
   attempt_deadline = "320s"
@@ -495,9 +470,15 @@ resource "google_cloud_scheduler_job" "crawl-prices-job" {
     retry_count = 1
   }
 
-  pubsub_target {
-    topic_name = google_pubsub_topic.crawl_prices_pubsub_topic.id
-    data       = base64encode("{}")
+  http_target {
+    http_method = "POST"
+    uri         = "https://run.googleapis.com/v2/projects/${var.project}/locations/${var.region}/jobs/crawl-prices:run"
+    body        = base64encode("{}")
+
+    oauth_token {
+      service_account_email = google_service_account.cloud_function_sa.email
+      scope                 = "https://www.googleapis.com/auth/cloud-platform"
+    }
   }
 }
 
