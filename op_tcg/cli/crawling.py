@@ -22,6 +22,7 @@ from op_tcg.backend.models.cards import Card, CardPrice, LimitlessCardData, OPTc
 from op_tcg.backend.models.input import MetaFormat
 from op_tcg.backend.models.sealed import SealedProduct, SealedProductPrice, SealedProductType
 from op_tcg.backend.models.tournaments import TournamentStanding
+from op_tcg.backend.utils.notify import notify_job_result
 
 
 def async_cmd(func):
@@ -167,8 +168,21 @@ def crawl_prices(
         }
     })
 
-    process.crawl(LimitlessPricesSpider)
-    process.start() # the script will block here until the crawling is finished
+    try:
+        crawler = process.create_crawler(LimitlessPricesSpider)
+        process.crawl(crawler)
+        process.start() # the script will block here until the crawling is finished
+        spider = crawler.spider
+        price_updates = sum(count for card in spider.price_count.values() for count in card.values())
+        card_updates = sum(count for card in spider.card_count.values() for count in card.values())
+    except Exception as e:
+        notify_job_result("crawl-prices", success=False, summary="", error=str(e))
+        raise
+    notify_job_result(
+        "crawl-prices",
+        success=True,
+        summary=f"{price_updates} price updates, {card_updates} card updates",
+    )
 
 
 @limitless_group.command()
@@ -273,18 +287,27 @@ async def crawl_sealed_products(product_types: tuple[str, ...], upload_images: b
         else list(SealedProductType)
     )
 
-    bq_client = bigquery.Client(location="europe-west1")
-    product_table = get_or_create_table(SealedProduct, client=bq_client)
-    price_table = get_or_create_table(SealedProductPrice, client=bq_client)
-    pipeline = SealedProductPipeline(bq_client, product_table, price_table)
+    try:
+        bq_client = bigquery.Client(location="europe-west1")
+        product_table = get_or_create_table(SealedProduct, client=bq_client)
+        price_table = get_or_create_table(SealedProductPrice, client=bq_client)
+        pipeline = SealedProductPipeline(bq_client, product_table, price_table)
 
-    results = await crawl_cardmarket_sealed(product_types=selected_types, upload_images=upload_images)
+        results = await crawl_cardmarket_sealed(product_types=selected_types, upload_images=upload_images)
 
-    products = [product for product, _ in results]
-    prices = [price for _, price_list in results for price in price_list]
+        products = [product for product, _ in results]
+        prices = [price for _, price_list in results for price in price_list]
 
-    pipeline.process(SealedProductItem(products=products, prices=prices))
-    logging.info("Done. Products: %d, prices: %d", len(products), len(prices))
+        pipeline.process(SealedProductItem(products=products, prices=prices))
+        logging.info("Done. Products: %d, prices: %d", len(products), len(prices))
+    except Exception as e:
+        notify_job_result("crawl-sealed-products", success=False, summary="", error=str(e))
+        raise
+    notify_job_result(
+        "crawl-sealed-products",
+        success=True,
+        summary=f"{len(products)} products, {len(prices)} prices",
+    )
 
 
 if __name__ == "__main__":

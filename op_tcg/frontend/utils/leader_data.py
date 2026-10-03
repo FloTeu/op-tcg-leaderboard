@@ -24,6 +24,7 @@ def get_template_leader() -> Leader:
         language=OPTcgLanguage.EN,
         tournament_status=OPTcgTournamentStatus.LEGAL,
         rarity=OPTcgCardRarity.LEADER,
+        artist=None,
         release_set_id="",
         cost=None,
         counter=None,

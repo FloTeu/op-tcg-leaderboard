@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from op_tcg.backend.models.cards import OPTcgLanguage, CardReleaseSet, Card, CardMarketplaceUrl
+from op_tcg.backend.models.cards import CardReleaseSet, Card, CardMarketplaceUrl, CardPrice
 from op_tcg.backend.models.decklists import Decklist, OpTopDeckDecklist
 from op_tcg.backend.models.sealed import SealedProduct, SealedProductPrice
 from op_tcg.backend.models.tournaments import Tournament, TournamentStanding
@@ -26,15 +26,8 @@ class CardsItem:
 
 
 @dataclass
-class LimitlessPriceRow:
-    card_id: str
-    aa_version: int
-    language: OPTcgLanguage
-    name: str
-    card_category: str
-    rarity: str
-    price_usd: float | None
-    price_eur: float | None
+class CardPricesItem:
+    prices: list[CardPrice]
 
 @dataclass
 class OpTopDecksItem:

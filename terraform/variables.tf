@@ -2,6 +2,9 @@ variable "gcp_credentials" {}
 variable "project" {}
 variable "limitless_api_token" {}
 variable "scraper_proxy" {}
+variable "ntfy_topic" {
+  sensitive = true
+}
 variable "region" {
   default = "europe-west1"
 }
