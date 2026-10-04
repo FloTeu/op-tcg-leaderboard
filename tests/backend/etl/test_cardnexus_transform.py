@@ -7,8 +7,13 @@ from datetime import date
 from op_tcg.backend.etl.transform import (
     parse_card_product,
     parse_sealed_product,
-    compute_expansion_release_set_matches,
-    resolve_product_language_mapping,
+    extract_tcgplayer_product_id,
+    build_tcgplayer_id_lookup,
+    extract_cardnexus_tcgplayer_ids,
+    resolve_product_mapping_by_tcgplayer_id,
+    extract_cardmarket_id_from_image_url,
+    build_cardmarket_sealed_id_lookup,
+    resolve_sealed_product_mapping_by_cardmarket_id,
     flatten_price_snapshot,
     flatten_price_history,
 )
@@ -92,147 +97,229 @@ def test_parse_sealed_product_missing_id_raises():
         parse_sealed_product({"name": "no id here"}, feed_checksum="abc123")
 
 
-# --- compute_expansion_release_set_matches ---
+# --- extract_tcgplayer_product_id ---
 
-def test_compute_expansion_release_set_matches_identical_sets():
-    card_ids = {f"OP01-{i:03d}" for i in range(1, 21)}
-    expansion_to_card_ids = {"exp-romance-dawn": card_ids}
-    release_set_to_card_ids = {"OP01": card_ids}
-    result = compute_expansion_release_set_matches(expansion_to_card_ids, release_set_to_card_ids, min_set_size=5)
-    assert result == {"exp-romance-dawn": ("OP01", pytest.approx(1.0))}
-
-
-def test_compute_expansion_release_set_matches_below_threshold_is_unmatched():
-    base = {f"OP01-{i:03d}" for i in range(1, 21)}
-    # Only half overlap -> Jaccard of 0.5, below an explicit 0.8 threshold
-    expansion_to_card_ids = {"exp-romance-dawn": {f"OP01-{i:03d}" for i in range(1, 11)}}
-    release_set_to_card_ids = {"OP01": base}
-    result = compute_expansion_release_set_matches(
-        expansion_to_card_ids, release_set_to_card_ids, min_jaccard=0.8, min_set_size=5,
+def test_extract_tcgplayer_product_id_full_nested_url():
+    url = (
+        "https://partner.tcgplayer.com/ONEPIECE?u=https%3A%2F%2Fwww.tcgplayer.com%2Fproduct%2F544530"
+        "%2Fone-piece-card-game-extra-booster-memorial-collection-tony-tonychopper"
     )
-    assert result == {}
+    assert extract_tcgplayer_product_id(url) == "544530"
 
 
-def test_compute_expansion_release_set_matches_promo_catchall_does_not_falsely_match():
-    # Mirrors the real CardNexus "one-piece-promotion-cards" bucket: a small
-    # release_set's ids are a strict subset of a much larger catch-all expansion.
-    # A containment-style score would call this a match; Jaccard should not.
-    small_release_set = {"P-001", "P-002"}
-    giant_promo_expansion = small_release_set | {f"P-{i:03d}" for i in range(3, 200)}
-    result = compute_expansion_release_set_matches(
-        {"exp-promos": giant_promo_expansion},
-        {"promo-set-a": small_release_set},
-        min_set_size=2,
-    )
-    assert result == {}
+def test_extract_tcgplayer_product_id_short_form():
+    url = "https://partner.tcgplayer.com/ONEPIECE?u=685325-eb04-054"
+    assert extract_tcgplayer_product_id(url) == "685325"
 
 
-def test_compute_expansion_release_set_matches_respects_min_set_size():
-    tiny_ids = {"OP01-001", "OP01-002"}
-    result = compute_expansion_release_set_matches(
-        {"exp-tiny": tiny_ids}, {"tiny-set": tiny_ids}, min_set_size=5,
-    )
-    assert result == {}
+def test_extract_tcgplayer_product_id_no_u_param_returns_none():
+    assert extract_tcgplayer_product_id("https://www.cardmarket.com/en/OnePiece/Products/Singles/OP01/Foo") is None
 
 
-def test_compute_expansion_release_set_matches_picks_best_of_multiple_candidates():
-    card_ids = {f"OP01-{i:03d}" for i in range(1, 21)}
-    almost_same = card_ids - {"OP01-001"} | {"OP99-999"}
-    expansion_to_card_ids = {"exp-romance-dawn": card_ids}
-    release_set_to_card_ids = {"OP01": card_ids, "OP01-near-dupe": almost_same, "unrelated": {"X-1", "X-2", "X-3", "X-4", "X-5"}}
-    result = compute_expansion_release_set_matches(expansion_to_card_ids, release_set_to_card_ids, min_set_size=5)
-    assert result["exp-romance-dawn"][0] == "OP01"
+def test_extract_tcgplayer_product_id_unparseable_u_param_returns_none():
+    assert extract_tcgplayer_product_id("https://partner.tcgplayer.com/ONEPIECE?u=not-an-id") is None
 
 
-# --- resolve_product_language_mapping ---
+# --- build_tcgplayer_id_lookup ---
+
+def test_build_tcgplayer_id_lookup_maps_id_to_card():
+    rows = [
+        {"card_id": "OP01-025", "language": "en", "aa_version": 0,
+         "url": "https://partner.tcgplayer.com/ONEPIECE?u=685325-op01-025"},
+    ]
+    lookup = build_tcgplayer_id_lookup(rows)
+    assert lookup == {"685325": [("OP01-025", OPTcgLanguage.EN, 0)]}
+
+
+def test_build_tcgplayer_id_lookup_skips_unparseable_urls():
+    rows = [{"card_id": "OP01-025", "language": "en", "aa_version": 0, "url": "https://www.cardmarket.com/x"}]
+    assert build_tcgplayer_id_lookup(rows) == {}
+
+
+def test_build_tcgplayer_id_lookup_multiple_cards_same_id_are_both_kept():
+    # Defensive: if two of our rows ever parsed to the same TCGplayer id, both should
+    # survive as match candidates rather than one silently overwriting the other.
+    rows = [
+        {"card_id": "OP01-025", "language": "en", "aa_version": 0,
+         "url": "https://partner.tcgplayer.com/ONEPIECE?u=685325-a"},
+        {"card_id": "OP01-025", "language": "jp", "aa_version": 0,
+         "url": "https://partner.tcgplayer.com/ONEPIECE?u=685325-b"},
+    ]
+    lookup = build_tcgplayer_id_lookup(rows)
+    assert set(lookup["685325"]) == {("OP01-025", OPTcgLanguage.EN, 0), ("OP01-025", OPTcgLanguage.JP, 0)}
+
+
+# --- extract_cardnexus_tcgplayer_ids ---
+
+def test_extract_cardnexus_tcgplayer_ids_from_real_sample():
+    assert extract_cardnexus_tcgplayer_ids(_BOOSTER_BOX_PRODUCT) == ["477176"]
+
+
+def test_extract_cardnexus_tcgplayer_ids_missing_external_ids():
+    assert extract_cardnexus_tcgplayer_ids({"id": 1}) == []
+
+
+def test_extract_cardnexus_tcgplayer_ids_multiple_finishes():
+    product = {"externalIds": {"tcgplayer": [{"finish": "Standard", "id": 1}, {"finish": "Foil", "id": 2}]}}
+    assert extract_cardnexus_tcgplayer_ids(product) == ["1", "2"]
+
+
+# --- resolve_product_mapping_by_tcgplayer_id ---
 
 # Based on the real OP01-025 CardNexus catalog sample
 _ZORO_BASE = {
     "id": 12389, "printNumber": "OP01-025", "expansionId": 19,
     "variant": None, "languages": ["en", "fr", "ja", "ko", "zh-cn"],
+    "externalIds": {"tcgplayer": [{"finish": "Standard", "id": 685325}]},
 }
 _ZORO_PARALLEL = {
     "id": 12390, "printNumber": "OP01-025", "expansionId": 19,
     "variant": "Alternate Art", "languages": ["en", "fr", "ja", "ko", "zh-cn"],
+    "externalIds": {"tcgplayer": [{"finish": "Standard", "id": 695509}]},
 }
-_EXPANSION_TO_RELEASE_SET = {"19": "romance-dawn"}
 
 
-def test_resolve_product_language_mapping_unique_candidate():
-    candidates_lookup = {("OP01-025", "romance-dawn", OPTcgLanguage.EN): [0]}
-    product = {"id": 999, "printNumber": "OP01-025", "expansionId": 19, "variant": None, "languages": ["en"]}
-    mappings = resolve_product_language_mapping(product, _EXPANSION_TO_RELEASE_SET, candidates_lookup)
+def test_resolve_product_mapping_by_tcgplayer_id_unique_match():
+    lookup = {"685325": [("OP01-025", OPTcgLanguage.EN, 0)]}
+    product = {
+        "id": 999, "languages": ["en"],
+        "externalIds": {
+            "tcgplayer": [{"finish": "Standard", "id": 685325}],
+            "cardmarket": [{"finish": "Standard", "id": 714443}],
+        },
+    }
+    mappings = resolve_product_mapping_by_tcgplayer_id(product, lookup)
     assert len(mappings) == 1
     m = mappings[0]
     assert m.language == OPTcgLanguage.EN
     assert m.matched is True
     assert m.card_id == "OP01-025"
     assert m.aa_version == 0
-    assert m.match_method == "unique"
+    assert m.match_method == "tcgplayer_id"
+    assert m.tcgplayer_id == "685325"
+    assert m.cardmarket_id == "714443"
 
 
-def test_resolve_product_language_mapping_produces_one_row_per_recognized_language():
-    # fr/ko/zh-cn aren't tracked (only en/ja are) -> should be silently dropped
-    candidates_lookup = {
-        ("OP01-025", "romance-dawn", OPTcgLanguage.EN): [0],
-        ("OP01-025", "romance-dawn", OPTcgLanguage.JP): [0],
+def test_resolve_product_mapping_by_tcgplayer_id_carries_external_ids_even_when_unmatched():
+    # Visibility into *why* a product didn't match should still show the id it tried.
+    product = {"id": 1, "languages": ["en"], "externalIds": {"tcgplayer": [{"finish": "Standard", "id": 999999}],
+                                                              "cardmarket": [{"finish": "Standard", "id": 111111}]}}
+    mappings = resolve_product_mapping_by_tcgplayer_id(product, {})
+    assert mappings[0].tcgplayer_id == "999999"
+    assert mappings[0].cardmarket_id == "111111"
+
+
+def test_resolve_product_mapping_by_tcgplayer_id_recovers_language_from_lookup_not_product():
+    # Base/parallel variants each get their own TCGplayer id, which already pins down
+    # the exact aa_version per language — no need for product.languages to assert it.
+    lookup = {
+        "685325": [("OP01-025", OPTcgLanguage.EN, 0), ("OP01-025", OPTcgLanguage.JP, 0)],
     }
-    mappings = resolve_product_language_mapping(_ZORO_BASE, _EXPANSION_TO_RELEASE_SET, candidates_lookup)
+    mappings = resolve_product_mapping_by_tcgplayer_id(_ZORO_BASE, lookup)
     languages = {m.language for m in mappings}
     assert languages == {OPTcgLanguage.EN, OPTcgLanguage.JP}
+    assert all(m.matched and m.aa_version == 0 for m in mappings)
 
 
-def test_resolve_product_language_mapping_no_recognized_language_yields_nothing():
+def test_resolve_product_mapping_by_tcgplayer_id_no_recognized_language_yields_nothing():
     product = {**_ZORO_BASE, "languages": ["fr", "ko", "zh-cn"]}
-    assert resolve_product_language_mapping(product, _EXPANSION_TO_RELEASE_SET, {}) == []
+    assert resolve_product_mapping_by_tcgplayer_id(product, {}) == []
 
 
-def test_resolve_product_language_mapping_missing_print_number():
-    product = {"id": 1, "printNumber": None, "expansionId": 19, "variant": None, "languages": ["en"]}
-    mappings = resolve_product_language_mapping(product, _EXPANSION_TO_RELEASE_SET, {})
+def test_resolve_product_mapping_by_tcgplayer_id_no_external_id():
+    product = {"id": 1, "languages": ["en"], "externalIds": {}}
+    mappings = resolve_product_mapping_by_tcgplayer_id(product, {})
     assert len(mappings) == 1
     assert mappings[0].matched is False
-    assert mappings[0].match_method == "no_print_number"
+    assert mappings[0].match_method == "no_external_id"
 
 
-def test_resolve_product_language_mapping_no_release_match():
-    product = {"id": 1, "printNumber": "OP01-025", "expansionId": 999, "variant": None, "languages": ["en"]}
-    mappings = resolve_product_language_mapping(product, {}, {})
-    assert mappings[0].matched is False
-    assert mappings[0].match_method == "no_release_match"
-
-
-def test_resolve_product_language_mapping_no_candidates_in_release():
-    candidates_lookup = {}
-    product = {"id": 1, "printNumber": "OP01-025", "expansionId": 19, "variant": None, "languages": ["en"]}
-    mappings = resolve_product_language_mapping(product, _EXPANSION_TO_RELEASE_SET, candidates_lookup)
+def test_resolve_product_mapping_by_tcgplayer_id_no_match_in_our_data():
+    product = {"id": 1, "languages": ["en"], "externalIds": {"tcgplayer": [{"finish": "Standard", "id": 999999}]}}
+    mappings = resolve_product_mapping_by_tcgplayer_id(product, {})
     assert mappings[0].matched is False
     assert mappings[0].match_method == "no_match"
 
 
-def test_resolve_product_language_mapping_variant_pair_base_and_parallel():
-    # Two aa_versions in the same (card_id, release_set, language): base (lower) + parallel
-    candidates_lookup = {("OP01-025", "romance-dawn", OPTcgLanguage.EN): [0, 1]}
-
-    base_mappings = resolve_product_language_mapping(_ZORO_BASE, _EXPANSION_TO_RELEASE_SET, candidates_lookup)
+def test_resolve_product_mapping_by_tcgplayer_id_distinguishes_base_from_parallel():
+    lookup = {
+        "685325": [("OP01-025", OPTcgLanguage.EN, 0)],
+        "695509": [("OP01-025", OPTcgLanguage.EN, 1)],
+    }
+    base_mappings = resolve_product_mapping_by_tcgplayer_id(_ZORO_BASE, lookup)
     en_base = next(m for m in base_mappings if m.language == OPTcgLanguage.EN)
-    assert en_base.matched is True
     assert en_base.aa_version == 0
-    assert en_base.match_method == "variant_pair"
 
-    parallel_mappings = resolve_product_language_mapping(_ZORO_PARALLEL, _EXPANSION_TO_RELEASE_SET, candidates_lookup)
+    parallel_mappings = resolve_product_mapping_by_tcgplayer_id(_ZORO_PARALLEL, lookup)
     en_parallel = next(m for m in parallel_mappings if m.language == OPTcgLanguage.EN)
-    assert en_parallel.matched is True
     assert en_parallel.aa_version == 1
-    assert en_parallel.match_method == "variant_pair"
 
 
-def test_resolve_product_language_mapping_three_or_more_candidates_is_ambiguous():
-    candidates_lookup = {("OP01-025", "romance-dawn", OPTcgLanguage.EN): [0, 1, 2]}
-    mappings = resolve_product_language_mapping(_ZORO_PARALLEL, _EXPANSION_TO_RELEASE_SET, candidates_lookup)
-    en = next(m for m in mappings if m.language == OPTcgLanguage.EN)
-    assert en.matched is False
-    assert en.match_method == "ambiguous_variant"
+def test_resolve_product_mapping_by_tcgplayer_id_partial_match_mixes_matched_and_unmatched():
+    # EN resolves via the lookup; JP is recognized by CardNexus but absent from our data.
+    lookup = {"685325": [("OP01-025", OPTcgLanguage.EN, 0)]}
+    product = {**_ZORO_BASE, "languages": ["en", "ja"]}
+    mappings = resolve_product_mapping_by_tcgplayer_id(product, lookup)
+    by_language = {m.language: m for m in mappings}
+    assert by_language[OPTcgLanguage.EN].matched is True
+    assert by_language[OPTcgLanguage.JP].matched is False
+    assert by_language[OPTcgLanguage.JP].match_method == "no_match"
+
+
+# --- extract_cardmarket_id_from_image_url ---
+
+def test_extract_cardmarket_id_from_image_url_real_shape():
+    url = "https://product-images.s3.cardmarket.com/5/LOB/577919/577919.jpg"
+    assert extract_cardmarket_id_from_image_url(url) == "577919"
+
+
+def test_extract_cardmarket_id_from_image_url_no_trailing_number_returns_none():
+    assert extract_cardmarket_id_from_image_url("https://static.cardmarket.com/img/op01-booster-en.jpg") is None
+
+
+# --- build_cardmarket_sealed_id_lookup ---
+
+def test_build_cardmarket_sealed_id_lookup_maps_id_to_product():
+    rows = [
+        {"id": "op01-romance-dawn-booster-box", "language": "en",
+         "image_url": "https://product-images.s3.cardmarket.com/5/OP/714443/714443.jpg"},
+    ]
+    lookup = build_cardmarket_sealed_id_lookup(rows)
+    assert lookup == {"714443": [("op01-romance-dawn-booster-box", OPTcgLanguage.EN)]}
+
+
+def test_build_cardmarket_sealed_id_lookup_skips_missing_or_unparseable_image_urls():
+    rows = [
+        {"id": "a", "language": "en", "image_url": None},
+        {"id": "b", "language": "en", "image_url": "https://static.cardmarket.com/img/op01.jpg"},
+    ]
+    assert build_cardmarket_sealed_id_lookup(rows) == {}
+
+
+# --- resolve_sealed_product_mapping_by_cardmarket_id ---
+
+def test_resolve_sealed_product_mapping_by_cardmarket_id_matches():
+    lookup = {"714443": [("op03-pillars-of-strength-booster-box", OPTcgLanguage.EN)]}
+    mapping = resolve_sealed_product_mapping_by_cardmarket_id(_BOOSTER_BOX_PRODUCT, lookup)
+    assert mapping.matched is True
+    assert mapping.match_method == "cardmarket_id"
+    assert mapping.sealed_product_id == "op03-pillars-of-strength-booster-box"
+    assert mapping.language == OPTcgLanguage.EN
+    assert mapping.cardmarket_id == "714443"
+    assert mapping.tcgplayer_id == "477176"
+
+
+def test_resolve_sealed_product_mapping_by_cardmarket_id_no_external_id():
+    mapping = resolve_sealed_product_mapping_by_cardmarket_id({"id": 1, "externalIds": {}}, {})
+    assert mapping.matched is False
+    assert mapping.match_method == "no_external_id"
+
+
+def test_resolve_sealed_product_mapping_by_cardmarket_id_no_match_in_our_data():
+    mapping = resolve_sealed_product_mapping_by_cardmarket_id(_BOOSTER_BOX_PRODUCT, {})
+    assert mapping.matched is False
+    assert mapping.match_method == "no_match"
+    assert mapping.cardmarket_id == "714443"
 
 
 # --- flatten_price_snapshot ---

@@ -23,5 +23,6 @@ class BQDataset(StrEnum):
     LEADERS="leaders"
     CARDS="cards"
     CARDNEXUS_RAW="cardnexus_raw"
+    SEALED="sealed"
 
 

@@ -4,7 +4,7 @@ from google.cloud import bigquery
 
 from op_tcg.backend.etl.load import get_or_create_table
 from op_tcg.backend.models.bq_enums import BQDataset
-from op_tcg.backend.models.cardnexus import CardNexusPrice, CardNexusProductMapping, CardNexusSealedProduct
+from op_tcg.backend.models.cardnexus import CardNexusPrice, CardNexusCardProductMapping, CardNexusSealedProduct
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ def ensure_cardnexus_price_view(client: bigquery.Client) -> None:
     references exist first, since CREATE VIEW validates them at creation time.
     """
     history_table = get_or_create_table(CardNexusPrice, client=client)
-    mapping_table = get_or_create_table(CardNexusProductMapping, client=client)
+    mapping_table = get_or_create_table(CardNexusCardProductMapping, client=client)
 
     view_id = f"{client.project}.{BQDataset.CARDS}.card_nexus_price_view"
     query = f"""
@@ -53,11 +53,14 @@ def ensure_cardnexus_sealed_views(client: bigquery.Client) -> None:
     (booster boxes, cases, starter decks, etc), reshaped into columns resembling our
     existing SealedProduct/SealedProductPrice tables.
 
-    These are NOT wired into the app yet and are NOT joined against our existing
-    cardmarket-scraped SealedProduct table at all — matching sealed products id-for-id
-    isn't attempted here. CardNexus's sealed catalog is self-contained (its own ids,
-    names, categories) and is exposed standalone as a preview of what could later
-    replace the cardmarket scraper as a source, not as a supplement to it.
+    These are NOT wired into the app yet. Matching against our existing cardmarket-
+    scraped SealedProduct table is handled separately by CardNexusSealedProductMapping
+    (see op_tcg.backend.etl.transform.resolve_sealed_product_mapping_by_cardmarket_id) —
+    these views expose CardNexus's own catalog standalone, not joined to that mapping.
+
+    The views themselves live in BQDataset.SEALED (not CARDS) — alongside
+    CardNexusSealedProductMapping, even though the underlying CardNexusSealedProduct
+    raw table they read from lives in CARDNEXUS_RAW, same as the card side.
 
     Idempotent — safe to call on every catalog sync. Ensures the tables it
     references exist first, since CREATE VIEW validates them at creation time.
@@ -67,7 +70,7 @@ def ensure_cardnexus_sealed_views(client: bigquery.Client) -> None:
     product_table_id = f"{product_table.project}.{product_table.dataset_id}.{product_table.table_id}"
     history_table_id = f"{history_table.project}.{history_table.dataset_id}.{history_table.table_id}"
 
-    product_view_id = f"{client.project}.{BQDataset.CARDS}.card_nexus_sealed_product_view"
+    product_view_id = f"{client.project}.{BQDataset.SEALED}.card_nexus_sealed_product_view"
     client.query(f"""
     CREATE OR REPLACE VIEW `{product_view_id}` AS
     SELECT
@@ -81,7 +84,7 @@ def ensure_cardnexus_sealed_views(client: bigquery.Client) -> None:
     FROM `{product_table_id}`
     """).result()
 
-    price_view_id = f"{client.project}.{BQDataset.CARDS}.card_nexus_sealed_price_view"
+    price_view_id = f"{client.project}.{BQDataset.SEALED}.card_nexus_sealed_price_view"
     client.query(f"""
     CREATE OR REPLACE VIEW `{price_view_id}` AS
     SELECT
@@ -100,5 +103,5 @@ def ensure_cardnexus_sealed_views(client: bigquery.Client) -> None:
     FROM `{history_table_id}` h
     JOIN `{product_table_id}` p
         ON h.product_id = p.product_id
-    """).result()
+    """).result
     logger.info("Ensured views %s and %s", product_view_id, price_view_id)

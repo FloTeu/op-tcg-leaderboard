@@ -2,15 +2,17 @@ import copy
 import json
 import logging
 import random
+import re
 from datetime import timedelta, datetime, date
+from urllib.parse import urlparse, parse_qs, unquote
 from uuid import uuid4
 
 from op_tcg.backend.models.input import LimitlessMatch, MetaFormat, AllLeaderMetaDocs, meta_format2release_datetime
 from op_tcg.backend.models.matches import BQMatches, Match, MatchResult
 from op_tcg.backend.models.common import DataSource
 from op_tcg.backend.models.cards import OPTcgLanguage, OPTcgMarketplace
-from op_tcg.backend.models.cardnexus import CardNexusCardProduct, CardNexusPrice, CardNexusProductMapping, \
-    CardNexusSealedProduct
+from op_tcg.backend.models.cardnexus import CardNexusCardProduct, CardNexusPrice, CardNexusCardProductMapping, \
+    CardNexusSealedProduct, CardNexusSealedProductMapping
 from op_tcg.backend.models.transform import Transform2BQMatch
 
 logger = logging.getLogger(__name__)
@@ -245,128 +247,208 @@ CARDNEXUS_LANGUAGE_MAP: dict[str, OPTcgLanguage] = {
 }
 
 
-def compute_expansion_release_set_matches(
-    expansion_to_card_ids: dict[str, set[str]],
-    release_set_to_card_ids: dict[str, set[str]],
-    min_jaccard: float = 0.5,
-    min_set_size: int = 5,
-) -> dict[str, tuple[str, float]]:
-    """Match CardNexus expansionIds to our release_set_ids by comparing card id sets.
+_TCGPLAYER_PRODUCT_PATH_RE = re.compile(r"/product/(\d+)")
+_TCGPLAYER_LEADING_ID_RE = re.compile(r"^(\d+)")
 
-    Set *composition* (which card ids belong to the release), not name/slug, since
-    naming isn't guaranteed to align between the two catalogs — e.g. CardNexus lumps
-    many distinct promo products into a single "one-piece-promotion-cards" expansion,
-    which has no clean 1:1 counterpart on our side at all.
 
-    Jaccard (intersection / union) is used rather than one-directional containment:
-    a containment-style score would let a small release_set "match" that giant promo
-    bucket at ~100% (since our ids are a subset of it), which is a false positive.
-    Jaccard correctly scores that pairing low (huge union, small intersection), so
-    such expansions are correctly left unmatched rather than assigned an arbitrary
-    release_set_id.
+def extract_tcgplayer_product_id(url: str) -> str | None:
+    """Extract the numeric TCGplayer product id from a limitlesstcg TCGplayer
+    affiliate link (our own CardMarketplaceUrl.url for marketplace=tcgplayer).
 
-    min_set_size guards against small releases matching by coincidental overlap.
-
-    Returns expansion_id -> (release_set_id, jaccard_score) only for matches that
-    clear both thresholds; callers should treat any other expansion_id as unmatched.
+    Two shapes seen in the wild: a full nested TCGplayer url in the `u` query
+    param (`...?u=https%3A%2F%2Fwww.tcgplayer.com%2Fproduct%2F544530%2F...`), or
+    a short form where `u` is just `<id>-<slug>` (`...?u=685325-eb04-054`).
     """
-    # Inverted index avoids a full expansion x release_set cross product — only
-    # pairs that share at least one card id are ever scored.
-    card_id_to_expansions: dict[str, set[str]] = {}
-    for expansion_id, card_ids in expansion_to_card_ids.items():
-        for card_id in card_ids:
-            card_id_to_expansions.setdefault(card_id, set()).add(expansion_id)
+    u_values = parse_qs(urlparse(url).query).get("u")
+    if not u_values:
+        return None
+    u = unquote(u_values[0])
+    match = _TCGPLAYER_PRODUCT_PATH_RE.search(u)
+    if match:
+        return match.group(1)
+    match = _TCGPLAYER_LEADING_ID_RE.match(u)
+    return match.group(1) if match else None
 
-    card_id_to_release_sets: dict[str, set[str]] = {}
-    for release_set_id, card_ids in release_set_to_card_ids.items():
-        for card_id in card_ids:
-            card_id_to_release_sets.setdefault(card_id, set()).add(release_set_id)
 
-    intersection_counts: dict[tuple[str, str], int] = {}
-    for card_id, expansions in card_id_to_expansions.items():
-        for release_set_id in card_id_to_release_sets.get(card_id, ()):
-            for expansion_id in expansions:
-                key = (expansion_id, release_set_id)
-                intersection_counts[key] = intersection_counts.get(key, 0) + 1
+def build_tcgplayer_id_lookup(marketplace_urls: list[dict]) -> dict[str, list[tuple[str, OPTcgLanguage, int]]]:
+    """Build a TCGplayer product id -> [(card_id, language, aa_version), ...] lookup
+    from our own CardMarketplaceUrl rows (marketplace='tcgplayer'), for exact-id
+    matching against the CardNexus catalog feed (see resolve_product_mapping_by_tcgplayer_id).
 
-    best_by_expansion: dict[str, tuple[str, float]] = {}
-    for (expansion_id, release_set_id), intersection in intersection_counts.items():
-        expansion_size = len(expansion_to_card_ids[expansion_id])
-        release_set_size = len(release_set_to_card_ids[release_set_id])
-        if expansion_size < min_set_size or release_set_size < min_set_size:
+    `marketplace_urls` is a list of {"card_id", "language", "aa_version", "url"} records.
+    Rows whose url doesn't yield a parseable TCGplayer id are skipped.
+    """
+    lookup: dict[str, list[tuple[str, OPTcgLanguage, int]]] = {}
+    for row in marketplace_urls:
+        tcgplayer_id = extract_tcgplayer_product_id(row["url"])
+        if tcgplayer_id is None:
             continue
-        union = expansion_size + release_set_size - intersection
-        score = intersection / union if union else 0.0
-        if score < min_jaccard:
-            continue
-        current_best = best_by_expansion.get(expansion_id)
-        if current_best is None or score > current_best[1]:
-            best_by_expansion[expansion_id] = (release_set_id, score)
-
-    return best_by_expansion
+        lookup.setdefault(tcgplayer_id, []).append(
+            (row["card_id"], OPTcgLanguage(row["language"]), int(row["aa_version"]))
+        )
+    return lookup
 
 
-def resolve_product_language_mapping(
+def extract_cardnexus_external_ids_by_finish(product: dict, marketplace: str) -> dict[str | None, str]:
+    """Pull the numeric product ids CardNexus lists for a catalog record under
+    `externalIds.<marketplace>`, keyed by finish (e.g. 'Standard', 'Foil').
+
+    Usually a single entry, but foil/parallel finishes can be split across separate
+    marketplace listings, each with their own id.
+    """
+    entries = (product.get("externalIds") or {}).get(marketplace) or []
+    return {entry.get("finish"): str(entry["id"]) for entry in entries if entry.get("id") is not None}
+
+
+def extract_cardnexus_tcgplayer_ids(product: dict) -> list[str]:
+    """Pull the TCGplayer numeric product ids CardNexus lists for a catalog record
+    (`externalIds.tcgplayer`). Usually a single id, but all listed ids are tried as
+    match candidates in case finishes are split across separate TCGplayer listings.
+    """
+    return list(extract_cardnexus_external_ids_by_finish(product, "tcgplayer").values())
+
+
+def resolve_product_mapping_by_tcgplayer_id(
     product: dict,
-    expansion_to_release_set: dict[str, str],
-    candidates_lookup: dict[tuple[str, str, OPTcgLanguage], list[int]],
-) -> list[CardNexusProductMapping]:
-    """Resolve one CardNexus catalog product to zero or more CardNexusProductMapping rows.
+    tcgplayer_id_to_cards: dict[str, list[tuple[str, OPTcgLanguage, int]]],
+) -> list[CardNexusCardProductMapping]:
+    """Resolve one CardNexus catalog product to zero or more CardNexusCardProductMapping
+    rows by exact TCGplayer product id, rather than guessing from expansion/variant
+    metadata (the old Jaccard release-set match + variant-field disambiguation).
+
+    TCGplayer ids are already unique per exact (card_id, language, aa_version) print
+    on our side — a card's base print and its alternate-art/manga-art parallels each
+    get their own TCGplayer id — so a direct id match resolves card identity, language,
+    and aa_version disambiguation in one step, and naturally recovers the correct
+    language(s) instead of assuming every language CardNexus lists for a product
+    shares the same card_id/aa_version.
 
     One row is produced per language the product lists that we track (see
     CARDNEXUS_LANGUAGE_MAP) — a product with no recognized language yields no rows.
-
-    `candidates_lookup` maps (card_id, release_set_id, language) -> list of aa_version
-    values sharing that combination. Narrowing by release_set_id (resolved from the
-    product's expansionId via `expansion_to_release_set`) is what keeps this from
-    degenerating into "5 candidates for print_number OP01-025" — most releases have
-    exactly one card per (release_set_id, language) print number. If more than one
-    candidate remains (e.g. a base print and its "Alternate Art" parallel from the
-    same set), CardNexus's `variant` field disambiguates: null/empty variant is the
-    base (lowest aa_version), any other variant text is the other one — this only
-    resolves the common 2-candidate case; 3+ remaining candidates are left ambiguous
-    rather than guessed, since variant text alone doesn't establish an ordering.
+    Each row also carries the tcgplayer_id/cardmarket_id for its finish (matched off
+    the same finish key, falling back to the first listed cardmarket id), so a direct
+    Cardmarket/TCGplayer product link can be built straight from the mapping table.
     """
     product_id = str(product.get("id"))
-    languages = [CARDNEXUS_LANGUAGE_MAP[lang] for lang in product.get("languages") or [] if lang in CARDNEXUS_LANGUAGE_MAP]
-    if not languages:
+    recognized_languages = [
+        CARDNEXUS_LANGUAGE_MAP[lang] for lang in product.get("languages") or [] if lang in CARDNEXUS_LANGUAGE_MAP
+    ]
+    if not recognized_languages:
         return []
 
-    print_number = product.get("printNumber")
-    if not print_number:
+    tcgplayer_by_finish = extract_cardnexus_external_ids_by_finish(product, "tcgplayer")
+    cardmarket_by_finish = extract_cardnexus_external_ids_by_finish(product, "cardmarket")
+    fallback_cardmarket_id = next(iter(cardmarket_by_finish.values()), None)
+
+    if not tcgplayer_by_finish:
         return [
-            CardNexusProductMapping(product_id=product_id, language=language, matched=False, match_method="no_print_number")
-            for language in languages
+            CardNexusCardProductMapping(
+                product_id=product_id, language=language, matched=False, match_method="no_external_id",
+                cardmarket_id=fallback_cardmarket_id,
+            )
+            for language in recognized_languages
         ]
 
-    expansion_id = product.get("expansionId")
-    release_set_id = expansion_to_release_set.get(str(expansion_id)) if expansion_id is not None else None
-    if release_set_id is None:
-        return [
-            CardNexusProductMapping(product_id=product_id, language=language, matched=False, match_method="no_release_match")
-            for language in languages
-        ]
+    seen: set[tuple[OPTcgLanguage, str, int]] = set()
+    matches: list[CardNexusCardProductMapping] = []
+    for finish, tcgplayer_id in tcgplayer_by_finish.items():
+        cardmarket_id = cardmarket_by_finish.get(finish, fallback_cardmarket_id)
+        for card_id, language, aa_version in tcgplayer_id_to_cards.get(tcgplayer_id, []):
+            if language not in recognized_languages:
+                continue
+            key = (language, card_id, aa_version)
+            if key in seen:
+                continue
+            seen.add(key)
+            matches.append(CardNexusCardProductMapping(
+                product_id=product_id, language=language, card_id=card_id, aa_version=aa_version,
+                tcgplayer_id=tcgplayer_id, cardmarket_id=cardmarket_id,
+                matched=True, match_method="tcgplayer_id",
+            ))
 
-    variant = product.get("variant")
-    mappings: list[CardNexusProductMapping] = []
-    for language in languages:
-        candidates = sorted(candidates_lookup.get((print_number, release_set_id, language), []))
-        if len(candidates) == 0:
-            mappings.append(CardNexusProductMapping(product_id=product_id, language=language, matched=False, match_method="no_match"))
-        elif len(candidates) == 1:
-            mappings.append(CardNexusProductMapping(
-                product_id=product_id, language=language, card_id=print_number, aa_version=candidates[0],
-                matched=True, match_method="unique",
-            ))
-        elif len(candidates) == 2:
-            aa_version = candidates[0] if not variant else candidates[1]
-            mappings.append(CardNexusProductMapping(
-                product_id=product_id, language=language, card_id=print_number, aa_version=aa_version,
-                matched=True, match_method="variant_pair",
-            ))
-        else:
-            mappings.append(CardNexusProductMapping(product_id=product_id, language=language, matched=False, match_method="ambiguous_variant"))
-    return mappings
+    matched_languages = {m.language for m in matches}
+    fallback_tcgplayer_id = next(iter(tcgplayer_by_finish.values()), None)
+    unmatched = [
+        CardNexusCardProductMapping(
+            product_id=product_id, language=language, matched=False, match_method="no_match",
+            tcgplayer_id=fallback_tcgplayer_id, cardmarket_id=fallback_cardmarket_id,
+        )
+        for language in recognized_languages if language not in matched_languages
+    ]
+    return matches + unmatched
+
+
+_CARDMARKET_IMAGE_ID_RE = re.compile(r"/(\d+)\.\w+$")
+
+
+def extract_cardmarket_id_from_image_url(image_url: str) -> str | None:
+    """Extract the numeric Cardmarket product id from a Cardmarket CDN image url
+    (our own SealedProduct.image_url for marketplace=cardmarket).
+
+    Cardmarket's own S3 image paths always end in `<idProduct>.<ext>`
+    (e.g. `product-images.s3.cardmarket.com/5/LOB/577919/577919.jpg`).
+    """
+    match = _CARDMARKET_IMAGE_ID_RE.search(image_url)
+    return match.group(1) if match else None
+
+
+def build_cardmarket_sealed_id_lookup(sealed_products: list[dict]) -> dict[str, list[tuple[str, OPTcgLanguage]]]:
+    """Build a Cardmarket product id -> [(sealed_product_id, language), ...] lookup
+    from our own SealedProduct rows (marketplace='cardmarket'), for exact-id matching
+    against the CardNexus sealed catalog (see resolve_sealed_product_mapping_by_cardmarket_id).
+
+    `sealed_products` is a list of {"id", "language", "image_url"} records. Rows with
+    no image_url, or one that doesn't yield a parseable Cardmarket id, are skipped.
+    """
+    lookup: dict[str, list[tuple[str, OPTcgLanguage]]] = {}
+    for row in sealed_products:
+        image_url = row.get("image_url")
+        if not image_url:
+            continue
+        cardmarket_id = extract_cardmarket_id_from_image_url(image_url)
+        if cardmarket_id is None:
+            continue
+        lookup.setdefault(cardmarket_id, []).append((row["id"], OPTcgLanguage(row["language"])))
+    return lookup
+
+
+def resolve_sealed_product_mapping_by_cardmarket_id(
+    product: dict,
+    cardmarket_id_to_sealed: dict[str, list[tuple[str, OPTcgLanguage]]],
+) -> CardNexusSealedProductMapping:
+    """Resolve one CardNexus sealed catalog product to our own cardmarket-scraped
+    SealedProduct table by exact numeric Cardmarket product id — the one id both
+    catalogs share for sealed products (unlike cards, sealed products have no
+    print_number to match on).
+
+    Only the first listed Cardmarket id/candidate is used: CardNexus bundles all print
+    languages of a sealed product under a single external id rather than listing one
+    per language, so there's nothing to disambiguate multiple candidates by.
+    """
+    product_id = str(product.get("id"))
+    tcgplayer_ids = extract_cardnexus_tcgplayer_ids(product)
+    tcgplayer_id = tcgplayer_ids[0] if tcgplayer_ids else None
+    cardmarket_ids = list(extract_cardnexus_external_ids_by_finish(product, "cardmarket").values())
+    cardmarket_id = cardmarket_ids[0] if cardmarket_ids else None
+
+    if cardmarket_id is None:
+        return CardNexusSealedProductMapping(
+            product_id=product_id, tcgplayer_id=tcgplayer_id, matched=False, match_method="no_external_id",
+        )
+
+    candidates = cardmarket_id_to_sealed.get(cardmarket_id, [])
+    if not candidates:
+        return CardNexusSealedProductMapping(
+            product_id=product_id, tcgplayer_id=tcgplayer_id, cardmarket_id=cardmarket_id,
+            matched=False, match_method="no_match",
+        )
+
+    sealed_product_id, language = candidates[0]
+    return CardNexusSealedProductMapping(
+        product_id=product_id, sealed_product_id=sealed_product_id, language=language,
+        tcgplayer_id=tcgplayer_id, cardmarket_id=cardmarket_id,
+        matched=True, match_method="cardmarket_id",
+    )
 
 
 def _extract_price_block_fields(marketplace: str, block: dict) -> dict:

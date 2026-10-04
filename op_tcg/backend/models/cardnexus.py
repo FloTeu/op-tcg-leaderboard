@@ -30,14 +30,12 @@ class CardNexusSealedProduct(BQTableBaseModel):
     """Raw catalog feed record for a non-card CardNexus product (booster boxes,
     cases, starter decks, promo bundles, etc — CardNexus's `productType: "sealed"`).
 
-    Kept separate from CardNexusCardProduct and never matched against our own
-    Card table (sealed products don't have a print_number to match on, and
-    CardNexus's own catalog is already well-organized enough — name, expansionSlug,
-    productCategory — to stand on its own). Prices reuse CardNexusPriceHistory,
-    whose schema is already product-type-agnostic. See op_tcg.backend.etl.views for
-    a forward-looking view reshaping this into SealedProduct-like columns — not
-    wired into the app yet, since it isn't reconciled against our existing
-    cardmarket-scraped SealedProduct table.
+    Kept separate from CardNexusCardProduct. See CardNexusSealedProductMapping for
+    how these are reconciled against our own cardmarket-scraped SealedProduct table.
+
+    Lives in BQDataset.CARDNEXUS_RAW alongside CardNexusCardProduct — it's raw CardNexus
+    catalog data, same as the card side. CardNexusSealedProductMapping (the match result)
+    lives in BQDataset.SEALED instead, alongside the rest of the sealed-product data.
     """
     _dataset_id: str = BQDataset.CARDNEXUS_RAW
 
@@ -82,23 +80,7 @@ class CardNexusPrice(BQTableBaseModel):
     raw_json: str = Field(description="Full raw block/record this row was derived from, preserved verbatim since the CardNexus API is still under active development")
 
 
-class CardNexusExpansionMapping(BQTableBaseModel):
-    """Maps a CardNexus expansionId to our own release_set_id.
-
-    Derived once per catalog sync by comparing the set of card ids (print numbers)
-    each side has for the expansion/release_set — not by name/slug, since those
-    aren't guaranteed to align between the two catalogs. See
-    op_tcg.backend.etl.transform.compute_expansion_release_set_matches.
-    """
-    _dataset_id: str = BQDataset.CARDNEXUS_RAW
-
-    expansion_id: str = Field(description="CardNexus expansion id", primary_key=True)
-    release_set_id: str | None = Field(default=None, description="Best-matching release_set_id, None if no candidate cleared the Jaccard threshold")
-    jaccard_score: float | None = Field(default=None, description="Jaccard similarity of the two id sets for the best-matching release_set_id")
-    matched: bool = Field(description="Whether the best candidate cleared the similarity/size thresholds")
-
-
-class CardNexusProductMapping(BQTableBaseModel):
+class CardNexusCardProductMapping(BQTableBaseModel):
     """Maps a CardNexus product id + language to our own card id/language/aa_version.
 
     CardNexus has a single product id covering all of its languages, while our Card
@@ -106,18 +88,55 @@ class CardNexusProductMapping(BQTableBaseModel):
     map to more than one of our rows (e.g. one for EN, one for JP), hence the PK is
     (product_id, language) rather than product_id alone.
 
-    Re-derived on every catalog sync: first the product's expansionId is resolved to a
-    release_set_id (via CardNexusExpansionMapping), which narrows candidates to cards
-    printed in that specific release; if more than one candidate remains (e.g. a base
-    print and its "Alternate Art" parallel from the same set), CardNexus's `variant`
-    field is used to pick between them. Anything still ambiguous is kept as
-    matched=False rather than guessed.
+    Re-derived on every catalog sync by matching on the numeric TCGplayer product id:
+    CardNexus lists it per product (`externalIds.tcgplayer`), and our own
+    CardMarketplaceUrl rows embed the same id in their scraped TCGplayer affiliate
+    link — see op_tcg.backend.etl.transform.resolve_product_mapping_by_tcgplayer_id.
+    The id is already unique per exact (card_id, language, aa_version) print, so this
+    resolves card identity and aa_version/variant disambiguation in a single exact-match
+    step rather than guessing from expansion/variant metadata.
+
+    tcgplayer_id/cardmarket_id are carried along from the same CardNexus catalog record
+    (not derived from the match itself) so a direct Cardmarket/TCGplayer product link can
+    be built straight from this table without re-parsing the raw catalog feed.
     """
     _dataset_id: str = BQDataset.CARDS
 
     product_id: str = Field(description="CardNexus product id", primary_key=True)
     language: OPTcgLanguage = Field(description="Our language this row resolves to (CardNexus itself is not split by language)", primary_key=True)
     card_id: str | None = Field(default=None, description="Matched op tcg card id, None if unmatched")
-    aa_version: int | None = Field(default=None, description="Matched card aa_version, None if unmatched or ambiguous")
-    matched: bool = Field(description="Whether a confident, unambiguous match to our Card table was found")
-    match_method: str = Field(description="How the match was derived, e.g. 'unique', 'variant_pair', 'ambiguous_variant', 'no_release_match', 'no_match', 'no_print_number'")
+    aa_version: int | None = Field(default=None, description="Matched card aa_version, None if unmatched")
+    tcgplayer_id: str | None = Field(default=None, description="CardNexus-listed TCGplayer product id for the finish that produced this match (or the first listed, if unmatched)")
+    cardmarket_id: str | None = Field(default=None, description="CardNexus-listed Cardmarket product id for the same finish, for building direct Cardmarket product links")
+    matched: bool = Field(description="Whether a confident match to our Card table was found")
+    match_method: str = Field(description="How the match was derived, e.g. 'tcgplayer_id', 'no_external_id', 'no_match'")
+
+
+class CardNexusSealedProductMapping(BQTableBaseModel):
+    """Maps a CardNexus sealed product id to our own cardmarket-scraped SealedProduct.
+
+    Sealed products have no print_number to match on (unlike cards), so matching uses
+    the numeric Cardmarket product id instead — the one id both catalogs share for
+    sealed products. CardNexus lists it explicitly (`externalIds.cardmarket`); our own
+    SealedProduct table doesn't store it directly, but Cardmarket's own CDN embeds it as
+    the filename of SealedProduct.image_url (e.g. `.../577919/577919.jpg`), so it's
+    recovered from there — see op_tcg.backend.etl.transform.extract_cardmarket_id_from_image_url
+    and resolve_sealed_product_mapping_by_cardmarket_id.
+
+    One row per CardNexus product id (unlike CardNexusCardProductMapping, not split by
+    language) since CardNexus's sealed catalog bundles all print languages under a
+    single external id rather than listing one per language.
+
+    Lives in BQDataset.SEALED, not CARDS or CARDNEXUS_RAW — this is the match *result*
+    against our own sealed-product data, destined to join the SealedProduct/
+    SealedProductPrice tables once those move here too.
+    """
+    _dataset_id: str = BQDataset.SEALED
+
+    product_id: str = Field(description="CardNexus product id", primary_key=True)
+    sealed_product_id: str | None = Field(default=None, description="Matched op tcg SealedProduct.id, None if unmatched")
+    language: OPTcgLanguage | None = Field(default=None, description="Language of the matched SealedProduct row, None if unmatched")
+    tcgplayer_id: str | None = Field(default=None, description="CardNexus-listed TCGplayer product id, carried along for convenience")
+    cardmarket_id: str | None = Field(default=None, description="CardNexus-listed Cardmarket product id used for matching")
+    matched: bool = Field(description="Whether a confident match to our SealedProduct table was found")
+    match_method: str = Field(description="How the match was derived, e.g. 'cardmarket_id', 'no_external_id', 'no_match'")

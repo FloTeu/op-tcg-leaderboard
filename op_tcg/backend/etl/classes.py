@@ -13,17 +13,19 @@ from op_tcg.backend.elo import EloCreator
 from op_tcg.backend.etl.base import AbstractETLJob, E, T
 from op_tcg.backend.etl.load import get_or_create_table, bq_insert_rows, bq_upsert_rows, upload2gcp_storage
 from op_tcg.backend.etl.transform import BQMatchCreator, parse_card_product, parse_sealed_product, \
-    compute_expansion_release_set_matches, resolve_product_language_mapping, flatten_price_snapshot, \
-    flatten_price_history
+    build_tcgplayer_id_lookup, resolve_product_mapping_by_tcgplayer_id, \
+    build_cardmarket_sealed_id_lookup, resolve_sealed_product_mapping_by_cardmarket_id, \
+    flatten_price_snapshot, flatten_price_history
 from op_tcg.backend.etl.views import ensure_cardnexus_price_view, ensure_cardnexus_sealed_views
 from op_tcg.backend.crawling.cardnexus_client import CardNexusClient
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.input import AllLeaderMetaDocs, MetaFormat, LimitlessLeaderMetaDoc
 from op_tcg.backend.models.matches import BQMatches, Match
 from op_tcg.backend.models.leader import LeaderElo
-from op_tcg.backend.models.cards import Card, OPTcgLanguage
-from op_tcg.backend.models.cardnexus import CardNexusCardProduct, CardNexusPrice, CardNexusProductMapping, \
-    CardNexusExpansionMapping, CardNexusSealedProduct
+from op_tcg.backend.models.cards import Card, OPTcgMarketplace, CardMarketplaceUrl
+from op_tcg.backend.models.sealed import SealedProduct
+from op_tcg.backend.models.cardnexus import CardNexusCardProduct, CardNexusPrice, CardNexusCardProductMapping, \
+    CardNexusSealedProduct, CardNexusSealedProductMapping
 from op_tcg.backend.etl.extract import read_json_files
 from pathlib import Path
 from google.cloud import bigquery, storage
@@ -275,11 +277,17 @@ class CardNexusCatalogSyncEtlJob(AbstractETLJob[dict, tuple]):
     """Syncs the CardNexus 'onepiece' catalog feed into BigQuery and (re)derives the
     product_id/language -> card_id/aa_version mapping used by CardNexusPriceUpdateEtlJob.
 
-    Matching is two-stage: (1) CardNexus expansionIds are matched to our release_set_ids
-    by comparing card id set composition (Jaccard similarity — see
-    compute_expansion_release_set_matches), not by name/slug; (2) within a resolved
-    release_set, CardNexus's `variant` field disambiguates a base print from its
-    alternate-art parallel where both exist (see resolve_product_language_mapping).
+    Matching is by exact numeric TCGplayer product id: CardNexus lists it per product
+    (`externalIds.tcgplayer`), and our own CardMarketplaceUrl rows embed the same id in
+    their scraped TCGplayer affiliate link (see build_tcgplayer_id_lookup /
+    resolve_product_mapping_by_tcgplayer_id). The id is already unique per exact
+    (card_id, language, aa_version) print, so this resolves card identity, language,
+    and aa_version/variant disambiguation in a single exact-match step.
+
+    Sealed products (booster boxes, cases, decks, ...) are matched separately, against
+    our own cardmarket-scraped SealedProduct table, by exact numeric Cardmarket product
+    id (see build_cardmarket_sealed_id_lookup / resolve_sealed_product_mapping_by_cardmarket_id)
+    — sealed products have no print_number to match on like cards do.
 
     Skips the (expensive) feed download/parse entirely if the feed checksum hasn't
     changed since the last successful sync.
@@ -310,14 +318,15 @@ class CardNexusCatalogSyncEtlJob(AbstractETLJob[dict, tuple]):
         feed_meta["last_checksum"] = self._get_last_checksum()
         return feed_meta
 
-    def transform(self, feed_meta: dict) -> tuple[list[CardNexusCardProduct], list[CardNexusExpansionMapping],
-                                                  list[CardNexusProductMapping], list[CardNexusSealedProduct]]:
+    def transform(self, feed_meta: dict) -> tuple[list[CardNexusCardProduct], list[CardNexusCardProductMapping],
+                                                  list[CardNexusSealedProduct], list[CardNexusSealedProductMapping]]:
         checksum = feed_meta.get("checksum") or ""
         if checksum and checksum == feed_meta.get("last_checksum"):
             _logger.info("CardNexus catalog feed checksum unchanged — skipping catalog sync")
             return [], [], [], []
 
         card_raw_products: list[dict] = []
+        sealed_raw_products: list[dict] = []
         card_products: list[CardNexusCardProduct] = []
         sealed_products: list[CardNexusSealedProduct] = []
         skipped = 0
@@ -329,6 +338,7 @@ class CardNexusCatalogSyncEtlJob(AbstractETLJob[dict, tuple]):
                     card_raw_products.append(raw_product)
                     card_products.append(parse_card_product(raw_product, feed_checksum=checksum))
                 elif product_type == "sealed":
+                    sealed_raw_products.append(raw_product)
                     sealed_products.append(parse_sealed_product(raw_product, feed_checksum=checksum))
                 else:
                     unknown_product_types += 1
@@ -340,67 +350,54 @@ class CardNexusCatalogSyncEtlJob(AbstractETLJob[dict, tuple]):
         if unknown_product_types:
             _logger.warning(f"Skipped {unknown_product_types} catalog record(s) with unrecognized productType")
 
-        # Group CardNexus card ids by expansionId, for the release-set Jaccard match
-        expansion_to_card_ids: dict[str, set[str]] = {}
-        for raw_product in card_raw_products:
-            expansion_id = raw_product.get("expansionId")
-            print_number = raw_product.get("printNumber")
-            if expansion_id is None or not print_number:
-                continue
-            expansion_to_card_ids.setdefault(str(expansion_id), set()).add(print_number)
-
-        cards_df = self.bq_client.query_and_wait(
-            f"SELECT id, language, aa_version, release_set_id FROM {BQDataset.CARDS}.{Card.__tablename__}"
+        marketplace_urls_df = self.bq_client.query_and_wait(
+            f"SELECT card_id, language, aa_version, url FROM {BQDataset.CARDS}.{CardMarketplaceUrl.__tablename__} "
+            f"WHERE marketplace = '{OPTcgMarketplace.TCGPLAYER.value}'"
         ).to_dataframe()
-        release_set_to_card_ids: dict[str, set[str]] = {}
-        candidates_lookup: dict[tuple[str, str, OPTcgLanguage], list[int]] = {}
-        for _, row in cards_df.iterrows():
-            release_set_to_card_ids.setdefault(row["release_set_id"], set()).add(row["id"])
-            key = (row["id"], row["release_set_id"], OPTcgLanguage(row["language"]))
-            candidates_lookup.setdefault(key, []).append(int(row["aa_version"]))
+        tcgplayer_id_to_cards = build_tcgplayer_id_lookup(marketplace_urls_df.to_dict("records"))
 
-        best_matches = compute_expansion_release_set_matches(expansion_to_card_ids, release_set_to_card_ids)
-        expansion_to_release_set = {expansion_id: release_set_id for expansion_id, (release_set_id, _) in best_matches.items()}
-        expansion_mappings = [
-            CardNexusExpansionMapping(
-                expansion_id=expansion_id,
-                release_set_id=best_matches[expansion_id][0] if expansion_id in best_matches else None,
-                jaccard_score=best_matches[expansion_id][1] if expansion_id in best_matches else None,
-                matched=expansion_id in best_matches,
-            )
-            for expansion_id in expansion_to_card_ids
-        ]
-        _logger.info(
-            f"CardNexus release matching: {len(best_matches)}/{len(expansion_to_card_ids)} expansions matched to a release_set_id"
-        )
-
-        product_mappings: list[CardNexusProductMapping] = []
+        product_mappings: list[CardNexusCardProductMapping] = []
         for raw_product in card_raw_products:
-            product_mappings.extend(resolve_product_language_mapping(raw_product, expansion_to_release_set, candidates_lookup))
+            product_mappings.extend(resolve_product_mapping_by_tcgplayer_id(raw_product, tcgplayer_id_to_cards))
         matched_count = sum(1 for m in product_mappings if m.matched)
         _logger.info(
             f"CardNexus catalog sync: {len(card_products)} cards, {len(sealed_products)} sealed products, "
             f"{len(product_mappings)} product/language rows, {matched_count} matched, "
-            f"{len(product_mappings) - matched_count} unmatched/ambiguous"
+            f"{len(product_mappings) - matched_count} unmatched"
         )
-        return card_products, expansion_mappings, product_mappings, sealed_products
 
-    def load(self, transformed_data: tuple[list[CardNexusCardProduct], list[CardNexusExpansionMapping],
-                                           list[CardNexusProductMapping], list[CardNexusSealedProduct]]) -> None:
-        card_products, expansion_mappings, product_mappings, sealed_products = transformed_data
+        our_sealed_df = self.bq_client.query_and_wait(
+            f"SELECT id, language, image_url FROM {BQDataset.CARDS}.{SealedProduct.__tablename__} "
+            f"WHERE marketplace = '{OPTcgMarketplace.CARDMARKET.value}'"
+        ).to_dataframe()
+        cardmarket_id_to_sealed = build_cardmarket_sealed_id_lookup(our_sealed_df.to_dict("records"))
+        sealed_product_mappings = [
+            resolve_sealed_product_mapping_by_cardmarket_id(raw_product, cardmarket_id_to_sealed)
+            for raw_product in sealed_raw_products
+        ]
+        sealed_matched_count = sum(1 for m in sealed_product_mappings if m.matched)
+        _logger.info(
+            f"CardNexus sealed product matching: {len(sealed_product_mappings)} products, "
+            f"{sealed_matched_count} matched, {len(sealed_product_mappings) - sealed_matched_count} unmatched"
+        )
+        return card_products, product_mappings, sealed_products, sealed_product_mappings
+
+    def load(self, transformed_data: tuple[list[CardNexusCardProduct], list[CardNexusCardProductMapping],
+                                           list[CardNexusSealedProduct], list[CardNexusSealedProductMapping]]) -> None:
+        card_products, product_mappings, sealed_products, sealed_product_mappings = transformed_data
         if card_products:
             bq_upsert_rows(card_products, client=self.bq_client)
-        if expansion_mappings:
-            bq_upsert_rows(expansion_mappings, client=self.bq_client)
         if product_mappings:
             bq_upsert_rows(product_mappings, client=self.bq_client)
         if sealed_products:
             bq_upsert_rows(sealed_products, client=self.bq_client)
+        if sealed_product_mappings:
+            bq_upsert_rows(sealed_product_mappings, client=self.bq_client)
         # Ensure raw tables exist even on a skipped/empty run, then (re)create the views
         get_or_create_table(CardNexusCardProduct, client=self.bq_client)
-        get_or_create_table(CardNexusExpansionMapping, client=self.bq_client)
-        get_or_create_table(CardNexusProductMapping, client=self.bq_client)
+        get_or_create_table(CardNexusCardProductMapping, client=self.bq_client)
         get_or_create_table(CardNexusSealedProduct, client=self.bq_client)
+        get_or_create_table(CardNexusSealedProductMapping, client=self.bq_client)
         ensure_cardnexus_price_view(self.bq_client)
         ensure_cardnexus_sealed_views(self.bq_client)
 
@@ -433,7 +430,7 @@ class CardNexusPriceUpdateEtlJob(AbstractETLJob[list, list]):
         return True
 
     def extract(self) -> list[str]:
-        mapping_table = f"{CardNexusProductMapping.get_dataset_id()}.{CardNexusProductMapping.__tablename__}"
+        mapping_table = f"{CardNexusCardProductMapping.get_dataset_id()}.{CardNexusCardProductMapping.__tablename__}"
         sealed_table = f"{CardNexusSealedProduct.get_dataset_id()}.{CardNexusSealedProduct.__tablename__}"
         history_table = f"{CardNexusPrice.get_dataset_id()}.{CardNexusPrice.__tablename__}"
         if self.sealed_only:
@@ -523,7 +520,7 @@ class CardNexusPriceHistoryEtlJob(AbstractETLJob[list, list]):
         return True
 
     def extract(self) -> list[str]:
-        mapping_table = f"{CardNexusProductMapping.get_dataset_id()}.{CardNexusProductMapping.__tablename__}"
+        mapping_table = f"{CardNexusCardProductMapping.get_dataset_id()}.{CardNexusCardProductMapping.__tablename__}"
         sealed_table = f"{CardNexusSealedProduct.get_dataset_id()}.{CardNexusSealedProduct.__tablename__}"
         history_table = f"{CardNexusPrice.get_dataset_id()}.{CardNexusPrice.__tablename__}"
         if self.sealed_only:
