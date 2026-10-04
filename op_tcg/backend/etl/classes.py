@@ -367,7 +367,7 @@ class CardNexusCatalogSyncEtlJob(AbstractETLJob[dict, tuple]):
         )
 
         our_sealed_df = self.bq_client.query_and_wait(
-            f"SELECT id, language, image_url FROM {BQDataset.CARDS}.{SealedProduct.__tablename__} "
+            f"SELECT id, language, image_url FROM {SealedProduct.get_dataset_id()}.{SealedProduct.__tablename__} "
             f"WHERE marketplace = '{OPTcgMarketplace.CARDMARKET.value}'"
         ).to_dataframe()
         cardmarket_id_to_sealed = build_cardmarket_sealed_id_lookup(our_sealed_df.to_dict("records"))

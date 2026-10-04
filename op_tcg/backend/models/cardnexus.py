@@ -127,9 +127,8 @@ class CardNexusSealedProductMapping(BQTableBaseModel):
     language) since CardNexus's sealed catalog bundles all print languages under a
     single external id rather than listing one per language.
 
-    Lives in BQDataset.SEALED, not CARDS or CARDNEXUS_RAW — this is the match *result*
-    against our own sealed-product data, destined to join the SealedProduct/
-    SealedProductPrice tables once those move here too.
+    Lives in BQDataset.SEALED alongside SealedProduct/SealedProductPrice (not CARDS or
+    CARDNEXUS_RAW) — this is the match *result* against that same sealed-product data.
     """
     _dataset_id: str = BQDataset.SEALED
 
