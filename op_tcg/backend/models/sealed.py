@@ -18,11 +18,7 @@ class SealedProductType(StrEnum):
 
 
 class SealedProduct(BQTableBaseModel):
-    """Sealed product metadata (booster boxes, cases, starter decks). Upserted on each crawl.
-
-    Lives in BQDataset.SEALED alongside SealedProductPrice — moved from CARDS so all
-    sealed-product data sits in its own dataset.
-    """
+    """Sealed product metadata (booster boxes, cases, starter decks). Upserted on each crawl."""
     _dataset_id: str = BQDataset.SEALED
 
     id: str = Field(description="Marketplace URL slug, e.g. 'op01-romance-dawn-booster-box'", primary_key=True)
