@@ -22,5 +22,6 @@ class BQDataset(StrEnum):
     MATCHES="matches"
     LEADERS="leaders"
     CARDS="cards"
+    SEALED="sealed"
 
 

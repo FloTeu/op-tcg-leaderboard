@@ -18,8 +18,12 @@ class SealedProductType(StrEnum):
 
 
 class SealedProduct(BQTableBaseModel):
-    """Sealed product metadata (booster boxes, cases, starter decks). Upserted on each crawl."""
-    _dataset_id: str = BQDataset.CARDS
+    """Sealed product metadata (booster boxes, cases, starter decks). Upserted on each crawl.
+
+    Lives in BQDataset.SEALED alongside SealedProductPrice — moved from CARDS so all
+    sealed-product data sits in its own dataset.
+    """
+    _dataset_id: str = BQDataset.SEALED
 
     id: str = Field(description="Marketplace URL slug, e.g. 'op01-romance-dawn-booster-box'", primary_key=True)
     marketplace: OPTcgMarketplace = Field(description="Source marketplace", primary_key=True)
@@ -68,8 +72,11 @@ class SealedProductOrderBy(StrEnum):
 
 
 class SealedProductPrice(BQTableBaseModel):
-    """Append-only time-series of sealed product prices. One row per product/price-type per crawl."""
-    _dataset_id: str = BQDataset.CARDS
+    """Append-only time-series of sealed product prices. One row per product/price-type per crawl.
+
+    Lives in BQDataset.SEALED alongside SealedProduct (see its docstring).
+    """
+    _dataset_id: str = BQDataset.SEALED
 
     product_id: str = Field(description="FK to SealedProduct.id", primary_key=True)
     marketplace: OPTcgMarketplace = Field(description="Source marketplace", primary_key=True)
