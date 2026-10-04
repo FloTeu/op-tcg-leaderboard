@@ -222,6 +222,7 @@ def create_sealed_product_modal(item: dict, currency: CardCurrency, is_in_watchl
                     ),
 
                     # Info rows
+                    info_row("Product ID", product_id),
                     info_row("Language", language),
                     info_row("Marketplace", marketplace.capitalize()),
                     # info_row("Released", release_str),
@@ -344,7 +345,7 @@ def sealed_product_tile(item: dict, symbol: str, currency: CardCurrency = CardCu
     product_type = SealedProductType(item.get('product_type', SealedProductType.PROMO))
     from_price = item.get('from_price')
     trend_price = item.get('trend_price')
-    image_url = item.get('gcs_image_url')
+    image_url = item.get('gcs_image_url') or item.get('image_url')
     url = item.get('url', '#')
     language = str(item.get('language', 'en')).upper()[:2]
     product_id = item.get('id', '')

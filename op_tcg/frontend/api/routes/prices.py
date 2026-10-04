@@ -7,7 +7,7 @@ from op_tcg.frontend.api.models import PriceOverviewParams, SealedProductsParams
 from op_tcg.frontend.utils.api import get_query_params_as_dict
 from op_tcg.frontend.utils.extract import (
     get_price_change_data,
-    get_sealed_product_prices,
+    get_cardnexus_sealed_product_prices,
 )
 from op_tcg.backend.db import get_sealed_watchlist
 from op_tcg.backend.models.cards import CardCurrency
@@ -34,14 +34,12 @@ def _header(currency: CardCurrency, start_date: int, end_date: int) -> ft.Div:
 
 _PRICE = lambda i: i.get('from_price') or 0.0
 _NAME  = lambda i: (i.get('name') or '').lower()
-_DATE  = lambda i: str(i.get('release_date') or '')
 
 _SEALED_SORT_CFG = {
     SealedProductOrderBy.PRICE_DESC:   (_PRICE, True),
     SealedProductOrderBy.PRICE_ASC:    (_PRICE, False),
     SealedProductOrderBy.NAME_ASC:     (_NAME,  False),
     SealedProductOrderBy.NAME_DESC:    (_NAME,  True),
-    SealedProductOrderBy.RELEASE_DESC: (_DATE,  True),
 }
 
 
@@ -49,13 +47,13 @@ def _sealed_products_response(request: Request):
     """Apply search/filter/sort to sealed products and return rendered tiles."""
     params = SealedProductsParams(**get_query_params_as_dict(request))
     query = request.query_params.get("query", "").strip().lower()
-    items = get_sealed_product_prices(params.currency)
+    items = get_cardnexus_sealed_product_prices(params.currency)
 
     if query:
         items = [i for i in items if query in (i.get('name') or '').lower()]
     if params.min_latest_price > 0:
         items = [i for i in items if (i.get('from_price') or 0) >= params.min_latest_price]
-    if params.max_latest_price < 10000:
+    if  params.max_latest_price and params.max_latest_price < 10000:
         items = [i for i in items if (i.get('from_price') or 0) <= params.max_latest_price]
 
     sort_cfg = _SEALED_SORT_CFG.get(params.order_by)
@@ -79,7 +77,7 @@ def setup_api_routes(rt):
         if not product_id:
             return ft.Div()
 
-        items = get_sealed_product_prices(currency)
+        items = get_cardnexus_sealed_product_prices(currency)
         item = next((i for i in items if i.get('id') == product_id), None)
         if not item:
             return ft.Div()

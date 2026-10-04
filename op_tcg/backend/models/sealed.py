@@ -54,7 +54,6 @@ class SealedProductOrderBy(StrEnum):
     PRICE_ASC = "price_asc"
     NAME_ASC = "name_asc"
     NAME_DESC = "name_desc"
-    RELEASE_DESC = "release_desc"
 
     @property
     def label(self) -> str:
@@ -63,7 +62,6 @@ class SealedProductOrderBy(StrEnum):
             SealedProductOrderBy.PRICE_ASC: "Price: Low to High",
             SealedProductOrderBy.NAME_ASC: "Name: A to Z",
             SealedProductOrderBy.NAME_DESC: "Name: Z to A",
-            SealedProductOrderBy.RELEASE_DESC: "Newest First",
         }[self]
 
 
