@@ -3,6 +3,7 @@ import logging
 import sys
 import tempfile
 import time
+from datetime import date, timedelta
 
 import pandas as pd
 import requests
@@ -10,13 +11,21 @@ from google.api_core.exceptions import NotFound
 
 from op_tcg.backend.elo import EloCreator
 from op_tcg.backend.etl.base import AbstractETLJob, E, T
-from op_tcg.backend.etl.load import get_or_create_table, bq_insert_rows, upload2gcp_storage
-from op_tcg.backend.etl.transform import BQMatchCreator
+from op_tcg.backend.etl.load import get_or_create_table, bq_insert_rows, bq_upsert_rows, upload2gcp_storage
+from op_tcg.backend.etl.transform import BQMatchCreator, parse_card_product, parse_sealed_product, \
+    build_tcgplayer_id_lookup, resolve_product_mapping_by_tcgplayer_id, \
+    build_cardmarket_sealed_id_lookup, resolve_sealed_product_mapping_by_cardmarket_id, \
+    flatten_price_snapshot, flatten_price_history
+from op_tcg.backend.etl.views import ensure_cardnexus_price_view, ensure_cardnexus_sealed_views
+from op_tcg.backend.crawling.cardnexus_client import CardNexusClient
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.input import AllLeaderMetaDocs, MetaFormat, LimitlessLeaderMetaDoc
 from op_tcg.backend.models.matches import BQMatches, Match
 from op_tcg.backend.models.leader import LeaderElo
-from op_tcg.backend.models.cards import Card
+from op_tcg.backend.models.cards import Card, OPTcgMarketplace, CardMarketplaceUrl
+from op_tcg.backend.models.sealed import SealedProduct
+from op_tcg.backend.models.cardnexus import CardNexusCardProduct, CardNexusPrice, CardNexusCardProductMapping, \
+    CardNexusSealedProduct, CardNexusSealedProductMapping
 from op_tcg.backend.etl.extract import read_json_files
 from pathlib import Path
 from google.cloud import bigquery, storage
@@ -262,3 +271,315 @@ class CardImageUpdateToGCPEtlJob(AbstractETLJob[list[Card], list[Card]]):
 
             # delete tmp table
             self.bq_client.delete_table(f"{card_tmp_table.full_table_id.replace(':', '.')}", not_found_ok=True)
+
+
+class CardNexusCatalogSyncEtlJob(AbstractETLJob[dict, tuple]):
+    """Syncs the CardNexus 'onepiece' catalog feed into BigQuery and (re)derives the
+    product_id/language -> card_id/aa_version mapping used by CardNexusPriceUpdateEtlJob.
+
+    Matching is by exact numeric TCGplayer product id: CardNexus lists it per product
+    (`externalIds.tcgplayer`), and our own CardMarketplaceUrl rows embed the same id in
+    their scraped TCGplayer affiliate link (see build_tcgplayer_id_lookup /
+    resolve_product_mapping_by_tcgplayer_id). The id is already unique per exact
+    (card_id, language, aa_version) print, so this resolves card identity, language,
+    and aa_version/variant disambiguation in a single exact-match step.
+
+    Sealed products (booster boxes, cases, decks, ...) are matched separately, against
+    our own cardmarket-scraped SealedProduct table, by exact numeric Cardmarket product
+    id (see build_cardmarket_sealed_id_lookup / resolve_sealed_product_mapping_by_cardmarket_id)
+    — sealed products have no print_number to match on like cards do.
+
+    Skips the (expensive) feed download/parse entirely if the feed checksum hasn't
+    changed since the last successful sync — pass force=True to bypass this (e.g. to
+    rebuild tables/mappings that were wiped or moved without the upstream feed changing).
+    """
+
+    def __init__(self, game_id: str = "onepiece", cardnexus_client: CardNexusClient | None = None, force: bool = False):
+        self.bq_client = bigquery.Client(location="europe-west1")
+        self.game_id = game_id
+        self.cardnexus_client = cardnexus_client or CardNexusClient()
+        self.force = force
+
+    def validate(self, extracted_data: dict) -> bool:
+        return True
+
+    def _get_last_checksum(self) -> str | None:
+        try:
+            query = (
+                f"SELECT feed_checksum FROM {CardNexusCardProduct.get_dataset_id()}."
+                f"{CardNexusCardProduct.__tablename__} ORDER BY create_timestamp DESC LIMIT 1"
+            )
+            df = self.bq_client.query_and_wait(query).to_dataframe()
+            return df.iloc[0]["feed_checksum"] if len(df) > 0 else None
+        except Exception as e:
+            _logger.warning(f"Could not read last CardNexus feed checksum (likely first run): {e}")
+            return None
+
+    def extract(self) -> dict:
+        feed_meta = self.cardnexus_client.get_catalog_feed_meta(self.game_id)
+        feed_meta["last_checksum"] = None if self.force else self._get_last_checksum()
+        return feed_meta
+
+    def transform(self, feed_meta: dict) -> tuple[list[CardNexusCardProduct], list[CardNexusCardProductMapping],
+                                                  list[CardNexusSealedProduct], list[CardNexusSealedProductMapping]]:
+        checksum = feed_meta.get("checksum") or ""
+        if checksum and checksum == feed_meta.get("last_checksum"):
+            _logger.info("CardNexus catalog feed checksum unchanged — skipping catalog sync")
+            return [], [], [], []
+
+        card_raw_products: list[dict] = []
+        sealed_raw_products: list[dict] = []
+        card_products: list[CardNexusCardProduct] = []
+        sealed_products: list[CardNexusSealedProduct] = []
+        skipped = 0
+        unknown_product_types = 0
+        for raw_product in self.cardnexus_client.iter_catalog_products(self.game_id):
+            product_type = raw_product.get("productType")
+            try:
+                if product_type == "card":
+                    card_raw_products.append(raw_product)
+                    card_products.append(parse_card_product(raw_product, feed_checksum=checksum))
+                elif product_type == "sealed":
+                    sealed_raw_products.append(raw_product)
+                    sealed_products.append(parse_sealed_product(raw_product, feed_checksum=checksum))
+                else:
+                    unknown_product_types += 1
+            except (KeyError, TypeError) as e:
+                skipped += 1
+                _logger.warning(f"Skipping malformed CardNexus catalog product record: {e}")
+        if skipped:
+            _logger.warning(f"Skipped {skipped} malformed CardNexus catalog product record(s)")
+        if unknown_product_types:
+            _logger.warning(f"Skipped {unknown_product_types} catalog record(s) with unrecognized productType")
+
+        marketplace_urls_df = self.bq_client.query_and_wait(
+            f"SELECT card_id, language, aa_version, url FROM {BQDataset.CARDS}.{CardMarketplaceUrl.__tablename__} "
+            f"WHERE marketplace = '{OPTcgMarketplace.TCGPLAYER.value}'"
+        ).to_dataframe()
+        tcgplayer_id_to_cards = build_tcgplayer_id_lookup(marketplace_urls_df.to_dict("records"))
+
+        product_mappings: list[CardNexusCardProductMapping] = []
+        for raw_product in card_raw_products:
+            product_mappings.extend(resolve_product_mapping_by_tcgplayer_id(raw_product, tcgplayer_id_to_cards))
+        matched_count = sum(1 for m in product_mappings if m.matched)
+        _logger.info(
+            f"CardNexus catalog sync: {len(card_products)} cards, {len(sealed_products)} sealed products, "
+            f"{len(product_mappings)} product/language rows, {matched_count} matched, "
+            f"{len(product_mappings) - matched_count} unmatched"
+        )
+
+        our_sealed_df = self.bq_client.query_and_wait(
+            f"SELECT id, language, image_url FROM {SealedProduct.get_dataset_id()}.{SealedProduct.__tablename__} "
+            f"WHERE marketplace = '{OPTcgMarketplace.CARDMARKET.value}'"
+        ).to_dataframe()
+        cardmarket_id_to_sealed = build_cardmarket_sealed_id_lookup(our_sealed_df.to_dict("records"))
+        sealed_product_mappings = [
+            resolve_sealed_product_mapping_by_cardmarket_id(raw_product, cardmarket_id_to_sealed)
+            for raw_product in sealed_raw_products
+        ]
+        sealed_matched_count = sum(1 for m in sealed_product_mappings if m.matched)
+        _logger.info(
+            f"CardNexus sealed product matching: {len(sealed_product_mappings)} products, "
+            f"{sealed_matched_count} matched, {len(sealed_product_mappings) - sealed_matched_count} unmatched"
+        )
+        return card_products, product_mappings, sealed_products, sealed_product_mappings
+
+    def load(self, transformed_data: tuple[list[CardNexusCardProduct], list[CardNexusCardProductMapping],
+                                           list[CardNexusSealedProduct], list[CardNexusSealedProductMapping]]) -> None:
+        card_products, product_mappings, sealed_products, sealed_product_mappings = transformed_data
+        if card_products:
+            bq_upsert_rows(card_products, client=self.bq_client)
+        if product_mappings:
+            bq_upsert_rows(product_mappings, client=self.bq_client)
+        if sealed_products:
+            bq_upsert_rows(sealed_products, client=self.bq_client)
+        if sealed_product_mappings:
+            bq_upsert_rows(sealed_product_mappings, client=self.bq_client)
+        # Ensure raw tables exist even on a skipped/empty run, then (re)create the views
+        get_or_create_table(CardNexusCardProduct, client=self.bq_client)
+        get_or_create_table(CardNexusCardProductMapping, client=self.bq_client)
+        get_or_create_table(CardNexusSealedProduct, client=self.bq_client)
+        get_or_create_table(CardNexusSealedProductMapping, client=self.bq_client)
+        ensure_cardnexus_price_view(self.bq_client)
+        ensure_cardnexus_sealed_views(self.bq_client)
+
+
+class CardNexusPriceUpdateEtlJob(AbstractETLJob[list, list]):
+    """Pulls current prices for already-matched CardNexus card products and all
+    known sealed products, prioritizing never-priced products and then the ones
+    priced longest ago, and upserts today's row into CardNexusPriceHistory.
+
+    This is the "keep it current going forward" half of CardNexusPriceHistory —
+    CardNexusPriceHistoryEtlJob backfills past dates; this job keeps today's row
+    fresh from wherever that backfill left off. Since rows are upserted (not
+    appended), repeated same-day runs simply overwrite today's row.
+
+    Sealed products aren't gated on a match (there's no mapping/matching step for
+    them — see CardNexusSealedProduct) so every known sealed product is eligible.
+
+    Bounded by max_requests per run so repeated scheduled invocations stay within
+    CardNexus's 600/hour current-prices rate limit while eventually covering the
+    full catalog. Run CardNexusCatalogSyncEtlJob first to populate the candidate tables.
+    """
+
+    def __init__(self, max_requests: int = 500, sealed_only: bool = False, cardnexus_client: CardNexusClient | None = None):
+        self.bq_client = bigquery.Client(location="europe-west1")
+        self.max_requests = max_requests
+        self.sealed_only = sealed_only
+        self.cardnexus_client = cardnexus_client or CardNexusClient()
+
+    def validate(self, extracted_data: list) -> bool:
+        return True
+
+    def extract(self) -> list[str]:
+        mapping_table = f"{CardNexusCardProductMapping.get_dataset_id()}.{CardNexusCardProductMapping.__tablename__}"
+        sealed_table = f"{CardNexusSealedProduct.get_dataset_id()}.{CardNexusSealedProduct.__tablename__}"
+        history_table = f"{CardNexusPrice.get_dataset_id()}.{CardNexusPrice.__tablename__}"
+        if self.sealed_only:
+            candidates_cte = f"SELECT product_id FROM `{sealed_table}`"
+        else:
+            candidates_cte = f"""
+            SELECT product_id FROM `{mapping_table}` WHERE matched
+            UNION DISTINCT
+            SELECT product_id FROM `{sealed_table}`
+            """
+        query = f"""
+        SELECT c.product_id
+        FROM ({candidates_cte}) c
+        LEFT JOIN (
+            SELECT product_id, MAX(date) AS last_priced
+            FROM `{history_table}`
+            GROUP BY product_id
+        ) s ON c.product_id = s.product_id
+        ORDER BY s.last_priced IS NULL DESC, s.last_priced ASC
+        LIMIT {self.max_requests}
+        """
+        try:
+            df = self.bq_client.query_and_wait(query).to_dataframe()
+            return df["product_id"].tolist()
+        except Exception as e:
+            _logger.warning(f"Prioritized candidate query failed (likely first run): {e}")
+        try:
+            df = self.bq_client.query_and_wait(
+                f"SELECT product_id FROM ({candidates_cte}) LIMIT {self.max_requests}"
+            ).to_dataframe()
+            return df["product_id"].tolist()
+        except Exception as e:
+            _logger.error(f"Could not find any CardNexus products to price — run sync-catalog first: {e}")
+            return []
+
+    def transform(self, product_ids: list[str]) -> list[CardNexusPrice]:
+        rows: list[CardNexusPrice] = []
+        failed = 0
+        for product_id in product_ids:
+            try:
+                prices_response = self.cardnexus_client.get_current_prices(product_id)
+                rows.extend(flatten_price_snapshot(product_id, prices_response))
+            except Exception as e:
+                failed += 1
+                _logger.error(f"Failed to fetch/parse CardNexus prices for product {product_id}: {e}")
+        _logger.info(
+            f"CardNexus price update: {len(product_ids)} products requested, {failed} failed, "
+            f"{len(rows)} price rows produced"
+        )
+        return rows
+
+    def load(self, rows: list[CardNexusPrice]) -> None:
+        if not rows:
+            return
+        bq_upsert_rows(rows, client=self.bq_client)
+        _logger.info(f"Upserted {len(rows)} CardNexus price history rows (today)")
+
+
+class CardNexusPriceHistoryEtlJob(AbstractETLJob[list, list]):
+    """Backfills historical daily prices into CardNexusPriceHistory via
+    /products/{id}/prices/history.
+
+    This is the "fill up historical data" half of CardNexusPriceHistory —
+    CardNexusPriceUpdateEtlJob keeps today's row current going forward from
+    wherever this backfill left off. CardNexus caps a single history request at
+    `days` (max 365) of range, so one call per product covers as much history as
+    is available in one shot — products are prioritized by how little history
+    they already have (none first, then fewest days recorded) rather than
+    re-fetched repeatedly once backfilled.
+
+    Sealed products aren't gated on a match, same as CardNexusPriceUpdateEtlJob.
+
+    Bounded by max_requests per run so repeated scheduled invocations stay within
+    CardNexus's 120/hour history rate limit while eventually covering the full
+    catalog. Run CardNexusCatalogSyncEtlJob first to populate the candidate tables.
+    """
+
+    def __init__(self, max_requests: int = 100, days: int = 365, sealed_only: bool = False,
+                cardnexus_client: CardNexusClient | None = None):
+        self.bq_client = bigquery.Client(location="europe-west1")
+        self.max_requests = max_requests
+        self.days = days
+        self.sealed_only = sealed_only
+        self.cardnexus_client = cardnexus_client or CardNexusClient()
+
+    def validate(self, extracted_data: list) -> bool:
+        return True
+
+    def extract(self) -> list[str]:
+        mapping_table = f"{CardNexusCardProductMapping.get_dataset_id()}.{CardNexusCardProductMapping.__tablename__}"
+        sealed_table = f"{CardNexusSealedProduct.get_dataset_id()}.{CardNexusSealedProduct.__tablename__}"
+        history_table = f"{CardNexusPrice.get_dataset_id()}.{CardNexusPrice.__tablename__}"
+        if self.sealed_only:
+            candidates_cte = f"SELECT product_id FROM `{sealed_table}`"
+        else:
+            candidates_cte = f"""
+            SELECT product_id FROM `{mapping_table}` WHERE matched
+            UNION DISTINCT
+            SELECT product_id FROM `{sealed_table}`
+            """
+        query = f"""
+        SELECT c.product_id
+        FROM ({candidates_cte}) c
+        LEFT JOIN (
+            SELECT product_id, COUNT(DISTINCT date) AS history_days
+            FROM `{history_table}`
+            GROUP BY product_id
+        ) h ON c.product_id = h.product_id
+        ORDER BY h.history_days IS NULL DESC, h.history_days ASC
+        LIMIT {self.max_requests}
+        """
+        try:
+            df = self.bq_client.query_and_wait(query).to_dataframe()
+            return df["product_id"].tolist()
+        except Exception as e:
+            _logger.warning(f"Prioritized candidate query failed (likely first run): {e}")
+        try:
+            df = self.bq_client.query_and_wait(
+                f"SELECT product_id FROM ({candidates_cte}) LIMIT {self.max_requests}"
+            ).to_dataframe()
+            return df["product_id"].tolist()
+        except Exception as e:
+            _logger.error(f"Could not find any CardNexus products to backfill — run sync-catalog first: {e}")
+            return []
+
+    def transform(self, product_ids: list[str]) -> list[CardNexusPrice]:
+        to_date = date.today().isoformat()
+        from_date = (date.today() - timedelta(days=self.days-1)).isoformat()
+        rows: list[CardNexusPrice] = []
+        failed = 0
+        for product_id in product_ids:
+            try:
+                history_response = self.cardnexus_client.get_price_history(
+                    product_id, from_date=from_date, to_date=to_date,
+                )
+                rows.extend(flatten_price_history(product_id, history_response))
+            except Exception as e:
+                failed += 1
+                _logger.error(f"Failed to fetch/parse CardNexus price history for product {product_id}: {e}")
+        _logger.info(
+            f"CardNexus price history backfill: {len(product_ids)} products requested, {failed} failed, "
+            f"{len(rows)} price rows produced"
+        )
+        return rows
+
+    def load(self, rows: list[CardNexusPrice]) -> None:
+        if not rows:
+            return
+        bq_upsert_rows(rows, client=self.bq_client)
+        _logger.info(f"Upserted {len(rows)} CardNexus price history rows (backfill)")
