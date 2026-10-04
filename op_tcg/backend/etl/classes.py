@@ -290,13 +290,15 @@ class CardNexusCatalogSyncEtlJob(AbstractETLJob[dict, tuple]):
     — sealed products have no print_number to match on like cards do.
 
     Skips the (expensive) feed download/parse entirely if the feed checksum hasn't
-    changed since the last successful sync.
+    changed since the last successful sync — pass force=True to bypass this (e.g. to
+    rebuild tables/mappings that were wiped or moved without the upstream feed changing).
     """
 
-    def __init__(self, game_id: str = "onepiece", cardnexus_client: CardNexusClient | None = None):
+    def __init__(self, game_id: str = "onepiece", cardnexus_client: CardNexusClient | None = None, force: bool = False):
         self.bq_client = bigquery.Client(location="europe-west1")
         self.game_id = game_id
         self.cardnexus_client = cardnexus_client or CardNexusClient()
+        self.force = force
 
     def validate(self, extracted_data: dict) -> bool:
         return True
@@ -315,7 +317,7 @@ class CardNexusCatalogSyncEtlJob(AbstractETLJob[dict, tuple]):
 
     def extract(self) -> dict:
         feed_meta = self.cardnexus_client.get_catalog_feed_meta(self.game_id)
-        feed_meta["last_checksum"] = self._get_last_checksum()
+        feed_meta["last_checksum"] = None if self.force else self._get_last_checksum()
         return feed_meta
 
     def transform(self, feed_meta: dict) -> tuple[list[CardNexusCardProduct], list[CardNexusCardProductMapping],

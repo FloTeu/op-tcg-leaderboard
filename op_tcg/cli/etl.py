@@ -77,13 +77,18 @@ def cardnexus_group() -> None:
 
 @cardnexus_group.command("sync-catalog")
 @click.option("--game-id", default="onepiece", help="CardNexus game id for the catalog feed")
-def cardnexus_sync_catalog(game_id: str) -> None:
+@click.option("--force", is_flag=True, default=False,
+             help="Bypass the feed-checksum skip and re-run the full sync/matching even if "
+                  "CardNexus's catalog feed hasn't changed since the last run. Use this to "
+                  "rebuild tables/mappings that were wiped or moved on our side, since the "
+                  "checksum only tracks CardNexus's upstream feed, not our own data.")
+def cardnexus_sync_catalog(game_id: str, force: bool) -> None:
     """
     Syncs the CardNexus catalog feed into BigQuery (raw + product_id -> card_id mapping)
     and (re)creates the cards.card_nexus_price_view. Skips the feed download entirely if
-    unchanged since the last run (via the feed checksum).
+    unchanged since the last run (via the feed checksum), unless --force is passed.
     """
-    etl_job = CardNexusCatalogSyncEtlJob(game_id=game_id)
+    etl_job = CardNexusCatalogSyncEtlJob(game_id=game_id, force=force)
     etl_job.run()
 
 
