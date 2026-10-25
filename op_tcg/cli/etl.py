@@ -4,6 +4,7 @@ import click
 from op_tcg.backend.etl.classes import LocalMatchesToBigQueryEtlJob, EloUpdateToBigQueryEtlJob, \
     CardImageUpdateToGCPEtlJob, CardNexusCatalogSyncEtlJob, CardNexusPriceUpdateEtlJob, CardNexusPriceHistoryEtlJob
 from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.utils.notify import notify_job_result
 
 
 @click.group("etl", help="Crawling functionality")
@@ -88,8 +89,38 @@ def cardnexus_sync_catalog(game_id: str, force: bool) -> None:
     and (re)creates the cards.card_nexus_price_view. Skips the feed download entirely if
     unchanged since the last run (via the feed checksum), unless --force is passed.
     """
-    etl_job = CardNexusCatalogSyncEtlJob(game_id=game_id, force=force)
-    etl_job.run()
+    job_name = "cardnexus-sync-catalog"
+    try:
+        card_products, card_mappings, sealed_products, sealed_mappings = \
+            CardNexusCatalogSyncEtlJob(game_id=game_id, force=force).run()
+    except Exception as e:
+        notify_job_result(job_name, success=False, summary="", error=str(e))
+        raise
+    if not (card_products or sealed_products):
+        summary = "Feed checksum unchanged, sync skipped"
+    else:
+        card_matched = sum(1 for m in card_mappings if m.matched)
+        sealed_matched = sum(1 for m in sealed_mappings if m.matched)
+        summary = (
+            f"{len(card_products)} cards ({card_matched}/{len(card_mappings)} card/language rows matched), "
+            f"{len(sealed_products)} sealed ({sealed_matched}/{len(sealed_mappings)} matched)"
+        )
+    notify_job_result(job_name, success=True, summary=summary)
+
+
+def _run_cardnexus_price_job(job_name: str, etl_job: CardNexusPriceUpdateEtlJob | CardNexusPriceHistoryEtlJob) -> None:
+    try:
+        rows = etl_job.run()
+    except Exception as e:
+        notify_job_result(job_name, success=False, summary="", error=str(e))
+        raise
+    requested, failed = etl_job.requested_count, etl_job.failed_count
+    summary = f"{len(rows)} price rows from {requested - failed}/{requested} products"
+    if failed:
+        summary += f", {failed} failed"
+    # Per-product errors are swallowed by the job, so a run where every request failed
+    # (e.g. bad API key, sustained 429s) would otherwise look like a success.
+    notify_job_result(job_name, success=not (requested and failed == requested), summary=summary)
 
 
 @cardnexus_group.command("update-prices")
@@ -104,8 +135,10 @@ def cardnexus_update_prices(max_requests: int, sealed_only: bool) -> None:
     Pulls current prices for CardNexus products already matched to our cards, prioritizing
     never-priced products and then the ones priced longest ago. Run 'sync-catalog' first.
     """
-    etl_job = CardNexusPriceUpdateEtlJob(max_requests=max_requests, sealed_only=sealed_only)
-    etl_job.run()
+    _run_cardnexus_price_job(
+        "cardnexus-update-prices",
+        CardNexusPriceUpdateEtlJob(max_requests=max_requests, sealed_only=sealed_only),
+    )
 
 
 @cardnexus_group.command("update-price-history")
@@ -123,8 +156,10 @@ def cardnexus_update_price_history(max_requests: int, days: int, sealed_only: bo
     CardNexusPriceUpdateEtlJob keeps current going forward, prioritizing products with
     the least history recorded so far. Run 'sync-catalog' first.
     """
-    etl_job = CardNexusPriceHistoryEtlJob(max_requests=max_requests, days=days, sealed_only=sealed_only)
-    etl_job.run()
+    _run_cardnexus_price_job(
+        "cardnexus-update-price-history",
+        CardNexusPriceHistoryEtlJob(max_requests=max_requests, days=days, sealed_only=sealed_only),
+    )
 
 
 if __name__ == "__main__":

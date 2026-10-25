@@ -482,6 +482,7 @@ class CardNexusPriceUpdateEtlJob(AbstractETLJob[list, list]):
             f"CardNexus price update: {len(product_ids)} products requested, {failed} failed, "
             f"{len(rows)} price rows produced"
         )
+        self.requested_count, self.failed_count = len(product_ids), failed
         return rows
 
     def load(self, rows: list[CardNexusPrice]) -> None:
@@ -576,6 +577,7 @@ class CardNexusPriceHistoryEtlJob(AbstractETLJob[list, list]):
             f"CardNexus price history backfill: {len(product_ids)} products requested, {failed} failed, "
             f"{len(rows)} price rows produced"
         )
+        self.requested_count, self.failed_count = len(product_ids), failed
         return rows
 
     def load(self, rows: list[CardNexusPrice]) -> None:
