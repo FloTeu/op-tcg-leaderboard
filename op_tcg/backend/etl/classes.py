@@ -560,8 +560,11 @@ class CardNexusPriceHistoryEtlJob(AbstractETLJob[list, list]):
             return []
 
     def transform(self, product_ids: list[str]) -> list[CardNexusPrice]:
-        to_date = date.today().isoformat()
-        from_date = (date.today() - timedelta(days=self.days-1)).isoformat()
+        # Stop at yesterday: today's row is owned by CardNexusPriceUpdateEtlJob (current-price
+        # snapshot, incl. by-condition raw_json), so the two jobs never overwrite each other.
+        yesterday = date.today() - timedelta(days=1)
+        to_date = yesterday.isoformat()
+        from_date = (yesterday - timedelta(days=self.days - 1)).isoformat()
         rows: list[CardNexusPrice] = []
         failed = 0
         for product_id in product_ids:
