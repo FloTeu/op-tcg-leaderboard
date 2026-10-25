@@ -77,6 +77,8 @@ class CardNexusPrice(BQTableBaseModel):
     mid: float | None = Field(default=None, description="Mid price reported for this marketplace block")
     high: float | None = Field(default=None, description="High price reported for this marketplace block")
     market_value: float | None = Field(default=None, description="Market value price reported for this marketplace block")
+    listing_count: int | None = Field(default=None, description="Live listings on CardNexus's own marketplace across all regions; only set for marketplace='cardnexus' current-price rows")
+    available_quantity: int | None = Field(default=None, description="Total quantity for sale on CardNexus's own marketplace across all regions; only set for marketplace='cardnexus' current-price rows")
     raw_json: str = Field(description="Full raw block/record this row was derived from, preserved verbatim since the CardNexus API is still under active development")
 
 

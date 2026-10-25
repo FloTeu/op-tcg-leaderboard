@@ -349,10 +349,20 @@ def test_flatten_price_snapshot_cardmarket_and_tcgplayer():
     assert cm.mid == 2.0
     assert cm.high == 3.0
     assert cm.market_value == 2.5
+    # Only CardNexus's own marketplace reports stock
+    assert cm.listing_count is None
+    assert cm.available_quantity is None
 
     tcg = by_marketplace[OPTcgMarketplace.TCGPLAYER]
     assert tcg.currency == "USD"
     assert tcg.mid is None
+
+
+def test_flatten_price_snapshot_cardnexus_block_without_listings():
+    response = {"pricesByFinish": {"Standard": {"cardnexus": {"low": {"amount": 0.8, "currency": "EUR"}}}}}
+    cn = flatten_price_snapshot("12345", response)[0]
+    assert cn.listing_count is None
+    assert cn.available_quantity is None
 
 
 def test_flatten_price_snapshot_cardnexus_block_shape():
@@ -377,6 +387,8 @@ def test_flatten_price_snapshot_cardnexus_block_shape():
     assert cn.mid is None
     assert cn.high is None
     assert cn.market_value is None
+    assert cn.listing_count == 5
+    assert cn.available_quantity == 12
     assert json.loads(cn.raw_json)["listingCount"] == 5
 
 

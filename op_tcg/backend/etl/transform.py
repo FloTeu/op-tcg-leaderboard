@@ -452,10 +452,12 @@ def resolve_sealed_product_mapping_by_cardmarket_id(
 
 
 def _extract_price_block_fields(marketplace: str, block: dict) -> dict:
-    """Extract low/mid/high/market_value/currency from a marketplace price block.
+    """Extract low/mid/high/market_value/currency (and, for CardNexus's own marketplace,
+    listing_count/available_quantity) from a marketplace price block.
 
     The 'cardnexus' marketplace block has a different shape (low is a
-    {amount, currency} object, no mid/high/marketValue) than cardmarket/tcgplayer.
+    {amount, currency} object, no mid/high/marketValue, plus stock counts) than
+    cardmarket/tcgplayer, which report no stock at all.
     """
     if marketplace == OPTcgMarketplace.CARD_NEXUS.value:
         low_obj = block.get("low") or {}
@@ -465,6 +467,8 @@ def _extract_price_block_fields(marketplace: str, block: dict) -> dict:
             "mid": None,
             "high": None,
             "market_value": None,
+            "listing_count": block.get("listingCount"),
+            "available_quantity": block.get("availableQuantity"),
         }
     return {
         "currency": block.get("currency"),
@@ -472,6 +476,8 @@ def _extract_price_block_fields(marketplace: str, block: dict) -> dict:
         "mid": block.get("mid"),
         "high": block.get("high"),
         "market_value": block.get("marketValue"),
+        "listing_count": None,
+        "available_quantity": None,
     }
 
 

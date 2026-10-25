@@ -35,6 +35,10 @@ load_dotenv()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 _logger = logging.getLogger("etl_classes")
 
+# Log progress every N products in the CardNexus price jobs — runs are rate-limited
+# to ~1 request/s, so a 500-product run takes several minutes with no other output.
+_PROGRESS_LOG_EVERY = 50
+
 class LocalMatchesToBigQueryEtlJob(AbstractETLJob[AllLeaderMetaDocs, BQMatches]):
     def __init__(self, data_dir: Path, meta_formats: list[MetaFormat] | None = None, official: bool=True):
         self.data_dir = data_dir
@@ -471,13 +475,16 @@ class CardNexusPriceUpdateEtlJob(AbstractETLJob[list, list]):
     def transform(self, product_ids: list[str]) -> list[CardNexusPrice]:
         rows: list[CardNexusPrice] = []
         failed = 0
-        for product_id in product_ids:
+        for i, product_id in enumerate(product_ids, start=1):
             try:
                 prices_response = self.cardnexus_client.get_current_prices(product_id)
                 rows.extend(flatten_price_snapshot(product_id, prices_response))
             except Exception as e:
                 failed += 1
                 _logger.error(f"Failed to fetch/parse CardNexus prices for product {product_id}: {e}")
+            if i % _PROGRESS_LOG_EVERY == 0:
+                _logger.info(f"CardNexus price update progress: {i}/{len(product_ids)} products, "
+                             f"{failed} failed, {len(rows)} price rows so far")
         _logger.info(
             f"CardNexus price update: {len(product_ids)} products requested, {failed} failed, "
             f"{len(rows)} price rows produced"
@@ -567,7 +574,7 @@ class CardNexusPriceHistoryEtlJob(AbstractETLJob[list, list]):
         from_date = (yesterday - timedelta(days=self.days - 1)).isoformat()
         rows: list[CardNexusPrice] = []
         failed = 0
-        for product_id in product_ids:
+        for i, product_id in enumerate(product_ids, start=1):
             try:
                 history_response = self.cardnexus_client.get_price_history(
                     product_id, from_date=from_date, to_date=to_date,
@@ -576,6 +583,9 @@ class CardNexusPriceHistoryEtlJob(AbstractETLJob[list, list]):
             except Exception as e:
                 failed += 1
                 _logger.error(f"Failed to fetch/parse CardNexus price history for product {product_id}: {e}")
+            if i % _PROGRESS_LOG_EVERY == 0:
+                _logger.info(f"CardNexus price history progress: {i}/{len(product_ids)} products, "
+                             f"{failed} failed, {len(rows)} price rows so far")
         _logger.info(
             f"CardNexus price history backfill: {len(product_ids)} products requested, {failed} failed, "
             f"{len(rows)} price rows produced"
