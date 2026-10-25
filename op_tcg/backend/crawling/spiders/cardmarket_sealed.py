@@ -7,6 +7,7 @@ via the SCRAPER_PROXY env var. Not a Scrapy spider — run via asyncio directly 
 import asyncio
 import logging
 import os
+import random
 import re
 from urllib.parse import urlparse
 
@@ -550,7 +551,8 @@ async def crawl_cardmarket_sealed(
     async with AsyncCamoufox(
         headless=headless,
         proxy=proxy_config,
-        os=["windows", "macos", "linux"],
+        # camoufox 0.5.x fails to generate a fingerprint when `os` is a list, so pick one here
+        os=random.choice([ "linux"]),
         geoip=True,
     ) as browser:
         # Create one shared context so the cf_clearance cookie persists across all

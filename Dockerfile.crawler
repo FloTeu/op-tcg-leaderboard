@@ -33,7 +33,11 @@ RUN poetry config virtualenvs.create false && \
 
 # Download the patched Firefox binary at build time so it is baked into the image.
 # Avoids slow/unreliable runtime downloads in Cloud Run and keeps executions reproducible.
-RUN python -m camoufox fetch
+# The browser version is pinned: an unpinned fetch pulls the newest release, which can drop
+# fingerprint properties the Python lib still sets (e.g. navigator.appCodeName in 156.0.1-beta.32).
+# Bump together with the camoufox Python package.
+ARG CAMOUFOX_BROWSER=official/stable/156.0.1-beta.36
+RUN python -m camoufox set ${CAMOUFOX_BROWSER} && python -m camoufox fetch
 
 COPY . .
 
