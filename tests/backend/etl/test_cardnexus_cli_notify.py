@@ -66,32 +66,25 @@ def test_sync_catalog_notifies_failure_and_reraises(monkeypatch, notify):
     assert notify.call_args.kwargs["error"] == "boom"
 
 
-# --- update-prices / update-price-history ---
+# --- update-prices ---
 
-@pytest.mark.parametrize("command,job_class,job_name", [
-    ("update-prices", "CardNexusPriceUpdateEtlJob", "cardnexus-update-prices"),
-    ("update-price-history", "CardNexusPriceHistoryEtlJob", "cardnexus-update-price-history"),
-])
-def test_price_jobs_notify_row_and_failure_counts(monkeypatch, notify, command, job_class, job_name):
-    _fake_job_class(monkeypatch, job_class, run_result=["r1", "r2", "r3"], requested_count=10, failed_count=2)
+def test_update_prices_notifies_row_and_failure_counts(monkeypatch, notify):
+    _fake_job_class(monkeypatch, "CardNexusPriceUpdateEtlJob", run_result=["r1", "r2", "r3"],
+                    requested_count=10, failed_count=2)
 
-    result = _invoke(command)
+    result = _invoke("update-prices")
 
     assert result.exit_code == 0
     args, kwargs = notify.call_args
-    assert args[0] == job_name
+    assert args[0] == "cardnexus-update-prices"
     assert kwargs["success"] is True
     assert kwargs["summary"] == "3 price rows from 8/10 products, 2 failed"
 
 
-@pytest.mark.parametrize("command,job_class", [
-    ("update-prices", "CardNexusPriceUpdateEtlJob"),
-    ("update-price-history", "CardNexusPriceHistoryEtlJob"),
-])
-def test_price_jobs_report_failure_when_every_request_failed(monkeypatch, notify, command, job_class):
-    _fake_job_class(monkeypatch, job_class, run_result=[], requested_count=5, failed_count=5)
+def test_update_prices_reports_failure_when_every_request_failed(monkeypatch, notify):
+    _fake_job_class(monkeypatch, "CardNexusPriceUpdateEtlJob", run_result=[], requested_count=5, failed_count=5)
 
-    _invoke(command)
+    _invoke("update-prices")
 
     assert notify.call_args.kwargs["success"] is False
 
@@ -112,3 +105,39 @@ def test_price_job_notifies_failure_and_reraises(monkeypatch, notify):
     assert result.exit_code != 0
     assert notify.call_args.kwargs["success"] is False
     assert notify.call_args.kwargs["error"] == "quota"
+
+
+# --- update-price-history (local batched backfill) ---
+
+def _fake_history_job(monkeypatch, **attrs):
+    job = MagicMock(**attrs)
+    job_class = MagicMock(return_value=job)
+    monkeypatch.setattr(etl_cli, "CardNexusPriceHistoryEtlJob", job_class)
+    return job_class, job
+
+
+def test_update_price_history_runs_in_batches_and_notifies(monkeypatch, notify):
+    job_class, job = _fake_history_job(monkeypatch, requested_count=10, failed_count=2)
+    job.run_in_batches.return_value = 40
+
+    result = _invoke("update-price-history", "--min-days", "20", "--batch-size", "50")
+
+    assert result.exit_code == 0
+    assert job_class.call_args.kwargs["min_history_days"] == 20
+    assert job_class.call_args.kwargs["max_requests"] is None
+    job.run_in_batches.assert_called_once_with(batch_size=50)
+    args, kwargs = notify.call_args
+    assert args[0] == "cardnexus-update-price-history"
+    assert kwargs["success"] is True
+    assert kwargs["summary"] == "40 price rows from 8/10 products, 2 failed"
+
+
+def test_update_price_history_notifies_failure_and_reraises(monkeypatch, notify):
+    _, job = _fake_history_job(monkeypatch)
+    job.run_in_batches.side_effect = RuntimeError("bq down")
+
+    result = _invoke("update-price-history")
+
+    assert result.exit_code != 0
+    assert notify.call_args.kwargs["success"] is False
+    assert notify.call_args.kwargs["error"] == "bq down"

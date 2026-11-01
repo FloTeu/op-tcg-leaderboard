@@ -32,12 +32,13 @@ API_BASE = "https://public-api.cardnexus.com/v1"
 GLOBAL_BUCKET = "global"
 PRICES_BUCKET = "prices"
 HISTORY_BUCKET = "history"
+HISTORY_REQUESTS_PER_HOUR = 120
 
 # (limit, window_seconds) per bucket
 _BUCKET_LIMITS: dict[str, tuple[int, float]] = {
     GLOBAL_BUCKET: (60, 60.0),
     PRICES_BUCKET: (600, 3600.0),
-    HISTORY_BUCKET: (120, 3600.0),
+    HISTORY_BUCKET: (HISTORY_REQUESTS_PER_HOUR, 3600.0),
 }
 
 

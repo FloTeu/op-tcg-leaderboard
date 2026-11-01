@@ -108,14 +108,19 @@ def cardnexus_sync_catalog(game_id: str, force: bool) -> None:
     notify_job_result(job_name, success=True, summary=summary)
 
 
-def _run_cardnexus_price_job(job_name: str, etl_job: CardNexusPriceUpdateEtlJob | CardNexusPriceHistoryEtlJob) -> None:
+def _run_cardnexus_price_job(job_name: str, etl_job: CardNexusPriceUpdateEtlJob) -> None:
     try:
         rows = etl_job.run()
     except Exception as e:
         notify_job_result(job_name, success=False, summary="", error=str(e))
         raise
+    _notify_price_job_result(job_name, etl_job, len(rows))
+
+
+def _notify_price_job_result(job_name: str, etl_job: CardNexusPriceUpdateEtlJob | CardNexusPriceHistoryEtlJob,
+                             row_count: int) -> None:
     requested, failed = etl_job.requested_count, etl_job.failed_count
-    summary = f"{len(rows)} price rows from {requested - failed}/{requested} products"
+    summary = f"{row_count} price rows from {requested - failed}/{requested} products"
     if failed:
         summary += f", {failed} failed"
     # Per-product errors are swallowed by the job, so a run where every request failed
@@ -142,25 +147,36 @@ def cardnexus_update_prices(max_requests: int, sealed_only: bool) -> None:
 
 
 @cardnexus_group.command("update-price-history")
-@click.option("--max-requests", "-n", type=int, default=100,
-             help="Max CardNexus API calls to spend this run. Stay under 120/hour across "
-                  "scheduled invocations, since /prices/history is rate-limited at 120 requests/hour.")
+@click.option("--min-days", type=int, default=30,
+             help="Only backfill products with fewer than this many dates recorded. Products "
+                  "already backfilled no longer qualify, so re-running resumes where it stopped.")
+@click.option("--batch-size", type=int, default=100,
+             help="Products fetched per batch before upserting to BigQuery. An interruption "
+                  "loses at most one batch (~50 min at the 120 requests/hour history limit).")
+@click.option("--max-requests", "-n", type=int, default=None,
+             help="Cap on CardNexus API calls for this run (default: all qualifying products).")
 @click.option("--days", type=int, default=365,
              help="Days of history to request per product (CardNexus caps a single request at 365).")
 @click.option("--sealed-only", is_flag=True, default=False,
              help="Only backfill history for sealed products (booster boxes, cases, decks, ...), "
                   "skipping cards entirely.")
-def cardnexus_update_price_history(max_requests: int, days: int, sealed_only: bool) -> None:
+def cardnexus_update_price_history(min_days: int, batch_size: int, max_requests: int | None,
+                                   days: int, sealed_only: bool) -> None:
     """
-    Backfills historical daily prices for CardNexus products into the same table
-    CardNexusPriceUpdateEtlJob keeps current going forward, prioritizing products with
-    the least history recorded so far. Run 'sync-catalog' first.
+    One-off local backfill of historical daily prices (up to yesterday) into the same table
+    'update-prices' keeps current. Paced at CardNexus's 120 requests/hour history limit, so a
+    full catalog takes ~2 days — keep the machine awake (e.g. `caffeinate -i optcg ...`).
+    Run 'sync-catalog' first.
     """
-    _run_cardnexus_price_job(
-        "cardnexus-update-price-history",
-        CardNexusPriceHistoryEtlJob(max_requests=max_requests, days=days, sealed_only=sealed_only),
-    )
-
+    job_name = "cardnexus-update-price-history"
+    etl_job = CardNexusPriceHistoryEtlJob(max_requests=max_requests, days=days, sealed_only=sealed_only,
+                                          min_history_days=min_days)
+    try:
+        row_count = etl_job.run_in_batches(batch_size=batch_size)
+    except Exception as e:
+        notify_job_result(job_name, success=False, summary="", error=str(e))
+        raise
+    _notify_price_job_result(job_name, etl_job, row_count)
 
 if __name__ == "__main__":
     upload_matches()

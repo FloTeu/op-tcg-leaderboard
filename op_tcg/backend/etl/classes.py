@@ -17,7 +17,7 @@ from op_tcg.backend.etl.transform import BQMatchCreator, parse_card_product, par
     build_cardmarket_sealed_id_lookup, resolve_sealed_product_mapping_by_cardmarket_id, \
     flatten_price_snapshot, flatten_price_history
 from op_tcg.backend.etl.views import ensure_cardnexus_price_view, ensure_cardnexus_sealed_views
-from op_tcg.backend.crawling.cardnexus_client import CardNexusClient
+from op_tcg.backend.crawling.cardnexus_client import CardNexusClient, HISTORY_REQUESTS_PER_HOUR
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.input import AllLeaderMetaDocs, MetaFormat, LimitlessLeaderMetaDoc
 from op_tcg.backend.models.matches import BQMatches, Match
@@ -515,17 +515,21 @@ class CardNexusPriceHistoryEtlJob(AbstractETLJob[list, list]):
 
     Sealed products aren't gated on a match, same as CardNexusPriceUpdateEtlJob.
 
-    Bounded by max_requests per run so repeated scheduled invocations stay within
-    CardNexus's 120/hour history rate limit while eventually covering the full
-    catalog. Run CardNexusCatalogSyncEtlJob first to populate the candidate tables.
+    Meant to run locally as a one-off backfill via run_in_batches(): candidates are
+    selected once (products with fewer than `min_history_days` dates recorded), then
+    fetched and upserted batch by batch through a single client, so its rate limiter
+    paces the whole run at CardNexus's 120/hour history limit and an interruption loses
+    at most one batch. Re-running resumes, since finished products no longer qualify.
+    Run CardNexusCatalogSyncEtlJob first to populate the candidate tables.
     """
 
-    def __init__(self, max_requests: int = 100, days: int = 365, sealed_only: bool = False,
-                cardnexus_client: CardNexusClient | None = None):
+    def __init__(self, max_requests: int | None = None, days: int = 365, sealed_only: bool = False,
+                 min_history_days: int | None = None, cardnexus_client: CardNexusClient | None = None):
         self.bq_client = bigquery.Client(location="europe-west1")
         self.max_requests = max_requests
         self.days = days
         self.sealed_only = sealed_only
+        self.min_history_days = min_history_days
         self.cardnexus_client = cardnexus_client or CardNexusClient()
 
     def validate(self, extracted_data: list) -> bool:
@@ -543,6 +547,7 @@ class CardNexusPriceHistoryEtlJob(AbstractETLJob[list, list]):
             UNION DISTINCT
             SELECT product_id FROM `{sealed_table}`
             """
+        limit_clause = f"LIMIT {self.max_requests}" if self.max_requests else ""
         query = f"""
         SELECT c.product_id
         FROM ({candidates_cte}) c
@@ -551,8 +556,9 @@ class CardNexusPriceHistoryEtlJob(AbstractETLJob[list, list]):
             FROM `{history_table}`
             GROUP BY product_id
         ) h ON c.product_id = h.product_id
+        {f"WHERE COALESCE(h.history_days, 0) < {self.min_history_days}" if self.min_history_days else ""}
         ORDER BY h.history_days IS NULL DESC, h.history_days ASC
-        LIMIT {self.max_requests}
+        {limit_clause}
         """
         try:
             df = self.bq_client.query_and_wait(query).to_dataframe()
@@ -561,7 +567,7 @@ class CardNexusPriceHistoryEtlJob(AbstractETLJob[list, list]):
             _logger.warning(f"Prioritized candidate query failed (likely first run): {e}")
         try:
             df = self.bq_client.query_and_wait(
-                f"SELECT product_id FROM ({candidates_cte}) LIMIT {self.max_requests}"
+                f"SELECT product_id FROM ({candidates_cte}) {limit_clause}"
             ).to_dataframe()
             return df["product_id"].tolist()
         except Exception as e:
@@ -600,3 +606,27 @@ class CardNexusPriceHistoryEtlJob(AbstractETLJob[list, list]):
             return
         bq_upsert_rows(rows, client=self.bq_client)
         _logger.info(f"Upserted {len(rows)} CardNexus price history rows (backfill)")
+
+    def run_in_batches(self, batch_size: int = 100) -> int:
+        """Selects candidates once, then fetches and upserts them batch by batch.
+
+        Returns the total number of price rows written; requested_count/failed_count
+        hold the totals across all batches.
+        """
+        product_ids = self.extract()
+        total = len(product_ids)
+        _logger.info(f"CardNexus price history backfill: {total} products to fetch "
+                     f"(~{total / HISTORY_REQUESTS_PER_HOUR:.1f}h at the history rate limit)")
+        total_rows, requested, failed = 0, 0, 0
+        for start in range(0, total, batch_size):
+            rows = self.transform(product_ids[start:start + batch_size])
+            self.load(rows)
+            total_rows += len(rows)
+            requested += self.requested_count
+            failed += self.failed_count
+            remaining = total - requested
+            _logger.info(f"CardNexus price history backfill: {requested}/{total} products done, "
+                         f"{failed} failed, {total_rows} rows written, "
+                         f"~{remaining / HISTORY_REQUESTS_PER_HOUR:.1f}h remaining")
+        self.requested_count, self.failed_count = requested, failed
+        return total_rows
