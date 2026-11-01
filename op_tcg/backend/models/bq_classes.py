@@ -3,12 +3,25 @@ from abc import ABC
 from datetime import datetime
 
 from google.cloud import bigquery
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 
 from op_tcg.backend.etl.load import bq_insert_rows, get_or_create_table, bq_upsert_row
 from op_tcg.backend.models.base import SQLTableBaseModel
 from op_tcg.backend.utils.annotations import create_pandera_schema_from_pydantic
+
+
+class UpdateTimestampMixin(BaseModel):
+    """Opt-in `update_timestamp` column for upserted BQ tables.
+
+    Rows are built fresh on every write, so the default is the write time; bq_upsert_rows
+    overwrites every non-PK column except create_timestamp on MERGE, which makes this the
+    time the row was last written while create_timestamp keeps the first insert time.
+
+    Not part of BQTableBaseModel on purpose: existing tables don't get new columns
+    automatically, so adding it there would break writes to every table until altered.
+    """
+    update_timestamp: datetime = Field(default_factory=datetime.now, description="Timestamp of the last upsert of this row in BQ")
 
 
 class BQTableBaseModel(SQLTableBaseModel, ABC):

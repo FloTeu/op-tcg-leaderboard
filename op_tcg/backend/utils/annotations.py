@@ -96,11 +96,10 @@ def pydantic_model_to_bq_schema(model: type[BaseModel]) -> list[bigquery.SchemaF
     schemata = []
     field_name2bq_types = pydantic_model_to_bq_types(model)
     fields = model.__fields__
-    # but timestamp to end of schema
-    if "create_timestamp" in fields:
-        field_info_create_timestamp = fields["create_timestamp"]
-        fields.pop('create_timestamp', None)
-        fields["create_timestamp"] = field_info_create_timestamp
+    # put timestamps to end of schema
+    for timestamp_field in ("create_timestamp", "update_timestamp"):
+        if timestamp_field in fields:
+            fields[timestamp_field] = fields.pop(timestamp_field)
 
     for field_name, field_info in fields.items():
         bq_type = field_name2bq_types[field_name]
