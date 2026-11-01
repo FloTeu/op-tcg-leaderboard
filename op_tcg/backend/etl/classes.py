@@ -411,12 +411,13 @@ class CardNexusCatalogSyncEtlJob(AbstractETLJob[dict, tuple]):
 class CardNexusPriceUpdateEtlJob(AbstractETLJob[list, list]):
     """Pulls current prices for already-matched CardNexus card products and all
     known sealed products, prioritizing never-priced products and then the ones
-    priced longest ago, and upserts today's row into CardNexusPriceHistory.
+    priced longest ago, and upserts today's row into CardNexusPrice.
 
-    This is the "keep it current going forward" half of CardNexusPriceHistory —
-    CardNexusPriceHistoryEtlJob backfills past dates; this job keeps today's row
-    fresh from wherever that backfill left off. Since rows are upserted (not
-    appended), repeated same-day runs simply overwrite today's row.
+    This is the "keep it current going forward" half of CardNexusPrice —
+    CardNexusPriceHistoryEtlJob backfills past dates; this job adds today's row
+    from wherever that backfill left off. Each product is priced at most once per
+    (UTC) day: products that already have a row for today are excluded, so repeated
+    same-day runs only pick up the remainder and become no-ops once all are priced.
 
     Sealed products aren't gated on a match (there's no mapping/matching step for
     them — see CardNexusSealedProduct) so every known sealed product is eligible.
@@ -455,6 +456,7 @@ class CardNexusPriceUpdateEtlJob(AbstractETLJob[list, list]):
             FROM `{history_table}`
             GROUP BY product_id
         ) s ON c.product_id = s.product_id
+        WHERE s.last_priced IS NULL OR s.last_priced < CURRENT_DATE()
         ORDER BY s.last_priced IS NULL DESC, s.last_priced ASC
         LIMIT {self.max_requests}
         """

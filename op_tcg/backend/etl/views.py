@@ -103,5 +103,5 @@ def ensure_cardnexus_sealed_views(client: bigquery.Client) -> None:
     FROM `{history_table_id}` h
     JOIN `{product_table_id}` p
         ON h.product_id = p.product_id
-    """).result
+    """).result()
     logger.info("Ensured views %s and %s", product_view_id, price_view_id)

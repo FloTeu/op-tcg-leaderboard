@@ -95,38 +95,52 @@ jobs:
               --memory=2Gi
           fi
 
-      - name: Deploy crawl-prices Cloud Run Job
+      - name: Deploy optcg CLI Cloud Run Jobs
+        env:
+          CARDNEXUS_API_KEY: ${{ secrets.CARDNEXUS_API_KEY }}
         run: |
-          # Reuses the crawler image built above — the limitless price spider is plain
-          # Scrapy (no Camoufox) so no separate image is needed, just a different entrypoint.
+          # All jobs reuse the crawler image built above with an `optcg ...` entrypoint
+          # override — none of them need Camoufox, so no separate image is built.
+          # Jobs are created/updated here only; their schedules live in terraform/main.tf.
           IMAGE="${{ steps.build-crawler.outputs.image }}"
           PROJECT="${{ secrets.PROJECT }}"
           SA="cloud-function-sa@${PROJECT}.iam.gserviceaccount.com"
-          ENV_VARS="GOOGLE_CLOUD_PROJECT=${PROJECT},NTFY_TOPIC=${{ secrets.NTFY_TOPIC }},SCRAPER_PROXY=${{ secrets.SCRAPER_PROXY_RESIDENTIAL }}"
-          if gcloud run jobs describe crawl-prices \
-               --region=${{ env.REGION }} --project="${PROJECT}" &>/dev/null; then
-            gcloud run jobs update crawl-prices \
+          NTFY_TOPIC="${{ secrets.NTFY_TOPIC }}"
+
+          # deploy_job <name> <comma-separated optcg args> <env vars> <cpu> <memory> <task timeout s> <max retries>
+          deploy_job() {
+            local name="$1" args="$2" env_vars="$3" cpu="$4" memory="$5" timeout="$6" retries="$7"
+            local action=create
+            if gcloud run jobs describe "${name}" --region=${{ env.REGION }} --project="${PROJECT}" &>/dev/null; then
+              action=update
+            fi
+            gcloud run jobs "${action}" "${name}" \
               --image="${IMAGE}" \
               --command="optcg" \
-              --args="crawl,limitless,crawl-prices" \
-              --set-env-vars="${ENV_VARS}" \
-              --region=${{ env.REGION }} \
-              --project="${PROJECT}"
-          else
-            gcloud run jobs create crawl-prices \
-              --image="${IMAGE}" \
-              --command="optcg" \
-              --args="crawl,limitless,crawl-prices" \
+              --args="${args}" \
+              --set-env-vars="${env_vars}" \
               --region=${{ env.REGION }} \
               --project="${PROJECT}" \
               --service-account="${SA}" \
-              --set-env-vars="${ENV_VARS}" \
               --tasks=1 \
-              --max-retries=1 \
-              --task-timeout=1800 \
-              --cpu=1 \
-              --memory=1Gi
-          fi
+              --max-retries="${retries}" \
+              --task-timeout="${timeout}" \
+              --cpu="${cpu}" \
+              --memory="${memory}"
+          }
+
+          deploy_job crawl-prices "crawl,limitless,crawl-prices" \
+            "GOOGLE_CLOUD_PROJECT=${PROJECT},NTFY_TOPIC=${NTFY_TOPIC},SCRAPER_PROXY=${{ secrets.SCRAPER_PROXY_RESIDENTIAL }}" \
+            1 1Gi 1800 1
+
+          # CardNexus is a plain authenticated API (no scraping), so no proxy is needed.
+          CARDNEXUS_ENV="GOOGLE_CLOUD_PROJECT=${PROJECT},NTFY_TOPIC=${NTFY_TOPIC},CARDNEXUS_API_KEY=${CARDNEXUS_API_KEY}"
+          deploy_job cardnexus-sync-catalog "etl,cardnexus,sync-catalog,--force" \
+            "${CARDNEXUS_ENV}" 1 1Gi 900 1
+          # No retries: a retry would re-spend the 600/h price quota; the next scheduled
+          # run picks up whatever was missed (each product is priced at most once a day).
+          deploy_job cardnexus-update-prices "etl,cardnexus,update-prices,-n,550" \
+            "${CARDNEXUS_ENV}" 1 1Gi 1800 0
 
       - name: Deploy to Cloud Run
         id: deploy

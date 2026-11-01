@@ -483,6 +483,67 @@ resource "google_cloud_scheduler_job" "crawl-prices-job" {
 }
 
 
+# CardNexus Cloud Run Jobs are, like crawl-prices, created/updated by the CI deploy workflow.
+# Both run during daytime hours (more renewable energy in the grid).
+# The catalog sync runs daily so new CardNexus products and their Cardmarket/TCGplayer
+# ids reach the frontend within a day. It always runs with --force so products newly
+# crawled on our side get re-matched even if the CardNexus feed checksum hasn't changed,
+# It starts just before the first price run; matches it adds are picked up by that day's
+# later price runs, which prioritize never-priced products.
+resource "google_cloud_scheduler_job" "cardnexus_sync_catalog_job" {
+  name             = "cardnexus-sync-catalog-job"
+  region           = var.region
+  description      = "Triggers the cardnexus-sync-catalog Cloud Run Job to sync and re-match the CardNexus catalog"
+  schedule         = "0 9 * * *"
+  time_zone        = "Europe/Berlin"
+  attempt_deadline = "320s"
+  paused           = var.environment == "dev"
+
+  retry_config {
+    retry_count = 1
+  }
+
+  http_target {
+    http_method = "POST"
+    uri         = "https://run.googleapis.com/v2/projects/${var.project}/locations/${var.region}/jobs/cardnexus-sync-catalog:run"
+    body        = base64encode("{}")
+
+    oauth_token {
+      service_account_email = google_service_account.cloud_function_sa.email
+      scope                 = "https://www.googleapis.com/auth/cloud-platform"
+    }
+  }
+}
+
+# Prices only twice a week: Tuesday (after the Monday sealed/limitless crawls) and Friday.
+# Hourly 09:05-18:05 on price days: 10 runs x 550 products covers the full catalog
+# within CardNexus's 600/h current-price limit. The job skips products already priced
+# today, so runs after the catalog is covered are cheap no-ops.
+resource "google_cloud_scheduler_job" "cardnexus_update_prices_job" {
+  name             = "cardnexus-update-prices-job"
+  region           = var.region
+  description      = "Triggers the cardnexus-update-prices Cloud Run Job to fetch current CardNexus prices"
+  schedule         = "5 9-18 * * 2,5"
+  time_zone        = "Europe/Berlin"
+  attempt_deadline = "320s"
+  paused           = var.environment == "dev"
+
+  retry_config {
+    retry_count = 1
+  }
+
+  http_target {
+    http_method = "POST"
+    uri         = "https://run.googleapis.com/v2/projects/${var.project}/locations/${var.region}/jobs/cardnexus-update-prices:run"
+    body        = base64encode("{}")
+
+    oauth_token {
+      service_account_email = google_service_account.cloud_function_sa.email
+      scope                 = "https://www.googleapis.com/auth/cloud-platform"
+    }
+  }
+}
+
 resource "google_cloud_scheduler_job" "card_image_update_job" {
   name             = "card-image-update-job"
   region           = var.region
