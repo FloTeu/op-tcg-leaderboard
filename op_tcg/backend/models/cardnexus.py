@@ -2,12 +2,12 @@ from datetime import date as date_type, datetime
 
 from pydantic import Field
 
-from op_tcg.backend.models.bq_classes import BQTableBaseModel
+from op_tcg.backend.models.bq_classes import BQTableBaseModel, UpdateTimestampMixin
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.cards import OPTcgLanguage, OPTcgMarketplace
 
 
-class CardNexusCardProduct(BQTableBaseModel):
+class CardNexusCardProduct(BQTableBaseModel, UpdateTimestampMixin):
     """Raw catalog feed record for a card (CardNexus's `productType: "card"`) from
     the CardNexus 'onepiece' catalog feed.
 
@@ -26,7 +26,7 @@ class CardNexusCardProduct(BQTableBaseModel):
     raw_json: str = Field(description="Full raw catalog record as JSON, preserved in case of upstream schema changes")
 
 
-class CardNexusSealedProduct(BQTableBaseModel):
+class CardNexusSealedProduct(BQTableBaseModel, UpdateTimestampMixin):
     """Raw catalog feed record for a non-card CardNexus product (booster boxes,
     cases, starter decks, promo bundles, etc — CardNexus's `productType: "sealed"`).
 
@@ -49,7 +49,7 @@ class CardNexusSealedProduct(BQTableBaseModel):
     raw_json: str = Field(description="Full raw catalog record as JSON, preserved in case of upstream schema changes")
 
 
-class CardNexusPrice(BQTableBaseModel):
+class CardNexusPrice(BQTableBaseModel, UpdateTimestampMixin):
     """Unified daily price table for a CardNexus product/marketplace/finish.
 
     One row per (product_id, marketplace, finish, date) — upserted, not appended.
@@ -82,7 +82,7 @@ class CardNexusPrice(BQTableBaseModel):
     raw_json: str = Field(description="Full raw block/record this row was derived from, preserved verbatim since the CardNexus API is still under active development")
 
 
-class CardNexusCardProductMapping(BQTableBaseModel):
+class CardNexusCardProductMapping(BQTableBaseModel, UpdateTimestampMixin):
     """Maps a CardNexus product id + language to our own card id/language/aa_version.
 
     CardNexus has a single product id covering all of its languages, while our Card
@@ -114,7 +114,7 @@ class CardNexusCardProductMapping(BQTableBaseModel):
     match_method: str = Field(description="How the match was derived, e.g. 'tcgplayer_id', 'no_external_id', 'no_match'")
 
 
-class CardNexusSealedProductMapping(BQTableBaseModel):
+class CardNexusSealedProductMapping(BQTableBaseModel, UpdateTimestampMixin):
     """Maps a CardNexus sealed product id to our own cardmarket-scraped SealedProduct.
 
     Sealed products have no print_number to match on (unlike cards), so matching uses

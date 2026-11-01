@@ -494,7 +494,7 @@ resource "google_cloud_scheduler_job" "cardnexus_sync_catalog_job" {
   name             = "cardnexus-sync-catalog-job"
   region           = var.region
   description      = "Triggers the cardnexus-sync-catalog Cloud Run Job to sync and re-match the CardNexus catalog"
-  schedule         = "0 9 * * *"
+  schedule         = "0 8 * * *"
   time_zone        = "Europe/Berlin"
   attempt_deadline = "320s"
   paused           = var.environment == "dev"
@@ -523,7 +523,7 @@ resource "google_cloud_scheduler_job" "cardnexus_update_prices_job" {
   name             = "cardnexus-update-prices-job"
   region           = var.region
   description      = "Triggers the cardnexus-update-prices Cloud Run Job to fetch current CardNexus prices"
-  schedule         = "5 9-18 * * 2,5"
+  schedule         = "5 8-20 * * 2,5"
   time_zone        = "Europe/Berlin"
   attempt_deadline = "320s"
   paused           = var.environment == "dev"
