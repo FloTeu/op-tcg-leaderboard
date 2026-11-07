@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from functools import wraps
 import time
 
@@ -14,3 +15,7 @@ def timeit(func):
         print(f'Function {func.__name__}{args} {kwargs} Took {total_time:.4f} seconds')
         return result
     return timeit_wrapper
+
+def to_naive_utc(dt: datetime) -> datetime:
+    """Converts a timezone aware datetime (e.g. BQ timestamp) to naive UTC, to compare it with naive release dates."""
+    return dt.astimezone(timezone.utc).replace(tzinfo=None) if dt.tzinfo else dt

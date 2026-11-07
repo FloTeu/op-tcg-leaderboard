@@ -5,12 +5,13 @@ from concurrent.futures import ThreadPoolExecutor
 import threading
 import time
 
-from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion, released_side_meta_format
 from op_tcg.frontend.utils.extract import (
     get_all_tournament_decklist_data, get_leader_data, get_leader_extended, get_card_popularity_data,
     get_all_tournament_extened_data, get_card_id_card_data_lookup, get_card_lookup_by_id_and_aa,
     get_card_types, get_leader_win_rate
 )
+from op_tcg.frontend.utils.side_meta_format import get_side_meta_format_leader_extended
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +33,17 @@ class CacheWarmer:
         
     def get_cache_warming_tasks(self) -> List[Callable[[], Any]]:
         """Define all the cache warming tasks to run"""
+        latest_meta_format = MetaFormat.latest_meta_format()
         return [
             # Static data - warm every cycle
             lambda: get_leader_extended(),
+
+            # Default home page view: leaderboard since the released side meta format of the latest meta format.
+            # Warmed early, as the elo calculation is expensive.
+            *[lambda r=region, side_mf=side_meta_format: get_side_meta_format_leader_extended(latest_meta_format, side_mf, r)
+              for region in MetaFormatRegion.to_list()
+              if (side_meta_format := released_side_meta_format(latest_meta_format, region))],
+
             lambda: get_leader_data(),
             lambda: get_card_id_card_data_lookup(),
             lambda: get_card_lookup_by_id_and_aa(),

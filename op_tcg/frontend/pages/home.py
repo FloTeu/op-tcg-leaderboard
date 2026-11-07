@@ -2,10 +2,11 @@ import json
 import html
 from fasthtml import ft
 
-from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion, SideMetaFormat, side_meta_format2release_datetime
 from op_tcg.backend.models.leader import LeaderExtended, LeaderboardSortBy
 from op_tcg.frontend.components.loading import create_loading_overlay, create_loading_spinner
 from op_tcg.frontend.components.layout import create_mobile_filter_button
+from op_tcg.frontend.api.models import SIDE_META_FORMAT_NONE
 
 
 def _styles() -> ft.Style:
@@ -114,6 +115,33 @@ def _styles() -> ft.Style:
 }
 .hp-leader-link:hover { color: #7dd3fc; }
 
+/* Period toggle (full meta format vs. since in between set release) */
+.hp-period { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.hp-period-group { display: inline-flex; gap: 6px; }
+.hp-period-chip {
+    background: #0d1424;
+    border: 1px solid #1a2540;
+    color: #475569;
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 0.08em;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.hp-period-chip:hover { color: #94a3b8; border-color: #2d3f5a; }
+.hp-period-chip:active { transform: scale(0.97); transition-duration: 0.06s; }
+.hp-period-chip:focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; }
+.hp-period-chip[aria-pressed="true"] {
+    background: rgba(245,158,11,0.12);
+    border-color: rgba(245,158,11,0.35);
+    color: #f59e0b;
+    cursor: default;
+}
+.hp-period-note { font-family: 'Barlow', sans-serif; font-size: 0.85rem; color: #94a3b8; }
+.hp-period-note time { font-family: 'Share Tech Mono', monospace; color: #f1f5f9; }
+
 /* Slider overrides */
 .slider-values {
     font-family: 'Share Tech Mono', monospace;
@@ -163,7 +191,9 @@ def _sort_header(label, column: LeaderboardSortBy, sort_by: LeaderboardSortBy, a
 
 
 # Common HTMX attributes for filter components
-HX_INCLUDE = "[name='meta_format'],[name='region'],[name='sort_by'],[name='release_meta_formats'],[name='min_matches'],[name='max_matches'],[name='min_price'],[name='max_price']"
+HX_INCLUDE = "[name='meta_format'],[name='region'],[name='sort_by'],[name='release_meta_formats'],[name='min_matches'],[name='max_matches'],[name='min_price'],[name='max_price'],[name='side_meta_format']"
+# The period toggle sets side_meta_format itself, so it must not include the current value
+HX_INCLUDE_WITHOUT_SIDE_META_FORMAT = HX_INCLUDE.removesuffix(",[name='side_meta_format']")
 FILTER_HX_ATTRS = {
     "hx_get": "/api/leaderboard",
     "hx_trigger": "change",
@@ -247,6 +277,62 @@ def create_filter_components(max_match_count: int = 10000, selected_meta_format:
         _slider("Leader Match Count", "match-count-slider", "min_matches", "max_matches", max_match_count),
         _slider("Avg Deck Price (€)", "price-slider", "min_price", "max_price", 300),
         cls="space-y-4"
+    )
+
+
+def create_period_toggle(meta_format: MetaFormat, region: MetaFormatRegion, released_side_meta_format: SideMetaFormat | None,
+                         selected_side_meta_format: SideMetaFormat | None):
+    """Toggle between the full meta format and the time since its in between set release.
+    Always renders the hidden side_meta_format input, which carries the selection to all other leaderboard requests."""
+    if released_side_meta_format is None:
+        # Empty value: a following request for another meta format falls back to its default
+        return ft.Input(type="hidden", name="side_meta_format", id="side-meta-format-input", value="")
+    selected_value = selected_side_meta_format or SIDE_META_FORMAT_NONE
+    hidden_input = ft.Input(type="hidden", name="side_meta_format", id="side-meta-format-input", value=selected_value)
+
+    def chip(label, value: str):
+        return ft.Button(
+            label,
+            type="button",
+            cls="hp-period-chip",
+            aria_pressed="true" if value == selected_value else "false",
+            hx_get="/api/leaderboard",
+            hx_target="#leaderboard-table",
+            hx_include=HX_INCLUDE_WITHOUT_SIDE_META_FORMAT,
+            hx_vals=json.dumps({"side_meta_format": value}),
+            hx_indicator="#loading-indicator",
+        )
+
+    def release_time(release_region: MetaFormatRegion):
+        release = side_meta_format2release_datetime(selected_side_meta_format, release_region)
+        return ft.Time(f"{release:%-d %b %Y}", datetime=f"{release:%Y-%m-%d}") if release else "unknown"
+
+    note = None
+    if selected_side_meta_format:
+        early_tournaments = f", plus earlier ones where {selected_side_meta_format} cards were already played."
+        regional_releases = {r: side_meta_format2release_datetime(selected_side_meta_format, r)
+                             for r in (MetaFormatRegion.WEST, MetaFormatRegion.ASIA)}
+        if region == MetaFormatRegion.ALL and len(set(regional_releases.values())) > 1:
+            note = ft.P(
+                f"Tournaments since the {selected_side_meta_format} release in their region (West ",
+                release_time(MetaFormatRegion.WEST), ", Asia ", release_time(MetaFormatRegion.ASIA), ")",
+                early_tournaments,
+                cls="hp-period-note",
+            )
+        else:
+            note = ft.P("Tournaments since ", release_time(region), early_tournaments, cls="hp-period-note")
+
+    return ft.Div(
+        hidden_input,
+        ft.Div(
+            chip(f"Since {released_side_meta_format}", released_side_meta_format),
+            chip(f"All of {meta_format}", SIDE_META_FORMAT_NONE),
+            cls="hp-period-group",
+            role="group",
+            aria_label="Leaderboard period",
+        ),
+        note,
+        cls="hp-period mb-4",
     )
 
 
@@ -487,7 +573,7 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
     return table_container
 
 
-def home_page():
+def home_page(side_meta_format: str | None = None):
     persist_script = ft.Script("""
         function updateHomeURL() {
             const params = new URLSearchParams(window.location.search);
@@ -495,6 +581,8 @@ def home_page():
             const rg = document.getElementById('region-select');
             if (mf && mf.value) { params.set('meta_format', mf.value); } else { params.delete('meta_format'); }
             if (rg && rg.value) { params.set('region', rg.value); } else { params.delete('region'); }
+            const smf = document.getElementById('side-meta-format-input');
+            if (smf && smf.value) { params.set('side_meta_format', smf.value); } else if (smf) { params.delete('side_meta_format'); }
             const newURL = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
             window.history.replaceState({}, '', newURL);
         }
@@ -504,6 +592,9 @@ def home_page():
             }
         });
         document.addEventListener('DOMContentLoaded', function(){ setTimeout(updateHomeURL, 50); });
+        document.addEventListener('htmx:afterSwap', function(evt) {
+            if (evt.detail.target && evt.detail.target.id === 'leaderboard-table') { updateHomeURL(); }
+        });
     """)
 
     return ft.Div(
@@ -520,7 +611,8 @@ def home_page():
                 ft.Div(
                     hx_get="/api/leaderboard",
                     hx_trigger="load",
-                    hx_include=HX_INCLUDE,
+                    hx_include=HX_INCLUDE_WITHOUT_SIDE_META_FORMAT,
+                    hx_vals=json.dumps({"side_meta_format": side_meta_format or ""}),
                     hx_target="#leaderboard-table",
                     hx_indicator="#loading-indicator",
                     id="leaderboard-table"

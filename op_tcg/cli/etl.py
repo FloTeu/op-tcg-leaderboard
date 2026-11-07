@@ -1,6 +1,9 @@
 from pathlib import Path
 
 import click
+from google.cloud import bigquery
+
+from op_tcg.backend.etl.views import ensure_managed_views
 from op_tcg.backend.etl.classes import LocalMatchesToBigQueryEtlJob, EloUpdateToBigQueryEtlJob, \
     CardImageUpdateToGCPEtlJob, CardNexusCatalogSyncEtlJob, CardNexusPriceUpdateEtlJob, CardNexusPriceHistoryEtlJob
 from op_tcg.backend.models.input import MetaFormat
@@ -71,6 +74,21 @@ def update_card_images(
     etl_job.run()
 
 
+@etl_group.command("ensure-views")
+@click.option("--dry-run", is_flag=True, default=False,
+              help="Only list views whose BigQuery definition differs from the repo SQL, without changing them.")
+def ensure_views(dry_run: bool) -> None:
+    """
+    (Re-)creates the BigQuery views defined in op_tcg/backend/etl/sql/views whose definition differs from the repo.
+    """
+    changed_view_ids = ensure_managed_views(bigquery.Client(location="europe-west1"), dry_run=dry_run)
+    action = "Differs from repo" if dry_run else "Created/replaced"
+    for view_id in changed_view_ids:
+        click.echo(f"{action}: {view_id}")
+    if not changed_view_ids:
+        click.echo("All views match the repo SQL")
+
+
 @etl_group.group("cardnexus", help="ETL jobs for CardNexus catalog/price data")
 def cardnexus_group() -> None:
     pass
@@ -85,8 +103,8 @@ def cardnexus_group() -> None:
                   "checksum only tracks CardNexus's upstream feed, not our own data.")
 def cardnexus_sync_catalog(game_id: str, force: bool) -> None:
     """
-    Syncs the CardNexus catalog feed into BigQuery (raw + product_id -> card_id mapping)
-    and (re)creates the cards.card_nexus_price_view. Skips the feed download entirely if
+    Syncs the CardNexus catalog feed into BigQuery (raw + product_id -> card_id mapping).
+    The views on top are managed by `optcg etl ensure-views`. Skips the feed download entirely if
     unchanged since the last run (via the feed checksum), unless --force is passed.
     """
     job_name = "cardnexus-sync-catalog"

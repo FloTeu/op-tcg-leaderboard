@@ -1,7 +1,9 @@
 import logging
 import os
 import re
+import threading
 from collections import Counter, defaultdict
+from collections.abc import Collection
 
 from cachetools import TTLCache, cached
 
@@ -80,7 +82,7 @@ def get_tournament_decklist_data(meta_formats: list[MetaFormat], leader_ids: lis
         bq_decklists = [ts for ts in bq_decklists if ts.meta_format_region == meta_format_region]
     return bq_decklists
 
-@cached(cache=TTLCache(maxsize=1024, ttl=60*60*24))
+@cached(cache=TTLCache(maxsize=1024, ttl=60*60*24), condition=threading.Condition())
 def get_all_tournament_decklist_data() -> list[TournamentDecklist]:
     """Function is cached since data processing is expensive."""
     card_id2card_data = get_card_id_card_data_lookup()
@@ -192,7 +194,7 @@ def get_card_artists() -> list[str]:
     return [d["artist"] for d in rows]
 
 
-@cached(cache=TTLCache(maxsize=4, ttl=60*60*24))
+@cached(cache=TTLCache(maxsize=4, ttl=60*60*24), condition=threading.Condition())
 def get_card_id_card_data_lookup(aa_version: int = 0, ensure_latest_price_not_null=True, default_language: OPTcgLanguage = OPTcgLanguage.EN) -> dict[str, ExtendedCardData]:
     card_data = get_card_data()
     card_data = [cdata for cdata in card_data if cdata.aa_version == aa_version]
@@ -201,7 +203,7 @@ def get_card_id_card_data_lookup(aa_version: int = 0, ensure_latest_price_not_nu
             cdata.ensure_latest_price_not_none()
     return {card.id: card for card in card_data}
 
-@cached(cache=TTLCache(maxsize=1, ttl=60*60*24))
+@cached(cache=TTLCache(maxsize=1, ttl=60*60*24), condition=threading.Condition())
 def get_card_lookup_by_id_and_aa() -> dict[str, dict[int, ExtendedCardData]]:
     card_data = get_card_data()
     lookup = defaultdict(dict)
@@ -232,6 +234,16 @@ def get_tournament_match_data(tournament_id: str, leader_id: str | None = None) 
         matches = [m for m in matches if m.leader_id == leader_id]
     
     return matches
+
+
+def get_meta_format_match_rows(meta_format: MetaFormat) -> list[dict]:
+    """Returns the slim match rows (as needed for win rate and elo calculation) of a meta format."""
+    # Matches update daily - cache for 6 hours (default)
+    return run_bq_query(f"""
+    SELECT id, leader_id, opponent_id, result, official, meta_format, match_timestamp, tournament_id
+    FROM `{get_bq_table_id(Match)}`
+    WHERE meta_format = '{meta_format}'
+    """, ttl_hours=6.0)
 
 
 # --------------- Price overview extraction helpers ---------------
@@ -385,9 +397,12 @@ def get_top_current_prices(
     return run_bq_query(query, ttl_hours=24.0)
 
 
-def get_leader_average_deck_prices(meta_format: MetaFormat, region: MetaFormatRegion) -> dict[str, float]:
-    """Calculate average deck price in EUR for each leader in the given meta format and region."""
+def get_leader_average_deck_prices(meta_format: MetaFormat, region: MetaFormatRegion, tournament_ids: Collection[str] | None = None) -> dict[str, float]:
+    """Calculate average deck price in EUR for each leader in the given meta format and region.
+    If tournament_ids is provided, only decklists of these tournaments are used."""
     decklists = get_tournament_decklist_data(meta_formats=[meta_format], meta_format_region=region)
+    if tournament_ids is not None:
+        decklists = [d for d in decklists if d.tournament_id in tournament_ids]
     leader_prices = defaultdict(list)
     for d in decklists:
         if hasattr(d, 'price_eur') and d.price_eur and d.price_eur > 0:
