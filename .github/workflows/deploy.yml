@@ -22,5 +22,6 @@ jobs:
       environment: ${{ inputs.environment || 'production' }}
       ref: ${{ github.ref }}
       sha: ${{ github.sha }}
-      min_instances: ${{ inputs.environment == 'dev' && 0 || 1 }}
+      # `cond && 0 || 1` would always yield 1, as 0 is falsy in expressions; the truthy value must come first
+      min_instances: ${{ inputs.environment != 'dev' && 1 || 0 }}
     secrets: inherit
