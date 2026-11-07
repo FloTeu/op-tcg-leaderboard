@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import threading
 from collections import Counter, defaultdict
 from collections.abc import Collection
 
@@ -81,7 +82,7 @@ def get_tournament_decklist_data(meta_formats: list[MetaFormat], leader_ids: lis
         bq_decklists = [ts for ts in bq_decklists if ts.meta_format_region == meta_format_region]
     return bq_decklists
 
-@cached(cache=TTLCache(maxsize=1024, ttl=60*60*24))
+@cached(cache=TTLCache(maxsize=1024, ttl=60*60*24), condition=threading.Condition())
 def get_all_tournament_decklist_data() -> list[TournamentDecklist]:
     """Function is cached since data processing is expensive."""
     card_id2card_data = get_card_id_card_data_lookup()
@@ -193,7 +194,7 @@ def get_card_artists() -> list[str]:
     return [d["artist"] for d in rows]
 
 
-@cached(cache=TTLCache(maxsize=4, ttl=60*60*24))
+@cached(cache=TTLCache(maxsize=4, ttl=60*60*24), condition=threading.Condition())
 def get_card_id_card_data_lookup(aa_version: int = 0, ensure_latest_price_not_null=True, default_language: OPTcgLanguage = OPTcgLanguage.EN) -> dict[str, ExtendedCardData]:
     card_data = get_card_data()
     card_data = [cdata for cdata in card_data if cdata.aa_version == aa_version]
@@ -202,7 +203,7 @@ def get_card_id_card_data_lookup(aa_version: int = 0, ensure_latest_price_not_nu
             cdata.ensure_latest_price_not_none()
     return {card.id: card for card in card_data}
 
-@cached(cache=TTLCache(maxsize=1, ttl=60*60*24))
+@cached(cache=TTLCache(maxsize=1, ttl=60*60*24), condition=threading.Condition())
 def get_card_lookup_by_id_and_aa() -> dict[str, dict[int, ExtendedCardData]]:
     card_data = get_card_data()
     lookup = defaultdict(dict)

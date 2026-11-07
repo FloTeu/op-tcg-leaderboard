@@ -33,9 +33,17 @@ class CacheWarmer:
         
     def get_cache_warming_tasks(self) -> List[Callable[[], Any]]:
         """Define all the cache warming tasks to run"""
+        latest_meta_format = MetaFormat.latest_meta_format()
         return [
             # Static data - warm every cycle
             lambda: get_leader_extended(),
+
+            # Default home page view: leaderboard since the released side meta format of the latest meta format.
+            # Warmed early, as the elo calculation is expensive.
+            *[lambda r=region, side_mf=side_meta_format: get_side_meta_format_leader_extended(latest_meta_format, side_mf, r)
+              for region in MetaFormatRegion.to_list()
+              if (side_meta_format := released_side_meta_format(latest_meta_format, region))],
+
             lambda: get_leader_data(),
             lambda: get_card_id_card_data_lookup(),
             lambda: get_card_lookup_by_id_and_aa(),
@@ -49,12 +57,6 @@ class CacheWarmer:
             # Per meta format data
             *[lambda mf=meta_format: get_leader_win_rate([mf]) 
               for meta_format in MetaFormat.to_list()],
-
-            # Leaderboard since the in between set release of the latest meta format (elo calculation is expensive)
-            *[lambda r=region: get_side_meta_format_leader_extended(
-                MetaFormat.latest_meta_format(), released_side_meta_format(MetaFormat.latest_meta_format(), r), r)
-              for region in MetaFormatRegion.to_list()
-              if released_side_meta_format(MetaFormat.latest_meta_format(), region)],
         ]
     
     def warm_cache_sync(self) -> None:

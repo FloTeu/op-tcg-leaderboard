@@ -4,6 +4,7 @@ Mirrors the leaders.leader_extended view (op_tcg/backend/etl/sql/views/leaders.l
 win rate, tournament wins, elo and d_score only from the side meta format tournaments (see get_side_meta_format_tournament_ids).
 Rows keep their main meta_format (e.g. OP17), so all leaderboard components can be reused unchanged.
 """
+import threading
 from collections import defaultdict
 
 import pandas as pd
@@ -43,7 +44,7 @@ def _win_rates(df_matches: pd.DataFrame) -> dict[str, tuple[float, int]]:
     return {lid: (wins[lid] / totals[lid], int(totals[lid])) for lid in totals.index}
 
 
-@cached(cache=TTLCache(maxsize=16, ttl=60 * 60 * 6))
+@cached(cache=TTLCache(maxsize=16, ttl=60 * 60 * 6), condition=threading.Condition())
 def get_side_meta_format_tournament_ids(meta_format: MetaFormat, side_meta_format: SideMetaFormat) -> frozenset[str]:
     """Ids of the meta format tournaments (all regions) played with the side meta format: tournaments starting after
     its release in the tournament's region, and earlier ones in which side meta format leaders or cards were already used.
@@ -78,7 +79,7 @@ def _tournament_wins(meta_format: MetaFormat, tournament_ids: frozenset[str], re
     return wins
 
 
-@cached(cache=TTLCache(maxsize=16, ttl=60 * 60 * 6))
+@cached(cache=TTLCache(maxsize=16, ttl=60 * 60 * 6), condition=threading.Condition())
 def _matches_and_elo(meta_format: MetaFormat, side_meta_format: SideMetaFormat, only_official: bool) -> tuple[dict[str, tuple[float, int]], dict[str, int]]:
     """Win rates and soft reset elo of the side meta format matches. Independent of the region, as matches have no region (like the views)."""
     df_matches = pd.DataFrame(get_meta_format_match_rows(meta_format))
@@ -97,7 +98,7 @@ def _matches_and_elo(meta_format: MetaFormat, side_meta_format: SideMetaFormat, 
     return win_rates, elos
 
 
-@cached(cache=TTLCache(maxsize=32, ttl=60 * 60 * 6))
+@cached(cache=TTLCache(maxsize=32, ttl=60 * 60 * 6), condition=threading.Condition())
 def _side_meta_format_leader_extended(meta_format: MetaFormat, side_meta_format: SideMetaFormat,
                                       region: MetaFormatRegion, only_official: bool) -> tuple[LeaderExtended, ...]:
     if side_meta_format2release_datetime(side_meta_format, region) is None:
