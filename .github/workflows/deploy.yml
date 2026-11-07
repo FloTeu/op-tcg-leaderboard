@@ -22,5 +22,5 @@ jobs:
       environment: ${{ inputs.environment || 'production' }}
       ref: ${{ github.ref }}
       sha: ${{ github.sha }}
-      min_instances: ${{ inputs.environment == 'dev' && 1 || 1 }}
+      min_instances: ${{ inputs.environment == 'dev' && 0 || 1 }}
     secrets: inherit
