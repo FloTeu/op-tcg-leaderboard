@@ -2,6 +2,7 @@ import logging
 import os
 import re
 from collections import Counter, defaultdict
+from collections.abc import Collection
 
 from cachetools import TTLCache, cached
 
@@ -234,6 +235,16 @@ def get_tournament_match_data(tournament_id: str, leader_id: str | None = None) 
     return matches
 
 
+def get_meta_format_match_rows(meta_format: MetaFormat) -> list[dict]:
+    """Returns the slim match rows (as needed for win rate and elo calculation) of a meta format."""
+    # Matches update daily - cache for 6 hours (default)
+    return run_bq_query(f"""
+    SELECT id, leader_id, opponent_id, result, official, meta_format, match_timestamp, tournament_id
+    FROM `{get_bq_table_id(Match)}`
+    WHERE meta_format = '{meta_format}'
+    """, ttl_hours=6.0)
+
+
 # --------------- Price overview extraction helpers ---------------
 def get_price_change_data(start_date: int, end_date: int, currency: CardCurrency, min_latest_price: float, max_latest_price: float,
                           page: int, page_size: int, order_dir: str = "DESC", include_alt_art: bool = False, change_metric: str = "absolute", query_text: str = None, sort_by: str = "change", rarity: str = None, artist: list[str] = None) -> list[dict]:
@@ -385,9 +396,12 @@ def get_top_current_prices(
     return run_bq_query(query, ttl_hours=24.0)
 
 
-def get_leader_average_deck_prices(meta_format: MetaFormat, region: MetaFormatRegion) -> dict[str, float]:
-    """Calculate average deck price in EUR for each leader in the given meta format and region."""
+def get_leader_average_deck_prices(meta_format: MetaFormat, region: MetaFormatRegion, tournament_ids: Collection[str] | None = None) -> dict[str, float]:
+    """Calculate average deck price in EUR for each leader in the given meta format and region.
+    If tournament_ids is provided, only decklists of these tournaments are used."""
     decklists = get_tournament_decklist_data(meta_formats=[meta_format], meta_format_region=region)
+    if tournament_ids is not None:
+        decklists = [d for d in decklists if d.tournament_id in tournament_ids]
     leader_prices = defaultdict(list)
     for d in decklists:
         if hasattr(d, 'price_eur') and d.price_eur and d.price_eur > 0:

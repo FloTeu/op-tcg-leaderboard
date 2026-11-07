@@ -9,9 +9,10 @@ from op_tcg.backend.models.leader import LeaderElo
 class EloCreator:
     leader_id2elo: dict[str, int]
 
-    def __init__(self, df_all_matches: pd.DataFrame, only_official: bool | None = None):
+    def __init__(self, df_all_matches: pd.DataFrame, only_official: bool | None = None, initial_elo: dict[str, int] | None = None):
         self.df_all_matches = df_all_matches
-        self.leader_id2elo = {leader_id: 1000 for leader_id in df_all_matches.leader_id.unique()}
+        initial_elo = initial_elo or {}
+        self.leader_id2elo = {leader_id: initial_elo.get(leader_id, 1000) for leader_id in df_all_matches.leader_id.unique()}
         self.start_date = df_all_matches.sort_values("match_timestamp", ascending=True).iloc[0].match_timestamp.date()
         self.end_date = df_all_matches.sort_values("match_timestamp", ascending=False).iloc[0].match_timestamp.date()
         self.only_official = only_official if only_official is not None else len(df_all_matches.query("official != True")) == 0
@@ -79,6 +80,29 @@ class EloCreator:
                 end_date=self.end_date
             ))
         return leader_elos
+
+
+def calculate_elo_with_soft_reset(df_matches_before: pd.DataFrame, df_matches_after: pd.DataFrame, carry_over: float = 0.5) -> dict[str, int]:
+    """
+    Calculates the elo of all leaders playing in df_matches_after (e.g. matches after the release of an in between set).
+    df_matches_before is used to seed the ratings, which are regressed towards 1000 by keeping only carry_over of the
+    distance, so the ratings react faster to the shifted meta without starting from scratch.
+
+    :param df_matches_before: pd.DataFrame - Matches defining the start ratings (columns as required by EloCreator)
+    :param df_matches_after: pd.DataFrame - Matches defining the new ratings (columns as required by EloCreator)
+    :param carry_over: float - Share of the pre reset elo distance to 1000 which is kept (0 = full reset, 1 = no reset)
+    :return: dict[str, int] - Leader id to elo of all leaders in df_matches_after
+    """
+    if df_matches_after.empty:
+        return {}
+    initial_elo: dict[str, int] = {}
+    if not df_matches_before.empty:
+        elo_creator_before = EloCreator(df_matches_before)
+        elo_creator_before.calculate_elo_ratings()
+        initial_elo = {lid: int(round(1000 + carry_over * (elo - 1000))) for lid, elo in elo_creator_before.leader_id2elo.items()}
+    elo_creator_after = EloCreator(df_matches_after, initial_elo=initial_elo)
+    elo_creator_after.calculate_elo_ratings()
+    return elo_creator_after.leader_id2elo
 
 
 def calculate_new_elo(current_elo: int, opponent_elo: int, result: MatchResult, k_factor=32) -> int:

@@ -3,6 +3,7 @@ from typing import Dict, Any, List
 
 from op_tcg.frontend.api.models import LeaderboardFilter
 from op_tcg.frontend.utils.extract import get_leader_extended
+from op_tcg.frontend.utils.side_meta_format import get_side_meta_format_leader_extended
 from op_tcg.frontend.utils.filter import filter_leader_extended, get_leaders_with_decklist_data
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
@@ -207,7 +208,11 @@ def get_filtered_leaders(request: Request, leader_extended_data: list[LeaderExte
     
     # Filter by meta format first
     meta_format = query_params.meta_format
-    leaders_in_meta = [l for l in leader_extended_data if l.meta_format == meta_format]
+    if query_params.side_meta_format:
+        leaders_in_meta = get_side_meta_format_leader_extended(
+            meta_format, query_params.side_meta_format, query_params.region, query_params.only_official)
+    else:
+        leaders_in_meta = [l for l in leader_extended_data if l.meta_format == meta_format]
     
     # Apply standard filtering
     filtered_leaders = filter_leader_extended(

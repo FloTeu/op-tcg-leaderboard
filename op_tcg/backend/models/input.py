@@ -181,7 +181,8 @@ def meta_format2side_meta_format(meta_format: MetaFormat, region: MetaFormatRegi
     mappings_both = {
         MetaFormat.OP06: SideMetaFormat.EB01,
         MetaFormat.OP10: SideMetaFormat.EB02,
-        MetaFormat.OP12: SideMetaFormat.PRB02
+        MetaFormat.OP12: SideMetaFormat.PRB02,
+        MetaFormat.OP17: SideMetaFormat.EB05,
     }
     if region == MetaFormatRegion.ASIA:
         mapping = {
@@ -199,6 +200,44 @@ def meta_format2side_meta_format(meta_format: MetaFormat, region: MetaFormatRegi
         mapping = mappings_both
 
     return mapping.get(meta_format, None)
+
+def side_meta_format2release_datetime(side_meta_format: SideMetaFormat, region: MetaFormatRegion = MetaFormatRegion.WEST) -> datetime | None:
+    """
+    Get the release datetime of a side meta format (in between set) in a specific region.
+    If ALL is specified, returns the earliest known release date.
+    Side meta formats without a known release date return None and are not offered as separate frontend view.
+    """
+    western_releases = {
+        SideMetaFormat.EB01: datetime(2024, 5, 3),
+        SideMetaFormat.EB02: datetime(2025, 5, 9),
+        SideMetaFormat.PRB02: datetime(2025, 10, 3),
+        SideMetaFormat.EB03: datetime(2026, 2, 20),
+        SideMetaFormat.EB05: datetime(2026, 10, 30),
+    }
+    japanese_releases = {
+        SideMetaFormat.EB01: datetime(2024, 1, 27),
+        SideMetaFormat.EB02: datetime(2025, 1, 25),
+        SideMetaFormat.PRB02: datetime(2025, 7, 26),
+        SideMetaFormat.EB03: datetime(2025, 10, 30),
+        SideMetaFormat.EB04: datetime(2026, 1, 31),
+        SideMetaFormat.EB05: datetime(2026, 10, 30),
+    }
+    if region == MetaFormatRegion.ASIA:
+        return japanese_releases.get(side_meta_format)
+    elif region == MetaFormatRegion.WEST:
+        return western_releases.get(side_meta_format)
+    releases = [d for d in (japanese_releases.get(side_meta_format), western_releases.get(side_meta_format)) if d]
+    return min(releases, default=None)
+
+def released_side_meta_format(meta_format: MetaFormat, region: MetaFormatRegion = MetaFormatRegion.ALL) -> SideMetaFormat | None:
+    """
+    Returns the side meta format released within the given meta format, if its release date is known and has passed.
+    """
+    side_meta_format = meta_format2side_meta_format(meta_format, region)
+    if side_meta_format is None:
+        return None
+    release = side_meta_format2release_datetime(side_meta_format, region)
+    return side_meta_format if release is not None and release <= datetime.now() else None
 
 def meta_formats2date_range(meta_formats: list[MetaFormat], region: MetaFormatRegion = MetaFormatRegion.ALL) -> tuple[datetime, datetime]:
     """

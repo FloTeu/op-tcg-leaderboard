@@ -26,7 +26,7 @@ from op_tcg.frontend.pages.privacy import privacy_page
 from op_tcg.frontend.api.routes.main import setup_api_routes
 from op_tcg.frontend.api.routes.auth import setup_auth_routes
 from op_tcg.frontend.api.routes.settings import setup_settings_routes
-from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion, SideMetaFormat
 from op_tcg.backend.models.cards import CardCurrency
 from op_tcg.backend.db import get_user_settings
 from starlette.requests import Request
@@ -287,12 +287,14 @@ def home(request: Request):
     }
     selected_meta_format_enum = MetaFormat(selected_meta_format) if selected_meta_format else None
     selected_region_enum = MetaFormatRegion(selected_region) if selected_region else None
+    selected_side_meta_format = request.query_params.get("side_meta_format")
+    selected_side_meta_format = SideMetaFormat(selected_side_meta_format) if selected_side_meta_format in SideMetaFormat.to_list() else None
     user = request.session.get('user')
     flash = request.session.pop('flash', None)
     return (
         *page_head(title, description, canonical_url, keywords, base, "One Piece TCG Competitive Leaderboard"),
         layout(
-            home_page(),
+            home_page(side_meta_format=selected_side_meta_format),
             filter_component=home_filters(selected_meta_format=selected_meta_format_enum, selected_region=selected_region_enum),
             current_path="/",
             persist_query=persist_query,

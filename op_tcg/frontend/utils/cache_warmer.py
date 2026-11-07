@@ -5,12 +5,13 @@ from concurrent.futures import ThreadPoolExecutor
 import threading
 import time
 
-from op_tcg.backend.models.input import MetaFormat
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion, released_side_meta_format
 from op_tcg.frontend.utils.extract import (
     get_all_tournament_decklist_data, get_leader_data, get_leader_extended, get_card_popularity_data,
     get_all_tournament_extened_data, get_card_id_card_data_lookup, get_card_lookup_by_id_and_aa,
     get_card_types, get_leader_win_rate
 )
+from op_tcg.frontend.utils.side_meta_format import get_side_meta_format_leader_extended
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,12 @@ class CacheWarmer:
             # Per meta format data
             *[lambda mf=meta_format: get_leader_win_rate([mf]) 
               for meta_format in MetaFormat.to_list()],
+
+            # Leaderboard since the in between set release of the latest meta format (elo calculation is expensive)
+            *[lambda r=region: get_side_meta_format_leader_extended(
+                MetaFormat.latest_meta_format(), released_side_meta_format(MetaFormat.latest_meta_format(), r), r)
+              for region in MetaFormatRegion.to_list()
+              if released_side_meta_format(MetaFormat.latest_meta_format(), region)],
         ]
     
     def warm_cache_sync(self) -> None:

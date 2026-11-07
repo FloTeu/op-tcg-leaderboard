@@ -4,7 +4,7 @@ from starlette.requests import Request
 
 from op_tcg.backend.db import get_watchlist
 from op_tcg.backend.models.leader import LeaderExtended, LeaderboardSortBy
-from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion, released_side_meta_format
 from op_tcg.backend.models.cards import CardCurrency, OPTcgTournamentStatus
 from op_tcg.frontend.utils.extract import (
     get_card_lookup_by_id_and_aa,
@@ -13,7 +13,8 @@ from op_tcg.frontend.utils.extract import (
     get_card_id_card_data_lookup,
     get_leader_average_deck_prices
 )
-from op_tcg.frontend.pages.home import create_leaderboard_table
+from op_tcg.frontend.pages.home import create_leaderboard_table, create_period_toggle
+from op_tcg.frontend.utils.side_meta_format import get_side_meta_format_tournament_ids
 from op_tcg.frontend.utils.filter import filter_leader_extended, get_leaders_with_decklist_data
 from op_tcg.frontend.utils.api import get_query_params_as_dict, get_filtered_leaders, create_no_match_data_notification, detect_no_match_data
 from op_tcg.frontend.pages.leader import create_leader_content, HX_INCLUDE
@@ -138,7 +139,9 @@ def setup_api_routes(rt):
         # Get leader prices
         leader_prices = get_leader_average_deck_prices(
             meta_format=sort_params.meta_format,
-            region=filter_params.region
+            region=filter_params.region,
+            tournament_ids=get_side_meta_format_tournament_ids(filter_params.meta_format, filter_params.side_meta_format)
+            if filter_params.side_meta_format else None
         )
 
         # Filter by price
@@ -185,6 +188,13 @@ def setup_api_routes(rt):
             ascending=sort_params.ascending,
         )
         
+        period_toggle = create_period_toggle(
+            filter_params.meta_format,
+            filter_params.region,
+            released_side_meta_format(filter_params.meta_format, filter_params.region),
+            filter_params.side_meta_format,
+        )
+
         # Check if leaders exist but have no match data
         if detect_no_match_data(filtered_leaders):
             # Special notification for when leaders exist but have no match data
@@ -192,9 +202,9 @@ def setup_api_routes(rt):
                 sort_params.meta_format,
                 leader_data_available=bool(filtered_leaders)
             )
-            return ft.Div(notification, table_content)
-        
-        return table_content
+            return ft.Div(period_toggle, notification, table_content)
+
+        return ft.Div(period_toggle, table_content)
 
     @rt("/api/leader-data")
     async def get_leader_data(request: Request):
