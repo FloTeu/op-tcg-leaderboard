@@ -1,6 +1,9 @@
 from pathlib import Path
 
 import click
+from google.cloud import bigquery
+
+from op_tcg.backend.etl.views import ensure_managed_views
 from op_tcg.backend.etl.classes import LocalMatchesToBigQueryEtlJob, EloUpdateToBigQueryEtlJob, \
     CardImageUpdateToGCPEtlJob, CardNexusCatalogSyncEtlJob, CardNexusPriceUpdateEtlJob, CardNexusPriceHistoryEtlJob
 from op_tcg.backend.models.input import MetaFormat
@@ -69,6 +72,21 @@ def update_card_images(
     meta_formats = list(meta_formats)
     etl_job = CardImageUpdateToGCPEtlJob(meta_formats=meta_formats)
     etl_job.run()
+
+
+@etl_group.command("ensure-views")
+@click.option("--dry-run", is_flag=True, default=False,
+              help="Only list views whose BigQuery definition differs from the repo SQL, without changing them.")
+def ensure_views(dry_run: bool) -> None:
+    """
+    (Re-)creates the BigQuery views defined in op_tcg/backend/etl/sql/views whose definition differs from the repo.
+    """
+    changed_view_ids = ensure_managed_views(bigquery.Client(location="europe-west1"), dry_run=dry_run)
+    action = "Differs from repo" if dry_run else "Created/replaced"
+    for view_id in changed_view_ids:
+        click.echo(f"{action}: {view_id}")
+    if not changed_view_ids:
+        click.echo("All views match the repo SQL")
 
 
 @etl_group.group("cardnexus", help="ETL jobs for CardNexus catalog/price data")
