@@ -16,7 +16,6 @@ from op_tcg.backend.etl.transform import BQMatchCreator, parse_card_product, par
     build_tcgplayer_id_lookup, resolve_product_mapping_by_tcgplayer_id, \
     build_cardmarket_sealed_id_lookup, resolve_sealed_product_mapping_by_cardmarket_id, \
     flatten_price_snapshot, flatten_price_history
-from op_tcg.backend.etl.views import ensure_cardnexus_price_view, ensure_cardnexus_sealed_views
 from op_tcg.backend.crawling.cardnexus_client import CardNexusClient, HISTORY_REQUESTS_PER_HOUR
 from op_tcg.backend.models.bq_enums import BQDataset
 from op_tcg.backend.models.input import AllLeaderMetaDocs, MetaFormat, LimitlessLeaderMetaDoc
@@ -399,13 +398,11 @@ class CardNexusCatalogSyncEtlJob(AbstractETLJob[dict, tuple]):
             bq_upsert_rows(sealed_products, client=self.bq_client)
         if sealed_product_mappings:
             bq_upsert_rows(sealed_product_mappings, client=self.bq_client)
-        # Ensure raw tables exist even on a skipped/empty run, then (re)create the views
+        # Ensure raw tables exist even on a skipped/empty run (views on top are managed by `optcg etl ensure-views`)
         get_or_create_table(CardNexusCardProduct, client=self.bq_client)
         get_or_create_table(CardNexusCardProductMapping, client=self.bq_client)
         get_or_create_table(CardNexusSealedProduct, client=self.bq_client)
         get_or_create_table(CardNexusSealedProductMapping, client=self.bq_client)
-        ensure_cardnexus_price_view(self.bq_client)
-        ensure_cardnexus_sealed_views(self.bq_client)
 
 
 class CardNexusPriceUpdateEtlJob(AbstractETLJob[list, list]):

@@ -103,8 +103,8 @@ def cardnexus_group() -> None:
                   "checksum only tracks CardNexus's upstream feed, not our own data.")
 def cardnexus_sync_catalog(game_id: str, force: bool) -> None:
     """
-    Syncs the CardNexus catalog feed into BigQuery (raw + product_id -> card_id mapping)
-    and (re)creates the cards.card_nexus_price_view. Skips the feed download entirely if
+    Syncs the CardNexus catalog feed into BigQuery (raw + product_id -> card_id mapping).
+    The views on top are managed by `optcg etl ensure-views`. Skips the feed download entirely if
     unchanged since the last run (via the feed checksum), unless --force is passed.
     """
     job_name = "cardnexus-sync-catalog"
