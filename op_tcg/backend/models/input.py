@@ -76,6 +76,17 @@ class SideMetaFormat(EnumBase, StrEnum):
     EB03 = "EB03"
     EB04 = "EB04"
     EB05 = "EB05"
+    EB06 = "EB06"
+    PEB01 = "PEB01"
+
+
+# Side meta formats released on the same day in all regions: side meta format -> (main meta format, release date).
+# New in between sets only need an entry here (and in SideMetaFormat).
+GLOBAL_SIDE_META_FORMAT_RELEASES: dict[SideMetaFormat, tuple[MetaFormat, datetime]] = {
+    SideMetaFormat.EB05: (MetaFormat.OP17, datetime(2026, 10, 30)),
+    SideMetaFormat.EB06: (MetaFormat.OP18, datetime(2027, 1, 29)),
+    SideMetaFormat.PEB01: (MetaFormat.OP19, datetime(2027, 4, 23)),
+}
 
 
 class LimitlessMatch(BaseModel):
@@ -109,11 +120,21 @@ def meta_format2release_datetime(meta_format: MetaFormat, region: MetaFormatRegi
         meta_format: The meta format to get release date for
         region: The region (WEST, ASIA, or ALL). Defaults to WEST for backward compatibility.
                 If ALL is specified, returns the earliest release date (Japanese).
+                Meta formats with a global release return the same date for all regions.
     
     Returns:
         datetime object for the release date, or None if not available
         
     """
+    # Global release dates (same day in all regions). New meta formats only need an entry here.
+    global_releases = {
+        MetaFormat.OP17: datetime(2026, 8, 28),
+        MetaFormat.OP18: datetime(2026, 11, 20),
+        MetaFormat.OP19: datetime(2027, 3, 5),
+    }
+    if meta_format in global_releases:
+        return global_releases[meta_format]
+
     # Japanese release dates
     # TODO: include correct datetime (only approximated right now)
     japanese_releases = {
@@ -133,8 +154,6 @@ def meta_format2release_datetime(meta_format: MetaFormat, region: MetaFormatRegi
         MetaFormat.OP14: datetime(2025, 11, 21),    # 3 months earlier
         MetaFormat.OP15: datetime(2026, 3, 4),
         MetaFormat.OP16: datetime(2026, 5, 29),
-        MetaFormat.OP17: datetime(2026, 8, 21),
-        MetaFormat.OP18: datetime(2026, 11, 20),
     }
     
     # Western release dates (existing dates)
@@ -155,8 +174,6 @@ def meta_format2release_datetime(meta_format: MetaFormat, region: MetaFormatRegi
         MetaFormat.OP14: datetime(2026, 1, 16),
         MetaFormat.OP15: datetime(2026, 4, 3),
         MetaFormat.OP16: datetime(2026, 6, 12),
-        MetaFormat.OP17: datetime(2026, 8, 28),
-        MetaFormat.OP18: datetime(2026, 11, 20),
     }
     
     if region == MetaFormatRegion.ASIA:
@@ -182,7 +199,7 @@ def meta_format2side_meta_format(meta_format: MetaFormat, region: MetaFormatRegi
         MetaFormat.OP06: SideMetaFormat.EB01,
         MetaFormat.OP10: SideMetaFormat.EB02,
         MetaFormat.OP12: SideMetaFormat.PRB02,
-        MetaFormat.OP17: SideMetaFormat.EB05,
+        **{mf: side_mf for side_mf, (mf, _) in GLOBAL_SIDE_META_FORMAT_RELEASES.items()},
     }
     if region == MetaFormatRegion.ASIA:
         mapping = {
@@ -207,12 +224,14 @@ def side_meta_format2release_datetime(side_meta_format: SideMetaFormat, region: 
     If ALL is specified, returns the earliest known release date.
     Side meta formats without a known release date return None and are not offered as separate frontend view.
     """
+    if side_meta_format in GLOBAL_SIDE_META_FORMAT_RELEASES:
+        return GLOBAL_SIDE_META_FORMAT_RELEASES[side_meta_format][1]
+    # Side meta formats with regional release dates
     western_releases = {
         SideMetaFormat.EB01: datetime(2024, 5, 3),
         SideMetaFormat.EB02: datetime(2025, 5, 9),
         SideMetaFormat.PRB02: datetime(2025, 10, 3),
         SideMetaFormat.EB03: datetime(2026, 2, 20),
-        SideMetaFormat.EB05: datetime(2026, 10, 30),
     }
     japanese_releases = {
         SideMetaFormat.EB01: datetime(2024, 1, 27),
@@ -220,7 +239,6 @@ def side_meta_format2release_datetime(side_meta_format: SideMetaFormat, region: 
         SideMetaFormat.PRB02: datetime(2025, 7, 26),
         SideMetaFormat.EB03: datetime(2025, 10, 30),
         SideMetaFormat.EB04: datetime(2026, 1, 31),
-        SideMetaFormat.EB05: datetime(2026, 10, 30),
     }
     if region == MetaFormatRegion.ASIA:
         return japanese_releases.get(side_meta_format)
