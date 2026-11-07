@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
@@ -7,6 +8,7 @@ from fasthtml.common import to_xml
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion, SideMetaFormat
 from op_tcg.backend.models.leader import LeaderExtended
 from op_tcg.backend.models.matches import MatchResult
+from op_tcg.frontend.api import models as api_models
 from op_tcg.frontend.api.models import LeaderboardFilter
 from op_tcg.frontend.pages.home import create_period_toggle
 from op_tcg.frontend.utils import side_meta_format as smf
@@ -138,12 +140,20 @@ def test_compute_d_scores_matches_view_formula():
 
 
 @pytest.mark.parametrize("meta_format, side_meta_format, expected", [
+    # released side meta format is the default
+    ("OP17", None, SideMetaFormat.EB05),
+    ("OP17", "", SideMetaFormat.EB05),
     ("OP17", "EB05", SideMetaFormat.EB05),
-    ("OP16", "EB05", None),
-    ("OP17", "", None),
     ("OP17", ["EB05"], SideMetaFormat.EB05),
+    # explicit full meta format
+    ("OP17", "none", None),
+    ("OP17", "EB02", None),
+    ("OP16", None, None),
+    ("OP16", "EB05", None),
 ])
-def test_leaderboard_filter_only_keeps_released_side_meta_format(meta_format, side_meta_format, expected):
+def test_leaderboard_filter_defaults_to_released_side_meta_format(monkeypatch, meta_format, side_meta_format, expected):
+    monkeypatch.setattr(api_models, "released_side_meta_format",
+                        lambda mf, region: SideMetaFormat.EB05 if mf == MetaFormat.OP17 else None)
     params = LeaderboardFilter(meta_format=meta_format, side_meta_format=side_meta_format)
     assert params.side_meta_format == expected
 
@@ -171,5 +181,11 @@ def test_period_toggle_marks_selection_and_explains_period():
     assert "Tournaments since" in html and "30 Oct 2026" in html
     assert "earlier ones where EB05 cards were already played" in html
 
+    # side meta format chip comes first, as it is the default
+    assert html.index("Since EB05") < html.index("All of OP17")
+
     unselected = to_xml(create_period_toggle(MetaFormat.OP17, MetaFormatRegion.ALL, SideMetaFormat.EB05, None))
+    # full meta format is carried explicitly, as an empty value falls back to the side meta format
+    assert 'name="side_meta_format" value="none"' in unselected
+    assert re.search(r'aria-pressed="true"[^>]*>\s*All of OP17', unselected)
     assert "30 Oct 2026" not in unselected

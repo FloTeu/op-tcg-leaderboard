@@ -40,18 +40,18 @@ def client(monkeypatch):
         yield c
 
 
-def test_full_meta_format_by_default(client):
+def test_side_meta_format_period_by_default(client):
     html = client.get("/api/leaderboard", params={"meta_format": "OP17"}).text
-    assert "11.10%" in html and "77.70%" not in html
-    assert "All of OP17" in html and "Since EB05" in html
-    assert re.search(r'<input[^>]*name="side_meta_format" value=""', html)
-
-
-def test_side_meta_format_period(client):
-    html = client.get("/api/leaderboard", params={"meta_format": "OP17", "side_meta_format": "EB05"}).text
     assert "77.70%" in html and "11.10%" not in html
+    assert "All of OP17" in html and "Since EB05" in html
     assert "30 Oct 2026" in html
     assert re.search(r'<input[^>]*name="side_meta_format" value="EB05"', html)
+
+
+def test_full_meta_format_on_explicit_selection(client):
+    html = client.get("/api/leaderboard", params={"meta_format": "OP17", "side_meta_format": "none"}).text
+    assert "11.10%" in html and "77.70%" not in html
+    assert re.search(r'<input[^>]*name="side_meta_format" value="none"', html)
 
 
 def test_side_meta_format_ignored_for_other_meta_format(client):

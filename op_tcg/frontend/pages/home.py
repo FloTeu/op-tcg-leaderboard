@@ -6,6 +6,7 @@ from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion, SideMetaFo
 from op_tcg.backend.models.leader import LeaderExtended, LeaderboardSortBy
 from op_tcg.frontend.components.loading import create_loading_overlay, create_loading_spinner
 from op_tcg.frontend.components.layout import create_mobile_filter_button
+from op_tcg.frontend.api.models import SIDE_META_FORMAT_NONE
 
 
 def _styles() -> ft.Style:
@@ -283,17 +284,18 @@ def create_period_toggle(meta_format: MetaFormat, region: MetaFormatRegion, rele
                          selected_side_meta_format: SideMetaFormat | None):
     """Toggle between the full meta format and the time since its in between set release.
     Always renders the hidden side_meta_format input, which carries the selection to all other leaderboard requests."""
-    hidden_input = ft.Input(type="hidden", name="side_meta_format", id="side-meta-format-input",
-                            value=selected_side_meta_format or "")
     if released_side_meta_format is None:
-        return hidden_input
+        # Empty value: a following request for another meta format falls back to its default
+        return ft.Input(type="hidden", name="side_meta_format", id="side-meta-format-input", value="")
+    selected_value = selected_side_meta_format or SIDE_META_FORMAT_NONE
+    hidden_input = ft.Input(type="hidden", name="side_meta_format", id="side-meta-format-input", value=selected_value)
 
     def chip(label, value: str):
         return ft.Button(
             label,
             type="button",
             cls="hp-period-chip",
-            aria_pressed="true" if value == (selected_side_meta_format or "") else "false",
+            aria_pressed="true" if value == selected_value else "false",
             hx_get="/api/leaderboard",
             hx_target="#leaderboard-table",
             hx_include=HX_INCLUDE_WITHOUT_SIDE_META_FORMAT,
@@ -323,8 +325,8 @@ def create_period_toggle(meta_format: MetaFormat, region: MetaFormatRegion, rele
     return ft.Div(
         hidden_input,
         ft.Div(
-            chip(f"All of {meta_format}", ""),
             chip(f"Since {released_side_meta_format}", released_side_meta_format),
+            chip(f"All of {meta_format}", SIDE_META_FORMAT_NONE),
             cls="hp-period-group",
             role="group",
             aria_label="Leaderboard period",
@@ -571,7 +573,7 @@ def create_leaderboard_table(filtered_leaders: list[LeaderExtended], all_leaders
     return table_container
 
 
-def home_page(side_meta_format: SideMetaFormat | None = None):
+def home_page(side_meta_format: str | None = None):
     persist_script = ft.Script("""
         function updateHomeURL() {
             const params = new URLSearchParams(window.location.search);

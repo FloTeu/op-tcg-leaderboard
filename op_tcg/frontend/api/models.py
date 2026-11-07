@@ -1,5 +1,5 @@
 from pydantic import BaseModel, field_validator, model_validator
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Literal
 from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion, SideMetaFormat, released_side_meta_format
 from op_tcg.backend.models.leader import LeaderboardSortBy
 from op_tcg.backend.models.cards import OPTcgColor, OPTcgCardCatagory, OPTcgAbility, CardCurrency, OPTcgAttribute, OPTcgCardRarity
@@ -28,9 +28,13 @@ class MetaFormatParams(BaseModel):
         return bool(value)
     
 
+# Explicit selection of the full meta format, as no side_meta_format defaults to the released side meta format
+SIDE_META_FORMAT_NONE = "none"
+
+
 class LeaderboardFilter(BaseModel):
     meta_format: MetaFormat = MetaFormat.latest_meta_format
-    side_meta_format: Optional[SideMetaFormat] = None
+    side_meta_format: Optional[SideMetaFormat | Literal["none"]] = None
     release_meta_formats: Optional[List[MetaFormat]] = None
     region: MetaFormatRegion = MetaFormatRegion.ALL
     only_official: bool = True
@@ -81,9 +85,13 @@ class LeaderboardFilter(BaseModel):
         return value or None
 
     @model_validator(mode='after')
-    def drop_unreleased_side_meta_format(self):
-        # Only the released side meta format of the selected meta format (and region) is a valid selection
-        if self.side_meta_format and self.side_meta_format != released_side_meta_format(self.meta_format, self.region):
+    def resolve_side_meta_format(self):
+        # Defaults to the released side meta format of the selected meta format (and region), as it shows the latest meta.
+        # "none" selects the full meta format, other side meta formats are not valid for the selected meta format.
+        released = released_side_meta_format(self.meta_format, self.region)
+        if self.side_meta_format is None:
+            self.side_meta_format = released
+        elif self.side_meta_format != released:
             self.side_meta_format = None
         return self
     
