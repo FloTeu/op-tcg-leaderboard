@@ -29,7 +29,17 @@ MANAGED_VIEWS: list[tuple[BQDataset, str]] = [
 
 
 def _normalize_view_sql(sql: str) -> str:
-    return sql.strip().rstrip(";").strip()
+    """Strips whitespace, trailing semicolons and leading comments.
+
+    BigQuery drops comments preceding the query of a `CREATE VIEW ... AS` statement, while views created
+    in the console keep them, so leading comments are ignored on both sides to avoid false diffs.
+    """
+    sql = sql.strip()
+    while sql.startswith(("--", "/*")):
+        end_marker = "\n" if sql.startswith("--") else "*/"
+        end = sql.find(end_marker)
+        sql = "" if end == -1 else sql[end + len(end_marker):].lstrip()
+    return sql.rstrip(";").strip()
 
 
 def load_view_sql(dataset: BQDataset, view_name: str) -> str:

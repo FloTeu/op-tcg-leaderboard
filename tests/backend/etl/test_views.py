@@ -67,6 +67,17 @@ def test_changed_and_missing_views_are_replaced():
     assert queries[0].endswith(load_view_sql(BQDataset.LEADERS, "leader_extended"))
 
 
+def test_leading_comments_are_ignored():
+    # Views deployed via CREATE VIEW lose leading comments, console-created views keep them
+    existing = _all_views_in_sync()
+    existing["proj.cards.card_nexus_price_view"] = "-- console comment\n/* block\ncomment */\n" + load_view_sql(
+        BQDataset.CARDS, "card_nexus_price_view")
+    client = _fake_client(existing)
+
+    assert ensure_managed_views(client, dry_run=True) == []
+    assert not load_view_sql(BQDataset.CARDS, "card_nexus_price_view").startswith("--")
+
+
 def test_dry_run_reports_without_changing():
     existing = _all_views_in_sync()
     existing["proj.matches.leader_win_rate"] = "SELECT 1"
