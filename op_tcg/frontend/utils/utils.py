@@ -3,7 +3,9 @@ import logging
 import time
 from typing import Any
 from google.oauth2 import service_account
-from google.cloud import bigquery, storage, firestore
+from functools import cache
+
+from google.cloud import bigquery
 from op_tcg.frontend.utils.cache import _CACHE_1D, _CACHE_6H, _CACHE_1H, _CACHE_30M
 
 
@@ -29,10 +31,10 @@ def get_credentials():
     # 2. Fallback to ADC (for Cloud Run / Production)
     return None
 
-credentials = get_credentials()
-bq_client = bigquery.Client(credentials=credentials)
-storage_client = storage.Client(credentials=credentials)
-firestore_client = firestore.Client(credentials=credentials, database="op-leaderboard")
+@cache
+def get_bq_client() -> bigquery.Client:
+    """Creates the BigQuery client on first use, so importing this module needs no Google credentials (e.g. in tests)."""
+    return bigquery.Client(credentials=get_credentials())
 
 
 
@@ -79,7 +81,7 @@ def run_bq_query(query: str, ttl_hours: float | None = None, location: str = "eu
     # Execute query
     t_start = time.time()
     logging.info(f"Running bq query (TTL: {ttl_hours}h): {query}")
-    query_job = bq_client.query(query, location=location)
+    query_job = get_bq_client().query(query, location=location)
     query_line = query.replace("\n", " ")
     rows_raw = query_job.result()
     logging.info(f"Finished bq query '{query_line[:50]}...{query_line[-50:]}' in {time.time() - t_start:.2f}s")
