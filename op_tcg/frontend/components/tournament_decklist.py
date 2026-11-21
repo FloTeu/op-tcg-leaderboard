@@ -38,7 +38,7 @@ def create_decklist_view(decklist: Dict[str, int], cid2card_data: Dict[str, Card
             card = Card.from_default()
             card.name = "Unknown"
             card.id = card_id
-            card.image_url = get_card_image_url(card_id, OPTcgLanguage.JP)
+            card.image_url = get_card_image_url(card_id, OPTcgLanguage.EN)
             card_types["Unknown"].append((card, count))
     
     # Sort cards within each type by color and cost
