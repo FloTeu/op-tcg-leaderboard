@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import unicodedata
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
@@ -14,6 +15,16 @@ from op_tcg.backend.models.leader import Leader
 from op_tcg.backend.models.cards import OPTcgColor, OPTcgAttribute, OPTcgLanguage, OPTcgTournamentStatus, \
     OPTcgCardCatagory, BaseCard, Card, OPTcgCardRarity, LimitlessCardData, CardPrice, CardCurrency, CardMarketplaceUrl, \
     OPTcgMarketplace
+
+def parse_attributes(raw: str) -> list[OPTcgAttribute]:
+    """
+    Parses the attribute text of a card. Limitless renders unset attributes as the untranslated
+    key ``card.attribute.？`` (fullwidth question mark), so the prefix is stripped and the text
+    NFKC-normalized to map it onto ``OPTcgAttribute.UNKNOWN``.
+    """
+    raw = unicodedata.normalize("NFKC", raw.strip().removeprefix("card.attribute."))
+    return [OPTcgAttribute(a) for a in raw.split("/")]
+
 
 def replace_linebreak_whitespace(text: str) -> str:
     """
@@ -323,9 +334,8 @@ def base_card2bq_card(base_card: BaseCard, soup: BeautifulSoup) -> Card:
     if base_card.card_category in [OPTcgCardCatagory.LEADER, OPTcgCardCatagory.CHARACTER]:
         power = int(
             re.search(r'(\d+)(?=\s*Power)', soup.find('p', {'class': 'card-text-section'}).text).group(0))
-        attributes = soup.findAll('p', {'class': 'card-text-section'})[0].find("span", {
-            'data-tooltip': 'Attribute'}).text.strip().removeprefix("card.attribute.").split("/")
-        attributes = [OPTcgAttribute(a) for a in attributes]
+        attributes = parse_attributes(soup.findAll('p', {'class': 'card-text-section'})[0].find("span", {
+            'data-tooltip': 'Attribute'}).text)
     if base_card.card_category == OPTcgCardCatagory.LEADER:
         life = int(re.search(r'(\d+)(?=\s*Life)', soup.find('p', {'class': 'card-text-type'}).text).group(0))
     if base_card.card_category == OPTcgCardCatagory.CHARACTER:
@@ -372,9 +382,8 @@ def limitless2bq_leader(card_id, language: OPTcgLanguage = OPTcgLanguage.EN) -> 
     base_card: BaseCard = limitless_soup2base_cards(card_id, language, soup)
     leader_life = int(re.search(r'(\d+)(?=\s*Life)', soup.find('p', {'class': 'card-text-type'}).text).group(0))
     leader_power = int(re.search(r'(\d+)(?=\s*Power)', soup.find('p', {'class': 'card-text-section'}).text).group(0))
-    attributes = soup.findAll('p', {'class': 'card-text-section'})[0].find("span", {
-        'data-tooltip': 'Attribute'}).text.strip().split("/")
-    leader_attributes = [OPTcgAttribute(a) for a in attributes]
+    leader_attributes = parse_attributes(soup.findAll('p', {'class': 'card-text-section'})[0].find("span", {
+        'data-tooltip': 'Attribute'}).text)
 
     # TODO: Find good source for avatar icon
 
