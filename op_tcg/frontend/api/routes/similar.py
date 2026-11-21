@@ -129,7 +129,7 @@ def setup_api_routes(rt):
                 ft.Div(
                     *[
                         ft.Img(
-                            src=cid2cdata_dict[cid].image_url if cid in cid2cdata_dict else get_card_image_url(cid, language=OPTcgLanguage.JP),
+                            src=cid2cdata_dict[cid].image_url if cid in cid2cdata_dict else get_card_image_url(cid, language=OPTcgLanguage.EN),
                             cls="w-1/4 inline-block p-1"
                         ) for cid in similar_leader_data.cards_intersection
                     ],
@@ -143,7 +143,7 @@ def setup_api_routes(rt):
                 ft.Div(
                     *[
                         ft.Img(
-                            src=cid2cdata_dict[cid].image_url if cid in cid2cdata_dict else get_card_image_url(cid, language=OPTcgLanguage.JP),
+                            src=cid2cdata_dict[cid].image_url if cid in cid2cdata_dict else get_card_image_url(cid, language=OPTcgLanguage.EN),
                             cls="w-1/4 inline-block p-1"
                         ) for cid in similar_leader_data.cards_missing
                     ],

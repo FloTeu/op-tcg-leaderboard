@@ -45,7 +45,7 @@ def display_decklist_list_view(decklist: dict[str, int], card_id2card_data: dict
         total_count = sum(c[1] for c in cards)
 
         for card_id, count, card_data in cards:
-            img_url = card_data.image_url if card_data else get_card_image_url(card_id, OPTcgLanguage.JP)
+            img_url = card_data.image_url if card_data else get_card_image_url(card_id, OPTcgLanguage.EN)
             name = card_data.name if card_data else card_id
 
             price_info = ""
@@ -104,7 +104,7 @@ def display_decklist_list_view(decklist: dict[str, int], card_id2card_data: dict
         preview_img_url = card_id2card_data[leader_id].image_url if leader_id in card_id2card_data else get_card_image_url(leader_id, OPTcgLanguage.EN)
     else:
         first_card = list(decklist.keys())[0]
-        preview_img_url = card_id2card_data[first_card].image_url if first_card in card_id2card_data else get_card_image_url(first_card, OPTcgLanguage.JP)
+        preview_img_url = card_id2card_data[first_card].image_url if first_card in card_id2card_data else get_card_image_url(first_card, OPTcgLanguage.EN)
 
     return ft.Div(
         ft.Div(
@@ -133,7 +133,7 @@ def display_decklist_modal(decklist: dict[str, int], card_id2card_data: dict[str
     card_items = []
 
     for card_id, count in filtered_decklist.items():
-        img_url = card_id2card_data[card_id].image_url if card_id in card_id2card_data else get_card_image_url(card_id, OPTcgLanguage.JP)
+        img_url = card_id2card_data[card_id].image_url if card_id in card_id2card_data else get_card_image_url(card_id, OPTcgLanguage.EN)
 
         card_data = card_id2card_data.get(card_id)
         price_info = ""
