@@ -22,3 +22,45 @@ def test_no_side_meta_format_tasks_without_released_side_meta_format(monkeypatch
     tasks = CacheWarmer(warm_interval_hours=1).get_cache_warming_tasks()
     # leader_extended is followed directly by the static leader data
     assert tasks[1].__code__.co_names == ("get_leader_data",)
+
+
+def test_periodic_warming_disabled_with_non_positive_interval(monkeypatch):
+    warmer = CacheWarmer(warm_interval_hours=0)
+    cycles = []
+    monkeypatch.setattr(warmer, "warm_cache_sync", lambda: cycles.append(1))
+
+    warmer.start_background_warming()
+    warmer.executor.shutdown(wait=True)
+
+    # Only the initial warm-up ran and the loop exited instead of spinning
+    assert cycles == [1]
+
+
+def _patch_token_claims(monkeypatch, claims=None, error=None):
+    def verify(token, request, audience):
+        if error:
+            raise error
+        assert (token, audience) == ("tok", "https://svc.run.app")
+        return claims
+    monkeypatch.setattr(cache_warmer.id_token, "verify_oauth2_token", verify)
+    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "proj")
+
+
+def test_warm_request_authorized_for_scheduler_service_account(monkeypatch):
+    _patch_token_claims(monkeypatch, {"email": "cloud-function-sa@proj.iam.gserviceaccount.com", "email_verified": True})
+    assert cache_warmer.is_authorized_warm_request("Bearer tok", "https://svc.run.app")
+
+
+def test_warm_request_rejected_for_other_service_account(monkeypatch):
+    _patch_token_claims(monkeypatch, {"email": "attacker@evil.iam.gserviceaccount.com", "email_verified": True})
+    assert not cache_warmer.is_authorized_warm_request("Bearer tok", "https://svc.run.app")
+
+
+def test_warm_request_rejected_for_invalid_token(monkeypatch):
+    _patch_token_claims(monkeypatch, error=ValueError("Token has wrong audience"))
+    assert not cache_warmer.is_authorized_warm_request("Bearer tok", "https://svc.run.app")
+
+
+def test_warm_request_rejected_without_bearer_token():
+    assert not cache_warmer.is_authorized_warm_request(None, "https://svc.run.app")
+    assert not cache_warmer.is_authorized_warm_request("Basic abc", "https://svc.run.app")
