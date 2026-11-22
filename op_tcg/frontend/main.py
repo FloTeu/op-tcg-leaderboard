@@ -3,7 +3,7 @@ load_dotenv()
 
 from fasthtml import ft
 from fasthtml.common import fast_app, serve
-from starlette.responses import FileResponse, RedirectResponse
+from starlette.responses import FileResponse, RedirectResponse, Response
 from op_tcg.backend.utils.environment import is_debug
 from op_tcg.frontend.utils.scripts import create_decklist_deep_link_script
 from op_tcg.frontend.components.layout import layout
@@ -31,7 +31,9 @@ from op_tcg.frontend.api.models import SIDE_META_FORMAT_NONE
 from op_tcg.backend.models.cards import CardCurrency
 from op_tcg.backend.db import get_user_settings
 from starlette.requests import Request
-from op_tcg.frontend.utils.cache_warmer import start_cache_warming, stop_cache_warming, warm_cache_now
+from op_tcg.frontend.utils.cache_warmer import (
+    start_cache_warming, stop_cache_warming, get_cache_warmer, is_authorized_warm_request,
+)
 from op_tcg.frontend.utils.seo import canonical_base, write_static_sitemap, page_head
 from op_tcg.frontend.utils.og_images import (
     get_meta_og_image_bytes, warm_meta_og_image,
@@ -58,10 +60,12 @@ async def lifespan(app):
     logger.info("Starting OP TCG Leaderboard application...")
     
     try:
-        # Start background cache warming in the worker process
         if not is_debug():
+            # Warm up before serving: Cloud Run allocates CPU during container startup, while
+            # request-based billing throttles background threads once the instance is idle.
+            # On deploys, traffic stays on the old revision until this completes.
+            await run_in_threadpool(get_cache_warmer().warm_cache_sync)
             start_cache_warming()
-            logger.info("Cache warming started successfully")
         # Generate static sitemap on startup so /sitemap.xml is always available
         write_static_sitemap()
         logger.info("Static sitemap.xml generated successfully")
@@ -198,14 +202,23 @@ def cache_stats():
     return get_cache_summary()
 
 
-@rt("/api/cache/warm")
-def warm_cache_manual():
-    """Manually trigger cache warming"""
+@rt("/api/cache/warm", methods=["post"])
+async def warm_cache_manual(request: Request):
+    """Run a cache warming cycle, triggered by Cloud Scheduler.
+
+    Cloud Run only allocates CPU while a request is in flight (request-based billing),
+    so the cycle runs within the request instead of in the background thread.
+    """
+    if not is_debug() and not is_authorized_warm_request(
+        request.headers.get("authorization"), f"https://{request.headers.get('host')}"
+    ):
+        return Response(status_code=403)
     try:
-        warm_cache_now()
-        return {"status": "success", "message": "Cache warming initiated"}
+        await run_in_threadpool(get_cache_warmer().warm_cache_sync)
+        return {"status": "success", "message": "Cache warming completed"}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        logger.error(f"Cache warming request failed: {e}")
+        return Response(status_code=500)
 
 @rt("/api/cache/clear")
 def clear_cache():

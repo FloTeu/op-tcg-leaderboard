@@ -154,11 +154,13 @@ jobs:
             --memory=2Gi
             --min-instances=${{ inputs.min_instances }}
             --max-instances=1
-            ${{ inputs.min_instances > 0 && '--no-cpu-throttling' || '--cpu-throttling' }}
+            --cpu-throttling
+            --cpu-boost
             --service-account=${{ vars.CLOUD_RUN_SERVICE_ACCOUNT }}
             --execution-environment=gen2
           env_vars: |
             CANONICAL_HOST=${{ vars.CANONICAL_HOST }}
+            CACHE_WARM_INTERVAL_HOURS=0
             GOOGLE_CLOUD_PROJECT=${{ secrets.PROJECT }}
             GOOGLE_FORM_FEEDBACK_URL=${{ secrets.GOOGLE_FORM_FEEDBACK_URL }}
             SESSION_MIDDLEWARE_SECRET_KEY=${{ secrets.SESSION_MIDDLEWARE_SECRET_KEY }}

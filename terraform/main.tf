@@ -387,6 +387,39 @@ resource "google_cloud_scheduler_job" "crawl_sealed_products_job" {
   }
 }
 
+# The frontend Cloud Run service is deployed by CI with request-based billing (CPU throttled
+# between requests), so its in-process background cache warmer gets no CPU while idle.
+# Instead, this job warms the cache via an authenticated request, during which CPU is allocated.
+# The service allows unauthenticated access, so the app verifies the OIDC token itself.
+data "google_cloud_run_v2_service" "frontend" {
+  name     = var.frontend_service_name
+  location = var.region
+}
+
+resource "google_cloud_scheduler_job" "frontend_cache_warm_job" {
+  name             = "frontend-cache-warm-job"
+  region           = var.region
+  description      = "Warms the in-memory caches of the frontend Cloud Run service"
+  schedule         = "20 */3 * * *"
+  time_zone        = "Europe/Berlin"
+  attempt_deadline = "320s"
+  paused           = var.environment == "dev"
+
+  retry_config {
+    retry_count = 1
+  }
+
+  http_target {
+    http_method = "POST"
+    uri         = "${data.google_cloud_run_v2_service.frontend.uri}/api/cache/warm"
+
+    oidc_token {
+      service_account_email = google_service_account.cloud_function_sa.email
+      audience              = data.google_cloud_run_v2_service.frontend.uri
+    }
+  }
+}
+
 resource "google_cloud_run_service_iam_member" "member" {
   location = google_cloudfunctions2_function.all_elo.location
   service  = google_cloudfunctions2_function.all_elo.name

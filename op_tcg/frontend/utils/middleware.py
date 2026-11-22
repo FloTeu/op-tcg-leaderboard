@@ -3,17 +3,21 @@ from starlette.responses import RedirectResponse
 from op_tcg.backend.utils.environment import is_debug
 from op_tcg.frontend.utils.seo import CANONICAL_HOST
 
+CACHE_WARM_PATH = "/api/cache/warm"
+
 
 async def canonical_redirect_middleware(request: Request, call_next):
     """Enforce a single canonical host unless local/debug.
 
-    Skips redirects for sitemap/robots endpoints.
+    Skips redirects for the Cloud Scheduler cache warm endpoint, which is called on the
+    run.app host its OIDC token audience is bound to.
     """
     request_host = (request.headers.get("host") or request.url.netloc or "").strip()
     request_path = request.url.path or "/"
 
     # Skip in local/dev
-    if request_host.startswith("localhost") or request_host.startswith("127.0.0.1") or is_debug():
+    if (request_host.startswith("localhost") or request_host.startswith("127.0.0.1") or is_debug()
+            or request_path == CACHE_WARM_PATH):
         return await call_next(request)
 
     if CANONICAL_HOST:

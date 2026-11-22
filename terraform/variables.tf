@@ -11,6 +11,9 @@ variable "region" {
 variable "environment" {
   default = "dev"
 }
+variable "frontend_service_name" {
+  default = "op-leaderboard"
+}
 variable "artifact_registry_repo" {
   default = "op-tcg"
 }

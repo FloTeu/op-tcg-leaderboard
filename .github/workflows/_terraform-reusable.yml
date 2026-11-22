@@ -72,6 +72,9 @@ jobs:
         echo "environment = \"${{ inputs.environment }}\"" >> terraform.tfvars
         echo "scraper_proxy = \"${{ secrets.SCRAPER_PROXY }}\"" >> terraform.tfvars
         echo "ntfy_topic = \"${{ secrets.NTFY_TOPIC }}\"" >> terraform.tfvars
+        if [ -n "${{ vars.CLOUD_RUN_SERVICE }}" ]; then
+          echo "frontend_service_name = \"${{ vars.CLOUD_RUN_SERVICE }}\"" >> terraform.tfvars
+        fi
         terraform fmt
       working-directory: terraform
 
