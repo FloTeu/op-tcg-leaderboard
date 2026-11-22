@@ -32,8 +32,21 @@ def test_periodic_warming_disabled_with_non_positive_interval(monkeypatch):
     warmer.start_background_warming()
     warmer.executor.shutdown(wait=True)
 
-    # Only the initial warm-up ran and the loop exited instead of spinning
-    assert cycles == [1]
+    # No background thread was started, so no cycle ran and the loop could not spin
+    assert not warmer.is_running
+    assert cycles == []
+
+
+def test_background_warming_waits_for_interval_before_first_cycle(monkeypatch):
+    # The initial warm-up runs synchronously at app startup, so the loop must not repeat it
+    warmer = CacheWarmer(warm_interval_hours=1)
+    cycles = []
+    monkeypatch.setattr(warmer, "warm_cache_sync", lambda: cycles.append(1))
+
+    warmer.start_background_warming()
+    warmer.stop_background_warming()
+
+    assert cycles == []
 
 
 def _patch_token_claims(monkeypatch, claims=None, error=None):

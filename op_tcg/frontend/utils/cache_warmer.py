@@ -96,9 +96,16 @@ class CacheWarmer:
         logger.info(f"Cache warming cycle completed in {total_duration:.2f}s - Success: {successful_tasks}, Failed: {failed_tasks}")
     
     def start_background_warming(self) -> None:
-        """Start the background cache warming process"""
+        """Start periodic background cache warming (the initial warm-up runs at app startup)"""
         if self.is_running:
             logger.warning("Cache warmer is already running")
+            return
+
+        # A non-positive interval disables periodic warming, e.g. on Cloud Run with request-based
+        # billing, where background threads get no CPU between requests and Cloud Scheduler
+        # triggers the warm-up via POST /api/cache/warm instead.
+        if self.warm_interval_seconds <= 0:
+            logger.info("Periodic cache warming disabled")
             return
         
         self.is_running = True
@@ -106,19 +113,6 @@ class CacheWarmer:
         
         def background_loop():
             logger.info(f"Cache warmer started - warming every {self.warm_interval_hours} hours")
-            
-            # Initial warm-up on startup
-            try:
-                self.warm_cache_sync()
-            except Exception as e:
-                logger.error(f"Initial cache warming failed: {e}")
-
-            # A non-positive interval disables periodic warming, e.g. on Cloud Run with request-based
-            # billing, where background threads get no CPU between requests and Cloud Scheduler
-            # triggers the warm-up via POST /api/cache/warm instead.
-            if self.warm_interval_seconds <= 0:
-                logger.info("Periodic cache warming disabled")
-                return
             
             # Continuous warming loop
             while not self._stop_event.is_set():

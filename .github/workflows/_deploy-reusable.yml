@@ -155,6 +155,7 @@ jobs:
             --min-instances=${{ inputs.min_instances }}
             --max-instances=1
             --cpu-throttling
+            --cpu-boost
             --service-account=${{ vars.CLOUD_RUN_SERVICE_ACCOUNT }}
             --execution-environment=gen2
           env_vars: |

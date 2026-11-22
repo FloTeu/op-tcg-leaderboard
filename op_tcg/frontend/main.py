@@ -60,10 +60,12 @@ async def lifespan(app):
     logger.info("Starting OP TCG Leaderboard application...")
     
     try:
-        # Start background cache warming in the worker process
         if not is_debug():
+            # Warm up before serving: Cloud Run allocates CPU during container startup, while
+            # request-based billing throttles background threads once the instance is idle.
+            # On deploys, traffic stays on the old revision until this completes.
+            await run_in_threadpool(get_cache_warmer().warm_cache_sync)
             start_cache_warming()
-            logger.info("Cache warming started successfully")
         # Generate static sitemap on startup so /sitemap.xml is always available
         write_static_sitemap()
         logger.info("Static sitemap.xml generated successfully")
