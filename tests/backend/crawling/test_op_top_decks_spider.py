@@ -92,3 +92,32 @@ def test_meta_format_at(region, tournament_datetime, expected):
 
 def test_meta_format_at_keeps_first_meta_format():
     assert OPTopDeckDecklistSpider.meta_format_at(MetaFormat.OP01, MetaFormatRegion.WEST, datetime(2000, 1, 1)) == MetaFormat.OP01
+
+
+def test_parse_html_table_without_deck_composition_header():
+    # onepiecetopdecks.com omits the th of the deck composition column, so header positions are shifted by one
+    header = "".join(f'<th class="column-{i}">{name}</th>' for i, name in enumerate(
+        ["Details", "Deck Color", "Deck Profile", "Deck Name", "Date", "Country", "Author", "Placement",
+         "Tournament", "Host"], start=2))
+    row = ('<tr class="row-2"><td class="column-1">1nOP13-079a2nOP05-082a4nOP13-086</td>'
+           '<td class="column-2"><a href="deckgen?dn=Imu&amp;date=10/25/2026"> <img src="x"/> </a></td>'
+           '<td class="column-3">Black</td><td class="column-4">op13imu</td><td class="column-5">Imu</td>'
+           '<td class="column-6">10/25/2026</td><td class="column-7">JP</td><td class="column-8">Tatsoo</td>'
+           '<td class="column-9">1st (7-1)</td><td class="column-10">3v3</td><td class="column-11">AsuCS</td></tr>')
+    table_html = f"<table><thead><tr>{header}</tr></thead><tbody>{row}</tbody></table>"
+
+    item = OPTopDeckDecklistSpider().parse_html_table(table_html, "https://onepiecetopdecks.com/deck-list/x/",
+                                                      MetaFormat.OP18, MetaFormatRegion.ASIA)
+
+    op_top_deck_decklist = item.op_top_deck_decklists[0]
+    tournament = item.tournaments[0]
+    standing = item.tournament_standings[0]
+    assert op_top_deck_decklist.decklist_source == "https://onepiecetopdecks.com/deck-list/x/deckgen?dn=Imu&date=10/25/2026"
+    assert op_top_deck_decklist.country == "JP"
+    assert op_top_deck_decklist.author == "Tatsoo"
+    assert op_top_deck_decklist.host == "AsuCS"
+    assert tournament.tournament_timestamp.date() == datetime(2026, 10, 25).date()
+    assert tournament.meta_format == MetaFormat.OP17
+    assert tournament.name == "AsuCS 3v3"
+    assert standing.placing == 1
+    assert standing.leader_id == "OP13-079"

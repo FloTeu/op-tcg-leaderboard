@@ -246,7 +246,10 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
         def _index_of_header_name(header_name: str, default: int = 0) -> int:
             for i, header_cell in enumerate(header_cells):
                 if header_name.lower() in header_cell.text.lower():
-                    return i
+                    # header cells can be missing (e.g. no th for the deck composition column),
+                    # therefore use the "column-N" class shared by th and td instead of the position
+                    column_class = next((c for c in header_cell.get('class', []) if re.fullmatch(r'column-\d+', c)), None)
+                    return int(column_class.split('-')[1]) - 1 if column_class else i
             return default
 
         rows = soup.select('tbody tr')
