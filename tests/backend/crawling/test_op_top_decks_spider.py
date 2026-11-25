@@ -1,6 +1,10 @@
+from datetime import datetime
+
 import pytest
+from scrapy.http import HtmlResponse
 
 from op_tcg.backend.crawling.spiders.op_top_decks_decklists import OPTopDeckDecklistSpider
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion
 
 
 @pytest.fixture(scope="module")
@@ -53,3 +57,38 @@ def test_parse_placing_text_valid(spider, text, expected):
 @pytest.mark.parametrize("text", _INVALID_CASES)
 def test_parse_placing_text_invalid(spider, text):
     assert spider.parse_placing_text(text) is None
+
+
+_EB05_OP18_URL = "https://onepiecetopdecks.com/deck-list/japan-eb05op18-deck-list-heroines-and-the-dominance-of-god/"
+
+
+@pytest.mark.parametrize("meta_formats", [
+    [MetaFormat.OP17, MetaFormat.OP18, MetaFormat.OP19],  # cloud function
+    [MetaFormat.OP18, MetaFormat.OP19],  # cli default
+])
+def test_landingpage_takes_latest_meta_format_of_url(meta_formats):
+    spider = OPTopDeckDecklistSpider()
+    spider.meta_formats = meta_formats
+    spider.proxy_url = None
+    response = HtmlResponse(url="https://onepiecetopdecks.com/deck-list/",
+                            body=f'<a href="{_EB05_OP18_URL}">x</a>'.encode(), encoding="utf-8")
+
+    requests = list(spider.parse_decklist_landingpage(response))
+
+    assert [r.meta["meta_format"] for r in requests] == [MetaFormat.OP18]
+
+
+@pytest.mark.parametrize("region", [MetaFormatRegion.ASIA, MetaFormatRegion.WEST])
+@pytest.mark.parametrize("tournament_datetime,expected", [
+    (datetime(2026, 11, 1, 0, 1), MetaFormat.OP17),  # EB05 weeks before the OP18 release (2026-11-20)
+    (datetime(2026, 11, 12, 23, 59), MetaFormat.OP17),
+    (datetime(2026, 11, 13, 0, 1), MetaFormat.OP18),  # within the one week pre-release buffer
+    (datetime(2026, 11, 20, 0, 1), MetaFormat.OP18),  # release day
+    (datetime(2026, 12, 1, 0, 1), MetaFormat.OP18),
+])
+def test_meta_format_at(region, tournament_datetime, expected):
+    assert OPTopDeckDecklistSpider.meta_format_at(MetaFormat.OP18, region, tournament_datetime) == expected
+
+
+def test_meta_format_at_keeps_first_meta_format():
+    assert OPTopDeckDecklistSpider.meta_format_at(MetaFormat.OP01, MetaFormatRegion.WEST, datetime(2000, 1, 1)) == MetaFormat.OP01

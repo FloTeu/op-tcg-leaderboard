@@ -14,9 +14,13 @@ from google.cloud import bigquery
 
 from op_tcg.backend.models.common import DataSource
 from op_tcg.backend.models.decklists import OpTopDeckDecklistExtended, Decklist, OpTopDeckDecklist
-from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion, meta_format2side_meta_format
+from op_tcg.backend.models.input import MetaFormat, MetaFormatRegion, meta_format2side_meta_format, \
+    meta_format2release_datetime
 from op_tcg.backend.models.tournaments import TournamentRecord, Tournament, TournamentStanding
 from op_tcg.backend.utils.database import create_decklist_id
+
+# Some tournaments are already played with the new meta format before its official release
+PRE_RELEASE_BUFFER = timedelta(weeks=1)
 
 
 class OPTopDeckDecklistSpider(scrapy.Spider):
@@ -163,6 +167,19 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
 
         return any(matches)
 
+    @staticmethod
+    def meta_format_at(meta_format: MetaFormat, region: MetaFormatRegion, tournament_datetime: datetime) -> MetaFormat:
+        """
+        Returns the previous meta format if the tournament took place before the release of meta_format.
+        Tournaments within PRE_RELEASE_BUFFER before the release already count as meta_format.
+        """
+        release_datetime = meta_format2release_datetime(meta_format, region)
+        all_meta_formats = MetaFormat.to_list(only_after_release=False)
+        meta_format_i = all_meta_formats.index(meta_format)
+        if release_datetime is None or tournament_datetime >= release_datetime - PRE_RELEASE_BUFFER or meta_format_i == 0:
+            return meta_format
+        return MetaFormat(all_meta_formats[meta_format_i - 1])
+
     def parse_decklist_landingpage(self, response):
         """Extracts all meta format and country meta format urls for further steps"""
         self.logger.info(
@@ -180,21 +197,22 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
         for url in urls:
             if "deck-list" not in url:
                 continue
-            matching_meta_format = None
             region = None
             if any(w in url.lower() for w in ["japan", "jp-"]):
                 region = MetaFormatRegion.ASIA
             elif any(w in url.lower() for w in ["english", "en-"]):
                 region = MetaFormatRegion.WEST
-            for meta in self.meta_formats:
-                if self.is_meta_in_url(meta, url, region):
-                    matching_meta_format = meta
-                    self.logger.info("url %s matched to meta format %s and region %s", url, meta, region)
-                    # stop at first meta format found
-                    break
+            # urls can contain several meta formats (e.g. "eb05op18" -> OP17 and OP18), take the latest one.
+            # Tournaments played before its release are assigned to the previous meta format in parse_html_table.
+            matching_meta_format = max(
+                (mf for mf in self.meta_formats if self.is_meta_in_url(mf, url, region)),
+                key=MetaFormat.to_list(only_after_release=False).index,
+                default=None,
+            )
             if matching_meta_format is None:
                 self.logger.info("url %s does not match any meta format", url)
                 continue
+            self.logger.info("url %s matched to meta format %s and region %s", url, matching_meta_format, region)
 
             if region is None:
                 self.logger.error(f"url {url} could not be matched to any of {MetaFormatRegion.to_list()}")
@@ -238,84 +256,88 @@ class OPTopDeckDecklistSpider(scrapy.Spider):
         tournaments: list[Tournament] = []
         tournament_standings: list[TournamentStanding] = []
 
-        for row in rows:
-            cells = row.find_all('td')
-            if len(cells) < 11:
-                continue  # Skip rows that do not have enough cells
+        for i, row in enumerate(rows):
+            decklist_id = None
+            try:
+                cells = row.find_all('td')
+                if len(cells) < 11:
+                    continue  # Skip rows that do not have enough cells
 
-            decklist_data = self.parse_decklist_data(cells[_index_of_header_name("deck composition", 0)])
-            decklist_id = create_decklist_id(decklist_data)
-            leader_id = next(iter(decklist_data))
-            source_link = table_url + cells[_index_of_header_name("details", 1)].find('a')['href']
-            tournament_datetime = self.parse_tournament_datetime(cells[_index_of_header_name("date", 5)])
-            country = cells[_index_of_header_name("country", 6)].text.strip()
-            author = cells[_index_of_header_name("author", 7)].text.strip()
-            placing_text = cells[_index_of_header_name("placement", 8)].text.strip()
-            placing = self.parse_placing_text(placing_text)
-            tournament = cells[_index_of_header_name("tournament", 9)].text.strip()
-            record = None
-            # remove record from tournament
-            if '(' in tournament and ')' in tournament:
-                record = self.parse_record_from_tournament_text(tournament)
-                tournament = tournament.split("(")[0]
-            host = cells[_index_of_header_name("host", 10)].text.strip()
-            num_players = None
-            if '(' in host:
-                raw_num = host.split('(')[-1].split(')')[0].strip("+")
-                try:
-                    num_players = int(raw_num)
-                except ValueError:
-                    self.logger.warning("Could not parse num_players from host=%r (extracted=%r)", host, raw_num)
-                host = host.split("(")[0]
+                decklist_data = self.parse_decklist_data(cells[_index_of_header_name("deck composition", 0)])
+                decklist_id = create_decklist_id(decklist_data)
+                leader_id = next(iter(decklist_data))
+                source_link = table_url + cells[_index_of_header_name("details", 1)].find('a')['href']
+                tournament_datetime = self.parse_tournament_datetime(cells[_index_of_header_name("date", 5)])
+                country = cells[_index_of_header_name("country", 6)].text.strip()
+                author = cells[_index_of_header_name("author", 7)].text.strip()
+                placing_text = cells[_index_of_header_name("placement", 8)].text.strip()
+                placing = self.parse_placing_text(placing_text)
+                tournament = cells[_index_of_header_name("tournament", 9)].text.strip()
+                record = None
+                # remove record from tournament
+                if '(' in tournament and ')' in tournament:
+                    record = self.parse_record_from_tournament_text(tournament)
+                    tournament = tournament.split("(")[0]
+                host = cells[_index_of_header_name("host", 10)].text.strip()
+                num_players = None
+                if '(' in host:
+                    raw_num = host.split('(')[-1].split(')')[0].strip("+")
+                    try:
+                        num_players = int(raw_num)
+                    except ValueError:
+                        self.logger.warning("Could not parse num_players from host=%r (extracted=%r)", host, raw_num)
+                    host = host.split("(")[0]
 
-            tournament_name = f"{host} {tournament}"
-            tournament_id = f"{host.replace(' ', '_')}_{tournament.replace(' ', '_')}_{country}_{tournament_datetime.date()}"
+                tournament_name = f"{host} {tournament}"
+                tournament_id = f"{host.replace(' ', '_')}_{tournament.replace(' ', '_')}_{country}_{tournament_datetime.date()}"
 
-            tournaments.append(Tournament(
-                id=tournament_id,
-                name=tournament_name,
-                num_players=num_players,
-                decklists=True,
-                is_public=None,
-                is_online=None,
-                phases=[],
-                meta_format=meta_format,
-                meta_format_region=meta_format_region,
-                official=True,
-                source=DataSource.OP_TOP_DECKS,
-                tournament_timestamp=tournament_datetime
-            ))
-
-            tournament_standings.append(
-                TournamentStanding(
-                    tournament_id=tournament_id,
-                    player_id=author,
-                    decklist_id=decklist_id,
-                    name=author,
-                    country=None,
-                    placing=placing,
-                    record=record,
-                    leader_id=leader_id,
-                    decklist=None,
-                    drop=None
+                tournaments.append(Tournament(
+                    id=tournament_id,
+                    name=tournament_name,
+                    num_players=num_players,
+                    decklists=True,
+                    is_public=None,
+                    is_online=None,
+                    phases=[],
+                    meta_format=self.meta_format_at(meta_format, meta_format_region, tournament_datetime),
+                    meta_format_region=meta_format_region,
+                    official=True,
+                    source=DataSource.OP_TOP_DECKS,
+                    tournament_timestamp=tournament_datetime
                 ))
 
-            decklists.append(Decklist(
-                id=decklist_id,
-                leader_id=leader_id,
-                decklist=decklist_data,
-            ))
+                tournament_standings.append(
+                    TournamentStanding(
+                        tournament_id=tournament_id,
+                        player_id=author,
+                        decklist_id=decklist_id,
+                        name=author,
+                        country=None,
+                        placing=placing,
+                        record=record,
+                        leader_id=leader_id,
+                        decklist=None,
+                        drop=None
+                    ))
 
-            op_top_deck_decklists.append(OpTopDeckDecklist(
-                _dataset_id='MATCHES',
-                decklist_id=decklist_id,
-                tournament_id=tournament_id,
-                author=author,
-                host=host,
-                placing_text=placing_text,
-                decklist_source=source_link,
-                country=country
-            ))
+                decklists.append(Decklist(
+                    id=decklist_id,
+                    leader_id=leader_id,
+                    decklist=decklist_data,
+                ))
+
+                op_top_deck_decklists.append(OpTopDeckDecklist(
+                    _dataset_id='MATCHES',
+                    decklist_id=decklist_id,
+                    tournament_id=tournament_id,
+                    author=author,
+                    host=host,
+                    placing_text=placing_text,
+                    decklist_source=source_link,
+                    country=country
+                ))
+            except:
+                self.logger.exception(f"Failed to parse decklist number {i} for decklist_id={decklist_id if decklist_id else None}, will be skipped")
 
         return OpTopDecksItem(
             decklists=decklists,
